@@ -257,100 +257,111 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
     return yield* Match.value(input.eventType).pipe(
       Match.whenOr("purchase", "renewal", () =>
         Effect.gen(function* () {
-if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
-        if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
-        return `apple:${transactionIdOp.value}:${input.eventType}:${transaction.purchaseDate.value}`;
-        })),
+          if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+          if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
+          return `apple:${transactionIdOp.value}:${input.eventType}:${transaction.purchaseDate.value}`;
+        }),
+      ),
       Match.whenOr("expired", "canceled", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
-        return `apple:${originalTransactionIdOp.value}:${input.eventType}:${transaction.expiresDate.value}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
+          return `apple:${originalTransactionIdOp.value}:${input.eventType}:${transaction.expiresDate.value}`;
+        }),
+      ),
       Match.when("refund", () =>
         Effect.gen(function* () {
-if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
-        if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
-        const percentage = Option.getOrElse(
-          transaction.revocationPercentage,
-          () => REFUND_FULL_PERCENTAGE_MILLIUNITS,
-        );
-        return `apple:${transactionIdOp.value}:refund:${transaction.revocationDate.value}:${percentage}`;
-        })),
+          if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+          if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
+          const percentage = Option.getOrElse(
+            transaction.revocationPercentage,
+            () => REFUND_FULL_PERCENTAGE_MILLIUNITS,
+          );
+          return `apple:${transactionIdOp.value}:refund:${transaction.revocationDate.value}:${percentage}`;
+        }),
+      ),
       Match.when("revoke", () =>
         Effect.gen(function* () {
-if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
-        if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
-        return `apple:${transactionIdOp.value}:revoke:${transaction.revocationDate.value}`;
-        })),
+          if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+          if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
+          return `apple:${transactionIdOp.value}:revoke:${transaction.revocationDate.value}`;
+        }),
+      ),
       Match.when("refund_reversed", () =>
         Effect.gen(function* () {
-if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
-        if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
-        return `apple:${transactionIdOp.value}:refund_reversed:${transaction.purchaseDate.value}`;
-        })),
+          if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+          if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
+          return `apple:${transactionIdOp.value}:refund_reversed:${transaction.purchaseDate.value}`;
+        }),
+      ),
       Match.when("billing_retry", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
-        return `apple:${originalTransactionIdOp.value}:billing_retry:${transaction.expiresDate.value}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
+          return `apple:${originalTransactionIdOp.value}:billing_retry:${transaction.expiresDate.value}`;
+        }),
+      ),
       Match.when("extended", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
-        return `apple:${originalTransactionIdOp.value}:extended:${transaction.expiresDate.value}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
+          return `apple:${originalTransactionIdOp.value}:extended:${transaction.expiresDate.value}`;
+        }),
+      ),
       Match.when("renewal_pref_change", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
-        const productId = Option.firstSomeOf([
-          renewalInfo?.autoRenewProductId ?? Option.none<string>(),
-          transaction.productId,
-        ]);
-        if (Option.isNone(productId)) return yield* fail("productId");
-        return `apple:${originalTransactionIdOp.value}:renewal_pref_change:${renewalOrExpiryDate.value}:${productId.value}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
+          const productId = Option.firstSomeOf([
+            renewalInfo?.autoRenewProductId ?? Option.none<string>(),
+            transaction.productId,
+          ]);
+          if (Option.isNone(productId)) return yield* fail("productId");
+          return `apple:${originalTransactionIdOp.value}:renewal_pref_change:${renewalOrExpiryDate.value}:${productId.value}`;
+        }),
+      ),
       Match.when("offer_redeemed", () =>
         Effect.gen(function* () {
-if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
-        if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
-        const offer = Option.getOrElse(
-          Option.firstSomeOf([
-            transaction.offerIdentifier,
-            renewalInfo?.offerIdentifier ?? Option.none<string>(),
-          ]),
-          () => "",
-        );
-        return `apple:${transactionIdOp.value}:offer_redeemed:${transaction.purchaseDate.value}:${offer}`;
-        })),
+          if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+          if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
+          const offer = Option.getOrElse(
+            Option.firstSomeOf([
+              transaction.offerIdentifier,
+              renewalInfo?.offerIdentifier ?? Option.none<string>(),
+            ]),
+            () => "",
+          );
+          return `apple:${transactionIdOp.value}:offer_redeemed:${transaction.purchaseDate.value}:${offer}`;
+        }),
+      ),
       Match.when("price_increase", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
-        const price = Option.getOrElse(
-          Option.firstSomeOf([
-            renewalInfo?.renewalPrice ?? Option.none<number>(),
-            transaction.price,
-          ]),
-          () => 0,
-        );
-        const currency = Option.getOrElse(
-          Option.firstSomeOf([
-            renewalInfo?.currency ?? Option.none<string>(),
-            transaction.currency,
-          ]),
-          () => "",
-        );
-        return `apple:${originalTransactionIdOp.value}:price_increase:${renewalOrExpiryDate.value}:${price}:${currency}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
+          const price = Option.getOrElse(
+            Option.firstSomeOf([
+              renewalInfo?.renewalPrice ?? Option.none<number>(),
+              transaction.price,
+            ]),
+            () => 0,
+          );
+          const currency = Option.getOrElse(
+            Option.firstSomeOf([
+              renewalInfo?.currency ?? Option.none<string>(),
+              transaction.currency,
+            ]),
+            () => "",
+          );
+          return `apple:${originalTransactionIdOp.value}:price_increase:${renewalOrExpiryDate.value}:${price}:${currency}`;
+        }),
+      ),
       Match.when("auto_renew_resumed", () =>
         Effect.gen(function* () {
-if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
-        if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
-        return `apple:${originalTransactionIdOp.value}:auto_renew_resumed:${renewalOrExpiryDate.value}`;
-        })),
+          if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+          if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
+          return `apple:${originalTransactionIdOp.value}:auto_renew_resumed:${renewalOrExpiryDate.value}`;
+        }),
+      ),
       Match.exhaustive,
     );
   });

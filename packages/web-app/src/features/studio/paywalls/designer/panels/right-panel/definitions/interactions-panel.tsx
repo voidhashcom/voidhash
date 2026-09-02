@@ -24,16 +24,8 @@
  *   state is selected it writes `updateInteractionActionOverride`, else
  *   `updateInteraction` — exact old branching. Add/remove use the old payloads.
  */
-import type {
-  Action,
-  ComponentBoundAction,
-  Trigger,
-  TriggerType,
-} from "@voidhash/mimic-schema";
-import type {
-  ScrollViewSnapshotNode,
-  ViewSnapshotNode,
-} from "@voidhash/paywall-renderer-web-core";
+import type { Action, ComponentBoundAction, Trigger, TriggerType } from "@voidhash/mimic-schema";
+import type { ScrollViewSnapshotNode, ViewSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import type { PanelContext } from "@voidhash/paywalls/panel";
 import { Panel } from "@voidhash/paywalls/panel";
 import type { PanelJsonValue } from "@voidhash/paywalls/schema";
@@ -168,9 +160,7 @@ export function InteractionsPanel(_ctx: PanelContext) {
                 <Panel.Row key={interaction.id} align="center">
                   <Panel.Popover
                     open={openInteractionId === interaction.id}
-                    onOpenChange={(open) =>
-                      setOpenInteractionId(open ? interaction.id : null)
-                    }
+                    onOpenChange={(open) => setOpenInteractionId(open ? interaction.id : null)}
                   >
                     <Panel.PopoverTrigger>
                       {/* No `variant` → the host defaults to the outlined trigger look. */}

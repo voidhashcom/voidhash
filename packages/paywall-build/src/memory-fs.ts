@@ -8,7 +8,8 @@ import type { BuildFileEntry, BuildFs } from "./fs.ts";
 import { withTrailingSlash } from "./paths.ts";
 
 /** Raises a defect from the synchronous `BuildFs` surface, which has no error channel. */
-const dieWith = (message: string): never => EffectRuntime.runSync(Effect.die(new TypeError(message)));
+const dieWith = (message: string): never =>
+  EffectRuntime.runSync(Effect.die(new TypeError(message)));
 
 /**
  * A hand-rolled in-memory {@link BuildFs} over a flat `Map<path, content>`.
@@ -70,10 +71,12 @@ export class MemoryFs implements BuildFs {
 
   /** Snapshot the current files as a sorted `{ path, content }[]`. */
   toFiles(): BuildFileEntry[] {
-    const entries = R.toEntries(this.files).map(([path, content]): BuildFileEntry => ({
-      path,
-      content,
-    }));
+    const entries = R.toEntries(this.files).map(
+      ([path, content]): BuildFileEntry => ({
+        path,
+        content,
+      }),
+    );
     return Arr.sort(
       entries,
       Order.mapInput(Order.String, (entry: BuildFileEntry) => entry.path),

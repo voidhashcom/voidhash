@@ -53,7 +53,12 @@ const targetProgress = (
   const scroll = isX ? metrics.x : metrics.y;
   const points = offsets.map((offset) => {
     const [targetAnchor = "start", containerAnchor = "start"] = offset.trim().split(/\s+/);
-    return targetStart - containerStart + parseAnchor(targetAnchor, targetSize) - parseAnchor(containerAnchor, viewportSize);
+    return (
+      targetStart -
+      containerStart +
+      parseAnchor(targetAnchor, targetSize) -
+      parseAnchor(containerAnchor, viewportSize)
+    );
   });
   const span = points[1]! - points[0]!;
   return span === 0 ? 0 : clamp((scroll - points[0]!) / span);
@@ -121,10 +126,21 @@ export const useScroll = (options: UseScrollOptions = {}): ScrollMotionValues =>
       });
     }
     return () => {
-      if (frame !== undefined && typeof cancelAnimationFrame !== "undefined") cancelAnimationFrame(frame);
+      if (frame !== undefined && typeof cancelAnimationFrame !== "undefined")
+        cancelAnimationFrame(frame);
       subscriptions.forEach((unsubscribe) => unsubscribe());
     };
-  }, [axis, offsets, options.container, options.target, options.trackLayout, scrollX, scrollXProgress, scrollY, scrollYProgress]);
+  }, [
+    axis,
+    offsets,
+    options.container,
+    options.target,
+    options.trackLayout,
+    scrollX,
+    scrollXProgress,
+    scrollY,
+    scrollYProgress,
+  ]);
 
   return { scrollX, scrollXProgress, scrollY, scrollYProgress };
 };
@@ -151,12 +167,15 @@ export const useInView = (
     const target = ref.current;
     const root = options.root?.current;
     if (!target) return;
-    const threshold = options.amount === "all" ? 1 : options.amount === "some" ? 0.01 : options.amount ?? 0;
+    const threshold =
+      options.amount === "all" ? 1 : options.amount === "some" ? 0.01 : (options.amount ?? 0);
     const read = () => {
       const targetBox = target.measure();
-      const rootBox = root?.measure() ?? (typeof window === "undefined"
-        ? null
-        : { height: window.innerHeight, width: window.innerWidth, x: 0, y: 0 });
+      const rootBox =
+        root?.measure() ??
+        (typeof window === "undefined"
+          ? null
+          : { height: window.innerHeight, width: window.innerWidth, x: 0, y: 0 });
       if (!targetBox || !rootBox) return;
       const next = intersectionRatio(targetBox, rootBox) >= threshold;
       if (options.once && hasEntered) return;

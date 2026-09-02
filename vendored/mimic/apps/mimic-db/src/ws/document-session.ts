@@ -126,7 +126,8 @@ export const broadcastToAuthenticated = <TSocket>(
 ): Effect.Effect<void> =>
   Effect.forEach(ctx.registry.authenticated(), (socket) => ctx.send(socket, message), {
     discard: true,
-   concurrency: 1});
+    concurrency: 1,
+  });
 
 /**
  * Handles one client WebSocket frame of the document protocol. Pre-auth
@@ -262,7 +263,10 @@ export const handleDocumentSocketClose = <TSocket>(
     // The closing socket was removed above; if no authenticated sockets remain,
     // the collaborative session has gone idle. Only authenticated sockets count
     // — pending pre-auth sockets never edited the document.
-    if (ctx.onLastAuthenticatedClose && !Arr.isReadonlyArrayNonEmpty(ctx.registry.authenticated())) {
+    if (
+      ctx.onLastAuthenticatedClose &&
+      !Arr.isReadonlyArrayNonEmpty(ctx.registry.authenticated())
+    ) {
       yield* ctx.onLastAuthenticatedClose();
     }
   });

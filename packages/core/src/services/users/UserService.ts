@@ -65,15 +65,13 @@ export class UserService extends Context.Service<UserService>()("UserService", {
       const enabledFlagsByOrg = yield* Option.match(maybeInternalFlags, {
         onNone: () => Effect.succeed<Record<string, readonly string[]>>({}),
         onSome: (internalFlags) =>
-          internalFlags
-            .resolveEnabledForOrganizations(session.organizations.map((o) => o.id))
-            .pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
-                  cause: error.message,
-                }).pipe(Effect.as<Record<string, readonly string[]>>({})),
-              ),
+          internalFlags.resolveEnabledForOrganizations(session.organizations.map((o) => o.id)).pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
+                cause: error.message,
+              }).pipe(Effect.as<Record<string, readonly string[]>>({})),
             ),
+          ),
       });
 
       return {
@@ -119,35 +117,30 @@ export class UserService extends Context.Service<UserService>()("UserService", {
      * dependency-free (keeping `getUser` unit-testable in isolation); the store
      * is provided by the application root wherever the avatar methods run.
      */
-    const deleteSupersededAvatar = Effect.fn("UserService.deleteSupersededAvatar")(
-      function* (
-        previous: Option.Option<string>,
-        exceptKey: Option.Option<string> = Option.none(),
-      ) {
-        const publicFileStore = yield* PublicFileStore;
-        if (!isOwnedAvatarUrl(previous, publicFileStore.publicBaseUrl)) {
-          return;
-        }
-        const oldKey = Option.flatMap(previous, (url) =>
-          avatarKeyFromUrl(url, publicFileStore.publicBaseUrl),
-        );
-        if (
-          Option.isNone(oldKey) ||
-          (Option.isSome(exceptKey) && oldKey.value === exceptKey.value)
-        ) {
-          return;
-        }
-        yield* publicFileStore
-          .deleteObject(oldKey.value)
-          .pipe(
-            Effect.catchCause((cause) =>
-              Effect.logWarning(
-                `Failed to delete superseded avatar object ${oldKey.value}: ${Cause.pretty(cause)}`,
-              ),
+    const deleteSupersededAvatar = Effect.fn("UserService.deleteSupersededAvatar")(function* (
+      previous: Option.Option<string>,
+      exceptKey: Option.Option<string> = Option.none(),
+    ) {
+      const publicFileStore = yield* PublicFileStore;
+      if (!isOwnedAvatarUrl(previous, publicFileStore.publicBaseUrl)) {
+        return;
+      }
+      const oldKey = Option.flatMap(previous, (url) =>
+        avatarKeyFromUrl(url, publicFileStore.publicBaseUrl),
+      );
+      if (Option.isNone(oldKey) || (Option.isSome(exceptKey) && oldKey.value === exceptKey.value)) {
+        return;
+      }
+      yield* publicFileStore
+        .deleteObject(oldKey.value)
+        .pipe(
+          Effect.catchCause((cause) =>
+            Effect.logWarning(
+              `Failed to delete superseded avatar object ${oldKey.value}: ${Cause.pretty(cause)}`,
             ),
-          );
-      },
-    );
+          ),
+        );
+    });
 
     const setAvatar = Effect.fn("setUserAvatar")(
       function* (input: { readonly imageBase64: string; readonly contentType: string }) {

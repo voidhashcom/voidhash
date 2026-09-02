@@ -7,7 +7,6 @@ import * as esbuild from "esbuild";
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-
 /** Raised when the runtime bundle cannot be produced, or is stale under `--check`. */
 class RuntimeBundleError extends Schema.TaggedErrorClass()("RuntimeBundleError", {}) {}
 

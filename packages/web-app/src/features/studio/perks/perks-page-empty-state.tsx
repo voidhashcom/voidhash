@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@voidhash/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@voidhash/ui";
 import { useState } from "react";
 
 import { CreatePerkModal } from "./create-perk-modal";

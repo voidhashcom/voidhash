@@ -379,7 +379,9 @@ function indexById(root: EditableDocumentNode): MutableIndex<string, EditableDoc
   const map = makeMutableIndex<string, EditableDocumentNode>();
   const walk = (node: EditableDocumentNode) => {
     map.set(node.id, node);
-    Arr.forEach(node.children ?? [], (child) => { walk(child); });
+    Arr.forEach(node.children ?? [], (child) => {
+      walk(child);
+    });
   };
   walk(root);
   return map;
@@ -743,7 +745,10 @@ function validateScalar(
 
   // Closed enum: value must be one of the literals.
   const isClosedEnum =
-    Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString;
+    Arr.isReadonlyArrayNonEmpty(acc.literals) &&
+    !acc.acceptsNumber &&
+    !acc.acceptsBoolean &&
+    !acc.acceptsString;
   if (isClosedEnum) {
     if (!includesLiteral(acc.literals, value)) {
       errors.push({
@@ -876,9 +881,7 @@ function safeRegexTest(pattern: string, flags: string | void, value: string): bo
   return runSync(
     Effect.try(() =>
       (flags === undefined ? new RegExp(pattern) : new RegExp(pattern, flags)).test(value),
-    ).pipe(
-      Effect.orElseSucceed(() => false),
-    ),
+    ).pipe(Effect.orElseSucceed(() => false)),
   );
 }
 
@@ -905,20 +908,15 @@ function nearestField(key: string, candidates: readonly string[]): string | void
 /** Classic iterative Levenshtein edit distance. */
 function levenshtein(a: string, b: string): number {
   const initialRow = Array.from({ length: b.length + 1 }, (_, index) => index);
-  const finalRow = Arr.reduce(
-    Arr.range(1, a.length),
-    initialRow,
-    (previousRow, rowIndex) =>
-      Arr.reduce(Arr.range(1, b.length), [rowIndex], (currentRow, columnIndex) => {
-        const diagonal = Arr.getUnsafe(previousRow, columnIndex - 1);
-        const above = Arr.getUnsafe(previousRow, columnIndex);
-        const left = Arr.getUnsafe(currentRow, columnIndex - 1);
-        const distance =
-          a[rowIndex - 1] === b[columnIndex - 1]
-            ? diagonal
-            : 1 + Math.min(diagonal, above, left);
-        return [...currentRow, distance];
-      }),
+  const finalRow = Arr.reduce(Arr.range(1, a.length), initialRow, (previousRow, rowIndex) =>
+    Arr.reduce(Arr.range(1, b.length), [rowIndex], (currentRow, columnIndex) => {
+      const diagonal = Arr.getUnsafe(previousRow, columnIndex - 1);
+      const above = Arr.getUnsafe(previousRow, columnIndex);
+      const left = Arr.getUnsafe(currentRow, columnIndex - 1);
+      const distance =
+        a[rowIndex - 1] === b[columnIndex - 1] ? diagonal : 1 + Math.min(diagonal, above, left);
+      return [...currentRow, distance];
+    }),
   );
   return Arr.getUnsafe(finalRow, b.length);
 }

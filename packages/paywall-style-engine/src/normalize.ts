@@ -1,6 +1,11 @@
 import type { NodeType } from "@voidhash/mimic-schema";
 
-import { acceptanceOf, nodeStyleFields, styleFieldSchema, unwrapEntriesDeep } from "./introspection.ts";
+import {
+  acceptanceOf,
+  nodeStyleFields,
+  styleFieldSchema,
+  unwrapEntriesDeep,
+} from "./introspection.ts";
 import { warningDiagnostic, type StyleDiagnostic } from "./diagnostics.ts";
 import type { ParentFlexContext, StylePatch } from "./model.ts";
 

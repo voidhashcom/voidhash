@@ -41,8 +41,7 @@ const readAsDataUrl = (file: Blob): Promise<string> =>
     Effect.callback<string, Error>((resume) => {
       const reader = new FileReader();
       reader.onloadend = () => resume(Effect.succeed(reader.result as string));
-      reader.onerror = () =>
-        resume(Effect.fail(reader.error ?? new Error("Failed to read file")));
+      reader.onerror = () => resume(Effect.fail(reader.error ?? new Error("Failed to read file")));
       reader.readAsDataURL(file);
     }),
   );

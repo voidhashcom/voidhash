@@ -196,7 +196,7 @@ const make = Effect.fn("makeAnalyticsService")(function* effect() {
     options?: { keepalive?: boolean },
   ): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
     Effect.gen(function* sendBatchEffect() {
-    if (Arr.isReadonlyArrayEmpty(batch)) return Option.none();
+      if (Arr.isReadonlyArrayEmpty(batch)) return Option.none();
 
       const distinctId = batch[0]?.payload.distinct_id;
       if (!distinctId) return Option.none();
@@ -249,8 +249,7 @@ const make = Effect.fn("makeAnalyticsService")(function* effect() {
           const retryAt = yield* Clock.currentTimeMillis;
           postponeEvents(
             ids,
-            retryAt +
-              (error.value.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
+            retryAt + (error.value.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
           );
           yield* persistQueue();
           return Option.none();
@@ -352,7 +351,9 @@ const make = Effect.fn("makeAnalyticsService")(function* effect() {
       return events.length;
     });
 
-  const flush = (options?: { keepalive?: boolean }): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
+  const flush = (options?: {
+    keepalive?: boolean;
+  }): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
     Effect.gen(function* flushEffect() {
       yield* loadQueue();
       const now = yield* Clock.currentTimeMillis;

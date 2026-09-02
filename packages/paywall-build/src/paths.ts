@@ -47,14 +47,17 @@ export function comparePaths(a: string, b: string): number {
  */
 export function tryJoinPath(baseDir: string, specifier: string): Option.Option<string> {
   return Option.map(
-    specifier.split("/").reduce<Option.Option<readonly string[]>>((current, part) => {
-      if (part === "" || part === ".") return current;
-      return Option.flatMap(current, (segments) => {
-        if (part !== "..") return Option.some([...segments, part]);
-        const [, ...reversedRest] = [...segments].reverse();
-        return segments[0] === undefined ? Option.none() : Option.some(reversedRest.reverse());
-      });
-    }, Option.some(segmentsOf(baseDir))),
+    specifier.split("/").reduce<Option.Option<readonly string[]>>(
+      (current, part) => {
+        if (part === "" || part === ".") return current;
+        return Option.flatMap(current, (segments) => {
+          if (part !== "..") return Option.some([...segments, part]);
+          const [, ...reversedRest] = [...segments].reverse();
+          return segments[0] === undefined ? Option.none() : Option.some(reversedRest.reverse());
+        });
+      },
+      Option.some(segmentsOf(baseDir)),
+    ),
     (segments) => `/${segments.join("/")}`,
   );
 }
@@ -69,7 +72,9 @@ function segmentsOf(baseDir: string): string[] {
 export function joinPath(baseDir: string, specifier: string): string {
   const joined = tryJoinPath(baseDir, specifier);
   if (Option.isNone(joined)) {
-    return EffectRuntime.runSync(Effect.die(new TypeError(`Path "${specifier}" escapes the root.`)));
+    return EffectRuntime.runSync(
+      Effect.die(new TypeError(`Path "${specifier}" escapes the root.`)),
+    );
   }
   return joined.value;
 }

@@ -63,10 +63,7 @@ function previewNodeStyle(
   return { ...buildPreviewNodeStyles(style, nodeType, motion) };
 }
 
-function pickPreviewTree(
-  previewState: string,
-  trees?: Record<string, PreviewTree>,
-) {
+function pickPreviewTree(previewState: string, trees?: Record<string, PreviewTree>) {
   if (!trees) {
     return undefined;
   }
@@ -87,13 +84,13 @@ function PreviewNodeView({
 }) {
   return Match.value(node).pipe(
     Match.when({ type: "view" }, (node) => (
-        <div style={previewNodeStyle(node.style, node.type, node.motion)}>
-          {node.children.map((child, index) => (
-            // preview trees are immutable per contentHash+state
-            <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
-          ))}
-        </div>
-      )),
+      <div style={previewNodeStyle(node.style, node.type, node.motion)}>
+        {node.children.map((child, index) => (
+          // preview trees are immutable per contentHash+state
+          <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
+        ))}
+      </div>
+    )),
     Match.when({ type: "scroll" }, (node) => (
       <div style={previewNodeStyle(node.style, node.type, node.motion)}>
         {node.children.map((child, index) => (
@@ -117,15 +114,15 @@ function PreviewNodeView({
       <div style={previewNodeStyle(node.style, "text", node.motion)}>{node.text}</div>
     )),
     Match.when({ type: "image" }, (node) => (
-        <img
-          alt=""
-          src={node.src}
-          style={{
-            ...previewNodeStyle(node.style, "image", node.motion),
-            objectFit: previewResizeModeToObjectFit(node.resizeMode) ?? "cover",
-          }}
-        />
-      )),
+      <img
+        alt=""
+        src={node.src}
+        style={{
+          ...previewNodeStyle(node.style, "image", node.motion),
+          objectFit: previewResizeModeToObjectFit(node.resizeMode) ?? "cover",
+        }}
+      />
+    )),
     Match.when({ type: "slot" }, () => <>{slot}</>),
     Match.when({ type: "placeholder" }, (node) => (
       <div style={PLACEHOLDER_STYLES}>{node.reason}</div>
@@ -156,22 +153,22 @@ export function ComponentInstance({ node, children }: ComponentInstanceProps) {
 
   // Wrap onSetVariable to capture this node's ID (same idiom as useInteractions)
   const scopedCallbacks: ActionCallbacks = {
-      ...callbacks,
-      onSetVariable: (variableId: string, newValue: VariableValue) => {
-        setNodeVariable(node.id, variableId, newValue);
-      },
-    };
+    ...callbacks,
+    onSetVariable: (variableId: string, newValue: VariableValue) => {
+      setNodeVariable(node.id, variableId, newValue);
+    },
+  };
 
   // Preview-tree pressables fire with no payload; builtin implementations may
   // emit one, feeding the bound action's `action-payload` sources.
   const fireAction = (actionName: string, payload?: Record<string, unknown>) => {
-      const binding = node.data.actionBindings.find((entry) => entry.value?.name === actionName);
-      const action = binding?.value?.action;
-      if (!action) {
-        return;
-      }
-      executeComponentBoundAction(action, payload, variables, scopedCallbacks);
-    };
+    const binding = node.data.actionBindings.find((entry) => entry.value?.name === actionName);
+    const action = binding?.value?.action;
+    if (!action) {
+      return;
+    }
+    executeComponentBoundAction(action, payload, variables, scopedCallbacks);
+  };
 
   // Builtins ship WITH this renderer: they resolve by stable slug (unpinned —
   // no contentHash) to a REAL preact component, not a pre-rendered preview

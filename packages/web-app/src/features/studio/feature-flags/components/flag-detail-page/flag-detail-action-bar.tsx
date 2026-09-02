@@ -32,12 +32,7 @@ export function FlagDetailActionBar() {
               ? "No unsaved changes"
               : `${changeCount} unsaved change${changeCount === 1 ? "" : "s"}`}
         </p>
-        <Button
-          disabled={isSaving || changeCount === 0}
-          onClick={reset}
-          size="lg"
-          variant="ghost"
-        >
+        <Button disabled={isSaving || changeCount === 0} onClick={reset} size="lg" variant="ghost">
           Discard
         </Button>
         <Button

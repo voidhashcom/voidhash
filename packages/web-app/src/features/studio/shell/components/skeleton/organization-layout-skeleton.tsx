@@ -23,11 +23,7 @@ export function OrganizationLayoutSkeleton({ organizationSlug }: { organizationS
       <SidebarProvider className="flex flex-col">
         <NavBarSkeleton />
         <div className="flex flex-1 pt-[var(--header-height)] min-h-0">
-          <Sidebar
-            className="transition-all duration-75"
-            collapsible="icon"
-            variant="inset"
-          >
+          <Sidebar className="transition-all duration-75" collapsible="icon" variant="inset">
             <SidebarContent className="gap-0">
               <div className="h-(--header-height) px-1 py-2 w-full">
                 <SwitcherSkeleton />

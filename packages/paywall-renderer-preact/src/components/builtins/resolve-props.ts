@@ -1,7 +1,4 @@
-import type {
-  ComponentSnapshotNode,
-  VariableReader,
-} from "@voidhash/paywall-renderer-web-core";
+import type { ComponentSnapshotNode, VariableReader } from "@voidhash/paywall-renderer-web-core";
 
 type ComponentInstancePropEntries = ComponentSnapshotNode["data"]["props"];
 

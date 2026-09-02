@@ -151,7 +151,9 @@ const serializeChildren = (children: ReadonlyArray<PanelInstance | string>): Pan
       // Raw JSX text (e.g. a bare string) is not a panel element — text belongs
       // in a `content`/`message` prop per the wire contract.
       if (child.trim().length > 0) {
-        warn(`raw text child "${child.trim().slice(0, 24)}…" is not a panel element and was dropped`);
+        warn(
+          `raw text child "${child.trim().slice(0, 24)}…" is not a panel element and was dropped`,
+        );
       }
       continue;
     }
@@ -169,9 +171,7 @@ export const serializeRoot = (
   children: ReadonlyArray<PanelInstance | string>,
   onInvalidRoot: (reason: string) => PanelRootNode,
 ): PanelRootNode => {
-  const elements = children.filter(
-    (child): child is PanelInstance => typeof child !== "string",
-  );
+  const elements = children.filter((child): child is PanelInstance => typeof child !== "string");
   if (elements.length !== 1) {
     return onInvalidRoot(
       elements.length === 0 ? "panel rendered nothing" : "panel has more than one root element",

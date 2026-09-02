@@ -47,9 +47,8 @@ export function GooglePlayPaymentProviderDetailPage({
 }) {
   const [name, setName] = useState(paymentProviderConfiguration.name);
   const [activeTab, setActiveTab] = useState<GooglePlayTabId>("app-details");
-  const configuration = paymentProviderConfiguration.configuration as
-    | Partial<GooglePlayGlobalConfiguration>
-    | null;
+  const configuration =
+    paymentProviderConfiguration.configuration as Partial<GooglePlayGlobalConfiguration> | null;
 
   const form = useForm<GooglePlayGlobalConfiguration>({
     defaultValues: getGooglePlayInitialConfiguration(configuration),

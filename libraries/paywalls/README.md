@@ -17,13 +17,7 @@ component manifest, preview node tree) are specified in
 Use this API from Voidhash Studio's code editor:
 
 ```tsx
-import {
-  createPaywall,
-  View,
-  Text,
-  Pressable,
-  usePaywallActions,
-} from "@voidhash/paywalls";
+import { createPaywall, View, Text, Pressable, usePaywallActions } from "@voidhash/paywalls";
 
 function Body() {
   const { purchase } = usePaywallActions();
@@ -87,15 +81,14 @@ export const definition = defineComponent({
   previews: {
     default: {
       data: {
-        products: [/* fixture products */],
+        products: [
+          /* fixture products */
+        ],
       },
     },
   },
   render: ({ props, actions }) => (
-    <Pressable
-      onPress={actions.onSelect}
-      style={{ borderColor: props.accentColor }}
-    >
+    <Pressable onPress={actions.onSelect} style={{ borderColor: props.accentColor }}>
       <Text>{props.product.displayName}</Text>
       <Slot /> {/* children passed by the consumer render here */}
     </Pressable>
@@ -147,9 +140,7 @@ export const definition = defineComponent({
           <Panel.TextField
             kind="text"
             value={ctx.props.title.value ?? ""}
-            onCommit={(value) =>
-              ctx.props.title.set(value, { gesture: "commit" })
-            }
+            onCommit={(value) => ctx.props.title.set(value, { gesture: "commit" })}
           />
         </Panel.Field>
         <Panel.PropField name="subtitle" />

@@ -1,13 +1,7 @@
 "use client";
 
 import { docRelativeComponentPath } from "@voidhash/paywall-workspace";
-import {
-  cn,
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-  Spinner,
-} from "@voidhash/ui";
+import { cn, ResizableHandle, ResizablePanel, ResizablePanelGroup, Spinner } from "@voidhash/ui";
 import { lazy, Suspense, useMemo } from "react";
 import { useStore } from "zustand/react";
 

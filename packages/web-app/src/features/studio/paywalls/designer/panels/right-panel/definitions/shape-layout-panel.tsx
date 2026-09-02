@@ -32,10 +32,7 @@ import {
 } from "../../../panel-kit/dimension-field";
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updateShapeNode } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { getAlignItems, getFlexDirection } from "../../../state/utils/node-type-helpers";
 import { getNodeById } from "../../../state/utils/nodes";
 import { useDefinitionNodes } from "./use-definition-nodes";

@@ -48,9 +48,7 @@ const EventPropertiesFieldCodec: Schema.Codec<EventPropertiesField> = Schema.Uni
   Schema.Finite,
   Schema.Boolean,
   Schema.Null,
-  Schema.Array(
-    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldCodec),
-  ),
+  Schema.Array(Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldCodec)),
   Schema.Record(
     Schema.String,
     Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldCodec),
@@ -244,8 +242,13 @@ export const buildDlqEvent = ({
     // Absent optionals are omitted entirely (never present-but-undefined), so the
     // DLQ record stays minimal on the wire.
     const optional: {
-      -readonly [K in "captureId" | "distinctId" | "projectId" | "rawKey" | "rawValue" | "token"]?:
-        (typeof EventProcessorDlqV1.Type)[K];
+      -readonly [K in
+        | "captureId"
+        | "distinctId"
+        | "projectId"
+        | "rawKey"
+        | "rawValue"
+        | "token"]?: (typeof EventProcessorDlqV1.Type)[K];
     } = {};
     if (captureId) optional.captureId = captureId;
     if (distinctId) optional.distinctId = distinctId;

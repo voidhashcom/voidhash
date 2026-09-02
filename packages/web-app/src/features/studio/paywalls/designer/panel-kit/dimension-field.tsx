@@ -172,9 +172,7 @@ export function DimensionField({
   const handleSelectFill = () => applyMode("fill");
 
   const displayValue =
-    state === "custom" && stored !== "auto"
-      ? stored.toString()
-      : (computed?.toString() ?? "-");
+    state === "custom" && stored !== "auto" ? stored.toString() : (computed?.toString() ?? "-");
 
   const label = axis === "width" ? "Width" : "Height";
   const letter = axis === "width" ? "W" : "H";
@@ -198,11 +196,7 @@ export function DimensionField({
         !disabled && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                className="bg-transparent pr-3 dark:bg-transparent"
-                size="sm"
-                variant="ghost"
-              >
+              <Button className="bg-transparent pr-3 dark:bg-transparent" size="sm" variant="ghost">
                 {state === "custom" && <ChevronDownIcon className="size-3.5" />}
                 {state === "hug" && <div className="font-bold text-xs">Hug</div>}
                 {state === "fill" && <div className="font-bold text-xs">Fill</div>}
@@ -278,8 +272,7 @@ export function DimensionFieldView({
   const effective = computed ?? value;
   // Display string: the stored value in `custom` (input enabled), else the live
   // computed px (or `-` when no bounding box exists) — the monolith's exact rule.
-  const displayValue =
-    mode === "custom" ? value.toString() : (computed?.toString() ?? "-");
+  const displayValue = mode === "custom" ? value.toString() : (computed?.toString() ?? "-");
 
   return (
     <TextInput
@@ -293,11 +286,7 @@ export function DimensionFieldView({
         !disabled && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                className="bg-transparent pr-3 dark:bg-transparent"
-                size="sm"
-                variant="ghost"
-              >
+              <Button className="bg-transparent pr-3 dark:bg-transparent" size="sm" variant="ghost">
                 {mode === "custom" && <ChevronDownIcon className="size-3.5" />}
                 {mode === "hug" && <div className="font-bold text-xs">Hug</div>}
                 {mode === "fill" && <div className="font-bold text-xs">Fill</div>}

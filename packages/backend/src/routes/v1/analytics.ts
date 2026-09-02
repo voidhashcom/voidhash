@@ -16,7 +16,9 @@ import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
 import * as Schema from "effect/Schema";
 
 /** Breakdowns arrive as a readonly wire array; the insight engine takes a mutable copy. */
-const toBreakdowns = <B>(breakdowns: ReadonlyArray<B> | typeof Schema.Undefined.Type): Array<B> | typeof Schema.Undefined.Type => {
+const toBreakdowns = <B>(
+  breakdowns: ReadonlyArray<B> | typeof Schema.Undefined.Type,
+): Array<B> | typeof Schema.Undefined.Type => {
   if (!breakdowns) return undefined;
   return [...breakdowns];
 };

@@ -36,10 +36,7 @@ import { useCallback } from "react";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updateTypographyStyle } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useStyleOverrideResetContext } from "../utils/use-style-override-reset-context";
 import { useDefinitionNodes } from "./use-definition-nodes";
 

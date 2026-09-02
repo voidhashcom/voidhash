@@ -181,7 +181,12 @@ export class SandboxHost {
     // synchronous drain lock. The result/timeout paths re-invoke `pump`.
     this.pumping = false;
     target.postMessage(
-      { compiledCode: next.compiledCode, requestId, sandboxCode: sandboxRuntimeBundle, type: "render" },
+      {
+        compiledCode: next.compiledCode,
+        requestId,
+        sandboxCode: sandboxRuntimeBundle,
+        type: "render",
+      },
       "*",
     );
   }

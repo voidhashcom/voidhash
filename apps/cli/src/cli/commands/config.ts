@@ -21,14 +21,18 @@ export const configCommand = Command.make("config", {}, () =>
     yield* Console.log("Current configuration:");
     const config = yield* cliConfig.readConfig();
 
-    yield* Effect.forEach(R.toEntries(config), Effect.fn("iterate")(function* ([key, value]) {
-      // Print the key/value in italic and different color (cyan)
-      if (value == null) {
-        yield* Console.log(`${key}: \u001B[36m\u001B[3m(not set)\u001B[0m`);
-      } else {
-        yield* Console.log(`${key}: ${value}`);
-      }
-    }), { concurrency: 1 });
+    yield* Effect.forEach(
+      R.toEntries(config),
+      Effect.fn("iterate")(function* ([key, value]) {
+        // Print the key/value in italic and different color (cyan)
+        if (value == null) {
+          yield* Console.log(`${key}: \u001B[36m\u001B[3m(not set)\u001B[0m`);
+        } else {
+          yield* Console.log(`${key}: ${value}`);
+        }
+      }),
+      { concurrency: 1 },
+    );
 
     const raw = yield* cliConfig.readRawConfig();
     const profileNames = R.keys(raw.profiles ?? {});

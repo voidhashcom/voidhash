@@ -33,7 +33,10 @@ export function ScreenNodeRenderer({
   );
   const activeLocale = useStore(store, (state) => state.activeLocale);
   const defaultLocale = useStore(store, selectDefaultLocale);
-  const effectiveStyle = resolveEffectiveStyle(node, selectedStateId) as ScreenSnapshotNode["data"]["style"];
+  const effectiveStyle = resolveEffectiveStyle(
+    node,
+    selectedStateId,
+  ) as ScreenSnapshotNode["data"]["style"];
   // Substitute the locale-specific background image ONLY when a real override
   // exists — otherwise the render style stays byte-identical to today's.
   const localizedBg = localizedBackgroundImage(node.data, activeLocale, defaultLocale);

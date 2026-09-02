@@ -857,8 +857,7 @@ export function LayersSection() {
 
   // Expanded layers by selected nodes (includes preview selections)
   const expandedLayersBySelectedNodes = useMemo(
-    () =>
-      tree ? getExpandedLayerIdsForSelection(tree, allSelectedNodeIds) : new Set<string>([]),
+    () => (tree ? getExpandedLayerIdsForSelection(tree, allSelectedNodeIds) : new Set<string>([])),
     [tree, allSelectedNodeIds],
   );
 

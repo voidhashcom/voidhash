@@ -42,8 +42,7 @@ const matchesContentType = (bytes: Uint8Array, contentType: string): boolean => 
   if (contentType === "image/jpeg") return startsWith(bytes, [0xff, 0xd8, 0xff]);
   if (contentType === "image/webp")
     return (
-      startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
-      startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
+      startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) && startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
     );
   return false;
 };
@@ -147,10 +146,8 @@ export const deriveAvatarKey = (
  * store (so it is safe to delete on replace/remove). Guards against deleting
  * historical/external URLs (e.g. a WorkOS-provided logo).
  */
-export const isOwnedAvatarUrl = (
-  logo: Option.Option<string>,
-  publicBaseUrl: string,
-): boolean => Option.exists(logo, (url) => url.startsWith(`${publicBaseUrl}/files/`));
+export const isOwnedAvatarUrl = (logo: Option.Option<string>, publicBaseUrl: string): boolean =>
+  Option.exists(logo, (url) => url.startsWith(`${publicBaseUrl}/files/`));
 
 /** Extracts the object key from one of our public file URLs. */
 export const avatarKeyFromUrl = (logo: string, publicBaseUrl: string): Option.Option<string> => {

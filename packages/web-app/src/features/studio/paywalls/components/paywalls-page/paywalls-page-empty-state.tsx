@@ -37,8 +37,7 @@ const EMPTY_TAB_CONTENT = {
   inactive: {
     icon: CirclePause,
     title: "No inactive paywalls",
-    description:
-      "Paywalls move between live and archived today, so nothing lands here yet.",
+    description: "Paywalls move between live and archived today, so nothing lands here yet.",
   },
   archived: {
     icon: Archive,

@@ -33,7 +33,10 @@ export function ViewNodeRenderer({
   const activeLocale = useStore(store, (state) => state.activeLocale);
   const defaultLocale = useStore(store, selectDefaultLocale);
 
-  const effectiveStyle = resolveEffectiveStyle(node, selectedStateId) as ViewSnapshotNode["data"]["style"];
+  const effectiveStyle = resolveEffectiveStyle(
+    node,
+    selectedStateId,
+  ) as ViewSnapshotNode["data"]["style"];
   // Substitute the locale-specific background image ONLY when a real override
   // exists for the active locale — otherwise leave the state-resolved style
   // byte-identical to today's behavior.

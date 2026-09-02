@@ -40,13 +40,7 @@ type TooltipTriggerProps = ComponentProps<typeof TooltipPrimitive.Trigger> & {
 
 function TooltipTrigger({ asChild, render, children, ...props }: TooltipTriggerProps) {
   if (asChild && isValidElement<Record<string, unknown>>(children)) {
-    return (
-      <TooltipPrimitive.Trigger
-        data-slot="tooltip-trigger"
-        render={children}
-        {...props}
-      />
-    );
+    return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" render={children} {...props} />;
   }
   return (
     <TooltipPrimitive.Trigger data-slot="tooltip-trigger" render={render} {...props}>

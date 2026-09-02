@@ -46,8 +46,7 @@ const bufferSource = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
 
 const importKey = (rawKey: Uint8Array, usage: "encrypt" | "decrypt") =>
   Effect.tryPromise({
-    try: () =>
-      subtle.importKey("raw", bufferSource(rawKey), { name: "AES-GCM" }, false, [usage]),
+    try: () => subtle.importKey("raw", bufferSource(rawKey), { name: "AES-GCM" }, false, [usage]),
     catch: (cause) =>
       new SecretKeyError({ message: `Failed to import AES-GCM key: ${String(cause)}` }),
   });
@@ -83,8 +82,7 @@ export const encryptSecret = (
     const key = yield* importKey(rawKey, "encrypt");
     const iv = getRandomValues(new Uint8Array(IV_BYTES));
     const ciphertext = yield* Effect.tryPromise({
-      try: () =>
-        subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
+      try: () => subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
       catch: (cause) =>
         new SecretKeyError({ message: `AES-GCM encryption failed: ${String(cause)}` }),
     });

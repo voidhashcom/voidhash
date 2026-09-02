@@ -73,7 +73,8 @@ export const extractCertificateChain = (
       const pem = `-----BEGIN CERTIFICATE-----\n${cert}\n-----END CERTIFICATE-----`;
       return parseCertificate(pem);
     }),
-   { concurrency: 1 });
+    { concurrency: 1 },
+  );
 
 /**
  * Checks if a certificate carries a specific extension OID.

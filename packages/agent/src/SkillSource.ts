@@ -7,10 +7,9 @@ import * as Arr from "effect/Array";
 import * as Option from "effect/Option";
 
 /** Raised when the model asks for a skill the source does not expose. */
-export class UnknownSkillError extends Schema.TaggedErrorClass<UnknownSkillError>("UnknownSkillError")(
+export class UnknownSkillError extends Schema.TaggedErrorClass<UnknownSkillError>(
   "UnknownSkillError",
-  { message: Schema.String },
-) {}
+)("UnknownSkillError", { message: Schema.String }) {}
 
 /** Metadata disclosed to an agent before a skill body is loaded. */
 export interface SkillMetadata {

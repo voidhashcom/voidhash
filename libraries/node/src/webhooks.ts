@@ -10,7 +10,6 @@ import * as Schema from "effect/Schema";
 import * as Str from "effect/String";
 const effectDecodeJson = Schema.decodeUnknownSync(Schema.UnknownFromJsonString);
 
-
 /**
  * Lifecycle events Voidhash can deliver to a webhook endpoint.
  *
@@ -130,8 +129,7 @@ const constantTimeEquals = (left: string, right: string): boolean => {
   const difference = Arr.reduce(
     Array.from(left),
     0,
-    (current, character, index) =>
-      current | (character.charCodeAt(0) ^ right.charCodeAt(index)),
+    (current, character, index) => current | (character.charCodeAt(0) ^ right.charCodeAt(index)),
   );
   return difference === 0;
 };
@@ -152,10 +150,7 @@ const singleHeaderValue = (raw?: string | string[]): Option.Option<string> => {
   return Option.fromNullishOr(raw[0]);
 };
 
-const readHeader = (
-  headers: Readonly<Record<string, string | string[]>>,
-  name: string,
-): string => {
+const readHeader = (headers: Readonly<Record<string, string | string[]>>, name: string): string => {
   const entry = R.toEntries(headers).find(([key]) => key.toLowerCase() === name);
   const value = singleHeaderValue(entry?.[1]);
 

@@ -150,11 +150,7 @@ function seedBaseOffset(
 }
 
 /** Canvas delta of the pointer from the move's start, in canvas units. */
-function canvasDelta(
-  move: MoveState,
-  screenPoint: Point,
-  scale: number,
-): { x: number; y: number } {
+function canvasDelta(move: MoveState, screenPoint: Point, scale: number): { x: number; y: number } {
   if (!move.startScreenPoint) {
     return { x: 0, y: 0 };
   }
@@ -313,7 +309,11 @@ export const endMove = commander.undoableAction<
       };
       originals[nodeId] =
         entry.stateId !== null
-          ? { kind: "state", stateId: entry.stateId, styleOverrides: entry.originalStateOverrideStyle }
+          ? {
+              kind: "state",
+              stateId: entry.stateId,
+              styleOverrides: entry.originalStateOverrideStyle,
+            }
           : { kind: "base", left: entry.originalLeft, top: entry.originalTop };
     }
 

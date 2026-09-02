@@ -25,10 +25,7 @@ import { useCallback } from "react";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updatePathFillStyle } from "../../../state/actions/features/path-fill-style-actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
 interface PathFillStyle {

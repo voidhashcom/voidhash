@@ -33,10 +33,7 @@ import { useStore } from "zustand";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { applyPerNodeLayoutStyle, updateLayoutStyle } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { buildAbsolutePositionSeeds } from "../utils/seed-absolute-position";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
@@ -95,11 +92,7 @@ export function PositionPanel(_ctx: PanelContext) {
     // Seed each node from ITS OWN offset (current numeric left/top, else its own
     // parent offset, else 0/0) so a multi-selection stays spread out rather than
     // stacking on the first node's spot — applied as a single undoable command.
-    const seeds = buildAbsolutePositionSeeds(
-      nodes,
-      targets,
-      store.getState().canvas.boundingBoxes,
-    );
+    const seeds = buildAbsolutePositionSeeds(nodes, targets, store.getState().canvas.boundingBoxes);
     if (seeds.length === 0) return;
     dispatch(applyPerNodeLayoutStyle)({ nodes: seeds });
   }, [nodes, targets, store, dispatch]);

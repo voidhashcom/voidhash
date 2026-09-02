@@ -199,11 +199,9 @@ export function KanbanBoard() {
       // Reorder columns
       if (active.id !== over.id) {
         const sourceIndex =
-          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(active.id)) ??
-          -1;
+          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(active.id)) ?? -1;
         const destinationIndex =
-          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(over.id)) ??
-          -1;
+          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(over.id)) ?? -1;
 
         if (sourceIndex !== -1 && destinationIndex !== -1) {
           reorderColumns(String(active.id), destinationIndex);
@@ -271,9 +269,7 @@ export function KanbanBoard() {
 
           {/* Connection status */}
           <div className="flex flex-row items-center gap-2">
-            <div
-              className={`px-2 py-1 text-xs rounded ${connectionClass(mimic.isConnected)}`}
-            >
+            <div className={`px-2 py-1 text-xs rounded ${connectionClass(mimic.isConnected)}`}>
               {connectionLabel(mimic.isConnected)}
             </div>
             <div className={`px-2 py-1 text-xs rounded ${readyClass(mimic.isReady)}`}>

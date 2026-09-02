@@ -118,7 +118,10 @@ export interface StripeRecordInput {
   readonly source: "webhook" | "reconciliation";
 }
 
-const fromUnixSeconds = (seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type, fallback: Date): Date => {
+const fromUnixSeconds = (
+  seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+  fallback: Date,
+): Date => {
   if (P.isNumber(seconds)) return dateFromUnixSeconds(seconds);
   return fallback;
 };
@@ -128,7 +131,9 @@ const invoiceEventType = (isCreate: boolean): StripePurchaseProcessingEventType 
   return "renewal";
 };
 
-const purchaseTypeForProduct = (productType: number | typeof Schema.Undefined.Type): "consumable" | "one-time" => {
+const purchaseTypeForProduct = (
+  productType: number | typeof Schema.Undefined.Type,
+): "consumable" | "one-time" => {
   if (productType === ProductType.OneTimeConsumable) return "consumable";
   return "one-time";
 };
@@ -136,7 +141,9 @@ const purchaseTypeForProduct = (productType: number | typeof Schema.Undefined.Ty
 const dateFromUnixSeconds = (seconds: number): Date =>
   DateTime.toDateUtc(DateTime.makeUnsafe(seconds * 1000));
 
-const optionalDateFromUnixSeconds = (seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type): Date | typeof Schema.Undefined.Type => {
+const optionalDateFromUnixSeconds = (
+  seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+): Date | typeof Schema.Undefined.Type => {
   if (P.isNumber(seconds)) return dateFromUnixSeconds(seconds);
   return undefined;
 };
@@ -191,12 +198,15 @@ const make = Effect.fn("make")(function* () {
     const parsed = yield* Schema.decodeUnknownEffect(globalConfigurationSchema)(
       configuration.configuration,
     );
-    const [liveSecretKey, liveWebhookSecret, testSecretKey, testWebhookSecret] = yield* Effect.all([
-      secretCrypto.decrypt(parsed.live.secretKey),
-      secretCrypto.decrypt(parsed.live.webhookSecret),
-      secretCrypto.decrypt(parsed.test.secretKey),
-      secretCrypto.decrypt(parsed.test.webhookSecret),
-    ], { concurrency: 1 });
+    const [liveSecretKey, liveWebhookSecret, testSecretKey, testWebhookSecret] = yield* Effect.all(
+      [
+        secretCrypto.decrypt(parsed.live.secretKey),
+        secretCrypto.decrypt(parsed.live.webhookSecret),
+        secretCrypto.decrypt(parsed.test.secretKey),
+        secretCrypto.decrypt(parsed.test.webhookSecret),
+      ],
+      { concurrency: 1 },
+    );
     return buildStripeContext({
       httpClient,
       liveSecretKey,
@@ -539,9 +549,7 @@ const make = Effect.fn("make")(function* () {
         if (!previousAttributes) return {};
         return yield* decodeStripeObject(StripeSubscriptionPreviousAttributes)(
           previousAttributes,
-        ).pipe(
-          recoverAll((): typeof StripeSubscriptionPreviousAttributes.Type => ({})),
-        );
+        ).pipe(recoverAll((): typeof StripeSubscriptionPreviousAttributes.Type => ({})));
       },
     )();
     const cancelChanged = P.isBoolean(previous.cancel_at_period_end);
@@ -758,7 +766,9 @@ const make = Effect.fn("make")(function* () {
    * no transaction matches — nothing to refund.
    */
   const _resolveRefundTarget = Effect.fn("_resolveRefundTarget")(function* (input: {
-    readonly candidateKeys: ReadonlyArray<string | typeof Schema.Null.Type | typeof Schema.Undefined.Type>;
+    readonly candidateKeys: ReadonlyArray<
+      string | typeof Schema.Null.Type | typeof Schema.Undefined.Type
+    >;
   }) {
     const candidateKeys = input.candidateKeys.filter(
       (key): key is string => P.isString(key) && Str.isNonEmpty(key),

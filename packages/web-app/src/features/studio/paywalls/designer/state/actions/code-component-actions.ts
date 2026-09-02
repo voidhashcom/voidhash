@@ -155,10 +155,7 @@ export const renameComponentFile = commander.undoableAction<
         return;
       }
       const currentFileName = componentFileName(currentPath).toLowerCase();
-      if (
-        fileName.toLowerCase() !== currentFileName &&
-        existingPaths.has(fileName.toLowerCase())
-      ) {
+      if (fileName.toLowerCase() !== currentFileName && existingPaths.has(fileName.toLowerCase())) {
         return;
       }
 

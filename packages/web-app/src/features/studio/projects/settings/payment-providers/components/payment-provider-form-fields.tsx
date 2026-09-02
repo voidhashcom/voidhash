@@ -83,8 +83,7 @@ export function PaymentProviderTextFieldRow<TFieldValues extends FieldValues>({
                 value,
               });
               const shouldRenderIndicator =
-                showValidationIndicator &&
-                (showOptionalIndicator || status.state !== "optional");
+                showValidationIndicator && (showOptionalIndicator || status.state !== "optional");
 
               return (
                 <FormItem className="w-full sm:w-96">

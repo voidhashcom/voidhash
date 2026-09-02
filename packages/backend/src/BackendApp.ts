@@ -653,7 +653,9 @@ const corsHeaders = (origin: string | typeof Schema.Undefined.Type): Record<stri
   };
 };
 
-const preflightVary = (accessControlRequestHeaders: string | typeof Schema.Undefined.Type): string => {
+const preflightVary = (
+  accessControlRequestHeaders: string | typeof Schema.Undefined.Type,
+): string => {
   if (accessControlRequestHeaders) {
     return "Origin, Access-Control-Request-Headers";
   }

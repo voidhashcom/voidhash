@@ -10,10 +10,11 @@ export const domMotionPlatformAdapter: MotionPlatformAdapter = {
   },
   now: () => (typeof performance === "undefined" ? Date.now() : performance.now()),
   prefersReducedMotion: () =>
-    typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
   requestFrame: (callback) =>
     typeof requestAnimationFrame === "undefined"
-      ? setTimeout(() => callback(Date.now()), 16) as unknown as number
+      ? (setTimeout(() => callback(Date.now()), 16) as unknown as number)
       : requestAnimationFrame(callback),
 };
 

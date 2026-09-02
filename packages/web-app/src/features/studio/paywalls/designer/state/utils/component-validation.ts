@@ -279,8 +279,7 @@ export function validateComponentNode(
   ) {
     warnings.push({
       kind: "children-without-slot",
-      message:
-        "This component declares no slot — its child layers will not be rendered inside it.",
+      message: "This component declares no slot — its child layers will not be rendered inside it.",
       severity: "warning",
     });
   }

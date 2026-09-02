@@ -44,7 +44,9 @@ export function useMimicSdk(): MimicSDK {
   if (!sdk) {
     // Missing provider is a programmer error, not a recoverable failure:
     // `runSync` on a defect rethrows the Error verbatim to the React tree.
-    return Effect.runSync(Effect.die(new Error("useMimicSdk must be used within a MimicSdkProvider")));
+    return Effect.runSync(
+      Effect.die(new Error("useMimicSdk must be used within a MimicSdkProvider")),
+    );
   }
   return sdk;
 }

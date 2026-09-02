@@ -153,7 +153,9 @@ function unwrapEntry(item: unknown): unknown {
 /** {@link unwrapEntries} over a record, preserving the record shape for callers. */
 function unwrapRecord(record: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  Arr.forEach(R.toEntries(record), ([key, item]) => { out[key] = unwrapEntries(item); });
+  Arr.forEach(R.toEntries(record), ([key, item]) => {
+    out[key] = unwrapEntries(item);
+  });
   return out;
 }
 
@@ -277,7 +279,12 @@ export function acceptanceOf(schema: SerializedSchema): Acceptance {
  */
 export function expectedTypeLabel(schema: SerializedSchema): string {
   const acc = acceptanceOf(schema);
-  if (Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString) {
+  if (
+    Arr.isReadonlyArrayNonEmpty(acc.literals) &&
+    !acc.acceptsNumber &&
+    !acc.acceptsBoolean &&
+    !acc.acceptsString
+  ) {
     return "enum";
   }
   if (acc.isStructured) return "object";

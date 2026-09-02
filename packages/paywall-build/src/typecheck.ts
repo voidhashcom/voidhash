@@ -86,8 +86,8 @@ export function typecheck(
   // Lib assets: built-in set, then the ambient SDK dts, then caller overrides.
   const libFiles = R.fromEntries([
     ...R.toEntries(LIB_ASSETS).map(([name, contents]) => [`${LIB_DIR}/${name}`, contents] as const),
-    ...R.toEntries(options.libs ?? {}).map(([name, contents]) =>
-      [libPathFor(name), contents] as const,
+    ...R.toEntries(options.libs ?? {}).map(
+      ([name, contents]) => [libPathFor(name), contents] as const,
     ),
   ]);
 

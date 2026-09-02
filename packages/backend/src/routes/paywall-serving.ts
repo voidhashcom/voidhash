@@ -93,25 +93,29 @@ const handleServe = (prefix: "p" | "c") =>
 const registerPaywallServingRoutes = Effect.fn("registerPaywallServingRoutes")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
-  yield* Effect.forEach(constant(["p", "c"]), Effect.fn("iterate")(function* (prefix) {
-yield* router.add(
-      "GET",
-      `/${prefix}/:contentHash/*`,
-      handleServe(prefix).pipe(
-        // catchCause so store defects are logged with their full cause instead
-        // of escaping the worker as an opaque exception.
-        Effect.catchCause((cause) =>
-          Effect.fn("registerPaywallServingRoutes")(function* () {
-            yield* Effect.logError(`Paywall artifact serving error: ${Cause.pretty(cause)}`);
-            return yield* HttpServerResponse.json(
-              { error: "Failed to load paywall artifact" },
-              { headers: ERROR_HEADERS, status: 502 },
-            );
-          })(),
+  yield* Effect.forEach(
+    constant(["p", "c"]),
+    Effect.fn("iterate")(function* (prefix) {
+      yield* router.add(
+        "GET",
+        `/${prefix}/:contentHash/*`,
+        handleServe(prefix).pipe(
+          // catchCause so store defects are logged with their full cause instead
+          // of escaping the worker as an opaque exception.
+          Effect.catchCause((cause) =>
+            Effect.fn("registerPaywallServingRoutes")(function* () {
+              yield* Effect.logError(`Paywall artifact serving error: ${Cause.pretty(cause)}`);
+              return yield* HttpServerResponse.json(
+                { error: "Failed to load paywall artifact" },
+                { headers: ERROR_HEADERS, status: 502 },
+              );
+            })(),
+          ),
         ),
-      ),
-    );
-}), { concurrency: 1 });
+      );
+    }),
+    { concurrency: 1 },
+  );
 })();
 
 export const PaywallServingRouteLayer = Layer.effectDiscard(registerPaywallServingRoutes);

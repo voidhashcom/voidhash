@@ -54,7 +54,9 @@ export const alignSelf = Primitive.Either(
 
 // Size — "auto" (hug contents) is the CSS/RN default; views size to their
 // content unless given an explicit number or stretched by their parent.
-export const width = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default("auto");
+export const width = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default(
+  "auto",
+);
 export const height = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default(
   "auto",
 );
@@ -78,7 +80,9 @@ export const position = Primitive.Either(
 ).default("relative");
 export const left = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default("auto");
 export const top = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default("auto");
-export const right = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default("auto");
+export const right = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default(
+  "auto",
+);
 export const bottom = Primitive.Either(Primitive.Number(), Primitive.Literal("auto")).default(
   "auto",
 );
@@ -107,14 +111,18 @@ export const backgroundType = Primitive.Either(
  * `stops` colors are RGBA strings positioned `0..1` along that line.
  */
 export const backgroundGradient = Primitive.Struct({
-  kind: Primitive.Either(Primitive.Literal("linear"), Primitive.Literal("radial")).default("linear"),
+  kind: Primitive.Either(Primitive.Literal("linear"), Primitive.Literal("radial")).default(
+    "linear",
+  ),
   startX: Primitive.Number().default(0.5),
   startY: Primitive.Number().default(0),
   endX: Primitive.Number().default(0.5),
   endY: Primitive.Number().default(1),
   stops: Primitive.Array(
     Primitive.Struct({
-      color: Primitive.String().default("rgba(255, 255, 255, 1)").regex(RGBaRegex, "Invalid RGBA color format"),
+      color: Primitive.String()
+        .default("rgba(255, 255, 255, 1)")
+        .regex(RGBaRegex, "Invalid RGBA color format"),
       position: Primitive.Number().default(0),
     }),
   ).default([

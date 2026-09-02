@@ -33,10 +33,7 @@ import { useCallback, useState } from "react";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updateBorderStyle } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useStyleOverrideResetContext } from "../utils/use-style-override-reset-context";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
@@ -149,8 +146,7 @@ export function BorderPanel(_ctx: PanelContext) {
     !showEnabledReset && active && overrideReset.hasOverride(RIGHT_WIDTH_KEYS);
   const showWidthBottomReset =
     !showEnabledReset && active && overrideReset.hasOverride(BOTTOM_WIDTH_KEYS);
-  const showColorReset =
-    !showEnabledReset && active && overrideReset.hasOverride(COLOR_KEYS);
+  const showColorReset = !showEnabledReset && active && overrideReset.hasOverride(COLOR_KEYS);
 
   const resetEnabled = () =>
     handleChange(overrideReset.buildResetPatch(RELATED_KEYS) as Partial<BorderStyle>);
@@ -228,7 +224,9 @@ export function BorderPanel(_ctx: PanelContext) {
                           show={showWidthLeftReset}
                           onReset={() =>
                             handleChange(
-                              overrideReset.buildResetPatch(LEFT_WIDTH_KEYS) as Partial<BorderStyle>,
+                              overrideReset.buildResetPatch(
+                                LEFT_WIDTH_KEYS,
+                              ) as Partial<BorderStyle>,
                             )
                           }
                         >

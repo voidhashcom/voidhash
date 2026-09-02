@@ -85,22 +85,22 @@ export const withValidationErrorHandler = <A, E, R>(
 
       const cliFailure = failures.find(isCliError);
       if (isCliError(cliFailure)) {
-          // In debug mode, show the full cause chain
-          if (isDebugMode()) {
-            return Console.error("\n--- Debug Trace ---").pipe(
-              Effect.andThen(Console.error(Cause.pretty(cause))),
-              Effect.andThen(Console.error("--- End Debug Trace ---\n")),
-              Effect.andThen(Console.error(cliFailure.message)),
-              // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the cause the handler just rendered.
-              Effect.andThen(Effect.sync(() => process.exit(1))),
-            );
-          }
-
-          // Normal mode: just show the user-friendly message
-          return Console.error(cliFailure.message).pipe(
-            // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the message just rendered.
+        // In debug mode, show the full cause chain
+        if (isDebugMode()) {
+          return Console.error("\n--- Debug Trace ---").pipe(
+            Effect.andThen(Console.error(Cause.pretty(cause))),
+            Effect.andThen(Console.error("--- End Debug Trace ---\n")),
+            Effect.andThen(Console.error(cliFailure.message)),
+            // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the cause the handler just rendered.
             Effect.andThen(Effect.sync(() => process.exit(1))),
           );
+        }
+
+        // Normal mode: just show the user-friendly message
+        return Console.error(cliFailure.message).pipe(
+          // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the message just rendered.
+          Effect.andThen(Effect.sync(() => process.exit(1))),
+        );
       }
 
       // For non-CliError failures, show full cause in debug mode

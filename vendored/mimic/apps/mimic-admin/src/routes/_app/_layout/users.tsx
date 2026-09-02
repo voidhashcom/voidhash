@@ -241,11 +241,7 @@ function UserRow({
           <div key={g.id} className="flex items-center gap-4 text-sm">
             <span className="font-mono text-xs">{g.databaseId}</span>
             <Badge variant="outline">{g.permission}</Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => revokeMutation.mutate(g.databaseId)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => revokeMutation.mutate(g.databaseId)}>
               Revoke
             </Button>
           </div>

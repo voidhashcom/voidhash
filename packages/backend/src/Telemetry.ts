@@ -63,11 +63,13 @@ export const withRequestId = <E, R>(
  */
 export interface IdentitySource {
   readonly method: string;
-  readonly user: {
-    readonly id: string;
-    readonly workosUserId?: string | typeof Schema.Null.Type;
-    readonly role?: string | typeof Schema.Null.Type;
-  } | typeof Schema.Null.Type;
+  readonly user:
+    | {
+        readonly id: string;
+        readonly workosUserId?: string | typeof Schema.Null.Type;
+        readonly role?: string | typeof Schema.Null.Type;
+      }
+    | typeof Schema.Null.Type;
   readonly person: { readonly distinctId: string } | typeof Schema.Null.Type;
   readonly organizations: ReadonlyArray<{
     readonly id: string;
@@ -142,9 +144,7 @@ export const withIdentity = <A, E, R>(
   const annotateSpan = Effect.forEach(
     attrs,
     ([key, value]) => Effect.annotateCurrentSpan(key, value),
-    { concurrency: 1,
-      discard: true,
-    },
+    { concurrency: 1, discard: true },
   );
   return annotateSpan.pipe(Effect.andThen(Effect.annotateLogs(effect, R.fromEntries(attrs))));
 };

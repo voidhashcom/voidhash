@@ -8,13 +8,7 @@ import ts from "typescript";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error } from "./diagnostics.ts";
 import type { BuildReadFs } from "./fs.ts";
-import {
-  basename,
-  canonicalPathFor,
-  dirname,
-  joinPath,
-  tryJoinPath,
-} from "./paths.ts";
+import { basename, canonicalPathFor, dirname, joinPath, tryJoinPath } from "./paths.ts";
 
 /** The root SDK specifier the surface is imported from. */
 const ROOT_SPECIFIER = "@voidhash/paywalls";
@@ -133,12 +127,7 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
       const absPath = resolveRelative(fs, entryDir, specifier);
       if (Option.isNone(absPath)) {
         diagnostics.push(
-          error(
-            entryPath,
-            "imports",
-            `Cannot resolve component import "${specifier}".`,
-            pos,
-          ),
+          error(entryPath, "imports", `Cannot resolve component import "${specifier}".`, pos),
         );
         return;
       }

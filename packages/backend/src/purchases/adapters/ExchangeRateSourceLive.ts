@@ -50,13 +50,16 @@ const invertRates = (
   return Arr.flatMap(R.toEntries(rates), ([rawCurrency, quote]) => {
     if (!P.isNumber(quote) || !Number.isFinite(quote) || quote <= 0) return [];
     const currency = rawCurrency.toUpperCase();
-    const rate = currency === "USD" ? FX_RATE_PRECISION : Math.round((1 / quote) * FX_RATE_PRECISION);
-    return [{
-      asOfDate,
-      currency,
-      rate,
-      source,
-    }];
+    const rate =
+      currency === "USD" ? FX_RATE_PRECISION : Math.round((1 / quote) * FX_RATE_PRECISION);
+    return [
+      {
+        asOfDate,
+        currency,
+        rate,
+        source,
+      },
+    ];
   });
 };
 

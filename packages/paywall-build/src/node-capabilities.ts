@@ -168,9 +168,10 @@ function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
       }).pipe(
         Effect.match({
           onSuccess: () => Option.none<ExtractOutcome>(),
-          onFailure: (cause) => Option.some<ExtractOutcome>({
-            diagnostics: [{ message: causeMessage(cause) }],
-          }),
+          onFailure: (cause) =>
+            Option.some<ExtractOutcome>({
+              diagnostics: [{ message: causeMessage(cause) }],
+            }),
         }),
       );
       if (Option.isSome(evaluationFailure)) return evaluationFailure.value;
@@ -178,9 +179,7 @@ function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
       const definition = moduleObj.exports.default;
       if (!isDefinitionExport(definition)) {
         return {
-          diagnostics: [
-            { message: "Component must export a default defineComponent({ ... })" },
-          ],
+          diagnostics: [{ message: "Component must export a default defineComponent({ ... })" }],
         };
       }
 
@@ -205,9 +204,7 @@ function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
  * optional manifest cache. Intended for Node-side callers and this package's
  * tests; browser/worker hosts wire their own sandboxed equivalents.
  */
-export function makeNodeCapabilities(
-  options: NodeCapabilityOptions = {},
-): BuildCapabilities {
+export function makeNodeCapabilities(options: NodeCapabilityOptions = {}): BuildCapabilities {
   const capabilities: BuildCapabilities = {
     compile: nodeCompile,
     extractManifest: nodeExtractManifest,

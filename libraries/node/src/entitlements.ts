@@ -142,11 +142,7 @@ const findPerkIdBySlug = (
       return Option.none();
     }
 
-    return yield* findPerkIdBySlug(
-      client,
-      perkSlug,
-      Option.fromNullishOr(page.pageInfo.endCursor),
-    );
+    return yield* findPerkIdBySlug(client, perkSlug, Option.fromNullishOr(page.pageInfo.endCursor));
   });
 
 /**
@@ -224,9 +220,7 @@ export const makeEntitlements = (
 
         const grants = yield* getGrants(request.distinctId);
 
-        return grants.some(
-          (grant) => grant.perkId === perkId.value && grant.status === "active",
-        );
+        return grants.some((grant) => grant.perkId === perkId.value && grant.status === "active");
       }).pipe(Effect.catchTag(PERSON_NOT_FOUND_TAG, () => Effect.succeed(false))),
   };
 };

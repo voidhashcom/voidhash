@@ -16,7 +16,7 @@ same routes and status codes; see [`../README.md`](../README.md).
   sent.
 - **A 60-second cache** in front of that check, with single-flight refresh, because
   it sits on every request. The SDK deliberately does not cache for you.
-- **Failure that is not a denial.** A 5xx or a transport error means *unknown*,
+- **Failure that is not a denial.** A 5xx or a transport error means _unknown_,
   so the last known answer is served stale and a network blip never revokes a
   paying customer.
 - **Unknown people are free people.** A `distinctId` Voidhash has never seen is a
@@ -46,13 +46,13 @@ requirement the default instead of something you have to opt out of.
 cp .env.example .env
 ```
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `VOIDHASH_SECRET_KEY` | yes | — | `vh_sk_…`. Full project access; server only. |
-| `VOIDHASH_WEBHOOK_SECRET` | for the webhook route | — | `whsec_…`. Without it the route answers `503`. |
-| `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` | |
-| `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` | Analytics ingest lives on its own host. |
-| `PORT` | no | `8080` | |
+| Variable                  | Required              | Default                       | Notes                                          |
+| ------------------------- | --------------------- | ----------------------------- | ---------------------------------------------- |
+| `VOIDHASH_SECRET_KEY`     | yes                   | —                             | `vh_sk_…`. Full project access; server only.   |
+| `VOIDHASH_WEBHOOK_SECRET` | for the webhook route | —                             | `whsec_…`. Without it the route answers `503`. |
+| `VOIDHASH_BASE_URL`       | no                    | `https://api.voidhash.com`    |                                                |
+| `VOIDHASH_INGEST_URL`     | no                    | `https://ingest.voidhash.com` | Analytics ingest lives on its own host.        |
+| `PORT`                    | no                    | `8080`                        |                                                |
 
 > **One credential.** The secret key covers everything this service does,
 > analytics included: `voidhash.eventCapture.capture` posts to ingest — its own
@@ -209,11 +209,12 @@ curl -i "localhost:8080/v1/notes/export?distinctId=user_free"
 ```
 HTTP/1.1 402 Payment Required
 ```
+
 ```json
 { "error": "premium_required" }
 ```
 
-`402`, not `403`: the user *may* have this, they just have not paid for it yet.
+`402`, not `403`: the user _may_ have this, they just have not paid for it yet.
 
 ```sh
 curl "localhost:8080/v1/notes/export?distinctId=user_pro"
@@ -251,17 +252,17 @@ below.
 
 ### Errors
 
-| Status | Body | When |
-| --- | --- | --- |
-| `400` | `{ "error": "distinct_id_required" }` | Missing or blank `distinctId`. |
-| `400` | `{ "error": "note_body_required" }` | Missing or blank note body. |
-| `400` | `{ "error": "invalid_json" }` | Body is not JSON. |
-| `402` | `{ "error": "premium_required" }` | Export without the `pro` perk. |
-| `403` | `{ "error": "note_limit_reached" }` | Free account already holds 3 notes. |
-| `404` | `{ "error": "not_found" }` | No such route. |
-| `413` | `{ "error": "payload_too_large" }` | Body over 1 MiB. |
-| `503` | `{ "error": "voidhash_unavailable" }` | Voidhash is down and nothing is cached. |
-| `503` | `{ "error": "webhook_secret_not_configured" }` | `VOIDHASH_WEBHOOK_SECRET` is unset. |
+| Status | Body                                           | When                                    |
+| ------ | ---------------------------------------------- | --------------------------------------- |
+| `400`  | `{ "error": "distinct_id_required" }`          | Missing or blank `distinctId`.          |
+| `400`  | `{ "error": "note_body_required" }`            | Missing or blank note body.             |
+| `400`  | `{ "error": "invalid_json" }`                  | Body is not JSON.                       |
+| `402`  | `{ "error": "premium_required" }`              | Export without the `pro` perk.          |
+| `403`  | `{ "error": "note_limit_reached" }`            | Free account already holds 3 notes.     |
+| `404`  | `{ "error": "not_found" }`                     | No such route.                          |
+| `413`  | `{ "error": "payload_too_large" }`             | Body over 1 MiB.                        |
+| `503`  | `{ "error": "voidhash_unavailable" }`          | Voidhash is down and nothing is cached. |
+| `503`  | `{ "error": "webhook_secret_not_configured" }` | `VOIDHASH_WEBHOOK_SECRET` is unset.     |
 
 ## Testing the webhook locally
 
@@ -307,12 +308,12 @@ That matters because Voidhash retries anything outside `2xx` — or slower than
 
 Things that should fail, and do:
 
-| Request | Response |
-| --- | --- |
-| Wrong signature | `400 { "error": "invalid_webhook", "reason": "invalid_signature" }` |
-| No signing headers | `400 { "error": "invalid_webhook", "reason": "missing_header" }` |
+| Request                        | Response                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| Wrong signature                | `400 { "error": "invalid_webhook", "reason": "invalid_signature" }`          |
+| No signing headers             | `400 { "error": "invalid_webhook", "reason": "missing_header" }`             |
 | Timestamp older than 5 minutes | `400 { "error": "invalid_webhook", "reason": "timestamp_out_of_tolerance" }` |
-| Signed body that is not JSON | `400 { "error": "invalid_webhook", "reason": "invalid_payload" }` |
+| Signed body that is not JSON   | `400 { "error": "invalid_webhook", "reason": "invalid_payload" }`            |
 
 To receive real deliveries, expose the port (`ngrok http 8080`, `cloudflared
 tunnel`, …), point a Studio webhook endpoint at
@@ -320,14 +321,14 @@ tunnel`, …), point a Studio webhook endpoint at
 
 ## What to steal for your own app
 
-| File | Why you would copy it |
-| --- | --- |
-| [`src/entitlements-cache.ts`](./src/entitlements-cache.ts) | The whole point. TTL, single-flight refresh, serve-stale-on-unknown, and resolving the perk slug to an id exactly once. |
-| [`src/voidhash.ts`](./src/voidhash.ts) | `classifyVoidhashFailure` — the three-way split between *not found*, *our key is broken* and *no idea*. Getting this wrong is how outages become churn. |
-| [`src/webhooks.ts`](./src/webhooks.ts) | Idempotent handling and a delivery key that survives retries. Move the seen-set to Redis or a unique index before production. |
-| [`src/routes/webhook.ts`](./src/routes/webhook.ts) | Raw body → verify → `200` → work. In that order. |
-| [`src/config.ts`](./src/config.ts) | Fail at boot, with a message that says what to do. |
-| [`src/analytics.ts`](./src/analytics.ts) | Fire-and-forget capture, and why `plan` / `notes_created` are person traits rather than event properties. |
+| File                                                       | Why you would copy it                                                                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`src/entitlements-cache.ts`](./src/entitlements-cache.ts) | The whole point. TTL, single-flight refresh, serve-stale-on-unknown, and resolving the perk slug to an id exactly once.                                 |
+| [`src/voidhash.ts`](./src/voidhash.ts)                     | `classifyVoidhashFailure` — the three-way split between _not found_, _our key is broken_ and _no idea_. Getting this wrong is how outages become churn. |
+| [`src/webhooks.ts`](./src/webhooks.ts)                     | Idempotent handling and a delivery key that survives retries. Move the seen-set to Redis or a unique index before production.                           |
+| [`src/routes/webhook.ts`](./src/routes/webhook.ts)         | Raw body → verify → `200` → work. In that order.                                                                                                        |
+| [`src/config.ts`](./src/config.ts)                         | Fail at boot, with a message that says what to do.                                                                                                      |
+| [`src/analytics.ts`](./src/analytics.ts)                   | Fire-and-forget capture, and why `plan` / `notes_created` are person traits rather than event properties.                                               |
 
 Two things here are example-shaped and should not be copied: notes live in a
 `Map` ([`src/notes.ts`](./src/notes.ts)), and `distinctId` arrives in the query
@@ -340,7 +341,7 @@ string rather than from an authenticated session.
   boolean is one `.some()` away. If all you need is the boolean,
   `hasActivePerk({ distinctId, perkSlug: "pro" })` is the one-liner — note it
   costs an extra `perks.listPerks` round trip per call unless you pass `perkId`.
-- `getGrantsByDistinctId` *fails* on an unknown person while `hasActivePerk`
+- `getGrantsByDistinctId` _fails_ on an unknown person while `hasActivePerk`
   returns `false`. That is deliberate: the caller decides whether "never seen"
   and "seen, bought nothing" mean the same thing. Here they do.
 - Secret keys are not environment-scoped, so this client reads production and

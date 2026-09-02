@@ -21,10 +21,9 @@ type MarkedAgentToolResult<Details> = AgentToolResult<Details> & {
 };
 
 /** Failure surfaced to Pi when an Effect tool fails with a non-`Error` value. */
-class EffectAgentToolError extends Schema.TaggedErrorClass<EffectAgentToolError>("EffectAgentToolError")(
+class EffectAgentToolError extends Schema.TaggedErrorClass<EffectAgentToolError>(
   "EffectAgentToolError",
-  { message: Schema.String },
-) {}
+)("EffectAgentToolError", { message: Schema.String }) {}
 
 /** Normalized result shared by Effect-backed tools and Pi. */
 export type EffectAgentToolResult<Details = unknown> = {
@@ -50,9 +49,7 @@ export type EffectAgentToolDefinition<Params, Details, E, R> = {
  */
 const isValidatedParams = <Params>(_params: unknown): _params is Params => true;
 
-const runOptions = (
-  signal: AbortSignal | void,
-): Readonly<Partial<{ signal: AbortSignal }>> => {
+const runOptions = (signal: AbortSignal | void): Readonly<Partial<{ signal: AbortSignal }>> => {
   if (signal === undefined) return {};
   return { signal };
 };

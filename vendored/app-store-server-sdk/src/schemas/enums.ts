@@ -843,7 +843,8 @@ export type AdvancedCommercePriceIncreaseInfoStatus =
 export const AdvancedCommercePriceIncreaseInfoStatusCodec = Schema.Union(
   R.values(AdvancedCommercePriceIncreaseInfoStatus).map((v) => Schema.Literal(v)),
 );
-export type AdvancedCommercePriceIncreaseInfoStatusCodec = typeof AdvancedCommercePriceIncreaseInfoStatusCodec.Type;
+export type AdvancedCommercePriceIncreaseInfoStatusCodec =
+  typeof AdvancedCommercePriceIncreaseInfoStatusCodec.Type;
 
 export { EnvironmentCodec as EnvironmentSchema };
 export { StatusCodec as StatusSchema };

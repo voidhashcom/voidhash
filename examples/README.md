@@ -4,15 +4,15 @@ Runnable reference integrations, one per SDK. Every example implements the same
 small product — **Nimbus**, a notes app with a Pro tier — so you can read the one
 in your language and still recognise the shape of the others.
 
-| Example | SDK | What it is |
-| --- | --- | --- |
-| [`backend-node`](./backend-node) | [`@voidhash/node`](../libraries/node) | Node HTTP service |
-| [`backend-go`](./backend-go) | [`voidhash-go`](../libraries/go) | Go HTTP service |
-| [`backend-rust`](./backend-rust) | [`voidhash`](../libraries/rust) | Rust (axum) HTTP service |
-| [`backend-php`](./backend-php) | [`voidhash/voidhash-php`](../libraries/php) | PHP HTTP service |
-| [`app-react-native`](./app-react-native) | [`@voidhash/react-native`](../libraries/react-native) | Expo app |
-| [`app-ios`](./app-ios) | [`@voidhash/ios`](../libraries/ios) | SwiftUI app |
-| [`app-android`](./app-android) | [`@voidhash/android`](../libraries/android) | Jetpack Compose app |
+| Example                                  | SDK                                                   | What it is               |
+| ---------------------------------------- | ----------------------------------------------------- | ------------------------ |
+| [`backend-node`](./backend-node)         | [`@voidhash/node`](../libraries/node)                 | Node HTTP service        |
+| [`backend-go`](./backend-go)             | [`voidhash-go`](../libraries/go)                      | Go HTTP service          |
+| [`backend-rust`](./backend-rust)         | [`voidhash`](../libraries/rust)                       | Rust (axum) HTTP service |
+| [`backend-php`](./backend-php)           | [`voidhash/voidhash-php`](../libraries/php)           | PHP HTTP service         |
+| [`app-react-native`](./app-react-native) | [`@voidhash/react-native`](../libraries/react-native) | Expo app                 |
+| [`app-ios`](./app-ios)                   | [`@voidhash/ios`](../libraries/ios)                   | SwiftUI app              |
+| [`app-android`](./app-android)           | [`@voidhash/android`](../libraries/android)           | Jetpack Compose app      |
 
 Two other directories predate this suite and are not part of it:
 [`mimic-example`](./mimic-example) demos the Mimic collaboration SDK, and
@@ -37,50 +37,50 @@ core SDK surface:
 Every example uses these exact names, so a dashboard configured for one works
 for all of them.
 
-| Concept | Value |
-| --- | --- |
-| Perk slug | `pro` |
-| Product slugs | `pro-monthly`, `pro-annual`, `pro-lifetime` |
-| Paywall location | `onboarding` |
-| Feature flag | `nimbus-new-onboarding` |
-| Person attributes | `plan`, `notes_created` |
-| Analytics events | `note_created`, `export_requested`, `paywall_viewed`, `checkout_started` |
-| Free note limit | 3 |
+| Concept           | Value                                                                    |
+| ----------------- | ------------------------------------------------------------------------ |
+| Perk slug         | `pro`                                                                    |
+| Product slugs     | `pro-monthly`, `pro-annual`, `pro-lifetime`                              |
+| Paywall location  | `onboarding`                                                             |
+| Feature flag      | `nimbus-new-onboarding`                                                  |
+| Person attributes | `plan`, `notes_created`                                                  |
+| Analytics events  | `note_created`, `export_requested`, `paywall_viewed`, `checkout_started` |
+| Free note limit   | 3                                                                        |
 
 ## What the backends do
 
 `backend-node`, `backend-go`, `backend-rust` and `backend-php` are the same
 service in four languages — same routes, same status codes, same JSON:
 
-| Route | Behaviour |
-| --- | --- |
-| `GET /health` | Liveness. Never touches Voidhash. |
-| `GET /v1/me?distinctId=…` | Person plus entitlement grants. A distinct id Voidhash has never seen is a free user, not an error. |
-| `GET /v1/notes?distinctId=…` | The caller's notes and their remaining free quota. |
-| `POST /v1/notes` | Creates a note. Rejects with `403 note_limit_reached` once a free user holds 3. Captures `note_created`. |
-| `GET /v1/notes/export?distinctId=…` | Pro only. Rejects with `402 premium_required`. Captures `export_requested`. |
-| `POST /v1/events` | Forwards a client-supplied analytics event to Voidhash. |
-| `POST /webhooks/voidhash` | Verifies the signature, acknowledges immediately, then handles the event. |
+| Route                               | Behaviour                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `GET /health`                       | Liveness. Never touches Voidhash.                                                                        |
+| `GET /v1/me?distinctId=…`           | Person plus entitlement grants. A distinct id Voidhash has never seen is a free user, not an error.      |
+| `GET /v1/notes?distinctId=…`        | The caller's notes and their remaining free quota.                                                       |
+| `POST /v1/notes`                    | Creates a note. Rejects with `403 note_limit_reached` once a free user holds 3. Captures `note_created`. |
+| `GET /v1/notes/export?distinctId=…` | Pro only. Rejects with `402 premium_required`. Captures `export_requested`.                              |
+| `POST /v1/events`                   | Forwards a client-supplied analytics event to Voidhash.                                                  |
+| `POST /webhooks/voidhash`           | Verifies the signature, acknowledges immediately, then handles the event.                                |
 
 Notes live in memory: this is an SDK example, not a database tutorial. Each
 service also shows the three things that are easy to get wrong in production:
 
 1. **A short entitlement cache** (60s) in front of the access check, because it
    sits on a hot path.
-2. **Failure that is not a denial.** A transport error or a 5xx means *unknown*,
+2. **Failure that is not a denial.** A transport error or a 5xx means _unknown_,
    so the cached answer is served stale rather than revoking a paying customer.
 3. **Idempotent webhook handling**, because a slow handler gets delivered twice.
 
 ### Configuration
 
-| Variable | Required | Default |
-| --- | --- | --- |
-| `VOIDHASH_SECRET_KEY` | yes | — |
-| `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | — |
-| `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
-| `PORT` | no | `8080` |
-| `VOIDHASH_PUBLISHABLE_KEY` | for analytics capture | — |
-| `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
+| Variable                   | Required                 | Default                       |
+| -------------------------- | ------------------------ | ----------------------------- |
+| `VOIDHASH_SECRET_KEY`      | yes                      | —                             |
+| `VOIDHASH_WEBHOOK_SECRET`  | for `/webhooks/voidhash` | —                             |
+| `VOIDHASH_BASE_URL`        | no                       | `https://api.voidhash.com`    |
+| `PORT`                     | no                       | `8080`                        |
+| `VOIDHASH_PUBLISHABLE_KEY` | for analytics capture    | —                             |
+| `VOIDHASH_INGEST_URL`      | no                       | `https://ingest.voidhash.com` |
 
 Leave the last two unset and the service still runs: capture no-ops after one
 warning at boot, and every other route behaves normally.

@@ -34,13 +34,18 @@ export interface WorkspaceAgentSessionFactoryOptions<ConnectionData> {
   readonly defaultModel: Model<string>;
   readonly visionModel: Model<string>;
   readonly streamFn?: StreamFn;
-  readonly getApiKey?: (provider: string) => Promise<string | typeof Schema.Undefined.Type> | string | typeof Schema.Undefined.Type;
+  readonly getApiKey?: (
+    provider: string,
+  ) => Promise<string | typeof Schema.Undefined.Type> | string | typeof Schema.Undefined.Type;
   readonly runEffect: EffectRunner<ConnectionData, WorkspaceAgentDeps>;
   readonly resolveModel?: (
     provider: string,
     modelId: string,
     connectionData: ConnectionData,
-  ) => Model<string> | typeof Schema.Undefined.Type | Promise<Model<string> | typeof Schema.Undefined.Type>;
+  ) =>
+    | Model<string>
+    | typeof Schema.Undefined.Type
+    | Promise<Model<string> | typeof Schema.Undefined.Type>;
 }
 
 const messageHasImage = (message: AgentMessage): boolean =>
@@ -78,7 +83,9 @@ const contextSystemPrompt = <ConnectionData>(
   ).then((resolved) => `${designerAgentSystemPrompt(resolved)}${skillPrompt()}`);
 
 /** Spreads `streamFn` only when the host supplied one, leaving the Pi default otherwise. */
-const optionalStreamFn = (streamFn: StreamFn | typeof Schema.Undefined.Type): { streamFn?: StreamFn } => {
+const optionalStreamFn = (
+  streamFn: StreamFn | typeof Schema.Undefined.Type,
+): { streamFn?: StreamFn } => {
   if (streamFn === undefined) return {};
   return { streamFn };
 };
@@ -86,7 +93,9 @@ const optionalStreamFn = (streamFn: StreamFn | typeof Schema.Undefined.Type): { 
 type GetApiKey = NonNullable<WorkspaceAgentSessionFactoryOptions<unknown>["getApiKey"]>;
 
 /** Spreads `getApiKey` only when the host supplied one. */
-const optionalGetApiKey = (getApiKey: GetApiKey | typeof Schema.Undefined.Type): { getApiKey?: GetApiKey } => {
+const optionalGetApiKey = (
+  getApiKey: GetApiKey | typeof Schema.Undefined.Type,
+): { getApiKey?: GetApiKey } => {
   if (getApiKey === undefined) return {};
   return { getApiKey };
 };
@@ -108,10 +117,7 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
     return preferredTextModels.get(agent) ?? options.defaultModel;
   };
 
-  const turnModel = (
-    messages: ReadonlyArray<AgentMessage>,
-    agent: Agent,
-  ): Model<string> => {
+  const turnModel = (messages: ReadonlyArray<AgentMessage>, agent: Agent): Model<string> => {
     if (latestUserHasImage(messages)) return options.visionModel;
     return preferredTextModel(agent);
   };
@@ -145,9 +151,7 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
           followUpMode: "all",
           toolExecution: "sequential",
           afterToolCall: ({ result }) =>
-            runPromise(
-              Effect.sync(() => effectAgentToolErrorOverride(result) ?? undefined),
-            ),
+            runPromise(Effect.sync(() => effectAgentToolErrorOverride(result) ?? undefined)),
           prepareNextTurnWithContext: ({ context: piContext }) =>
             contextSystemPrompt(input, options.runEffect).then((nextSystemPrompt) => ({
               context: { ...piContext, systemPrompt: nextSystemPrompt },

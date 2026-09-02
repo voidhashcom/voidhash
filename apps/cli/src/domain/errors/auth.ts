@@ -1,21 +1,17 @@
 import * as Schema from "effect/Schema";
 
-export class NoSignedInUserError extends Schema.TaggedErrorClass<NoSignedInUserError>("NoSignedInUserError")(
+export class NoSignedInUserError extends Schema.TaggedErrorClass<NoSignedInUserError>(
   "NoSignedInUserError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("NoSignedInUserError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}
 
-export class FailedToGetSessionError extends Schema.TaggedErrorClass<FailedToGetSessionError>("FailedToGetSessionError")(
+export class FailedToGetSessionError extends Schema.TaggedErrorClass<FailedToGetSessionError>(
   "FailedToGetSessionError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("FailedToGetSessionError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}
 
-export class FailedToLogoutError extends Schema.TaggedErrorClass<FailedToLogoutError>("FailedToLogoutError")(
+export class FailedToLogoutError extends Schema.TaggedErrorClass<FailedToLogoutError>(
   "FailedToLogoutError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("FailedToLogoutError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}
 
-export class FailedToLoginError extends Schema.TaggedErrorClass<FailedToLoginError>("FailedToLoginError")(
+export class FailedToLoginError extends Schema.TaggedErrorClass<FailedToLoginError>(
   "FailedToLoginError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("FailedToLoginError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}

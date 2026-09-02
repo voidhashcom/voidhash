@@ -709,8 +709,7 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
       /** Reads an uploaded blob; absence at this point means ledger/store drift (see {@link makeBlobFetcher}). */
       const fetchBlob = makeBlobFetcher({
         deleteStaleBlobRows,
-        getObject: (projectId, sha256) =>
-          store.getObject(blobStorageKey(projectId, sha256)),
+        getObject: (projectId, sha256) => store.getObject(blobStorageKey(projectId, sha256)),
       });
 
       /**

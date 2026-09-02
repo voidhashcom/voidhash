@@ -118,10 +118,10 @@ export const decideSnapshotScope = (input: DecideSnapshotScopeInput): TemporaryC
 };
 
 const decideFromIdentityResult = (input: DecideSnapshotScopeInput): TemporaryCanonicalScope => {
-  const identityResult = Option.getOrElse(
-    Option.fromNullishOr(input.identityResult),
-    () => ({ personEvents: [], warnings: [] }),
-  );
+  const identityResult = Option.getOrElse(Option.fromNullishOr(input.identityResult), () => ({
+    personEvents: [],
+    warnings: [],
+  }));
   const target = targetOnlyScope(input.personId);
 
   if (isConflictingIdentifiedWarning(identityResult.warnings)) {
@@ -271,14 +271,16 @@ export const selectCurrentSubscription = (
   const status = mapSubscriptionStatus(best, now);
   const currentStatus = toCurrentStatus(status);
 
-  return Option.some(new SdkPersonSnapshotCurrentSubscription({
-    expiresAt: best.expiresAt ?? null,
-    productId: Option.getOrNull(
-      Option.map(best.paymentProviderConfigurationProduct, (product) => product.productId),
-    ),
-    status: currentStatus,
-    subscriptionId: best.id,
-  }));
+  return Option.some(
+    new SdkPersonSnapshotCurrentSubscription({
+      expiresAt: best.expiresAt ?? null,
+      productId: Option.getOrNull(
+        Option.map(best.paymentProviderConfigurationProduct, (product) => product.productId),
+      ),
+      status: currentStatus,
+      subscriptionId: best.id,
+    }),
+  );
 };
 
 export const mapSubscriptionHistory = (
@@ -418,16 +420,21 @@ export const dedupeGrants = (
 export const sortSubscriptionHistory = (
   history: ReadonlyArray<SdkPersonSnapshotSubscriptionHistory>,
 ): ReadonlyArray<SdkPersonSnapshotSubscriptionHistory> =>
-  Arr.sort(history, Order.make((left: SdkPersonSnapshotSubscriptionHistory, right: SdkPersonSnapshotSubscriptionHistory) => {
-    const leftStarts = left.startsAt.getTime();
-    const rightStarts = right.startsAt.getTime();
-    if (leftStarts !== rightStarts) {
-      return normalizeOrdering(rightStarts - leftStarts);
-    }
-    const leftExpires = left.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
-    const rightExpires = right.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
-    return normalizeOrdering(rightExpires - leftExpires);
-  }));
+  Arr.sort(
+    history,
+    Order.make(
+      (left: SdkPersonSnapshotSubscriptionHistory, right: SdkPersonSnapshotSubscriptionHistory) => {
+        const leftStarts = left.startsAt.getTime();
+        const rightStarts = right.startsAt.getTime();
+        if (leftStarts !== rightStarts) {
+          return normalizeOrdering(rightStarts - leftStarts);
+        }
+        const leftExpires = left.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
+        const rightExpires = right.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
+        return normalizeOrdering(rightExpires - leftExpires);
+      },
+    ),
+  );
 
 export const sortPurchaseHistory = (
   history: ReadonlyArray<SdkPersonSnapshotPurchaseHistory>,
@@ -442,20 +449,23 @@ export const sortPurchaseHistory = (
 export const sortGrants = (
   grants: ReadonlyArray<SdkPersonSnapshotGrant>,
 ): ReadonlyArray<SdkPersonSnapshotGrant> =>
-  Arr.sort(grants, Order.make((left: SdkPersonSnapshotGrant, right: SdkPersonSnapshotGrant) => {
-    if (left.status !== right.status) {
-      if (left.status === "active") {
-        return -1;
+  Arr.sort(
+    grants,
+    Order.make((left: SdkPersonSnapshotGrant, right: SdkPersonSnapshotGrant) => {
+      if (left.status !== right.status) {
+        if (left.status === "active") {
+          return -1;
+        }
+        return 1;
       }
-      return 1;
-    }
-    const leftExpires = left.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
-    const rightExpires = right.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
-    if (leftExpires !== rightExpires) {
-      return normalizeOrdering(leftExpires - rightExpires);
-    }
-    return normalizeOrdering(left.perkId.localeCompare(right.perkId));
-  }));
+      const leftExpires = left.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
+      const rightExpires = right.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
+      if (leftExpires !== rightExpires) {
+        return normalizeOrdering(leftExpires - rightExpires);
+      }
+      return normalizeOrdering(left.perkId.localeCompare(right.perkId));
+    }),
+  );
 
 /**
  * Profile (`email` + `name`) for the snapshot. When the orchestrator was

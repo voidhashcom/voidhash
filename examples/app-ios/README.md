@@ -67,7 +67,7 @@ packages:
     from: 0.0.1-alpha.1
 ```
 
-or, in Xcode, *File → Add Package Dependencies…* with
+or, in Xcode, _File → Add Package Dependencies…_ with
 `https://github.com/voidhashcom/voidhash`.
 
 The target links **two** products: `Voidhash` is the SDK, and `VoidhashCore` carries the wire
@@ -99,11 +99,11 @@ ignore the flag entirely — the mock store is not compiled into them.
 
 The note list, a banner reading "2 of 3 notes left", and two buttons.
 
-| Action | SDK call |
-| --- | --- |
-| New note | `capture("note_created", properties:)`, then `setPersonAttributes(["plan":, "notes_created":])` |
-| New note at the free limit | `presentPaywall(location: "onboarding", delegate:)` |
-| Export (Pro only) | `capture("export_requested")`, then `presentPaywall(…)` when the person has no `pro` grant |
+| Action                     | SDK call                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| New note                   | `capture("note_created", properties:)`, then `setPersonAttributes(["plan":, "notes_created":])` |
+| New note at the free limit | `presentPaywall(location: "onboarding", delegate:)`                                             |
+| Export (Pro only)          | `capture("export_requested")`, then `presentPaywall(…)` when the person has no `pro` grant      |
 
 The paywall result is handled exhaustively, and both non-`shown` cases end up on the Upgrade
 tab with a one-line explanation:
@@ -124,26 +124,26 @@ hand over. UIKit apps can pass one.
 
 The app's own upgrade screen, and the fallback whenever the paywall cannot be shown.
 
-| Action | SDK call |
-| --- | --- |
-| Product list | `getProducts()` (loaded once at launch) |
-| Buy | `capture("checkout_started")`, then `purchase(product:)` |
-| Restore purchases | `restorePurchases()` |
-| Redeem an offer code | `presentCodeRedemptionSheet()` |
-| Manage subscriptions | `showManageSubscriptions()` |
+| Action               | SDK call                                                 |
+| -------------------- | -------------------------------------------------------- |
+| Product list         | `getProducts()` (loaded once at launch)                  |
+| Buy                  | `capture("checkout_started")`, then `purchase(product:)` |
+| Restore purchases    | `restorePurchases()`                                     |
+| Redeem an offer code | `presentCodeRedemptionSheet()`                           |
+| Manage subscriptions | `showManageSubscriptions()`                              |
 
 An empty product list is presented as "no products yet" with the slugs to create, because that
 is what an unconfigured project legitimately returns.
 
 ### Account — [`AccountScreen.swift`](Nimbus/Screens/AccountScreen.swift)
 
-| Action | SDK call |
-| --- | --- |
-| Sign in | `identify(externalUserId:email:name:)` |
-| Write attributes | `setPersonAttributes(["plan": .string(…), "notes_created": .number(…)])` |
-| Entitlement grants | `getCurrentPerson(forceFetch: true)` → `person.entitlements.grants` |
-| `nimbus-new-onboarding` | `getFeatureFlags(["nimbus-new-onboarding"])` |
-| Sign out | `flush()`, then `reset()` |
+| Action                  | SDK call                                                                 |
+| ----------------------- | ------------------------------------------------------------------------ |
+| Sign in                 | `identify(externalUserId:email:name:)`                                   |
+| Write attributes        | `setPersonAttributes(["plan": .string(…), "notes_created": .number(…)])` |
+| Entitlement grants      | `getCurrentPerson(forceFetch: true)` → `person.entitlements.grants`      |
+| `nimbus-new-onboarding` | `getFeatureFlags(["nimbus-new-onboarding"])`                             |
+| Sign out                | `flush()`, then `reset()`                                                |
 
 Pro is one predicate over the grants, and it is the only gate in the app:
 

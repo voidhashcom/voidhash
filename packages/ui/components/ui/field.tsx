@@ -180,10 +180,7 @@ function FieldError({
       return null;
     }
 
-    const uniqueErrors = Arr.dedupeWith(
-      errors,
-      (left, right) => left.message === right.message,
-    );
+    const uniqueErrors = Arr.dedupeWith(errors, (left, right) => left.message === right.message);
 
     if (uniqueErrors?.length == 1) {
       return uniqueErrors[0]?.message;

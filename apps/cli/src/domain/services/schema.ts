@@ -15,10 +15,7 @@ import * as HashSet from "effect/HashSet";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as MutableHashSet from "effect/MutableHashSet";
 
-const SUPPORTED_PROVIDER_IDS: HashSet.HashSet<string> = HashSet.make(
-  "appleAppStore",
-  "googlePlay",
-);
+const SUPPORTED_PROVIDER_IDS: HashSet.HashSet<string> = HashSet.make("appleAppStore", "googlePlay");
 
 /** Narrows a provider id reported by the API to one the CLI understands. */
 const isSupportedProviderId = (providerId: string): providerId is ProviderId =>

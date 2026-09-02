@@ -186,7 +186,9 @@ export function CreateFlagModal({ projectId, trigger }: CreateFlagModalProps) {
 
           <FieldSet>
             <FieldLegend variant="label">Type</FieldLegend>
-            <FieldDescription>A flag&apos;s type cannot be changed after creation.</FieldDescription>
+            <FieldDescription>
+              A flag&apos;s type cannot be changed after creation.
+            </FieldDescription>
             <RadioGroup
               className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2"
               onValueChange={(value: string) => changeType(value as FlagType)}
@@ -261,7 +263,9 @@ export function CreateFlagModal({ projectId, trigger }: CreateFlagModalProps) {
                     {type !== "json" && (
                       <Input
                         aria-label={`Variant ${index + 1} label`}
-                        onChange={(event) => patchVariant(variant.id, { label: event.target.value })}
+                        onChange={(event) =>
+                          patchVariant(variant.id, { label: event.target.value })
+                        }
                         placeholder="Label"
                         value={variant.label}
                       />

@@ -57,10 +57,7 @@ import type {
   BackgroundType,
   GradientStop,
 } from "../../../state/actions/features/fill-style-actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useStyleOverrideResetContext } from "../utils/use-style-override-reset-context";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
@@ -183,8 +180,7 @@ export function FillPanel(_ctx: PanelContext) {
 
   const active = overrideReset.isOverrideModeActive;
   const showEnabledReset = active && overrideReset.hasOverride(ENABLED_KEYS);
-  const showColorReset =
-    !showEnabledReset && active && overrideReset.hasOverride(COLOR_KEYS);
+  const showColorReset = !showEnabledReset && active && overrideReset.hasOverride(COLOR_KEYS);
 
   const resetFill = () =>
     handleChange(overrideReset.buildResetPatch(RELATED_KEYS) as Partial<FillStyleWrite>);

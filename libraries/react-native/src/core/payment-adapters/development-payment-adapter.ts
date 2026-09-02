@@ -40,52 +40,54 @@ const buyProduct = Effect.fn("DevelopmentPaymentAdapter.buyProduct")(function* (
   quantity = 1,
 ) {
   const purchaseTimestamp = yield* Clock.currentTimeMillis;
-  return yield* Effect.callback<Transaction, UserCancelledError | FailedToBuyProductError>((resume) => {
-    let selected = false;
-    const cancel = () => {
-      if (selected) return;
-      selected = true;
-      resume(Effect.fail(new UserCancelledError({ message: "Development purchase cancelled" })));
-    };
-    let priceLabel = product.displayPrice;
-    if (product instanceof SubscriptionProduct) {
-      priceLabel = `${priceLabel} / ${product.interval}`;
-    }
-    Alert.alert(
-      "Test purchase",
-      `${product.displayName}\n${priceLabel}\n\nNothing will be charged.`,
-      [
-        { onPress: cancel, style: "cancel", text: "Cancel" },
-        {
-          onPress: () => {
-            if (selected) return;
-            selected = true;
-            const id = transactionId();
-            setTimeout(
-              () =>
-                resume(
-                  Effect.succeed(
-                    new Transaction(
-                      id,
-                      id,
-                      product.providerProductId ?? product.slug,
-                      purchaseTimestamp,
-                      quantity,
-                      true,
-                      product.platform,
-                      { currency: product.currency, price: product.price, store: "development" },
+  return yield* Effect.callback<Transaction, UserCancelledError | FailedToBuyProductError>(
+    (resume) => {
+      let selected = false;
+      const cancel = () => {
+        if (selected) return;
+        selected = true;
+        resume(Effect.fail(new UserCancelledError({ message: "Development purchase cancelled" })));
+      };
+      let priceLabel = product.displayPrice;
+      if (product instanceof SubscriptionProduct) {
+        priceLabel = `${priceLabel} / ${product.interval}`;
+      }
+      Alert.alert(
+        "Test purchase",
+        `${product.displayName}\n${priceLabel}\n\nNothing will be charged.`,
+        [
+          { onPress: cancel, style: "cancel", text: "Cancel" },
+          {
+            onPress: () => {
+              if (selected) return;
+              selected = true;
+              const id = transactionId();
+              setTimeout(
+                () =>
+                  resume(
+                    Effect.succeed(
+                      new Transaction(
+                        id,
+                        id,
+                        product.providerProductId ?? product.slug,
+                        purchaseTimestamp,
+                        quantity,
+                        true,
+                        product.platform,
+                        { currency: product.currency, price: product.price, store: "development" },
+                      ),
                     ),
                   ),
-                ),
-              600,
-            );
+                600,
+              );
+            },
+            text: "Purchase",
           },
-          text: "Purchase",
-        },
-      ],
-      { cancelable: true, onDismiss: cancel },
-    );
-  });
+        ],
+        { cancelable: true, onDismiss: cancel },
+      );
+    },
+  );
 });
 
 export const DevelopmentPaymentAdapter = Layer.succeed(PaymentAdapter, {
@@ -95,7 +97,8 @@ export const DevelopmentPaymentAdapter = Layer.succeed(PaymentAdapter, {
   getPendingTransactions: () => Effect.succeed([]),
   getProducts: (definitions) =>
     Effect.try({
-      try: () => R.values(definitions).flatMap((definition) => Option.toArray(makeProduct(definition))),
+      try: () =>
+        R.values(definitions).flatMap((definition) => Option.toArray(makeProduct(definition))),
       catch: (cause) =>
         new FailedToGetProductsError({ cause, message: "Failed to build development products" }),
     }),

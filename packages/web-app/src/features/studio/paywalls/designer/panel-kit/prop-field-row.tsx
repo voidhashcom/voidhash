@@ -25,7 +25,10 @@ import {
   type ComponentPropValuePlain,
 } from "@/features/studio/paywalls/designer/state/utils/component-prop-values";
 
-import { hexColorToRgbaString, rgbaStringToHexColor } from "../panels/right-panel/utils/component-color";
+import {
+  hexColorToRgbaString,
+  rgbaStringToHexColor,
+} from "../panels/right-panel/utils/component-color";
 import { ColorInput } from "./color-input";
 import { SelectInput } from "./select-input";
 import { VariableInput } from "@/features/studio/paywalls/designer/components/variables/variable-input";

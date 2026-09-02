@@ -40,7 +40,10 @@ export function featureFlagsHookFactory(
     // `featureFlagsForKeysAtom` family memoizes by normalized key so two
     // hooks asking for the same keys (in any order) share an atom, and hooks
     // asking for different keys can't trample each other.
-    const flagsAtom = React.useMemo(() => featureFlagsForKeysAtom(stableFlagKeys), [stableFlagKeys]);
+    const flagsAtom = React.useMemo(
+      () => featureFlagsForKeysAtom(stableFlagKeys),
+      [stableFlagKeys],
+    );
     const flags = useAtomValue(client.internal.getAtomRegistry(), flagsAtom);
 
     const isEnabled = React.useCallback(

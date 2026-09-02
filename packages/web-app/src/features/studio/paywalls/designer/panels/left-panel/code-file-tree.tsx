@@ -107,7 +107,10 @@ export function CodeFileTree() {
 
   const nodes = useStore(store, selectCodeComponentNodes);
   const activeTabPath = useStore(store, (state) => state.codeComponents.activeTabPath);
-  const dirty = useStore(store, useShallow((state) => state.codeComponents.dirty));
+  const dirty = useStore(
+    store,
+    useShallow((state) => state.codeComponents.dirty),
+  );
 
   const definitions = useMemo(() => codeComponentDefinitions(nodes), [nodes]);
   const paywallSlug = target?.paywallSlug;
@@ -212,10 +215,7 @@ export function CodeFileTree() {
   });
 
   // Rebuild the data loader whenever the component set changes.
-  const signature = useMemo(
-    () => Object.keys(pathById).sort().join("|"),
-    [pathById],
-  );
+  const signature = useMemo(() => Object.keys(pathById).sort().join("|"), [pathById]);
   useEffect(() => {
     tree.rebuildTree();
   }, [signature, tree]);
@@ -320,10 +320,7 @@ export function CodeFileTree() {
     return (
       <ContextMenu key={item.getKey()}>
         <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
-        <ContextMenuContent
-          className="w-40"
-          onCloseAutoFocus={(event) => event.preventDefault()}
-        >
+        <ContextMenuContent className="w-40" onCloseAutoFocus={(event) => event.preventDefault()}>
           <ContextMenuItem
             onSelect={() => {
               requestAnimationFrame(() => item.startRenaming());
@@ -333,7 +330,10 @@ export function CodeFileTree() {
             Rename
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onSelect={() => handleDelete(id, item.getItemName())} variant="destructive">
+          <ContextMenuItem
+            onSelect={() => handleDelete(id, item.getItemName())}
+            variant="destructive"
+          >
             <Trash2 />
             Delete
           </ContextMenuItem>

@@ -96,8 +96,18 @@ export type {
 export { domHostComponents } from "./renderer/dom-host";
 // ── Motion ─────────────────────────────────────────────────────────────────
 export { MotionConfig, useMotionConfig, useReducedMotion } from "./motion/context";
-export { domMotionPlatformAdapter, staticMotionPlatformAdapter, useMotionPlatform } from "./motion/platform";
-export { useMotionValue, useMotionValueEvent, useSpring, useTransform, useVelocity } from "./motion/hooks";
+export {
+  domMotionPlatformAdapter,
+  staticMotionPlatformAdapter,
+  useMotionPlatform,
+} from "./motion/platform";
+export {
+  useMotionValue,
+  useMotionValueEvent,
+  useSpring,
+  useTransform,
+  useVelocity,
+} from "./motion/hooks";
 export { useDragControls } from "./motion/drag";
 export { useMotionRef } from "./motion/ref";
 export { useInView, useScroll } from "./motion/scroll";
@@ -280,11 +290,7 @@ export {
   type ToggleGroupNode,
   type VariableFieldNode,
 } from "./schema/panel-tree";
-export {
-  PANEL_ICON_NAMES,
-  type ParsePanelResult,
-  parsePanelTree,
-} from "./schema/validate-panel";
+export { PANEL_ICON_NAMES, type ParsePanelResult, parsePanelTree } from "./schema/validate-panel";
 // ── Schema (shared wire types) ───────────────────────────────────────────────
 export {
   PAYWALL_STYLE_KEY_LIST,

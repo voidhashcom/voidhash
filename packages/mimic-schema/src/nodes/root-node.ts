@@ -12,9 +12,7 @@ import { ScreenNode } from "./screen-node.ts";
  */
 export const localizationConfigSchema = Primitive.Struct({
   defaultLocale: Primitive.String().default("en"),
-  locales: Primitive.Array(
-    Primitive.Struct({ tag: Primitive.String().required() }),
-  ).default([]),
+  locales: Primitive.Array(Primitive.Struct({ tag: Primitive.String().required() })).default([]),
 }).default({});
 
 /**

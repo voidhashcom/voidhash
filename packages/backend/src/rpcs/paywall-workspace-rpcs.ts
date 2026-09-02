@@ -1,11 +1,5 @@
-import {
-  ComponentManifestCacheService,
-  PaywallWorkspaceService,
-} from "@voidhash/core/services";
-import {
-  serializeDocument,
-  type SnapshotDocumentNode,
-} from "@voidhash/ai-shared";
+import { ComponentManifestCacheService, PaywallWorkspaceService } from "@voidhash/core/services";
+import { serializeDocument, type SnapshotDocumentNode } from "@voidhash/ai-shared";
 import {
   PaywallWorkspaceRpcsDef,
   RpcActionForbiddenError,

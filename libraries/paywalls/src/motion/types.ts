@@ -82,8 +82,7 @@ export interface Transition {
 }
 
 /** A transition with optional per-motion-key overrides. */
-export type TransitionByKey = Transition &
-  Partial<Record<MotionStyleKey | "default", Transition>>;
+export type TransitionByKey = Transition & Partial<Record<MotionStyleKey | "default", Transition>>;
 
 /** A future-compatible imperative animation controller. */
 export interface AnimationControls {

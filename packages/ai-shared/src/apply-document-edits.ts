@@ -19,8 +19,12 @@ const makeMutableIndex = <K, V>(): MutableIndex<K, V> => {
   const backing = MutableHashMap.empty<K, V>();
   return {
     get: (key) => Option.getOrUndefined(MutableHashMap.get(backing, key)),
-    set: (key, value) => { MutableHashMap.set(backing, key, value); },
-    delete: (key) => { MutableHashMap.remove(backing, key); },
+    set: (key, value) => {
+      MutableHashMap.set(backing, key, value);
+    },
+    delete: (key) => {
+      MutableHashMap.remove(backing, key);
+    },
     has: (key) => MutableHashMap.has(backing, key),
   };
 };
@@ -96,58 +100,58 @@ export function applyDocumentEdits(
 
   edits.forEach((edit, editIndex) => {
     if (edit.op === "insert") {
-        const parent = index.byId.get(edit.parentId);
-        if (parent === undefined) return;
-        const minted: string[] = [];
-        const node = nodeInputToMutable(edit.node, minted, index);
-        insertChild(parent, node, edit.index);
-        registerSubtree(index, node);
-        if (Arr.isReadonlyArrayNonEmpty(minted)) {
-          mintedIds[String(editIndex)] = minted;
-        }
-        return;
+      const parent = index.byId.get(edit.parentId);
+      if (parent === undefined) return;
+      const minted: string[] = [];
+      const node = nodeInputToMutable(edit.node, minted, index);
+      insertChild(parent, node, edit.index);
+      registerSubtree(index, node);
+      if (Arr.isReadonlyArrayNonEmpty(minted)) {
+        mintedIds[String(editIndex)] = minted;
+      }
+      return;
     }
     if (edit.op === "update") {
-        const node = index.byId.get(edit.nodeId);
-        if (node === undefined) return;
-        node.data = mergeData(node.data, edit.set);
-        return;
+      const node = index.byId.get(edit.nodeId);
+      if (node === undefined) return;
+      node.data = mergeData(node.data, edit.set);
+      return;
     }
     if (edit.op === "move") {
-        const node = index.byId.get(edit.nodeId);
-        const parent = index.byId.get(edit.parentId);
-        if (node === undefined || parent === undefined) return;
-        const currentParent = index.parentOf.get(node.id);
-        if (currentParent === undefined) return;
-        detachChild(currentParent, node.id);
-        insertChild(parent, node, edit.index);
-        index.parentOf.set(node.id, parent);
-        return;
+      const node = index.byId.get(edit.nodeId);
+      const parent = index.byId.get(edit.parentId);
+      if (node === undefined || parent === undefined) return;
+      const currentParent = index.parentOf.get(node.id);
+      if (currentParent === undefined) return;
+      detachChild(currentParent, node.id);
+      insertChild(parent, node, edit.index);
+      index.parentOf.set(node.id, parent);
+      return;
     }
     if (edit.op === "remove") {
-        const node = index.byId.get(edit.nodeId);
-        if (node === undefined) return;
-        const parent = index.parentOf.get(node.id);
-        if (parent === undefined) return;
-        detachChild(parent, node.id);
-        unregisterSubtree(index, node);
-        return;
+      const node = index.byId.get(edit.nodeId);
+      if (node === undefined) return;
+      const parent = index.parentOf.get(node.id);
+      if (parent === undefined) return;
+      detachChild(parent, node.id);
+      unregisterSubtree(index, node);
+      return;
     }
     if (edit.op === "replaceChildren") {
-        const node = index.byId.get(edit.nodeId);
-        if (node === undefined) return;
-        Arr.forEach(node.children, (child) => {
-          unregisterSubtree(index, child);
-        });
-        node.children = [];
-        const minted: string[] = [];
-        Arr.forEach(edit.children, (childInput) => {
-          const child = nodeInputToMutable(childInput, minted, index);
-          node.children.push(child);
-          index.parentOf.set(child.id, node);
-          registerSubtree(index, child);
-        });
-        mintedIds[String(editIndex)] = minted;
+      const node = index.byId.get(edit.nodeId);
+      if (node === undefined) return;
+      Arr.forEach(node.children, (child) => {
+        unregisterSubtree(index, child);
+      });
+      node.children = [];
+      const minted: string[] = [];
+      Arr.forEach(edit.children, (childInput) => {
+        const child = nodeInputToMutable(childInput, minted, index);
+        node.children.push(child);
+        index.parentOf.set(child.id, node);
+        registerSubtree(index, child);
+      });
+      mintedIds[String(editIndex)] = minted;
     }
   });
 
@@ -169,7 +173,9 @@ function buildIndex(root: MutableNode): TreeIndex {
   const walk = (node: MutableNode, parent: MutableNode | void) => {
     byId.set(node.id, node);
     if (parent !== undefined) parentOf.set(node.id, parent);
-    Arr.forEach(node.children, (child) => { walk(child, node); });
+    Arr.forEach(node.children, (child) => {
+      walk(child, node);
+    });
   };
   walk(root, undefined);
   return { byId, parentOf };
@@ -188,7 +194,9 @@ function registerSubtree(index: TreeIndex, node: MutableNode): void {
 function unregisterSubtree(index: TreeIndex, node: MutableNode): void {
   index.byId.delete(node.id);
   index.parentOf.delete(node.id);
-  Arr.forEach(node.children, (child) => { unregisterSubtree(index, child); });
+  Arr.forEach(node.children, (child) => {
+    unregisterSubtree(index, child);
+  });
 }
 
 /** Insert `node` among `parent`'s children at `index` (clamped into range). */

@@ -70,7 +70,6 @@ import type { VoidhashEngine as VoidhashEngineSpec } from "./specs/VoidhashEngin
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-
 /** Controls the built-in `$screen` event. */
 export interface ScreenTrackingOptions {
   /** Default `true`. `false` makes every integration and `screen()` a no-op. */
@@ -1000,9 +999,7 @@ export class VoidhashClient {
   private triggerBackgroundFlush(operation: string) {
     void this.flush().then((result) => {
       if (result.isErr()) {
-        EffectRuntime.runSync(
-          Effect.logWarning(`[voidhash] failed to ${operation}`, result.error),
-        );
+        EffectRuntime.runSync(Effect.logWarning(`[voidhash] failed to ${operation}`, result.error));
       }
     });
   }

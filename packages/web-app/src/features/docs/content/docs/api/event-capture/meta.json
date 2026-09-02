@@ -1,5 +1,3 @@
 {
-  "pages": [
-    "event_capture"
-  ]
+  "pages": ["event_capture"]
 }

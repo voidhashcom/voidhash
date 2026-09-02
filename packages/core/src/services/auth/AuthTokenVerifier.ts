@@ -5,17 +5,18 @@ import * as Schema from "effect/Schema";
 import * as Str from "effect/String";
 
 /** Stable failure raised when an authentication token cannot be parsed or verified. */
-export class JwtAuthError extends Schema.TaggedErrorClass<JwtAuthError>(
+export class JwtAuthError extends Schema.TaggedErrorClass<JwtAuthError>("JwtAuthError")(
   "JwtAuthError",
-)("JwtAuthError", {
-  cause: Schema.optional(Schema.Unknown),
-  /**
-   * Enumerable rendering of `cause` for transports that serialize errors via
-   * `Object.keys`.
-   */
-  detail: Schema.optional(Schema.String),
-  message: Schema.String,
-}) {}
+  {
+    cause: Schema.optional(Schema.Unknown),
+    /**
+     * Enumerable rendering of `cause` for transports that serialize errors via
+     * `Object.keys`.
+     */
+    detail: Schema.optional(Schema.String),
+    message: Schema.String,
+  },
+) {}
 
 /** Claims required from a verified identity token. */
 export const JwtAuthPayloadDefinition = Schema.Struct({
@@ -47,25 +48,21 @@ export type ValidatedJwtDefinition = typeof ValidatedJwtDefinition.Type;
 
 /** Provider-neutral capability required by backend session resolution. */
 export interface AuthTokenVerifierShape {
-  readonly validateToken: (
-    token: string,
-  ) => Effect.Effect<ValidatedJwt, JwtAuthError>;
+  readonly validateToken: (token: string) => Effect.Effect<ValidatedJwt, JwtAuthError>;
 }
 
 /**
  * Verifies identity tokens without exposing the runtime used to cache keys or
  * execute validation.
  */
-export class AuthTokenVerifier extends Context.Service<
-  AuthTokenVerifier,
-  AuthTokenVerifierShape
->()("@voidhash/core/AuthTokenVerifier") {}
+export class AuthTokenVerifier extends Context.Service<AuthTokenVerifier, AuthTokenVerifierShape>()(
+  "@voidhash/core/AuthTokenVerifier",
+) {}
 
 const bearerToken = (authorizationHeader: Option.Option<string>): string =>
   Option.match(authorizationHeader, {
     onNone: () => "",
-    onSome: (header) =>
-      header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "",
+    onSome: (header) => (header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : ""),
   });
 
 /** Extracts the raw token from a `Bearer <token>` Authorization header. */

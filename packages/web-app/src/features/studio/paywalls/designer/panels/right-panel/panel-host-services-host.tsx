@@ -194,7 +194,10 @@ export function PanelHostServicesHost({
         variables={sheetVariables}
       />
 
-      <AlertDialog onOpenChange={(open) => !open && resolveConfirm(false)} open={confirmPlan !== null}>
+      <AlertDialog
+        onOpenChange={(open) => !open && resolveConfirm(false)}
+        open={confirmPlan !== null}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmPlan?.title ?? ""}</AlertDialogTitle>

@@ -26,8 +26,7 @@ type RuntimePromisifyClient<TClient extends StringRecord> = {
 
 const isEffectMethod = (
   value: unknown,
-): value is (...parameters: Array<unknown>) => Effect.Effect<unknown> =>
-  P.isFunction(value);
+): value is (...parameters: Array<unknown>) => Effect.Effect<unknown> => P.isFunction(value);
 
 const isNestedNamespace = (value: unknown): value is StringRecord =>
   P.isObject(value) && value !== null;
@@ -38,14 +37,13 @@ const isNestedNamespace = (value: unknown): value is StringRecord =>
  * {@link RuntimePromisifyClient}, which the untyped runtime walk below cannot
  * express, so the public signature is declared as an overload.
  */
-function promisifyClient<TClient extends StringRecord>(client: TClient): RuntimePromisifyClient<TClient>;
+function promisifyClient<TClient extends StringRecord>(
+  client: TClient,
+): RuntimePromisifyClient<TClient>;
 function promisifyClient<TClient extends StringRecord>(client: TClient): unknown {
   const entries = R.toEntries(client).map(([key, value]): [string, unknown] => {
     if (isEffectMethod(value)) {
-      return [
-        key,
-        (...args: Array<unknown>) => runtime.runPromise(value.apply(client, args)),
-      ];
+      return [key, (...args: Array<unknown>) => runtime.runPromise(value.apply(client, args))];
     }
 
     if (isNestedNamespace(value)) {

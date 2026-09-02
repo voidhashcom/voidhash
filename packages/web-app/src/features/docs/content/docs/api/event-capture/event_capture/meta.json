@@ -1,7 +1,4 @@
 {
   "title": "Event_capture",
-  "pages": [
-    "event_capture.capture",
-    "event_capture.batch"
-  ]
+  "pages": ["event_capture.capture", "event_capture.batch"]
 }

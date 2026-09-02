@@ -41,26 +41,13 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import type {
-  ComponentBoundAction,
-  VariableType,
-  VariableTypeKey,
-} from "@voidhash/mimic-schema";
+import type { ComponentBoundAction, VariableType, VariableTypeKey } from "@voidhash/mimic-schema";
 
-import {
-  PanelCallout,
-  PanelColumn,
-  PanelField,
-  PanelRow,
-  PanelText,
-} from "../panel-kit/chrome";
+import { PanelCallout, PanelColumn, PanelField, PanelRow, PanelText } from "../panel-kit/chrome";
 import { ActionEditorField } from "../panel-kit/action-editor-field";
 import { VariableBindingField } from "../panel-kit/variable-binding-field";
 import { ProductInput } from "../components/variables/inputs/product-input";
-import type {
-  LabeledVariable,
-  VariableInputValue,
-} from "../components/variables/types";
+import type { LabeledVariable, VariableInputValue } from "../components/variables/types";
 import { FlexAlignmentInput } from "../panel-kit/alignment-grid";
 import { ColorInput } from "../panel-kit/color-input";
 import { ColorPickerContent } from "../panel-kit/color-picker/color-picker-content";
@@ -395,10 +382,7 @@ const renderNode = (
       const onOpenChange = eventHandler(transport, node, "onOpenChange");
       const open = asBool(props.open);
       return (
-        <Popover
-          onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
-          open={open}
-        >
+        <Popover onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined} open={open}>
           {children}
         </Popover>
       );
@@ -409,9 +393,7 @@ const renderNode = (
       // array (and `PanelNodeView` wraps each node in a Fragment), and Slot renders
       // NOTHING for either — the trigger silently disappeared. Render the one child
       // node inline so the concrete element (a `button`) is what Slot clones.
-      return (
-        <PopoverTrigger asChild>{renderSlotChild(node, transport, ctx)}</PopoverTrigger>
-      );
+      return <PopoverTrigger asChild>{renderSlotChild(node, transport, ctx)}</PopoverTrigger>;
 
     case "popoverContent": {
       const onClose = eventHandler(transport, node, "onClose");
@@ -564,7 +546,9 @@ const renderNode = (
               toggle group's segmented-control layout. */}
           {options.map((option) => (
             <ToggleGroupItem className="flex-1" key={option.value} size="sm" value={option.value}>
-              {option.icon ? renderPanelIcon(option.icon, "size-3.5") : (option.label ?? option.value)}
+              {option.icon
+                ? renderPanelIcon(option.icon, "size-3.5")
+                : (option.label ?? option.value)}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -607,9 +591,7 @@ const renderNode = (
           variant={(asString(props.variant) as never) ?? "outline"}
         >
           {props.icon ? renderPanelIcon(asIcon(props.icon)!, "size-3.5") : null}
-          {!iconOnly && label !== undefined && (
-            <span className="min-w-0 truncate">{label}</span>
-          )}
+          {!iconOnly && label !== undefined && <span className="min-w-0 truncate">{label}</span>}
           {!iconOnly && hint !== undefined && (
             <span className="min-w-0 truncate text-muted-foreground">{hint}</span>
           )}
@@ -759,9 +741,7 @@ const renderNode = (
         <ImageField
           onClear={onClear ? () => onClear() : undefined}
           onPick={onPick ? (url) => onPick(url) : undefined}
-          onResizeModeChange={
-            onResizeModeChange ? (mode) => onResizeModeChange(mode) : undefined
-          }
+          onResizeModeChange={onResizeModeChange ? (mode) => onResizeModeChange(mode) : undefined}
           resizeMode={asString(props.resizeMode) as never}
           url={safeImageUrl(asString(props.url) ?? undefined)}
         />
@@ -779,9 +759,7 @@ const renderNode = (
           alignItems={(asString(props.alignItems) as never) ?? "stretch"}
           flexDirection={(asString(props.flexDirection) as never) ?? "row"}
           justifyContent={(asString(props.justifyContent) as never) ?? "flex-start"}
-          onChange={
-            onChange ? (value) => onChange(value as unknown) : () => {}
-          }
+          onChange={onChange ? (value) => onChange(value as unknown) : () => {}}
         />
       );
     }
@@ -1047,15 +1025,17 @@ function VariableFieldNodeView({
   const variableId = asString(props.variableId);
   const variableName = asString(props.variableName) ?? "";
   const variableType = (asString(props.variableType) as VariableTypeKey | undefined) ?? "string";
-  const allowedKinds = Array.isArray(props.allowedKinds)
-    ? (props.allowedKinds as string[])
-    : [];
+  const allowedKinds = Array.isArray(props.allowedKinds) ? (props.allowedKinds as string[]) : [];
   const expectedType = (allowedKinds[0] as VariableTypeKey | undefined) ?? undefined;
 
   // Reconstruct the bound variable (if any) so the reference option renders with
   // its name; the empty default literal seeds the literal editor otherwise.
   const boundVariable: LabeledVariable | undefined = variableId
-    ? { id: variableId, name: variableName, value: { key: variableType, value: emptyLiteral(variableType).value } as VariableType }
+    ? {
+        id: variableId,
+        name: variableName,
+        value: { key: variableType, value: emptyLiteral(variableType).value } as VariableType,
+      }
     : undefined;
   const variables = boundVariable ? [boundVariable] : [];
   const value: VariableInputValue = variableId
@@ -1149,10 +1129,7 @@ function ProductFieldNodeView({
   const onChange = eventHandler(transport, node, "onChange");
   const productId = asString(props.productId) ?? null;
   return (
-    <ProductInput
-      onChange={(next) => onChange?.(next.productId ?? "")}
-      value={{ productId }}
-    />
+    <ProductInput onChange={(next) => onChange?.(next.productId ?? "")} value={{ productId }} />
   );
 }
 

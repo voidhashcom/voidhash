@@ -22,15 +22,15 @@ own app will make.
 
 ## What it demonstrates
 
-| Surface | Where |
-| --- | --- |
-| Provider, loading state, **failure state with retry** | [`components/voidhash-gate.tsx`](./components/voidhash-gate.tsx) |
-| Entitlement check, including the stale-while-offline answer | [`app/(tabs)/index.tsx`](<./app/(tabs)/index.tsx>) |
-| Presenting a hosted paywall and handling **every** way it can decline | [`lib/paywall-outcome.ts`](./lib/paywall-outcome.ts) |
-| Products, purchase, restore, and purchase outcomes that are not errors | [`app/(tabs)/upgrade.tsx`](<./app/(tabs)/upgrade.tsx>) |
-| Identify, person attributes, entitlement grants, feature flag, reset | [`app/(tabs)/account.tsx`](<./app/(tabs)/account.tsx>) |
-| Analytics capture and flush | across all three screens |
-| Client construction and development mode | [`lib/voidhash.ts`](./lib/voidhash.ts) |
+| Surface                                                                | Where                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Provider, loading state, **failure state with retry**                  | [`components/voidhash-gate.tsx`](./components/voidhash-gate.tsx) |
+| Entitlement check, including the stale-while-offline answer            | [`app/(tabs)/index.tsx`](<./app/(tabs)/index.tsx>)               |
+| Presenting a hosted paywall and handling **every** way it can decline  | [`lib/paywall-outcome.ts`](./lib/paywall-outcome.ts)             |
+| Products, purchase, restore, and purchase outcomes that are not errors | [`app/(tabs)/upgrade.tsx`](<./app/(tabs)/upgrade.tsx>)           |
+| Identify, person attributes, entitlement grants, feature flag, reset   | [`app/(tabs)/account.tsx`](<./app/(tabs)/account.tsx>)           |
+| Analytics capture and flush                                            | across all three screens                                         |
+| Client construction and development mode                               | [`lib/voidhash.ts`](./lib/voidhash.ts)                           |
 
 ## Prerequisites
 
@@ -48,11 +48,11 @@ own app will make.
 cp .env.example .env
 ```
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `EXPO_PUBLIC_VOIDHASH_PUBLISHABLE_KEY` | yes | Your `vh_pk_…` key. |
-| `EXPO_PUBLIC_VOIDHASH_BASE_URL` | no | Point the SDK at a local or staging API. |
-| `EXPO_PUBLIC_VOIDHASH_DEBUG` | no | `true` logs every SDK request and response. |
+| Variable                               | Required | Purpose                                     |
+| -------------------------------------- | -------- | ------------------------------------------- |
+| `EXPO_PUBLIC_VOIDHASH_PUBLISHABLE_KEY` | yes      | Your `vh_pk_…` key.                         |
+| `EXPO_PUBLIC_VOIDHASH_BASE_URL`        | no       | Point the SDK at a local or staging API.    |
+| `EXPO_PUBLIC_VOIDHASH_DEBUG`           | no       | `true` logs every SDK request and response. |
 
 Expo inlines `EXPO_PUBLIC_*` variables at build time, so restart the bundler after editing `.env`.
 Until the key is set, the app builds and runs but shows a setup card instead of the tabs — the
@@ -140,15 +140,15 @@ The app-owned fallback, and the screen a brand-new project sees before a paywall
 `show()` never rejects. It resolves to a `ShowPaywallResult`, and all but one status means "show
 your own screen". `lib/paywall-outcome.ts` turns the union into a decision:
 
-| Status | Nimbus does |
-| --- | --- |
-| `shown` | Captures `paywall_viewed` and stops. The hosted paywall owns the flow from here. |
-| `not_assigned` | Opens the Upgrade screen. **This is the default state of a new project** — no paywall is published yet. |
-| `disabled` | Opens the Upgrade screen. The client was built with `enabled: false`. |
-| `native_unavailable` | Opens the Upgrade screen. No native presenter on this platform. |
-| `not_initialized` | Opens the Upgrade screen. The SDK is still starting. |
-| `initialization_failed` | Opens the Upgrade screen and carries the error along. |
-| `failed` | Opens the Upgrade screen and carries the error along. |
+| Status                  | Nimbus does                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `shown`                 | Captures `paywall_viewed` and stops. The hosted paywall owns the flow from here.                        |
+| `not_assigned`          | Opens the Upgrade screen. **This is the default state of a new project** — no paywall is published yet. |
+| `disabled`              | Opens the Upgrade screen. The client was built with `enabled: false`.                                   |
+| `native_unavailable`    | Opens the Upgrade screen. No native presenter on this platform.                                         |
+| `not_initialized`       | Opens the Upgrade screen. The SDK is still starting.                                                    |
+| `initialization_failed` | Opens the Upgrade screen and carries the error along.                                                   |
+| `failed`                | Opens the Upgrade screen and carries the error along.                                                   |
 
 The point is that Nimbus sells Pro whether or not anyone has configured a paywall. Getting this
 wrong is the difference between an integration that degrades and one that dead-ends on a button

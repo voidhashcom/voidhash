@@ -91,9 +91,8 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Voidhash self-host signs in with the root credentials from your
-        environment (<code>VOIDHASH_ROOT_USERNAME</code> and{" "}
-        <code>VOIDHASH_ROOT_PASSWORD</code>).
+        Voidhash self-host signs in with the root credentials from your environment (
+        <code>VOIDHASH_ROOT_USERNAME</code> and <code>VOIDHASH_ROOT_PASSWORD</code>).
       </p>
     </form>
   );

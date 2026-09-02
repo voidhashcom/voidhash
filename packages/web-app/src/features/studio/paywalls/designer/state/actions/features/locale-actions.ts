@@ -100,7 +100,10 @@ interface LocaleEntryPlan {
  */
 interface LocaleEntriesCapture {
   readonly texts: readonly { nodeId: string; text: string | undefined }[];
-  readonly images: readonly { nodeId: string; backgroundImage: BackgroundImageSnapshot | undefined }[];
+  readonly images: readonly {
+    nodeId: string;
+    backgroundImage: BackgroundImageSnapshot | undefined;
+  }[];
   readonly props: readonly { nodeId: string; propName: string; raw: unknown }[];
 }
 
@@ -455,9 +458,8 @@ export const copyLocaleFrom = commander.undoableAction<
         if (node === undefined || node.data.localized.filter(hasLocale(params.target)).length > 0) {
           continue;
         }
-        const text = node.data.localized
-          .filter(hasLocale(params.source))[0]
-          ?.get()?.overrides?.text;
+        const text = node.data.localized.filter(hasLocale(params.source))[0]?.get()
+          ?.overrides?.text;
         if (text === undefined) {
           continue;
         }
@@ -471,8 +473,8 @@ export const copyLocaleFrom = commander.undoableAction<
         if (localized === undefined || localized.filter(hasLocale(params.target)).length > 0) {
           continue;
         }
-        const backgroundImage = localized.filter(hasLocale(params.source))[0]?.get()?.overrides
-          ?.backgroundImage;
+        const backgroundImage = localized.filter(hasLocale(params.source))[0]?.get()
+          ?.overrides?.backgroundImage;
         if (backgroundImage === undefined) {
           continue;
         }
@@ -580,9 +582,7 @@ export const updateNodeTranslation = commander.undoableAction<
       if (node === undefined) {
         return { previous: null };
       }
-      const matches = node.data.localized.filter(
-        (entry) => entry.get()?.locale === params.locale,
-      );
+      const matches = node.data.localized.filter((entry) => entry.get()?.locale === params.locale);
       const previous: CapturedLocalizedEntry[] = matches.flatMap((entry) => {
         const snapshot = entry.get();
         return snapshot === undefined

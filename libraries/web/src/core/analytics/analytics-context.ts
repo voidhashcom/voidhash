@@ -11,15 +11,8 @@ import type { VoidhashTrackOptions } from "../../types";
 import { BrowserPlatformProvider } from "../platform/browser-platform-provider";
 import type { AnalyticsRequestEvent } from "./contracts";
 
-const normalizeAnalyticsValue = (
-  value: unknown,
-): Option.Option<EventContextField> => {
-  if (
-    value === null ||
-    P.isString(value) ||
-    P.isNumber(value) ||
-    P.isBoolean(value)
-  ) {
+const normalizeAnalyticsValue = (value: unknown): Option.Option<EventContextField> => {
+  if (value === null || P.isString(value) || P.isNumber(value) || P.isBoolean(value)) {
     return Option.some(value);
   }
 

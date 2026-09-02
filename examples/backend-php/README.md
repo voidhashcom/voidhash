@@ -41,14 +41,14 @@ cp .env.example .env
 $EDITOR .env
 ```
 
-| Variable | Required | Default |
-| --- | --- | --- |
-| `VOIDHASH_SECRET_KEY` | yes | — |
-| `VOIDHASH_WEBHOOK_SECRET` | for `POST /webhooks/voidhash` | — |
-| `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
-| `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
-| `PORT` | no | `8080` |
-| `NIMBUS_STATE_DIR` | no | `<tmp>/nimbus-backend-php` |
+| Variable                  | Required                      | Default                       |
+| ------------------------- | ----------------------------- | ----------------------------- |
+| `VOIDHASH_SECRET_KEY`     | yes                           | —                             |
+| `VOIDHASH_WEBHOOK_SECRET` | for `POST /webhooks/voidhash` | —                             |
+| `VOIDHASH_BASE_URL`       | no                            | `https://api.voidhash.com`    |
+| `VOIDHASH_INGEST_URL`     | no                            | `https://ingest.voidhash.com` |
+| `PORT`                    | no                            | `8080`                        |
+| `NIMBUS_STATE_DIR`        | no                            | `<tmp>/nimbus-backend-php`    |
 
 The service refuses to start without `VOIDHASH_SECRET_KEY` and says so on
 stderr rather than failing on the first request that needs it. Everything else
@@ -320,7 +320,7 @@ later.
 
 ### Degrading instead of denying
 
-A transport error or a 5xx means Voidhash told you *nothing*, which is not the
+A transport error or a 5xx means Voidhash told you _nothing_, which is not the
 same as telling you "no". The cache serves its last answer past the TTL
 (`freshness: stale`) so a subscriber keeps working through an outage, and a
 distinct id with nothing cached comes back `unknown` and is deliberately not
@@ -338,13 +338,13 @@ manufactures its own duplicates. The route acknowledges first (under php-fpm,
 via `fastcgi_finish_request()`) and works afterwards, and
 [`src/Nimbus/WebhookHandler.php`](src/Nimbus/WebhookHandler.php) keys a dedupe
 set on `sha256` of the raw body — Voidhash posts the bare payload with no
-delivery id, and a retry re-signs the *same bytes* with a fresh timestamp, so
+delivery id, and a retry re-signs the _same bytes_ with a fresh timestamp, so
 the body is the stable identity.
 
 ## State, and why it is a file
 
 The other examples in this suite keep notes, the entitlement cache and the
-dedupe set in a process-global map. PHP cannot: the request *is* the process
+dedupe set in a process-global map. PHP cannot: the request _is_ the process
 lifetime, so a `static` array is empty again on the next call.
 [`src/Nimbus/StateFile.php`](src/Nimbus/StateFile.php) writes a JSON document
 under `flock()` instead, which behaves like the other examples and keeps the
@@ -388,15 +388,15 @@ Three things to get right:
 
 ## What to steal
 
-| You want | Read |
-| --- | --- |
-| Verify a webhook without breaking the signature | [`src/Controller/WebhookController.php`](src/Controller/WebhookController.php) |
-| Handle a redelivery exactly once | [`src/Nimbus/WebhookHandler.php`](src/Nimbus/WebhookHandler.php) |
-| Cache an entitlement check and survive an outage | [`src/Nimbus/EntitlementCache.php`](src/Nimbus/EntitlementCache.php) |
-| Turn SDK failures into the right HTTP status | [`src/Nimbus/EntitlementResolver.php`](src/Nimbus/EntitlementResolver.php), [`src/Application.php`](src/Application.php) |
-| Resolve grants to perk slugs | [`src/Nimbus/EntitlementResolver.php`](src/Nimbus/EntitlementResolver.php) |
-| Capture an event from the server | [`src/Nimbus/Analytics.php`](src/Nimbus/Analytics.php) |
-| Validate configuration at boot | [`src/Config.php`](src/Config.php), [`public/index.php`](public/index.php) |
+| You want                                         | Read                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Verify a webhook without breaking the signature  | [`src/Controller/WebhookController.php`](src/Controller/WebhookController.php)                                           |
+| Handle a redelivery exactly once                 | [`src/Nimbus/WebhookHandler.php`](src/Nimbus/WebhookHandler.php)                                                         |
+| Cache an entitlement check and survive an outage | [`src/Nimbus/EntitlementCache.php`](src/Nimbus/EntitlementCache.php)                                                     |
+| Turn SDK failures into the right HTTP status     | [`src/Nimbus/EntitlementResolver.php`](src/Nimbus/EntitlementResolver.php), [`src/Application.php`](src/Application.php) |
+| Resolve grants to perk slugs                     | [`src/Nimbus/EntitlementResolver.php`](src/Nimbus/EntitlementResolver.php)                                               |
+| Capture an event from the server                 | [`src/Nimbus/Analytics.php`](src/Nimbus/Analytics.php)                                                                   |
+| Validate configuration at boot                   | [`src/Config.php`](src/Config.php), [`public/index.php`](public/index.php)                                               |
 
 ## One credential, two writes
 

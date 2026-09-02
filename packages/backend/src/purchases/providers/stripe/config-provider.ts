@@ -133,10 +133,13 @@ const encryptCredentials = (
   credentials: StripeCredentialsConfiguration,
   secretCrypto: typeof PaymentConfigSecretCrypto.Service,
 ) =>
-  Effect.all({
-    secretKey: secretCrypto.encrypt(credentials.secretKey),
-    webhookSecret: secretCrypto.encrypt(credentials.webhookSecret),
-  }, { concurrency: 1 }).pipe(Effect.orDie);
+  Effect.all(
+    {
+      secretKey: secretCrypto.encrypt(credentials.secretKey),
+      webhookSecret: secretCrypto.encrypt(credentials.webhookSecret),
+    },
+    { concurrency: 1 },
+  ).pipe(Effect.orDie);
 
 /** Build the Stripe config-write provider over a resolved secret crypto. */
 export const makeStripeConfigProvider = (
@@ -185,10 +188,13 @@ export const makeStripeConfigProvider = (
           { concurrency: 1, discard: true },
         ).pipe(
           Effect.flatMap(() =>
-            Effect.all({
-              live: encryptCredentials(parsedConfiguration.live, secretCrypto),
-              test: encryptCredentials(parsedConfiguration.test, secretCrypto),
-            }, { concurrency: 1 }).pipe(
+            Effect.all(
+              {
+                live: encryptCredentials(parsedConfiguration.live, secretCrypto),
+                test: encryptCredentials(parsedConfiguration.test, secretCrypto),
+              },
+              { concurrency: 1 },
+            ).pipe(
               Effect.map(({ live, test }) => ({
                 parsedConfiguration: {
                   ...parsedConfiguration,

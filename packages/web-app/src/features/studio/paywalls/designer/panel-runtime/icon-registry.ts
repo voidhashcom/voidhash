@@ -106,7 +106,9 @@ export const PANEL_ICON_REGISTRY: Record<IconName, (className?: string) => React
   // transform classes the legacy section applied per corner (top-right is the
   // plain `squareRoundCorner`).
   squareRoundCornerTopLeft: (className) =>
-    createElement(SquareRoundCornerIcon as LucideIcon, { className: cn("-scale-x-100", className) }),
+    createElement(SquareRoundCornerIcon as LucideIcon, {
+      className: cn("-scale-x-100", className),
+    }),
   squareRoundCornerBottomLeft: (className) =>
     createElement(SquareRoundCornerIcon as LucideIcon, { className: cn("rotate-180", className) }),
   squareRoundCornerBottomRight: (className) =>
@@ -118,11 +120,17 @@ export const PANEL_ICON_REGISTRY: Record<IconName, (className?: string) => React
   squareDashedTopSolid: (className) =>
     createElement(SquareDashedTopSolidIcon as LucideIcon, { className }),
   squareDashedTopSolidLeft: (className) =>
-    createElement(SquareDashedTopSolidIcon as LucideIcon, { className: cn("-rotate-90", className) }),
+    createElement(SquareDashedTopSolidIcon as LucideIcon, {
+      className: cn("-rotate-90", className),
+    }),
   squareDashedTopSolidRight: (className) =>
-    createElement(SquareDashedTopSolidIcon as LucideIcon, { className: cn("rotate-90", className) }),
+    createElement(SquareDashedTopSolidIcon as LucideIcon, {
+      className: cn("rotate-90", className),
+    }),
   squareDashedTopSolidBottom: (className) =>
-    createElement(SquareDashedTopSolidIcon as LucideIcon, { className: cn("rotate-180", className) }),
+    createElement(SquareDashedTopSolidIcon as LucideIcon, {
+      className: cn("rotate-180", className),
+    }),
   type: (className) => createElement(TypeIcon as LucideIcon, { className }),
   component: (className) => createElement(ComponentIcon as LucideIcon, { className }),
   code: (className) => createElement(CodeIcon as LucideIcon, { className }),
@@ -144,8 +152,7 @@ export const PANEL_ICON_REGISTRY: Record<IconName, (className?: string) => React
   scan: (className) => createElement(ScanIcon as LucideIcon, { className }),
   vault: (className) => createElement(VaultIcon as LucideIcon, { className }),
   panelLeftDashed: (className) => createElement(PanelLeftDashedIcon as LucideIcon, { className }),
-  panelRightDashed: (className) =>
-    createElement(PanelRightDashedIcon as LucideIcon, { className }),
+  panelRightDashed: (className) => createElement(PanelRightDashedIcon as LucideIcon, { className }),
   panelTopDashed: (className) => createElement(PanelTopDashedIcon as LucideIcon, { className }),
   panelBottomDashed: (className) =>
     createElement(PanelBottomDashedIcon as LucideIcon, { className }),

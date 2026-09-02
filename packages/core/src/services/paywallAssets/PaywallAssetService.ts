@@ -67,18 +67,18 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
       const publicFileStore = yield* PublicFileStore;
 
       /** Assert the session is a member of `organizationId`, else fail forbidden. */
-      const assertMember = Effect.fn("PaywallAssetService.assertMember")(
-        function* (organizationId: string) {
-          const session = yield* AuthSession;
-          if (!isSessionOrganizationMember(session, organizationId)) {
-            return yield* Effect.fail(
-              new PaywallAssetForbiddenError({
-                message: `Not a member of organization ${organizationId}.`,
-              }),
-            );
-          }
-        },
-      );
+      const assertMember = Effect.fn("PaywallAssetService.assertMember")(function* (
+        organizationId: string,
+      ) {
+        const session = yield* AuthSession;
+        if (!isSessionOrganizationMember(session, organizationId)) {
+          return yield* Effect.fail(
+            new PaywallAssetForbiddenError({
+              message: `Not a member of organization ${organizationId}.`,
+            }),
+          );
+        }
+      });
 
       const rowToAsset = (row: typeof paywallAsset.$inferSelect): PaywallAssetRow => ({
         id: row.id,
@@ -182,20 +182,18 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
       );
 
       /** Load a row by id or fail not-found. */
-      const findRow = Effect.fn("PaywallAssetService.findRow")(
-        function* (assetId: string) {
-          const rows = yield* db
-            .select()
-            .from(paywallAsset)
-            .where(eq(paywallAsset.id, assetId))
-            .limit(1);
-          const row = rows[0];
-          if (!row) {
-            return yield* Effect.fail(new PaywallAssetNotFoundError({ assetId }));
-          }
-          return row;
-        },
-      );
+      const findRow = Effect.fn("PaywallAssetService.findRow")(function* (assetId: string) {
+        const rows = yield* db
+          .select()
+          .from(paywallAsset)
+          .where(eq(paywallAsset.id, assetId))
+          .limit(1);
+        const row = rows[0];
+        if (!row) {
+          return yield* Effect.fail(new PaywallAssetNotFoundError({ assetId }));
+        }
+        return row;
+      });
 
       const rename = Effect.fn("renamePaywallAsset")(
         function* (input: { readonly assetId: string; readonly name: string }) {

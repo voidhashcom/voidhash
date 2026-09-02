@@ -177,11 +177,12 @@ export type StyleProp = PaywallStyle | false | null | undefined | ReadonlyArray<
 // evaluate it, so a key added to or dropped from EITHER the interface or
 // `WIRE_STYLE_ORDER` (without matching the other) fails the build here.
 type MissingKeys<From, In> = { [K in keyof From]: K extends In ? never : K }[keyof From];
-type AssertKeysEqual<A, B> = MissingKeys<A, B> extends never
-  ? MissingKeys<Record<B & PropertyKey, unknown>, keyof A> extends never
-    ? true
-    : never
-  : never;
+type AssertKeysEqual<A, B> =
+  MissingKeys<A, B> extends never
+    ? MissingKeys<Record<B & PropertyKey, unknown>, keyof A> extends never
+      ? true
+      : never
+    : never;
 
 const _wireMatchesInterface: AssertKeysEqual<Required<PaywallStyle>, WireStyleKey> = true;
 void _wireMatchesInterface;

@@ -11,9 +11,8 @@ const uuidToBytes = (uuid: string): Uint8Array => {
     "-",
     "",
   );
-  return Uint8Array.from(
-    Arr.range(0, 15),
-    (index) => Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
+  return Uint8Array.from(Arr.range(0, 15), (index) =>
+    Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
   );
 };
 

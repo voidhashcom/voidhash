@@ -1,6 +1,4 @@
 {
   "title": "Users",
-  "pages": [
-    "users.getUser"
-  ]
+  "pages": ["users.getUser"]
 }

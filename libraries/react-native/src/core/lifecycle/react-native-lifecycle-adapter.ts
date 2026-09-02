@@ -42,10 +42,12 @@ export const ReactNativeLifecycleAdapter = Layer.succeed(LifecycleAdapter, {
 
       const previousState = MutableRef.make(Option.fromNullishOr(appState.currentState));
 
-      return Option.some(appState.addEventListener("change", (nextState) => {
-        const prior = MutableRef.get(previousState);
-        MutableRef.set(previousState, Option.some(nextState));
-        listener(nextState, prior);
-      }));
+      return Option.some(
+        appState.addEventListener("change", (nextState) => {
+          const prior = MutableRef.get(previousState);
+          MutableRef.set(previousState, Option.some(nextState));
+          listener(nextState, prior);
+        }),
+      );
     }),
 });

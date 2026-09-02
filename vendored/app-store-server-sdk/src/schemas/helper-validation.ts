@@ -41,6 +41,8 @@ export const HelperValidationUtils = constant({
   },
 
   validateItems(list: unknown): boolean {
-    return Array.isArray(list) && Arr.isReadonlyArrayNonEmpty(list) && list.every((item) => item != null);
+    return (
+      Array.isArray(list) && Arr.isReadonlyArrayNonEmpty(list) && list.every((item) => item != null)
+    );
   },
 });

@@ -31,6 +31,7 @@ In Studio, open **Settings → API Keys** and create a secret key. The raw value
 
 Store the key in an environment variable or your secret manager. A secret key grants full access to
 the project. Never put it in a mobile app, a web bundle, or a repository.
+
 </Step>
 
 <Step>
@@ -55,6 +56,7 @@ The constructor accepts these arguments.
 The constructor validates its arguments right away rather than on the first request. It throws
 `Voidhash\ConfigurationException` when `$secretKey` is blank, `$baseUrl` is invalid, or `$headers`
 contains `x-secret-key` in any casing.
+
 </Step>
 
 </Steps>

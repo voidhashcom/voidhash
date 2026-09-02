@@ -1,8 +1,5 @@
 import { commander } from "../designer-commander";
-import type {
-  ComponentCatalogEntry,
-  ComponentCatalogVersion,
-} from "../designer-store-state";
+import type { ComponentCatalogEntry, ComponentCatalogVersion } from "../designer-store-state";
 
 export interface SetComponentCatalogComponentsParams {
   components: ComponentCatalogEntry[];
@@ -13,8 +10,8 @@ export interface SetComponentCatalogComponentsParams {
  * details into `byContentHash`. Pinned versions already mirrored for open
  * documents are preserved.
  */
-export const setComponentCatalogComponents =
-  commander.action<SetComponentCatalogComponentsParams>((ctx, params) => {
+export const setComponentCatalogComponents = commander.action<SetComponentCatalogComponentsParams>(
+  (ctx, params) => {
     const state = ctx.getState();
     const components: Record<string, ComponentCatalogEntry> = {};
     const byContentHash = { ...state.componentCatalog.byContentHash };
@@ -25,7 +22,8 @@ export const setComponentCatalogComponents =
     ctx.setState({
       componentCatalog: { byContentHash, components },
     });
-  });
+  },
+);
 
 export interface MergeComponentCatalogVersionsParams {
   versions: ComponentCatalogVersion[];

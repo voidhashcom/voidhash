@@ -49,10 +49,7 @@ import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../state/
 import type { PaywallDesignerStoreType } from "../../state/designer-store";
 import type { CodeComponentsState } from "../../state/designer-store-state";
 import { definitionForComponentPath } from "../../state/utils/code-components";
-import {
-  collectAncestorVariables,
-  toLabeledVariables,
-} from "../../state/utils/ancestor-variables";
+import { collectAncestorVariables, toLabeledVariables } from "../../state/utils/ancestor-variables";
 import {
   componentPropBindingFromRaw,
   findComponentPropEntry,
@@ -222,22 +219,18 @@ function usePropRowRenderer(
   }, [nodes, documentRoot]);
 
   return useMemo(
-    () =>
-      (propName, def) =>
-        (
-          <PropFieldRow
-            def={def}
-            onResetProp={(name) =>
-              dispatch(removeComponentPropForNodes)({ nodeIds, propName: name })
-            }
-            onSetProp={(name, binding) =>
-              dispatch(updateComponentPropBindingForNodes)({ binding, nodeIds, propName: name })
-            }
-            propName={propName}
-            targets={propTargets(nodes, propName)}
-            variables={variables}
-          />
-        ),
+    () => (propName, def) => (
+      <PropFieldRow
+        def={def}
+        onResetProp={(name) => dispatch(removeComponentPropForNodes)({ nodeIds, propName: name })}
+        onSetProp={(name, binding) =>
+          dispatch(updateComponentPropBindingForNodes)({ binding, nodeIds, propName: name })
+        }
+        propName={propName}
+        targets={propTargets(nodes, propName)}
+        variables={variables}
+      />
+    ),
     [dispatch, nodeIds, nodes, variables],
   );
 }
@@ -632,9 +625,7 @@ export function ComponentPanelHost({
   }, [componentNodes, nodes]);
 
   const firstNode = homogeneous?.[0];
-  const manifest = useComponentManifest(
-    (firstNode ?? nodes[0]) as ComponentSnapshotNode,
-  );
+  const manifest = useComponentManifest((firstNode ?? nodes[0]) as ComponentSnapshotNode);
 
   // Local code resolves synchronously from the store; catalog code is fetched
   // async (default panel renders until it arrives, then the slot upgrades).
@@ -643,7 +634,9 @@ export function ComponentPanelHost({
       ? definitionForComponentPath(state, firstNode.data.componentPath)?.id
       : undefined,
   );
-  const localCode = firstNode ? resolvePanelCode(firstNode, compiled, localDefinitionId) : undefined;
+  const localCode = firstNode
+    ? resolvePanelCode(firstNode, compiled, localDefinitionId)
+    : undefined;
   const catalogCode = useCatalogPanelCode(firstNode, fetchPanelCode);
   const compiledCode = localCode ?? catalogCode;
 

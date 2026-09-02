@@ -130,9 +130,7 @@ function opPatchFor(
           fixedPx,
           parent: view.parent,
           currentAlignSelf:
-            typeof currentAlignSelf === "string"
-              ? (currentAlignSelf as never)
-              : ("auto" as never),
+            typeof currentAlignSelf === "string" ? (currentAlignSelf as never) : ("auto" as never),
         }),
         diagnostics: [],
       };
@@ -207,7 +205,8 @@ export function planStyleEdit(
     nodes.push({
       nodeId: view.nodeId,
       patch,
-      layer: view.stateId !== undefined ? { kind: "state", stateId: view.stateId } : { kind: "base" },
+      layer:
+        view.stateId !== undefined ? { kind: "state", stateId: view.stateId } : { kind: "base" },
       discipline: structured || stateHasStructured ? "whole-set" : "merge-update",
       diagnostics,
     });

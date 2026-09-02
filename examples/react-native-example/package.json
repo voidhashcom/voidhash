@@ -1,8 +1,8 @@
 {
   "name": "@voidhash/react-native-voidhash-example",
   "version": "1.0.0",
-  "license": "MIT",
   "private": true,
+  "license": "MIT",
   "main": "expo-router/entry",
   "scripts": {
     "android:device": "expo run:android --device",

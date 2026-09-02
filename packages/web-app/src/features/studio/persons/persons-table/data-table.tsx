@@ -2,14 +2,7 @@
 
 import { useNavigate } from "@tanstack/react-router";
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@voidhash/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@voidhash/ui";
 
 interface DataTableProps<TData extends { distinctId: string }, TValue> {
   columns: ColumnDef<TData, TValue>[];

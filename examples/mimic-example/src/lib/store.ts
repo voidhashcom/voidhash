@@ -28,7 +28,9 @@ export function useTodoStore<T>(selector: (s: KanbanStoreState) => T): T;
 export function useTodoStore<T>(selector?: (s: KanbanStoreState) => T) {
   const store = useContext(TodoStoreContext);
   if (!store) {
-    return Effect.runSync(Effect.die(new Error("useTodoStore must be used within TodoStoreProvider")));
+    return Effect.runSync(
+      Effect.die(new Error("useTodoStore must be used within TodoStoreProvider")),
+    );
   }
   return useStore(store, selector!);
 }

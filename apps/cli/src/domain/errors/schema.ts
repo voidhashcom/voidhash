@@ -1,11 +1,9 @@
 import * as Schema from "effect/Schema";
 
-export class RemoteSchemaFetchError extends Schema.TaggedErrorClass<RemoteSchemaFetchError>("RemoteSchemaFetchError")(
+export class RemoteSchemaFetchError extends Schema.TaggedErrorClass<RemoteSchemaFetchError>(
   "RemoteSchemaFetchError",
-  { cause: Schema.Unknown },
-) {}
+)("RemoteSchemaFetchError", { cause: Schema.Unknown }) {}
 
-export class SchemaCheckFailedError extends Schema.TaggedErrorClass<SchemaCheckFailedError>("SchemaCheckFailedError")(
+export class SchemaCheckFailedError extends Schema.TaggedErrorClass<SchemaCheckFailedError>(
   "SchemaCheckFailedError",
-  { message: Schema.String },
-) {}
+)("SchemaCheckFailedError", { message: Schema.String }) {}

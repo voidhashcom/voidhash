@@ -111,9 +111,7 @@ function SentNotificationsContent({ projectId }: { projectId: string }) {
 
   const { hasMore, sends } = sendsQuery.data;
   const selectedSend =
-    selectedSendId === null
-      ? null
-      : (sends.find((send) => send.id === selectedSendId) ?? null);
+    selectedSendId === null ? null : (sends.find((send) => send.id === selectedSendId) ?? null);
 
   return (
     <Page className="flex h-[calc(100svh-var(--header-height))] flex-row overflow-hidden">
@@ -197,10 +195,7 @@ function SendRow({ send, isSelected, onSelect }: SendRowProps) {
   return (
     <TableRow
       aria-selected={isSelected}
-      className={cn(
-        "cursor-pointer",
-        isSelected && "shadow-[inset_2px_0_0_0_var(--primary)]",
-      )}
+      className={cn("cursor-pointer", isSelected && "shadow-[inset_2px_0_0_0_var(--primary)]")}
       data-state={isSelected ? "selected" : undefined}
       onClick={() => onSelect(send.id)}
     >
@@ -209,12 +204,7 @@ function SendRow({ send, isSelected, onSelect }: SendRowProps) {
       </TableCell>
       <TableCell className="font-mono text-muted-foreground text-xs">{send.id}</TableCell>
       <TableCell className="text-right text-sm">{send.succeededCount}</TableCell>
-      <TableCell
-        className={cn(
-          "text-right text-sm",
-          send.failedCount > 0 && "text-destructive",
-        )}
-      >
+      <TableCell className={cn("text-right text-sm", send.failedCount > 0 && "text-destructive")}>
         {send.failedCount}
       </TableCell>
       <TableCell className="text-right text-muted-foreground text-sm">{send.deviceCount}</TableCell>
@@ -237,12 +227,7 @@ function SendDetailsPanel({ send, projectId, onClose }: SendDetailsPanelProps) {
       <PageHeader
         className="pr-2"
         rightActions={
-          <Button
-            aria-label="Close send details"
-            onClick={onClose}
-            size="icon-sm"
-            variant="ghost"
-          >
+          <Button aria-label="Close send details" onClick={onClose} size="icon-sm" variant="ghost">
             <XIcon className="size-3.5" />
           </Button>
         }
@@ -259,11 +244,7 @@ function SendDetailsPanel({ send, projectId, onClose }: SendDetailsPanelProps) {
             <DetailField label="Delivered" mono value={String(send.succeededCount)} />
             <DetailField label="Failed" mono value={String(send.failedCount)} />
             <DetailField label="Skipped" mono value={String(send.skippedCount)} />
-            <DetailField
-              label="Requested persons"
-              mono
-              value={String(send.requestedPersonCount)}
-            />
+            <DetailField label="Requested persons" mono value={String(send.requestedPersonCount)} />
             <DetailField
               label="Requested distinct IDs"
               mono
@@ -273,9 +254,7 @@ function SendDetailsPanel({ send, projectId, onClose }: SendDetailsPanelProps) {
               label="Unresolved distinct IDs"
               value={
                 send.unresolvedDistinctIds.length > 0 ? (
-                  <span className="font-mono text-xs">
-                    {send.unresolvedDistinctIds.join(", ")}
-                  </span>
+                  <span className="font-mono text-xs">{send.unresolvedDistinctIds.join(", ")}</span>
                 ) : (
                   <NullValue />
                 )
@@ -329,9 +308,7 @@ function DeliveriesTable({ projectId, sendId }: { projectId: string; sendId: str
   }
 
   if (query.status === "error") {
-    return (
-      <div className="px-4 py-2 text-destructive text-xs">Failed to load deliveries.</div>
-    );
+    return <div className="px-4 py-2 text-destructive text-xs">Failed to load deliveries.</div>;
   }
 
   const { deliveries } = query.data;

@@ -11,7 +11,10 @@ import type { LocalComponentArtifact } from "../state/designer-store-state";
 import { selectCodeComponentCompiled } from "../state/utils/code-components";
 
 /** Preview-state fallback: local selection → "default" → first available. */
-function resolvePreviewState(available: readonly string[], selected: string | null): string | undefined {
+function resolvePreviewState(
+  available: readonly string[],
+  selected: string | null,
+): string | undefined {
   for (const candidate of [selected, "default"]) {
     if (candidate !== null && candidate !== "" && available.includes(candidate)) {
       return candidate;

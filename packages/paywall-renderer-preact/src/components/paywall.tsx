@@ -20,15 +20,12 @@ interface PaywallProps {
 }
 
 export function Paywall({ snapshot, componentArtifacts, locale }: PaywallProps) {
-  return createElement(
-    PaywallProvider,
-    {
-      children: createElement(Node, { node: snapshot }),
-      componentArtifacts,
-      locale,
-      snapshot,
-    },
-  );
+  return createElement(PaywallProvider, {
+    children: createElement(Node, { node: snapshot }),
+    componentArtifacts,
+    locale,
+    snapshot,
+  });
 }
 
 const UNKNOWN_NODE_STYLES: Record<string, string | number> = {
@@ -62,9 +59,7 @@ function Node({ node }: { node: SnapshotNode }) {
     Match.when({ type: "root" }, () => createElement(Fragment, null, children)),
     Match.when({ type: "screen" }, (node) => createElement(Screen, { children, node })),
     Match.when({ type: "view" }, (node) => createElement(View, { children, node })),
-    Match.when({ type: "scrollView" }, (node) =>
-      createElement(ScrollView, { children, node }),
-    ),
+    Match.when({ type: "scrollView" }, (node) => createElement(ScrollView, { children, node })),
     Match.when({ type: "text" }, (node) => createElement(Text, { node })),
     Match.when({ type: "shape" }, (node) => createElement(Shape, { children, node })),
     Match.when({ type: "path" }, (node) => createElement(Path, { node })),

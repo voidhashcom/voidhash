@@ -112,9 +112,7 @@ const FillGradientSchema = Schema.Struct({
   startY: Schema.Finite,
   endX: Schema.Finite,
   endY: Schema.Finite,
-  stops: Schema.Array(FillGradientStopSchema).check(
-    Schema.isMaxLength(PANEL_CAPS.gradientStops),
-  ),
+  stops: Schema.Array(FillGradientStopSchema).check(Schema.isMaxLength(PANEL_CAPS.gradientStops)),
 });
 
 /** A `fillField` / `imageField` image value. */

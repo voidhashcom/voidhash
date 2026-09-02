@@ -60,19 +60,14 @@ export function LocaleSwitcher() {
     return byLocale;
   }, [documentRoot, info, getLocalizableProps]);
 
-  const enabledSet = useMemo(
-    () => new Set([info.defaultLocale, ...info.locales]),
-    [info],
-  );
+  const enabledSet = useMemo(() => new Set([info.defaultLocale, ...info.locales]), [info]);
   const suggestions = useMemo(
     () => COMMON_LOCALES.filter((tag) => !enabledSet.has(tag)),
     [enabledSet],
   );
 
   const canonicalDraft =
-    draftTag.trim() === ""
-      ? null
-      : Option.getOrNull(canonicalizeLocaleTag(draftTag.trim()));
+    draftTag.trim() === "" ? null : Option.getOrNull(canonicalizeLocaleTag(draftTag.trim()));
   const draftIsAddable =
     canonicalDraft !== null &&
     canonicalDraft !== info.defaultLocale &&
@@ -85,7 +80,11 @@ export function LocaleSwitcher() {
 
   const handleAdd = (tag: string) => {
     const canonical = Option.getOrNull(canonicalizeLocaleTag(tag.trim()));
-    if (canonical === null || canonical === info.defaultLocale || info.locales.includes(canonical)) {
+    if (
+      canonical === null ||
+      canonical === info.defaultLocale ||
+      info.locales.includes(canonical)
+    ) {
       return;
     }
     dispatch(addLocale)({ tag: canonical });

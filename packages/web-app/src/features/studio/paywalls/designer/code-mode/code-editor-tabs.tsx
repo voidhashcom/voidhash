@@ -8,10 +8,7 @@ import { useStore } from "zustand/react";
 
 import { closeTab, openTab } from "../state/actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
-import {
-  codeComponentDefinitions,
-  selectCodeComponentNodes,
-} from "../state/utils/code-components";
+import { codeComponentDefinitions, selectCodeComponentNodes } from "../state/utils/code-components";
 import { docRelativeComponentPath } from "@voidhash/paywall-workspace";
 import { useCodeEditor } from "./code-editor-context";
 
@@ -174,12 +171,7 @@ export function CodeEditorTabs() {
         >
           <Redo2 className="size-4" />
         </Button>
-        <Button
-          className="ml-1"
-          disabled={!anyDirty}
-          onClick={() => handle?.saveAll()}
-          size="sm"
-        >
+        <Button className="ml-1" disabled={!anyDirty} onClick={() => handle?.saveAll()} size="sm">
           Save
         </Button>
       </div>

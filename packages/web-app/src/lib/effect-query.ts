@@ -84,11 +84,7 @@ const withAuthCookie = <E, R>(client: HttpClient.HttpClient.With<E, R>) =>
       );
 
       if (cookie) {
-        authenticatedRequest = HttpClientRequest.setHeader(
-          authenticatedRequest,
-          "Cookie",
-          cookie,
-        );
+        authenticatedRequest = HttpClientRequest.setHeader(authenticatedRequest, "Cookie", cookie);
       }
 
       if (accessToken) {

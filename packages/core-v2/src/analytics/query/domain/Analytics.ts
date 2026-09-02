@@ -623,14 +623,12 @@ const union = <T>(left: Option.Option<T[]>, right: Option.Option<T[]>) => {
     seen: HashSet.empty(),
     values: [],
   };
-  return Option.some(Arr.reduce(
-    [...left.value, ...right.value],
-    initial,
-    (state, value) => {
+  return Option.some(
+    Arr.reduce([...left.value, ...right.value], initial, (state, value) => {
       if (HashSet.has(state.seen, value)) return state;
       return { seen: HashSet.add(state.seen, value), values: [...state.values, value] };
-    },
-  ).values);
+    }).values,
+  );
 };
 
 const mergeAndConstraints = (left: PartialConstraints, right: PartialConstraints) => ({
@@ -655,11 +653,9 @@ const mergeAndConstraints = (left: PartialConstraints, right: PartialConstraints
  */
 const mergeOrConstraints = (left: PartialConstraints, right: PartialConstraints) => {
   const fields = HashSet.fromIterable([
-    ...((left.productIds || right.productIds) ? ["productIds"] : []),
-    ...((left.projectIds || right.projectIds) ? ["projectIds"] : []),
-    ...((left.providerEnvironments || right.providerEnvironments)
-      ? ["providerEnvironments"]
-      : []),
+    ...(left.productIds || right.productIds ? ["productIds"] : []),
+    ...(left.projectIds || right.projectIds ? ["projectIds"] : []),
+    ...(left.providerEnvironments || right.providerEnvironments ? ["providerEnvironments"] : []),
   ]);
 
   if (HashSet.size(fields) > 1) {
@@ -714,7 +710,7 @@ const compilePredicate = ({
       return {
         providerEnvironments: yield* toNumberArray(field, Option.fromNullishOr(value)),
       };
-      }
+    }
 
     return yield* Effect.fail(
       new UnsupportedAnalyticsFilterError({
@@ -764,10 +760,8 @@ const compileNode = ({
       );
       const initial: Effect.Effect<PartialConstraints, UnsupportedAnalyticsFilterError> =
         Effect.succeed({});
-      return yield* Arr.reduce(
-        constraints,
-        initial,
-        (current, right) => current.pipe(Effect.flatMap((left) => mergeOrConstraints(left, right))),
+      return yield* Arr.reduce(constraints, initial, (current, right) =>
+        current.pipe(Effect.flatMap((left) => mergeOrConstraints(left, right))),
       );
     }
     if (filter.type === "not") {

@@ -1,4 +1,7 @@
-import { buildShapeContainerStyles, type ShapeSnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import {
+  buildShapeContainerStyles,
+  type ShapeSnapshotNode,
+} from "@voidhash/paywall-renderer-web-core";
 import { useStore } from "zustand";
 
 import { usePaywallDesignerStore } from "../../state/designer-store";

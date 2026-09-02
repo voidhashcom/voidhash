@@ -178,7 +178,10 @@ export function CodeEditorPane({ buffers, activeKey }: CodeEditorPaneProps) {
     if (entry.suppressDirty) {
       return;
     }
-    dispatch(setCodeComponentDirty)({ path: key, dirty: entry.model.getValue() !== entry.baseline });
+    dispatch(setCodeComponentDirty)({
+      path: key,
+      dirty: entry.model.getValue() !== entry.baseline,
+    });
   };
 
   // Ensure a model exists for `key`, wiring the dirty-tracking content listener
@@ -190,8 +193,7 @@ export function CodeEditorPane({ buffers, activeKey }: CodeEditorPaneProps) {
       return existing;
     }
     const uri = modelUri(m, buffer.key);
-    const model =
-      m.editor.getModel(uri) ?? m.editor.createModel(buffer.source, "typescript", uri);
+    const model = m.editor.getModel(uri) ?? m.editor.createModel(buffer.source, "typescript", uri);
     const entry: ModelEntry = {
       model,
       definitionId: buffer.definitionId,

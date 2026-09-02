@@ -18,7 +18,9 @@ const mapOptionalSchema = (schema?: Schema.Top) => {
   return Schema.toCodecJson(schema);
 };
 
-const readonlyMap = <Key, Value>(entries: Iterable<readonly [Key, Value]>): ReadonlyMap<Key, Value> => {
+const readonlyMap = <Key, Value>(
+  entries: Iterable<readonly [Key, Value]>,
+): ReadonlyMap<Key, Value> => {
   const values = HashMap.fromIterable(entries);
   const view: ReadonlyMap<Key, Value> = {
     [Symbol.iterator]: () => Array.from(values)[Symbol.iterator](),

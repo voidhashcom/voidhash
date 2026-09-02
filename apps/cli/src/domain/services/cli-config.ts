@@ -147,9 +147,7 @@ const make = Effect.fn("make")(function* effect() {
     Effect.fn("writeToConfig")(function* writeToConfig() {
       yield* Effect.logDebug(`Writing config to ${filePath}`);
       const currentConfig = yield* readRawConfig().pipe(
-        Effect.catchTag("FailedToReadConfigError", () =>
-          Effect.succeed<ConfigFile>(emptyConfig),
-        ),
+        Effect.catchTag("FailedToReadConfigError", () => Effect.succeed<ConfigFile>(emptyConfig)),
       );
 
       const mergedConfig = mergeIntoConfig(currentConfig, config);

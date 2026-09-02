@@ -215,12 +215,7 @@ function EventDetailsPanel({
       <PageHeader
         className="pr-2"
         rightActions={
-          <Button
-            aria-label="Close event details"
-            onClick={onClose}
-            size="icon-sm"
-            variant="ghost"
-          >
+          <Button aria-label="Close event details" onClick={onClose} size="icon-sm" variant="ghost">
             <XIcon className="size-3.5" />
           </Button>
         }

@@ -74,7 +74,9 @@ const componentFilesOf = (
  * document JSON plus the local `codeComponent` sources (walked from the
  * singleton `library` node) named by their `<name>.tsx` file basename.
  */
-export const paywallVfsFiles = (root: SnapshotDocumentNode | typeof Schema.Null.Type): PaywallVfsFiles => {
+export const paywallVfsFiles = (
+  root: SnapshotDocumentNode | typeof Schema.Null.Type,
+): PaywallVfsFiles => {
   const cleaned = cleanedDocument(root);
   const library = (root?.children ?? []).find((child) => child.type === "library");
   const components = (library?.children ?? []).flatMap(componentFilesOf);
@@ -108,7 +110,10 @@ const resolved = <A>(value: A): Promise<A> => runPromise(Effect.succeed(value));
  */
 export class PaywallsProvider implements ReadOnlyDirProvider {
   private listing: Promise<ReadonlyArray<WorkspaceVfsPaywall>> | typeof Schema.Undefined.Type;
-  private readonly files = new MutableMap<string, Promise<PaywallVfsFiles | typeof Schema.Null.Type>>();
+  private readonly files = new MutableMap<
+    string,
+    Promise<PaywallVfsFiles | typeof Schema.Null.Type>
+  >();
   private readonly sources: WorkspaceVfsSources;
 
   constructor(sources: WorkspaceVfsSources) {
@@ -121,45 +126,52 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
   }
 
   private filesOf(paywallId: string): Promise<PaywallVfsFiles | typeof Schema.Null.Type> {
-    return this.list().then((paywalls): Promise<PaywallVfsFiles | typeof Schema.Null.Type> | typeof Schema.Null.Type => {
-      if (!paywalls.some((paywall) => paywall.paywallId === paywallId)) {
-        return null;
-      }
-      const cached = this.files.get(paywallId);
-      if (cached !== undefined) {
-        return cached;
-      }
-      const files = this.sources.readPaywall(paywallId);
-      this.files.set(paywallId, files);
-      return files;
-    });
+    return this.list().then(
+      (paywalls): Promise<PaywallVfsFiles | typeof Schema.Null.Type> | typeof Schema.Null.Type => {
+        if (!paywalls.some((paywall) => paywall.paywallId === paywallId)) {
+          return null;
+        }
+        const cached = this.files.get(paywallId);
+        if (cached !== undefined) {
+          return cached;
+        }
+        const files = this.sources.readPaywall(paywallId);
+        this.files.set(paywallId, files);
+        return files;
+      },
+    );
   }
 
   readdir(relPath: string): Promise<ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type> {
     const segments = pathSegments(relPath);
     if (Arr.isReadonlyArrayEmpty(segments)) {
-      return this.list().then((paywalls): ReadonlyArray<ReadOnlyDirEntry> =>
-        paywalls.map((paywall) => ({ name: paywall.paywallId, kind: "dir" })),
+      return this.list().then(
+        (paywalls): ReadonlyArray<ReadOnlyDirEntry> =>
+          paywalls.map((paywall) => ({ name: paywall.paywallId, kind: "dir" })),
       );
     }
     if (segments.length === 1) {
-      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
-        if (files === null) {
-          return null;
-        }
-        return [
-          { name: DOCUMENT_FILE, kind: "file" },
-          { name: COMPONENTS_DIR, kind: "dir" },
-        ];
-      });
+      return this.filesOf(unsafeDefined(segments[0])).then(
+        (files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
+          if (files === null) {
+            return null;
+          }
+          return [
+            { name: DOCUMENT_FILE, kind: "file" },
+            { name: COMPONENTS_DIR, kind: "dir" },
+          ];
+        },
+      );
     }
     if (segments.length === 2 && segments[1] === COMPONENTS_DIR) {
-      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
-        if (files === null) {
-          return null;
-        }
-        return files.components.map((component) => ({ name: component.fileName, kind: "file" }));
-      });
+      return this.filesOf(unsafeDefined(segments[0])).then(
+        (files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
+          if (files === null) {
+            return null;
+          }
+          return files.components.map((component) => ({ name: component.fileName, kind: "file" }));
+        },
+      );
     }
     return resolved(null);
   }
@@ -170,26 +182,30 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
       return resolved<ReadOnlyStat>({ kind: "dir" });
     }
     if (segments.length === 1) {
-      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadOnlyStat | typeof Schema.Null.Type => {
-        if (files === null) {
-          return null;
-        }
-        return { kind: "dir" };
-      });
+      return this.filesOf(unsafeDefined(segments[0])).then(
+        (files): ReadOnlyStat | typeof Schema.Null.Type => {
+          if (files === null) {
+            return null;
+          }
+          return { kind: "dir" };
+        },
+      );
     }
     if (segments.length === 2) {
-      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadOnlyStat | typeof Schema.Null.Type => {
-        if (files === null) {
+      return this.filesOf(unsafeDefined(segments[0])).then(
+        (files): ReadOnlyStat | typeof Schema.Null.Type => {
+          if (files === null) {
+            return null;
+          }
+          if (segments[1] === DOCUMENT_FILE) {
+            return { kind: "file", size: new TextEncoder().encode(files.documentJson).length };
+          }
+          if (segments[1] === COMPONENTS_DIR) {
+            return { kind: "dir" };
+          }
           return null;
-        }
-        if (segments[1] === DOCUMENT_FILE) {
-          return { kind: "file", size: new TextEncoder().encode(files.documentJson).length };
-        }
-        if (segments[1] === COMPONENTS_DIR) {
-          return { kind: "dir" };
-        }
-        return null;
-      });
+        },
+      );
     }
     if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
       return this.componentSource(unsafeDefined(segments[0]), unsafeDefined(segments[2])).then(
@@ -207,12 +223,14 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
   readFile(relPath: string): Promise<string | typeof Schema.Null.Type> {
     const segments = pathSegments(relPath);
     if (segments.length === 2 && segments[1] === DOCUMENT_FILE) {
-      return this.filesOf(unsafeDefined(segments[0])).then((files): string | typeof Schema.Null.Type => {
-        if (files === null) {
-          return null;
-        }
-        return files.documentJson;
-      });
+      return this.filesOf(unsafeDefined(segments[0])).then(
+        (files): string | typeof Schema.Null.Type => {
+          if (files === null) {
+            return null;
+          }
+          return files.documentJson;
+        },
+      );
     }
     if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
       return this.componentSource(unsafeDefined(segments[0]), unsafeDefined(segments[2]));
@@ -220,7 +238,10 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     return resolved(null);
   }
 
-  private componentSource(paywallId: string, fileName: string): Promise<string | typeof Schema.Null.Type> {
+  private componentSource(
+    paywallId: string,
+    fileName: string,
+  ): Promise<string | typeof Schema.Null.Type> {
     return this.filesOf(paywallId).then((files): string | typeof Schema.Null.Type => {
       const component = files?.components.find((candidate) => candidate.fileName === fileName);
       return component?.source ?? null;

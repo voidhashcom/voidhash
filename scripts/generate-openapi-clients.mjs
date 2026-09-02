@@ -1,7 +1,18 @@
 #!/usr/bin/env node
 
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Console, Data, Effect, Exit, FileSystem, Path, Runtime, Schema, Stdio, Stream } from "effect";
+import {
+  Console,
+  Data,
+  Effect,
+  Exit,
+  FileSystem,
+  Path,
+  Runtime,
+  Schema,
+  Stdio,
+  Stream,
+} from "effect";
 import { FetchHttpClient, HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
@@ -32,8 +43,7 @@ const RenamedOpenApiSpec = Schema.fromJsonString(
 
 const decodeRenamedSpec = Schema.decodeUnknownEffect(RenamedOpenApiSpec);
 
-const isRecord = (value) =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * Turns a bare host (`localhost:8787`, `api.voidhash.com`) into an absolute URL,
@@ -78,7 +88,8 @@ const assertSpec = (text, label, isValid, problem) =>
   Effect.gen(function* () {
     const spec = yield* decodeSpec(text).pipe(
       Effect.mapError(
-        (cause) => new GenerateError({ message: `The ${label} OpenAPI schema is not valid JSON.`, cause }),
+        (cause) =>
+          new GenerateError({ message: `The ${label} OpenAPI schema is not valid JSON.`, cause }),
       ),
     );
     if (isValid(Object.keys(spec.paths ?? {}))) return;
@@ -183,9 +194,7 @@ const assertRenamedSchemas = (specPath, fileSystem) =>
       const schema = schemas[name];
       if (!isRecord(schema)) return [`${name} is missing`];
       const properties = schema["properties"];
-      const present =
-        marker in schema ||
-        (isRecord(properties) && marker in properties);
+      const present = marker in schema || (isRecord(properties) && marker in properties);
       if (present) return [];
       return [`${name} no longer has "${marker}"`];
     });

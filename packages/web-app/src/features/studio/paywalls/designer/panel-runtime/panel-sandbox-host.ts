@@ -90,17 +90,12 @@ export interface PanelSandboxTransportOptions {
    * simulate `message` events against the transport. Receives the raw event and
    * the current iframe (or null before mount).
    */
-  readonly isTrustedSource?: (
-    event: MessageEvent,
-    iframe: HTMLIFrameElement | null,
-  ) => boolean;
+  readonly isTrustedSource?: (event: MessageEvent, iframe: HTMLIFrameElement | null) => boolean;
 }
 
 /** Real source check: the message came from the iframe we own. */
-const defaultIsTrustedSource = (
-  event: MessageEvent,
-  iframe: HTMLIFrameElement | null,
-): boolean => iframe !== null && event.source === iframe.contentWindow;
+const defaultIsTrustedSource = (event: MessageEvent, iframe: HTMLIFrameElement | null): boolean =>
+  iframe !== null && event.source === iframe.contentWindow;
 
 let sessionCounter = 0;
 /** A fresh session id per init/restart, so ghost messages never match. */
@@ -144,8 +139,7 @@ export const createPanelSandboxTransport = (
   let treeTimes: number[] = [];
   let intentTimes: number[] = [];
 
-  const now = (): number =>
-    typeof performance !== "undefined" ? performance.now() : Date.now();
+  const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
   const notify = (): void => {
     for (const listener of listeners) listener();
@@ -454,7 +448,5 @@ const PHASE_LABEL: Record<"init" | "render" | "runtime", string> = {
   runtime: "Panel hit a runtime error",
 };
 
-const guestErrorMessage = (
-  phase: "init" | "render" | "runtime",
-  message: string,
-): string => `${PHASE_LABEL[phase]}: ${message}`;
+const guestErrorMessage = (phase: "init" | "render" | "runtime", message: string): string =>
+  `${PHASE_LABEL[phase]}: ${message}`;

@@ -57,36 +57,36 @@ export class AgentAttachmentService extends Context.Service<AgentAttachmentServi
       const assertScope = Effect.fn("AgentAttachmentService.assertScope")(function* (
         input: AgentAttachmentUploadInput,
       ) {
-          const indexed = yield* Effect.result(sessions.get({ sessionId: input.sessionId }));
-          if (Result.isSuccess(indexed)) {
-            if (indexed.success.organizationId !== input.organizationId) {
-              return yield* Effect.fail(
-                new AgentAttachmentForbiddenError({
-                  message: `Session ${input.sessionId} belongs to another organization.`,
-                }),
-              );
-            }
-            return;
-          }
-          if (indexed.failure._tag === "AgentSessionForbiddenError") {
-            return yield* Effect.fail(
-              new AgentAttachmentForbiddenError({ message: indexed.failure.message }),
-            );
-          }
-          if (indexed.failure._tag === "AgentSessionIndexServiceError") {
-            return yield* Effect.fail(
-              new AgentAttachmentServiceError({ message: indexed.failure.message }),
-            );
-          }
-          const auth = yield* AuthSession;
-          if (!isSessionOrganizationMember(auth, input.organizationId)) {
+        const indexed = yield* Effect.result(sessions.get({ sessionId: input.sessionId }));
+        if (Result.isSuccess(indexed)) {
+          if (indexed.success.organizationId !== input.organizationId) {
             return yield* Effect.fail(
               new AgentAttachmentForbiddenError({
-                message: `Not a member of organization ${input.organizationId}.`,
+                message: `Session ${input.sessionId} belongs to another organization.`,
               }),
             );
           }
-        });
+          return;
+        }
+        if (indexed.failure._tag === "AgentSessionForbiddenError") {
+          return yield* Effect.fail(
+            new AgentAttachmentForbiddenError({ message: indexed.failure.message }),
+          );
+        }
+        if (indexed.failure._tag === "AgentSessionIndexServiceError") {
+          return yield* Effect.fail(
+            new AgentAttachmentServiceError({ message: indexed.failure.message }),
+          );
+        }
+        const auth = yield* AuthSession;
+        if (!isSessionOrganizationMember(auth, input.organizationId)) {
+          return yield* Effect.fail(
+            new AgentAttachmentForbiddenError({
+              message: `Not a member of organization ${input.organizationId}.`,
+            }),
+          );
+        }
+      });
 
       const upload = Effect.fn("uploadAgentAttachment")(
         function* (input: AgentAttachmentUploadInput) {

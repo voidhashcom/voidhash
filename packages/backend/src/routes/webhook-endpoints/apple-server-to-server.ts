@@ -43,16 +43,16 @@ const AppleServerNotificationBody = Schema.Struct({
   signedPayload: Schema.String,
 });
 
-const decodeAppleServerNotificationBody = Schema.decodeUnknownEffect(
-  AppleServerNotificationBody,
-);
+const decodeAppleServerNotificationBody = Schema.decodeUnknownEffect(AppleServerNotificationBody);
 
 const invalidPayloadResponse = HttpServerResponse.json(
   { error: "Invalid Apple server notification payload" },
   { status: 400 },
 );
 
-const registerAppleServerToServerNotificationRoute = Effect.fn("registerAppleServerToServerNotificationRoute")(function* () {
+const registerAppleServerToServerNotificationRoute = Effect.fn(
+  "registerAppleServerToServerNotificationRoute",
+)(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(

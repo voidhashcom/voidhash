@@ -133,13 +133,16 @@ export const toDiagnostic = (error: VoidQlCompileError): Diagnostic => {
       code: "unknown_relation",
       message: value.message,
     })),
-    Match.when({ _tag: "VoidQlUnknownFieldError" }, (value) =>
-      ({
-        stage: "resolve",
-        code: "unknown_field",
-        message: value.message,
-        hint: suggestionHint(value.suggestion),
-      }) satisfies Diagnostic),
+    Match.when(
+      { _tag: "VoidQlUnknownFieldError" },
+      (value) =>
+        ({
+          stage: "resolve",
+          code: "unknown_field",
+          message: value.message,
+          hint: suggestionHint(value.suggestion),
+        }) satisfies Diagnostic,
+    ),
     Match.when({ _tag: "VoidQlPiiError" }, (value) => ({
       stage: "resolve" as const,
       code: "pii",

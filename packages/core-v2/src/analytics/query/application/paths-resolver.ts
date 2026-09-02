@@ -147,17 +147,14 @@ export const sessionize = (
     readonly current: ReadonlyArray<typeof StoredAnalyticsEvent.Type>;
     readonly sessions: ReadonlyArray<ReadonlyArray<typeof StoredAnalyticsEvent.Type>>;
   } = { current: [], sessions: [] };
-  const { current, sessions } = Arr.reduce(
-    Arr.sort(events, byTimestamp),
-    initial,
-    (state, event) =>
-      Arr.match(state.current, {
-        onEmpty: () => ({ current: [event], sessions: state.sessions }),
-        onNonEmpty: (open) =>
-          startsNewSession(Arr.lastNonEmpty(open), event)
-            ? { current: [event], sessions: [...state.sessions, open] }
-            : { current: [...open, event], sessions: state.sessions },
-      }),
+  const { current, sessions } = Arr.reduce(Arr.sort(events, byTimestamp), initial, (state, event) =>
+    Arr.match(state.current, {
+      onEmpty: () => ({ current: [event], sessions: state.sessions }),
+      onNonEmpty: (open) =>
+        startsNewSession(Arr.lastNonEmpty(open), event)
+          ? { current: [event], sessions: [...state.sessions, open] }
+          : { current: [...open, event], sessions: state.sessions },
+    }),
   );
   return Arr.isReadonlyArrayNonEmpty(current) ? [...sessions, current] : sessions;
 };
@@ -247,10 +244,7 @@ export const resolvePathsInsight = (input: {
       Option.match(actorKey(event, definition.actor), {
         onNone: () => all,
         onSome: (key) =>
-          HashMap.set(all, key, [
-            ...Option.getOrElse(HashMap.get(all, key), () => []),
-            event,
-          ]),
+          HashMap.set(all, key, [...Option.getOrElse(HashMap.get(all, key), () => []), event]),
       }),
   );
 

@@ -63,9 +63,7 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
         {/* Info Area */}
         <div className="px-4 py-3.5">
           <h3 className="truncate font-medium text-sm">{paywall.name}</h3>
-          <p className="mt-1 truncate text-muted-foreground text-xs">
-            {paywall.slug}
-          </p>
+          <p className="mt-1 truncate text-muted-foreground text-xs">{paywall.slug}</p>
         </div>
       </Link>
 

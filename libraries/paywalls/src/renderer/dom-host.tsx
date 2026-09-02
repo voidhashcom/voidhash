@@ -11,7 +11,12 @@ import {
 
 import { useMotionRef } from "../motion/ref";
 import { useInView } from "../motion/scroll";
-import { MOTION_STYLE_KEYS, type MotionNodeHandle, type MotionStyleProp, type ScrollViewHandle } from "../motion/types";
+import {
+  MOTION_STYLE_KEYS,
+  type MotionNodeHandle,
+  type MotionStyleProp,
+  type ScrollViewHandle,
+} from "../motion/types";
 import type {
   HostComponents,
   ImageProps,
@@ -82,7 +87,11 @@ const useViewMotion = (
   elementRef: RefObject<HTMLDivElement | HTMLImageElement | null>,
   props: ViewProps | TextProps | ImageProps | PressableHostProps | ScrollViewProps,
   handle: MotionNodeHandle,
-  state: { readonly pressed?: boolean; readonly focused?: boolean; readonly dragging?: boolean } = {},
+  state: {
+    readonly pressed?: boolean;
+    readonly focused?: boolean;
+    readonly dragging?: boolean;
+  } = {},
 ) => {
   const motionRef = useMotionRef<MotionNodeHandle>();
   motionRef.current = handle;
@@ -110,7 +119,12 @@ const DomView = forwardRef<MotionNodeHandle, ViewProps>((props, ref): ReactNode 
       onPointerMove={(event) => drag.onPointerMove(event)}
       onPointerUp={(event) => drag.onPointerUp(event)}
       ref={elementRef}
-      style={{ ...VIEW_BASE, ...resolveStaticStyle(props.style), ...motion.staticStyle, touchAction: drag.touchAction }}
+      style={{
+        ...VIEW_BASE,
+        ...resolveStaticStyle(props.style),
+        ...motion.staticStyle,
+        touchAction: drag.touchAction,
+      }}
     >
       {props.children}
     </div>
@@ -127,7 +141,12 @@ const DomText = forwardRef<MotionNodeHandle, TextProps>((props, ref): ReactNode 
       aria-label={props.accessibilityLabel}
       data-testid={props.testID}
       ref={elementRef}
-      style={{ ...TEXT_BASE, ...lineClampStyle(props.numberOfLines), ...resolveStaticStyle(props.style), ...motion.staticStyle }}
+      style={{
+        ...TEXT_BASE,
+        ...lineClampStyle(props.numberOfLines),
+        ...resolveStaticStyle(props.style),
+        ...motion.staticStyle,
+      }}
     >
       {props.children}
     </div>

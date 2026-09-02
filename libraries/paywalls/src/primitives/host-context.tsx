@@ -1,10 +1,7 @@
 import { createContext, type ReactNode, useContext } from "react";
 
 import { domHostComponents } from "../renderer/dom-host";
-import {
-  domMotionPlatformAdapter,
-  MotionPlatformContext,
-} from "../motion/platform";
+import { domMotionPlatformAdapter, MotionPlatformContext } from "../motion/platform";
 import type { MotionPlatformAdapter } from "../motion/types";
 import type { HostComponents } from "./types";
 

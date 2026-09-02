@@ -12,7 +12,12 @@ import { selectDocumentRoot } from "../utils/document-root";
 import type { ComponentCatalogByContentHash } from "../designer-store-state";
 import { nodePassesSlotGate } from "../utils/component-children";
 import { selectedNodeIdsFromPresence } from "../utils/presence";
-import { canHighlightNode, canSelectNode, getChildAtPosition, hasChildren } from "../utils/selection-level";
+import {
+  canHighlightNode,
+  canSelectNode,
+  getChildAtPosition,
+  hasChildren,
+} from "../utils/selection-level";
 import { buildNodeIndex } from "../utils/tree";
 import { createViewNode } from "./nodes/view-node-actions";
 import { createScrollViewNode } from "./nodes/scrollview-node-actions";

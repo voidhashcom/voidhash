@@ -1,9 +1,5 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import type {
-  PlatformRuntime,
-  WorkflowRunner,
-  WorkflowRunnerError,
-} from "@voidhash/platform";
+import type { PlatformRuntime, WorkflowRunner, WorkflowRunnerError } from "@voidhash/platform";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
@@ -37,21 +33,17 @@ export const PurchaseLedgerDrainRegistration = WorkflowRegistration.make(Purchas
           readonly retriedCount: number;
           readonly staleClaimsReleased: number;
         },
-      ): Effect.Effect<
-        typeof totals,
-        WorkflowRunnerError,
-        PlatformRuntime | WorkflowRunner
-      > =>
+      ): Effect.Effect<typeof totals, WorkflowRunnerError, PlatformRuntime | WorkflowRunner> =>
         Effect.gen(function* () {
           if (index >= 10) return totals;
-        const result = yield* ctx.step({
-          name: `drain-${input.runId}-batch-${index}`,
-          success: PollResult,
-          execute: Effect.gen(function* () {
-            const worker = yield* PurchaseLedgerWorker;
-            return yield* worker.poll(PurchaseLedgerWorker.DEFAULT_RUN_OPTIONS);
-          }),
-        });
+          const result = yield* ctx.step({
+            name: `drain-${input.runId}-batch-${index}`,
+            success: PollResult,
+            execute: Effect.gen(function* () {
+              const worker = yield* PurchaseLedgerWorker;
+              return yield* worker.poll(PurchaseLedgerWorker.DEFAULT_RUN_OPTIONS);
+            }),
+          });
           const next = {
             batches: totals.batches + 1,
             claimedCount: totals.claimedCount + result.claimedCount,

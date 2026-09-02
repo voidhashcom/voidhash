@@ -16,7 +16,11 @@ export const Route = createFileRoute("/auth/verify-email")({
   },
   component: ScreenPage,
   validateSearch: zodValidator(
-    z.object({ email: z.string().optional(), next: z.string().optional(), token: z.string().optional() }),
+    z.object({
+      email: z.string().optional(),
+      next: z.string().optional(),
+      token: z.string().optional(),
+    }),
   ),
 });
 

@@ -2,14 +2,7 @@
 
 import type * as React from "react";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  cn,
-} from "@voidhash/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, cn } from "@voidhash/ui";
 import { InputGroup, InputGroupAddon } from "@voidhash/ui/input-group";
 
 export interface SelectInputProps<T extends string> {

@@ -238,7 +238,6 @@ export function FlexAlignmentInput({
             })}
           </div>
         )}
-
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

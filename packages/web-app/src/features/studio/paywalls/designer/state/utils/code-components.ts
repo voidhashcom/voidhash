@@ -67,7 +67,9 @@ export function selectCodeComponentNodes(
 }
 
 /** Maps a `codeComponent` snapshot node to a definition. */
-export function toCodeComponentDefinition(node: CodeComponentSnapshotNode): CodeComponentDefinition {
+export function toCodeComponentDefinition(
+  node: CodeComponentSnapshotNode,
+): CodeComponentDefinition {
   return { id: node.id, path: node.data.path, source: node.data.source };
 }
 

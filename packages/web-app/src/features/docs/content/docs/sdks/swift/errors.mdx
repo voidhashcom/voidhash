@@ -24,16 +24,16 @@ do {
 These codes name the client operation that failed. The message text is informational. Never match
 on it.
 
-| Code                              | Thrown by                     | Recovery guidance                                                   |
-| --------------------------------- | ----------------------------- | ------------------------------------------------------------------- |
-| `CONFIGURATION_MISSING`           | Any call before init succeeds | Await `waitForInitialization()`, or retry later.                    |
-| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state. See [Check access](/sdks/swift/entitlements).   |
-| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                        |
-| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry. An already-identified person surfaces this code too.         |
-| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to your default values.                                   |
-| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry, or render the screen without store metadata.                 |
-| `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                             |
-| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                       |
+| Code                              | Thrown by                     | Recovery guidance                                                 |
+| --------------------------------- | ----------------------------- | ----------------------------------------------------------------- |
+| `CONFIGURATION_MISSING`           | Any call before init succeeds | Await `waitForInitialization()`, or retry later.                  |
+| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state. See [Check access](/sdks/swift/entitlements). |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                      |
+| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry. An already-identified person surfaces this code too.       |
+| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to your default values.                                 |
+| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry, or render the screen without store metadata.               |
+| `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                           |
+| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                     |
 
 ## Purchase availability
 

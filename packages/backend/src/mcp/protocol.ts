@@ -82,12 +82,7 @@ const success = (id: JsonRpcId, result: unknown): JsonRpcResponse => ({
   result,
 });
 
-const failure = (
-  id: JsonRpcId,
-  code: number,
-  message: string,
-  data?: unknown,
-): JsonRpcResponse => {
+const failure = (id: JsonRpcId, code: number, message: string, data?: unknown): JsonRpcResponse => {
   if (data === undefined) {
     return { jsonrpc: "2.0", id, error: { code, message } };
   }
@@ -259,18 +254,22 @@ const handleToolsCall = (
 export const handleMcpMessage = (
   message: JsonRpcMessage,
   callTool: CallTool,
-): Effect.Effect<JsonRpcResponse | typeof Schema.Null.Type, never, WorkspaceTools.WorkspaceToolDeps> => {
+): Effect.Effect<
+  JsonRpcResponse | typeof Schema.Null.Type,
+  never,
+  WorkspaceTools.WorkspaceToolDeps
+> => {
   const id: JsonRpcId = message.id ?? null;
 
   return Match.value(message.method).pipe(
-      Match.when("initialize", () => Effect.succeed(success(id, initializeResult(message.params)))),
-      Match.when("notifications/initialized", () => Effect.succeed(null)),
-      Match.when("ping", () => Effect.succeed(success(id, {}))),
-      Match.when("tools/list", () => Effect.succeed(success(id, toolsListResult()))),
-      Match.when("tools/call", () => handleToolsCall(id, message.params, callTool)),
-      Match.when("resources/list", () => Effect.succeed(success(id, resourcesListResult()))),
-      Match.when("resources/read", () => {
-const requestedUri = message.params?.uri;
+    Match.when("initialize", () => Effect.succeed(success(id, initializeResult(message.params)))),
+    Match.when("notifications/initialized", () => Effect.succeed(null)),
+    Match.when("ping", () => Effect.succeed(success(id, {}))),
+    Match.when("tools/list", () => Effect.succeed(success(id, toolsListResult()))),
+    Match.when("tools/call", () => handleToolsCall(id, message.params, callTool)),
+    Match.when("resources/list", () => Effect.succeed(success(id, resourcesListResult()))),
+    Match.when("resources/read", () => {
+      const requestedUri = message.params?.uri;
       const skill = resolveSkillResource(requestedUri);
       if (skill === undefined || !P.isString(requestedUri)) {
         return Effect.succeed(
@@ -288,10 +287,10 @@ const requestedUri = message.params?.uri;
           ],
         }),
       );
-      }),
-      Match.when("prompts/list", () => Effect.succeed(success(id, promptsListResult()))),
-      Match.when("prompts/get", () => {
-if (message.params?.name !== DESIGN_PROMPT_NAME) {
+    }),
+    Match.when("prompts/list", () => Effect.succeed(success(id, promptsListResult()))),
+    Match.when("prompts/get", () => {
+      if (message.params?.name !== DESIGN_PROMPT_NAME) {
         return Effect.succeed(
           failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring prompt"),
         );
@@ -322,15 +321,15 @@ if (message.params?.name !== DESIGN_PROMPT_NAME) {
           ],
         }),
       );
-      }),
-      Match.orElse(() => {
-// Any other `notifications/*` is an id-less message we accept silently.
+    }),
+    Match.orElse(() => {
+      // Any other `notifications/*` is an id-less message we accept silently.
       if (message.method.startsWith("notifications/") && message.id === undefined) {
         return Effect.succeed(null);
       }
       return Effect.succeed(
         failure(id, JsonRpcErrorCode.MethodNotFound, `Method not found: ${message.method}`),
       );
-      }),
-    );
+    }),
+  );
 };

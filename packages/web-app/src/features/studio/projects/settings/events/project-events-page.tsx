@@ -11,7 +11,12 @@ import {
   setBuiltinEventAdmissionOptions,
   setCustomEventBlockedOptions,
 } from "@/features/studio/lib/tanstack-query/event-admission";
-import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "@/features/studio/settings";
+import {
+  SettingsCard,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from "@/features/studio/settings";
 
 /**
  * Project settings for event admission: per-event toggles over the built-in
@@ -50,10 +55,7 @@ export function ProjectEventsPage({ projectId }: { projectId: string }) {
     !policy.customEventBlocklist.includes(trimmedEventName);
 
   return (
-    <SettingsPage
-      description="Choose which events this project stores."
-      title="Events"
-    >
+    <SettingsPage description="Choose which events this project stores." title="Events">
       <SettingsSection
         description="Events the SDK and voidhash emit automatically. Each one is stored only while it is turned on."
         title="Built-in events"

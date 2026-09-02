@@ -39,7 +39,8 @@ const readonlySet = <Value>(entries: Iterable<Value>): ReadonlySet<Value> => {
   const values = HashSet.fromIterable(entries);
   const view: ReadonlySet<Value> = {
     [Symbol.iterator]: () => Array.from(values)[Symbol.iterator](),
-    entries: () => Arr.map(Array.from(values), (value): [Value, Value] => [value, value])[Symbol.iterator](),
+    entries: () =>
+      Arr.map(Array.from(values), (value): [Value, Value] => [value, value])[Symbol.iterator](),
     forEach: (callback, thisArg) =>
       Arr.forEach(Array.from(values), (value) => callback.call(thisArg, value, value, view)),
     has: (value) => HashSet.has(values, value),

@@ -168,9 +168,7 @@ export function GradientStopBar({
           aria-label={`Gradient stop ${index + 1}`}
           className={cn(
             "-translate-x-1/2 -translate-y-1/2 absolute top-1/2 size-3.5 cursor-grab rounded-[3px] border shadow-[0_0_0_1px_rgba(0,0,0,0.4)] active:cursor-grabbing",
-            index === selectedIndex
-              ? "border-white ring-2 ring-white"
-              : "border-white/80",
+            index === selectedIndex ? "border-white ring-2 ring-white" : "border-white/80",
           )}
           key={index}
           onMouseDown={handleMarkerMouseDown(index)}

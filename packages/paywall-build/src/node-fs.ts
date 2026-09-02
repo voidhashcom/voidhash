@@ -80,7 +80,10 @@ export class NodeFs {
               .pipe(Effect.map((info) => info.type === "File")),
           { concurrency: "unbounded" },
         );
-        return Arr.sort(files.map((entry) => `${base}/${entry}`), Order.String);
+        return Arr.sort(
+          files.map((entry) => `${base}/${entry}`),
+          Order.String,
+        );
       }.bind(this),
     );
   }

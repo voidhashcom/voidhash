@@ -15,7 +15,11 @@ import * as Schema from "effect/Schema";
 
 export class McpOAuthError extends Schema.TaggedErrorClass<McpOAuthError>("McpOAuthError")(
   "McpOAuthError",
-  { kind: Schema.Literals(["invalid_token" , "misconfigured" , "upstream"]), message: Schema.String, cause: Schema.optional(Schema.Unknown) },
+  {
+    kind: Schema.Literals(["invalid_token", "misconfigured", "upstream"]),
+    message: Schema.String,
+    cause: Schema.optional(Schema.Unknown),
+  },
 ) {}
 
 /** Identity claims an MCP access token must carry. */

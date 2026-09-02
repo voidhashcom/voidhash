@@ -1,9 +1,5 @@
 import type { Primitive } from "@voidhash/mimic-core";
-import {
-  type Variable,
-  type VariableType,
-  type variableTypeSchema,
-} from "@voidhash/mimic-schema";
+import { type Variable, type VariableType, type variableTypeSchema } from "@voidhash/mimic-schema";
 
 import { commander } from "../../designer-commander";
 import { findStatefulNode } from "../../utils/node-proxies";

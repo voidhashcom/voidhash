@@ -15,7 +15,7 @@ the other six.
 - **Presenting a paywall and surviving its absence.** `presentPaywall` returns
   `false` when nothing is published for the location, and a project that has
   never published one answers the resolve call with a 404, which arrives as a
-  thrown exception. Both mean *no remote paywall right now*, and neither is
+  thrown exception. Both mean _no remote paywall right now_, and neither is
   something a user should ever see. The app falls back to its own Upgrade
   screen. This is the single most valuable thing here to copy.
 - **Development mode**, so a purchase completes on a bare emulator with no Play
@@ -57,12 +57,12 @@ be configured.
 
 In Studio, create the objects the example expects:
 
-| Thing | Slug |
-| --- | --- |
-| Perk | `pro` |
-| Products | `pro-monthly`, `pro-annual`, `pro-lifetime` |
-| Paywall location | `onboarding` |
-| Feature flag | `nimbus-new-onboarding` |
+| Thing            | Slug                                        |
+| ---------------- | ------------------------------------------- |
+| Perk             | `pro`                                       |
+| Products         | `pro-monthly`, `pro-annual`, `pro-lifetime` |
+| Paywall location | `onboarding`                                |
+| Feature flag     | `nimbus-new-onboarding`                     |
 
 None of them are required to start the app. Missing products give you an empty
 Upgrade screen with an explanation, and a missing paywall is exactly the
@@ -108,11 +108,11 @@ Export stop asking for money.
 The list, the free-quota banner (`2 of 3 notes left`) and the Pro-only Export
 action.
 
-| Action | SDK call |
-| --- | --- |
-| Add note | `capture("note_created", …)` then `setPersonAttributes(mapOf("plan" to …, "notes_created" to …))` |
-| Add note at the free limit | the upgrade flow below |
-| Export | `capture("export_requested", …)`; Pro exports, everyone else gets the upgrade flow |
+| Action                     | SDK call                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------- |
+| Add note                   | `capture("note_created", …)` then `setPersonAttributes(mapOf("plan" to …, "notes_created" to …))` |
+| Add note at the free limit | the upgrade flow below                                                                            |
+| Export                     | `capture("export_requested", …)`; Pro exports, everyone else gets the upgrade flow                |
 
 The upgrade flow is one function, `NimbusViewModel.requestUpgrade`, abridged
 here down to the decision it makes:
@@ -150,14 +150,14 @@ coordinator makes.
 
 ### Account
 
-| Section | SDK call |
-| --- | --- |
-| Sign in | `identify(externalUserId, email, name)` then `setPersonAttributes` |
-| Person | `getCurrentPerson(forceFetch = true)` |
-| Entitlements | `person.entitlementGrants` / `person.activePerkIds` |
-| Feature flag | `getFeatureFlags(listOf("nimbus-new-onboarding"))` |
-| Flush now | `flush()` |
-| Sign out | `reset()` |
+| Section      | SDK call                                                           |
+| ------------ | ------------------------------------------------------------------ |
+| Sign in      | `identify(externalUserId, email, name)` then `setPersonAttributes` |
+| Person       | `getCurrentPerson(forceFetch = true)`                              |
+| Entitlements | `person.entitlementGrants` / `person.activePerkIds`                |
+| Feature flag | `getFeatureFlags(listOf("nimbus-new-onboarding"))`                 |
+| Flush now    | `flush()`                                                          |
+| Sign out     | `reset()`                                                          |
 
 Pro is `person.activePerkIds.contains("pro")` — nothing else. `identify` aliases
 the anonymous distinct id onto your own user id, so a purchase made before sign
@@ -165,14 +165,14 @@ in follows the user.
 
 ## What to steal for your own app
 
-| File | Why |
-| --- | --- |
-| [`NimbusApplication.kt`](app/src/main/java/com/voidhash/example/nimbus/NimbusApplication.kt) | Where `configure` goes, and why `initialize` does not go there. |
-| [`NimbusViewModel.kt`](app/src/main/java/com/voidhash/example/nimbus/NimbusViewModel.kt) | `requestUpgrade` (the paywall fallback), `isPurchaseCancellation`, and the per-action error handling. |
-| [`ActivityFinder.kt`](app/src/main/java/com/voidhash/example/nimbus/ActivityFinder.kt) | Unwrapping `LocalContext` to the real `Activity`. Casting it directly is the classic first crash. |
-| [`ui/NimbusApp.kt`](app/src/main/java/com/voidhash/example/nimbus/ui/NimbusApp.kt) | The loading / failure / ready gate with a retry button. |
-| [`app/build.gradle.kts`](app/build.gradle.kts) | Reading a key out of `local.properties` into `BuildConfig`. |
-| [`settings.gradle.kts`](settings.gradle.kts) | Wiring the SDK in as an included build. |
+| File                                                                                         | Why                                                                                                   |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [`NimbusApplication.kt`](app/src/main/java/com/voidhash/example/nimbus/NimbusApplication.kt) | Where `configure` goes, and why `initialize` does not go there.                                       |
+| [`NimbusViewModel.kt`](app/src/main/java/com/voidhash/example/nimbus/NimbusViewModel.kt)     | `requestUpgrade` (the paywall fallback), `isPurchaseCancellation`, and the per-action error handling. |
+| [`ActivityFinder.kt`](app/src/main/java/com/voidhash/example/nimbus/ActivityFinder.kt)       | Unwrapping `LocalContext` to the real `Activity`. Casting it directly is the classic first crash.     |
+| [`ui/NimbusApp.kt`](app/src/main/java/com/voidhash/example/nimbus/ui/NimbusApp.kt)           | The loading / failure / ready gate with a retry button.                                               |
+| [`app/build.gradle.kts`](app/build.gradle.kts)                                               | Reading a key out of `local.properties` into `BuildConfig`.                                           |
+| [`settings.gradle.kts`](settings.gradle.kts)                                                 | Wiring the SDK in as an included build.                                                               |
 
 ### How this example depends on the SDK
 
@@ -223,13 +223,13 @@ switches away. `shutdown()` belongs in a process that is genuinely finishing.
 
 Matches the SDK's own build, because a composite build wants one toolchain:
 
-| | |
-| --- | --- |
-| Android Gradle Plugin | 8.9.0 |
-| Kotlin | 2.0.21 |
-| Gradle | 8.11.1 |
-| `compileSdk` / `targetSdk` | 35 |
-| `minSdk` | 23 (the SDK's floor) |
+|                            |                      |
+| -------------------------- | -------------------- |
+| Android Gradle Plugin      | 8.9.0                |
+| Kotlin                     | 2.0.21               |
+| Gradle                     | 8.11.1               |
+| `compileSdk` / `targetSdk` | 35                   |
+| `minSdk`                   | 23 (the SDK's floor) |
 
 ## License
 

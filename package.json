@@ -82,9 +82,9 @@
     "typescript": "catalog:"
   },
   "devDependencies": {
-    "@mpsuesser/oxlint-plugin-effect": "^0.4.3",
     "@electric-sql/pglite": "^0.5.5",
     "@electric-sql/pglite-socket": "^0.2.8",
+    "@mpsuesser/oxlint-plugin-effect": "^0.4.3",
     "@typescript/native-preview": "7.0.0-dev.20260302.1",
     "alchemy": "catalog:",
     "dotenv-cli": "^8.0.0",

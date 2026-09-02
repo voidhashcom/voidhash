@@ -47,9 +47,7 @@ export type EntitlementsCacheOptions = {
  * 3. **Single flight.** Concurrent requests for the same person share one
  *    in-flight refresh instead of stampeding the API.
  */
-export const createEntitlementsCache = (
-  options: EntitlementsCacheOptions,
-): EntitlementsCache => {
+export const createEntitlementsCache = (options: EntitlementsCacheOptions): EntitlementsCache => {
   const { perkSlug, voidhash } = options;
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
 

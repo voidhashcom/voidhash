@@ -17,7 +17,7 @@ mutex-guarded map, because the interesting part is everything around them.
 - **A 60-second entitlement cache**, because the access check sits on every
   write path and one API call per request is not a design.
 - **Failure that is not a denial.** A transport error or a 5xx means the state
-  is *unknown*. The cached answer is served stale rather than revoking a paying
+  is _unknown_. The cached answer is served stale rather than revoking a paying
   customer because DNS blipped.
 - **Idempotent webhook handling.** A handler slower than the 30-second delivery
   timeout gets delivered twice; a dedupe set makes the second one a no-op.
@@ -43,13 +43,13 @@ Create the project in [Studio](https://voidhash.com); the secret key is under
 cp .env.example .env
 ```
 
-| Variable | Required | Default |
-| --- | --- | --- |
-| `VOIDHASH_SECRET_KEY` | yes | — |
-| `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | — |
-| `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
-| `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
-| `PORT` | no | `8080` |
+| Variable                  | Required                 | Default                       |
+| ------------------------- | ------------------------ | ----------------------------- |
+| `VOIDHASH_SECRET_KEY`     | yes                      | —                             |
+| `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | —                             |
+| `VOIDHASH_BASE_URL`       | no                       | `https://api.voidhash.com`    |
+| `VOIDHASH_INGEST_URL`     | no                       | `https://ingest.voidhash.com` |
+| `PORT`                    | no                       | `8080`                        |
 
 The server refuses to start without `VOIDHASH_SECRET_KEY` and tells you where
 to find one. That one key covers everything, analytics capture included. The
@@ -74,15 +74,15 @@ go vet ./...
 
 ## Routes
 
-| Route | Behaviour |
-| --- | --- |
-| `GET /health` | Liveness. Never touches Voidhash. |
-| `GET /v1/me?distinctId=…` | Person plus entitlement grants. |
-| `GET /v1/notes?distinctId=…` | The caller's notes and their remaining free quota. |
-| `POST /v1/notes` | Creates a note. `403 note_limit_reached` once a free user holds 3. |
-| `GET /v1/notes/export?distinctId=…` | Pro only. `402 premium_required` otherwise. |
-| `POST /v1/events` | Forwards a client-supplied analytics event. |
-| `POST /webhooks/voidhash` | Verifies the signature, acknowledges, then handles. |
+| Route                               | Behaviour                                                          |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `GET /health`                       | Liveness. Never touches Voidhash.                                  |
+| `GET /v1/me?distinctId=…`           | Person plus entitlement grants.                                    |
+| `GET /v1/notes?distinctId=…`        | The caller's notes and their remaining free quota.                 |
+| `POST /v1/notes`                    | Creates a note. `403 note_limit_reached` once a free user holds 3. |
+| `GET /v1/notes/export?distinctId=…` | Pro only. `402 premium_required` otherwise.                        |
+| `POST /v1/events`                   | Forwards a client-supplied analytics event.                        |
+| `POST /webhooks/voidhash`           | Verifies the signature, acknowledges, then handles.                |
 
 Errors are always `{"error": "<stable_code>", "message": "<prose>"}`. Branch on
 `error`, never on `message`. Denials that a purchase would fix also carry
@@ -316,7 +316,7 @@ it at an ngrok tunnel to your local port.
 ### 1. The cache — [`entitlements.go`](./entitlements.go)
 
 `entitlementCache.Access` is read-through with a 60-second TTL. It caches the
-person record next to the grants, because grants are resolved *through* the
+person record next to the grants, because grants are resolved _through_ the
 person: a route showing both should show one consistent snapshot rather than a
 fresh person beside stale grants.
 
@@ -333,7 +333,7 @@ func isUnknownFailure(err error) bool {
 ```
 
 A transport failure carries no status code and a 5xx is the server saying it
-could not answer either. Both mean *unknown*, and unknown must never collapse
+could not answer either. Both mean _unknown_, and unknown must never collapse
 into "no grants" — that is how you revoke a customer who paid you this morning.
 When the state is unknown and an expired entry exists, it is served with
 `"stale": true` and a warning in the log. When nothing is cached, the honest
@@ -354,7 +354,7 @@ one purchase turns into two handled events. So:
    bad signature is a `400` — retrying never fixes it.
 2. Claim the delivery in a dedupe set. Already claimed → `200` with
    `"duplicate": true` and no work.
-3. Acknowledge, *then* handle.
+3. Acknowledge, _then_ handle.
 4. If handling fails, release the claim so the next retry is processed instead
    of swallowed.
 
@@ -368,13 +368,13 @@ lives one to two windows, memory is bounded by the delivery rate, and neither
 
 ## What to steal for your own app
 
-| You want | Take |
-| --- | --- |
+| You want                               | Take                                                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | A cached, outage-tolerant access check | [`entitlements.go`](./entitlements.go) — `entitlementCache`, `isUnknownFailure`, `grantIsActive` |
-| Correct webhook intake | [`webhooks.go`](./webhooks.go) — `handleWebhook`, `deliveryKey`, `dedupeSet` |
-| A gate that clients cannot bypass | [`handlers.go`](./handlers.go) — `handleCreateNote`, `handleExportNotes` |
-| Voidhash errors mapped to HTTP | [`server.go`](./server.go) — `writeUpstreamError` |
-| Boot-time config validation | [`main.go`](./main.go) — `loadConfig` |
+| Correct webhook intake                 | [`webhooks.go`](./webhooks.go) — `handleWebhook`, `deliveryKey`, `dedupeSet`                     |
+| A gate that clients cannot bypass      | [`handlers.go`](./handlers.go) — `handleCreateNote`, `handleExportNotes`                         |
+| Voidhash errors mapped to HTTP         | [`server.go`](./server.go) — `writeUpstreamError`                                                |
+| Boot-time config validation            | [`main.go`](./main.go) — `loadConfig`                                                            |
 
 Two habits worth copying wholesale:
 
@@ -383,7 +383,7 @@ Two habits worth copying wholesale:
   concurrent requests cannot both take the last free slot.
 - **Never let analytics fail a request.** `server.capture` logs and moves on.
   `POST /v1/events` is the one place a capture failure surfaces, because there
-  the capture *is* the request.
+  the capture _is_ the request.
 
 ## Notes
 

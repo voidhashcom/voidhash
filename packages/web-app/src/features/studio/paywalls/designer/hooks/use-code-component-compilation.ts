@@ -11,10 +11,7 @@ import {
   setCodeComponentCompiled,
 } from "../state/actions/code-component-editor-actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
-import {
-  codeComponentDefinitions,
-  selectCodeComponentNodes,
-} from "../state/utils/code-components";
+import { codeComponentDefinitions, selectCodeComponentNodes } from "../state/utils/code-components";
 
 /**
  * Watches the paywall's code-component definitions and compiles each in-browser
@@ -79,7 +76,12 @@ export function useCodeComponentCompilation(): void {
           return;
         }
         dispatch(setCodeComponentCompiled)({
-          compiled: { diagnostics: [{ message, phase: "runtime" }], error: message, sourceHash, status: "error" },
+          compiled: {
+            diagnostics: [{ message, phase: "runtime" }],
+            error: message,
+            sourceHash,
+            status: "error",
+          },
           id: definitionId,
         });
       };
@@ -101,30 +103,30 @@ export function useCodeComponentCompilation(): void {
             return;
           }
           if (result.ok) {
-          dispatch(setCodeComponentCompiled)({
-            compiled: {
-              artifact: {
-                code: result.hasPanel ? result.code : undefined,
-                hasPanel: result.hasPanel,
-                manifest: result.manifest,
-                previewTrees: result.previewTrees,
+            dispatch(setCodeComponentCompiled)({
+              compiled: {
+                artifact: {
+                  code: result.hasPanel ? result.code : undefined,
+                  hasPanel: result.hasPanel,
+                  manifest: result.manifest,
+                  previewTrees: result.previewTrees,
+                },
+                sourceHash,
+                status: "ready",
               },
-              sourceHash,
-              status: "ready",
-            },
-            id: definition.id,
-          });
-        } else {
-          dispatch(setCodeComponentCompiled)({
-            compiled: {
-              diagnostics: result.diagnostics,
-              error: result.diagnostics.map((diagnostic) => diagnostic.message).join("; "),
-              sourceHash,
-              status: "error",
-            },
-            id: definitionId,
-          });
-        }
+              id: definition.id,
+            });
+          } else {
+            dispatch(setCodeComponentCompiled)({
+              compiled: {
+                diagnostics: result.diagnostics,
+                error: result.diagnostics.map((diagnostic) => diagnostic.message).join("; "),
+                sourceHash,
+                status: "error",
+              },
+              id: definitionId,
+            });
+          }
         })
         // A rejection would otherwise strand the component on "compiling"; the
         // pipeline is designed never to reject, but guard defensively.

@@ -121,14 +121,12 @@ const classifyApnsReason = (
   statusCode: number,
   reason: string,
 ): Effect.Effect<never, PushDeliveryError> => {
-  if (reason === "Unregistered")
-    return Effect.fail(new PushUnregisteredError({ statusCode }));
+  if (reason === "Unregistered") return Effect.fail(new PushUnregisteredError({ statusCode }));
   if (reason === "BadDeviceToken" || reason === "DeviceTokenNotForTopic")
     return Effect.fail(new PushBadTokenError({ statusCode }));
   if (reason === "PayloadTooLarge")
     return Effect.fail(new PushPayloadTooLargeError({ statusCode }));
-  if (reason === "TooManyRequests")
-    return Effect.fail(new PushRateExceededError({ statusCode }));
+  if (reason === "TooManyRequests") return Effect.fail(new PushRateExceededError({ statusCode }));
   if (
     reason === "ExpiredProviderToken" ||
     reason === "InvalidProviderToken" ||

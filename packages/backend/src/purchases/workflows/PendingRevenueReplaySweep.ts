@@ -241,89 +241,97 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
               paymentProviderNotificationProcessed.parkedUntilOriginalTransactionId,
             );
 
-          const productResults = yield* Effect.forEach(productCandidates, (candidate) => {
-            const providerProductKey = candidate.providerProductKey;
-            return Match.value(candidate.providerId).pipe(
-              Match.when("apple-app-store", () =>
-                appStoreHandler.replayParkedNotificationsForProductMapping({
-                  paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
-                  providerProductKey,
-                }),
-              ),
-              Match.when("google-play", () =>
-                googlePlayHandler.replayParkedNotificationsForProductMapping({
-                  paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
-                  providerProductKey,
-                }),
-              ),
-              Match.when("stripe", () =>
-                stripeHandler.replayParkedNotificationsForProductMapping({
-                  paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
-                  providerProductKey,
-                }),
-              ),
-              Match.orElse(() =>
-                Effect.succeed({ appliedCount: 0, failedCount: 0, totalParked: 0 }),
-              ),
-            );
-          }, { concurrency: 1 });
+          const productResults = yield* Effect.forEach(
+            productCandidates,
+            (candidate) => {
+              const providerProductKey = candidate.providerProductKey;
+              return Match.value(candidate.providerId).pipe(
+                Match.when("apple-app-store", () =>
+                  appStoreHandler.replayParkedNotificationsForProductMapping({
+                    paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
+                    providerProductKey,
+                  }),
+                ),
+                Match.when("google-play", () =>
+                  googlePlayHandler.replayParkedNotificationsForProductMapping({
+                    paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
+                    providerProductKey,
+                  }),
+                ),
+                Match.when("stripe", () =>
+                  stripeHandler.replayParkedNotificationsForProductMapping({
+                    paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
+                    providerProductKey,
+                  }),
+                ),
+                Match.orElse(() =>
+                  Effect.succeed({ appliedCount: 0, failedCount: 0, totalParked: 0 }),
+                ),
+              );
+            },
+            { concurrency: 1 },
+          );
 
-          const sdkResults = yield* Effect.forEach(sdkConfirmationGroups, Effect.fn("replaySdkConfirmation")(function* (candidate) {
-            const originalTransactionId = candidate.originalTransactionId;
-            if (!originalTransactionId)
-              return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
-            const subscriptionDependency = yield* db
-              .select({ id: subscriptions.id })
-              .from(subscriptions)
-              .innerJoin(
-                paymentProviderConfigurationProducts,
-                eq(
-                  subscriptions.paymentProviderConfigurationProductId,
-                  paymentProviderConfigurationProducts.id,
-                ),
-              )
-              .where(
-                and(
+          const sdkResults = yield* Effect.forEach(
+            sdkConfirmationGroups,
+            Effect.fn("replaySdkConfirmation")(function* (candidate) {
+              const originalTransactionId = candidate.originalTransactionId;
+              if (!originalTransactionId)
+                return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
+              const subscriptionDependency = yield* db
+                .select({ id: subscriptions.id })
+                .from(subscriptions)
+                .innerJoin(
+                  paymentProviderConfigurationProducts,
                   eq(
-                    paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-                    candidate.paymentProviderConfigurationId,
+                    subscriptions.paymentProviderConfigurationProductId,
+                    paymentProviderConfigurationProducts.id,
                   ),
-                  eq(subscriptions.storeSubscriptionId, originalTransactionId),
-                ),
-              )
-              .limit(1);
-            const transactionDependency = yield* db
-              .select({ id: transactions.id })
-              .from(transactions)
-              .innerJoin(
-                paymentProviderConfigurationProducts,
-                eq(
-                  transactions.paymentProviderConfigurationProductId,
-                  paymentProviderConfigurationProducts.id,
-                ),
-              )
-              .where(
-                and(
+                )
+                .where(
+                  and(
+                    eq(
+                      paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                      candidate.paymentProviderConfigurationId,
+                    ),
+                    eq(subscriptions.storeSubscriptionId, originalTransactionId),
+                  ),
+                )
+                .limit(1);
+              const transactionDependency = yield* db
+                .select({ id: transactions.id })
+                .from(transactions)
+                .innerJoin(
+                  paymentProviderConfigurationProducts,
                   eq(
-                    paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-                    candidate.paymentProviderConfigurationId,
+                    transactions.paymentProviderConfigurationProductId,
+                    paymentProviderConfigurationProducts.id,
                   ),
-                  eq(transactions.storeTransactionId, originalTransactionId),
-                ),
-              )
-              .limit(1);
-            if (
-              Arr.isReadonlyArrayEmpty(subscriptionDependency) &&
-              Arr.isReadonlyArrayEmpty(transactionDependency)
-            ) {
-              return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
-            }
-            const result = yield* appStoreHandler.replayParkedNotificationsForSdkConfirmation({
-              originalTransactionId,
-              paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
-            });
-            return { ...result, candidateCount: 1 };
-          }), { concurrency: 1 });
+                )
+                .where(
+                  and(
+                    eq(
+                      paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                      candidate.paymentProviderConfigurationId,
+                    ),
+                    eq(transactions.storeTransactionId, originalTransactionId),
+                  ),
+                )
+                .limit(1);
+              if (
+                Arr.isReadonlyArrayEmpty(subscriptionDependency) &&
+                Arr.isReadonlyArrayEmpty(transactionDependency)
+              ) {
+                return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
+              }
+              const result = yield* appStoreHandler.replayParkedNotificationsForSdkConfirmation({
+                originalTransactionId,
+                paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
+              });
+              return { ...result, candidateCount: 1 };
+            }),
+            { concurrency: 1 },
+          );
 
           const sdkConfirmationCandidateCount = Arr.reduce(
             sdkResults,
@@ -343,9 +351,21 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
             { concurrency: 1 },
           );
           const allResults = [...productResults, ...sdkResults, ...transactionResults];
-          const appliedCount = Arr.reduce(allResults, 0, (count, result) => count + result.appliedCount);
-          const failedCount = Arr.reduce(allResults, 0, (count, result) => count + result.failedCount);
-          const totalParked = Arr.reduce(allResults, 0, (count, result) => count + result.totalParked);
+          const appliedCount = Arr.reduce(
+            allResults,
+            0,
+            (count, result) => count + result.appliedCount,
+          );
+          const failedCount = Arr.reduce(
+            allResults,
+            0,
+            (count, result) => count + result.failedCount,
+          );
+          const totalParked = Arr.reduce(
+            allResults,
+            0,
+            (count, result) => count + result.totalParked,
+          );
 
           const remainingBacklog = yield* db
             .select({

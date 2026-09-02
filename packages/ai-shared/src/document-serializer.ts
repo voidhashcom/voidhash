@@ -109,7 +109,10 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Depth-first search for a node by id across a decoded forest. */
-function findNode(nodes: readonly SnapshotDocumentNode[], id: string): Nullable<SnapshotDocumentNode> {
+function findNode(
+  nodes: readonly SnapshotDocumentNode[],
+  id: string,
+): Nullable<SnapshotDocumentNode> {
   return Option.getOrNull(
     Arr.findFirst(nodes, (node) => {
       if (node.id === id) return Option.some(node);

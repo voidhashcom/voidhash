@@ -107,9 +107,7 @@ export function renderPaywallToHtml(
   const { hydrate = true, metadata, componentArtifacts, locale } = options;
 
   // Server-render the paywall to HTML
-  const body = render(
-    createElement(Paywall, { componentArtifacts, locale, snapshot }),
-  );
+  const body = render(createElement(Paywall, { componentArtifacts, locale, snapshot }));
 
   // Serialize the hydration payload. Bare snapshots stay the wire shape when
   // there are no component artifacts so older payload consumers keep working;

@@ -19,11 +19,11 @@ export function useInteractions(
 
   // Wrap onSetVariable to capture this node's ID
   const scopedCallbacks: ActionCallbacks = {
-      ...callbacks,
-      onSetVariable: (variableId: string, newValue: VariableValue) => {
-        setNodeVariable(nodeId, variableId, newValue);
-      },
-    };
+    ...callbacks,
+    onSetVariable: (variableId: string, newValue: VariableValue) => {
+      setNodeVariable(nodeId, variableId, newValue);
+    },
+  };
 
   const clickInteractions = interactions.filter((entry) => entry.value?.trigger?.type === "click");
 

@@ -268,24 +268,27 @@ export const makeDbPurchaseManagementRepository = (
         Effect.mapError(portError("failed to list project provider mappings")),
       ),
   providerProductHasHistory: (id) =>
-    Effect.all([
-      db.query.checkoutSessions.findFirst({
-        columns: { id: true },
-        where: { paymentProviderConfigurationProductId: id },
-      }),
-      db.query.purchases.findFirst({
-        columns: { id: true },
-        where: { paymentProviderConfigurationProductId: id },
-      }),
-      db.query.subscriptions.findFirst({
-        columns: { id: true },
-        where: { paymentProviderConfigurationProductId: id },
-      }),
-      db.query.transactions.findFirst({
-        columns: { id: true },
-        where: { paymentProviderConfigurationProductId: id },
-      }),
-    ], { concurrency: 1 }).pipe(
+    Effect.all(
+      [
+        db.query.checkoutSessions.findFirst({
+          columns: { id: true },
+          where: { paymentProviderConfigurationProductId: id },
+        }),
+        db.query.purchases.findFirst({
+          columns: { id: true },
+          where: { paymentProviderConfigurationProductId: id },
+        }),
+        db.query.subscriptions.findFirst({
+          columns: { id: true },
+          where: { paymentProviderConfigurationProductId: id },
+        }),
+        db.query.transactions.findFirst({
+          columns: { id: true },
+          where: { paymentProviderConfigurationProductId: id },
+        }),
+      ],
+      { concurrency: 1 },
+    ).pipe(
       Effect.map((references) => references.some((reference) => reference !== undefined)),
       Effect.mapError(portError("failed to inspect provider product history")),
     ),
@@ -385,18 +388,16 @@ export const SchemaCacheInvalidationLive = Layer.effect(
     const cache = yield* SchemaCacheInvalidationService;
     return SchemaCacheInvalidation.of({
       invalidate: (projectId) =>
-        cache
-          .invalidate(projectId)
-          .pipe(
-            Effect.catchCause((cause) =>
-              Effect.fail(
-                new PurchasePortError({
-                  cause,
-                  message: "failed to invalidate purchase schema cache",
-                }),
-              ),
+        cache.invalidate(projectId).pipe(
+          Effect.catchCause((cause) =>
+            Effect.fail(
+              new PurchasePortError({
+                cause,
+                message: "failed to invalidate purchase schema cache",
+              }),
             ),
           ),
+        ),
     });
   }),
 );

@@ -40,9 +40,7 @@ export function documentRootFromSnapshot(snapshot: DocumentRoots): RootSnapshotN
   const root: unknown = snapshot[0];
   if (root === undefined || snapshot.length !== 1) {
     return Effect.runSync(
-      Effect.die(
-        new Error(`Designer document must have exactly one root, got ${snapshot.length}`),
-      ),
+      Effect.die(new Error(`Designer document must have exactly one root, got ${snapshot.length}`)),
     );
   }
   if (!isRootSnapshotNode(root)) {

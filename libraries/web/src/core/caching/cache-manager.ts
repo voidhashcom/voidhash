@@ -145,14 +145,20 @@ const make = Effect.fn("makeCacheManager")(function* effect() {
   const clearAll = () =>
     Effect.gen(function* clearAll() {
       const keys = yield* getCacheKeys();
-      yield* Effect.all(keys.map((key) => deleteValue(key)), { concurrency: 1 });
+      yield* Effect.all(
+        keys.map((key) => deleteValue(key)),
+        { concurrency: 1 },
+      );
     });
 
   const clearPrefix = (prefix: string) =>
     Effect.gen(function* clearPrefix() {
       const keys = yield* getCacheKeys();
       const matched = keys.filter((key) => key.startsWith(prefix));
-      yield* Effect.all(matched.map((key) => deleteValue(key)), { concurrency: 1 });
+      yield* Effect.all(
+        matched.map((key) => deleteValue(key)),
+        { concurrency: 1 },
+      );
     });
 
   const getCacheKeys = () =>
@@ -178,8 +184,6 @@ const make = Effect.fn("makeCacheManager")(function* effect() {
 export class CacheManager extends Context.Service<
   CacheManager,
   Effect.Success<ReturnType<typeof make>>
->()(
-  "web-voidhash/CacheManager",
-) {
+>()("web-voidhash/CacheManager") {
   static Default = Layer.effect(CacheManager, make());
 }

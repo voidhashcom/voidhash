@@ -62,7 +62,8 @@ export const variable: {
 export const product = (_id: string): ProductRef => ({ __product: true });
 
 /** A purchase action for a product (or product variable). Inert marker. */
-export const purchase = (_product: ProductRef | VariableHandle<ProductRef>): Action => ACTION_MARKER;
+export const purchase = (_product: ProductRef | VariableHandle<ProductRef>): Action =>
+  ACTION_MARKER;
 
 /** A close-paywall action. Inert marker. */
 export const closePaywall = (): Action => ACTION_MARKER;

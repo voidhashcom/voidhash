@@ -133,9 +133,5 @@ export interface PaywallWebViewProps {
 
   startInLoadingState?: boolean;
   renderLoading?: () => ReactElement;
-  renderError?: (
-    domain: Option.Option<string>,
-    code: number,
-    description: string,
-  ) => ReactElement;
+  renderError?: (domain: Option.Option<string>, code: number, description: string) => ReactElement;
 }

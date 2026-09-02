@@ -22,14 +22,11 @@ import { basename } from "./paths.ts";
  */
 export function validate(components: readonly ResolvedComponent[]): readonly BuildDiagnostic[] {
   // Case-insensitive path collision detection.
-  const byLowerPath = components.reduce(
-    (paths, component) => {
+  const byLowerPath = components.reduce((paths, component) => {
     const key = component.path.toLowerCase();
-      const bucket = HashMap.get(paths, key).valueOrUndefined ?? [];
-      return HashMap.set(paths, key, [...bucket, component.path]);
-    },
-    HashMap.empty<string, readonly string[]>(),
-  );
+    const bucket = HashMap.get(paths, key).valueOrUndefined ?? [];
+    return HashMap.set(paths, key, [...bucket, component.path]);
+  }, HashMap.empty<string, readonly string[]>());
   const collisionDiagnostics = [...byLowerPath].flatMap(([, paths]) => {
     if (paths[1] === undefined) return [];
     const unique = Arr.dedupe(paths);
@@ -41,15 +38,15 @@ export function validate(components: readonly ResolvedComponent[]): readonly Bui
     hasDefineComponentDefaultExport(component)
       ? []
       : [
-        error(
-          component.path,
-          "validate",
-          "A component file must default-export the defineComponent call, e.g. " +
-            "`export default defineComponent({ ... })` (a const bound to " +
-            "`defineComponent(...)` and exported as default is also accepted). Do NOT " +
-            "export `definition.component` — export the definition itself.",
-        ),
-      ],
+          error(
+            component.path,
+            "validate",
+            "A component file must default-export the defineComponent call, e.g. " +
+              "`export default defineComponent({ ... })` (a const bound to " +
+              "`defineComponent(...)` and exported as default is also accepted). Do NOT " +
+              "export `definition.component` — export the definition itself.",
+          ),
+        ],
   );
 
   return [...collisionDiagnostics, ...exportDiagnostics];
@@ -121,7 +118,11 @@ function hasDefineComponentDefaultExport(component: ResolvedComponent): boolean 
       }
     }
     // `export { X as default }`
-    if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
       return statement.exportClause.elements.some((element) => {
         const exportedAs = element.name.text;
         const local = element.propertyName?.text ?? element.name.text;

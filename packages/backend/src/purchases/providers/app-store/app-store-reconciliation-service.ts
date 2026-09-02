@@ -301,50 +301,57 @@ const make = Effect.fn("make")(function* () {
         historyResponse.signedTransactions,
         () => noSignedTransactions,
       );
-      yield* Effect.forEach(signedTransactions, Effect.fn("replayHistoricalTransaction")(function* (signed) {
-        const decoded = yield* sdkContext
-          .decodeSignedTransaction(signed, environment)
-          .pipe(Effect.option);
-        if (Option.isNone(decoded)) {
-          report.eventsFailed++;
-          return;
-        }
-        const outcome = yield* _replayHistoricalTransaction({
-          configuration,
-          decodedTransaction: decoded.value,
-          project,
-          providerEnvironment: resolvedEnvironment,
-          receivedAt: input.triggeredAt,
-        }).pipe(
-          Effect.match({
-            onFailure: (error) => ({
-              ok: constant(false),
-              error,
+      yield* Effect.forEach(
+        signedTransactions,
+        Effect.fn("replayHistoricalTransaction")(function* (signed) {
+          const decoded = yield* sdkContext
+            .decodeSignedTransaction(signed, environment)
+            .pipe(Effect.option);
+          if (Option.isNone(decoded)) {
+            report.eventsFailed++;
+            return;
+          }
+          const outcome = yield* _replayHistoricalTransaction({
+            configuration,
+            decodedTransaction: decoded.value,
+            project,
+            providerEnvironment: resolvedEnvironment,
+            receivedAt: input.triggeredAt,
+          }).pipe(
+            Effect.match({
+              onFailure: (error) => ({
+                ok: constant(false),
+                error,
+              }),
+              onSuccess: (result) => ({
+                idempotent: result.idempotent,
+                ok: constant(true),
+              }),
             }),
-            onSuccess: (result) => ({
-              idempotent: result.idempotent,
-              ok: constant(true),
-            }),
-          }),
-        );
-        report.transactionsProcessed++;
-        if (outcome.ok) {
-          if (outcome.idempotent) {
-            report.eventsSkippedIdempotent++;
+          );
+          report.transactionsProcessed++;
+          if (outcome.ok) {
+            if (outcome.idempotent) {
+              report.eventsSkippedIdempotent++;
+            } else {
+              report.eventsApplied++;
+            }
           } else {
-            report.eventsApplied++;
+            report.eventsFailed++;
+            if (outcome.error instanceof AppStorePaymentProviderProductNotMappedError) {
+              yield* parkPendingProductMapping(outcome.error);
+            }
+            yield* Effect.logWarning(
+              "App Store reconciliation: history transaction replay failed",
+              {
+                error: String(outcome.error),
+                originalTransactionId: input.originalTransactionId,
+              },
+            );
           }
-        } else {
-          report.eventsFailed++;
-          if (outcome.error instanceof AppStorePaymentProviderProductNotMappedError) {
-            yield* parkPendingProductMapping(outcome.error);
-          }
-          yield* Effect.logWarning("App Store reconciliation: history transaction replay failed", {
-            error: String(outcome.error),
-            originalTransactionId: input.originalTransactionId,
-          });
-        }
-      }), { concurrency: 1 });
+        }),
+        { concurrency: 1 },
+      );
       if (Option.getOrElse(historyResponse.hasMore, () => false)) {
         return yield* processHistoryPage(historyResponse.revision);
       }
@@ -368,7 +375,9 @@ const make = Effect.fn("make")(function* () {
       Option.getOrElse(statusResponse.data, () => []),
       (group) => Option.getOrElse(group.lastTransactions, () => []),
     );
-    yield* Effect.forEach(statusItems, Effect.fn("replayStatusSnapshot")(function* (item) {
+    yield* Effect.forEach(
+      statusItems,
+      Effect.fn("replayStatusSnapshot")(function* (item) {
         if (Option.isNone(item.status)) return;
         const status = item.status.value;
         if (Option.isNone(item.signedTransactionInfo)) return;
@@ -441,14 +450,16 @@ const make = Effect.fn("make")(function* () {
             originalTransactionId: input.originalTransactionId,
           });
         }
-    }), { concurrency: 1 });
-      /**
-       * `AutoRenewStatus` is decoded above when `signedRenewalInfo` is
-       * present (Option.some(...) in `decodedRenewalInfo`). Mapping it
-       * onto cancel / resume mutations would require new record paths in
-       * `_replayStatusSnapshot`; the live `DID_CHANGE_RENEWAL_STATUS`
-       * webhook still covers it today.
-       */
+      }),
+      { concurrency: 1 },
+    );
+    /**
+     * `AutoRenewStatus` is decoded above when `signedRenewalInfo` is
+     * present (Option.some(...) in `decodedRenewalInfo`). Mapping it
+     * onto cancel / resume mutations would require new record paths in
+     * `_replayStatusSnapshot`; the live `DID_CHANGE_RENEWAL_STATUS`
+     * webhook still covers it today.
+     */
 
     yield* Effect.logInfo("App Store reconciliation: complete", {
       ...report,
@@ -482,8 +493,12 @@ const providerEnvironmentFor = (environment: string): ProviderEnvironmentValue =
  * ACTIVE status is a no-op (the history walk covers renewals) — the replay
  * returns nothing for it, which counts as already-up-to-date for telemetry.
  */
-const idempotentFlag = (result: { readonly idempotent?: boolean } | typeof Schema.Null.Type | typeof Schema.Undefined.Type): boolean =>
-  result?.idempotent ?? true;
+const idempotentFlag = (
+  result:
+    | { readonly idempotent?: boolean }
+    | typeof Schema.Null.Type
+    | typeof Schema.Undefined.Type,
+): boolean => result?.idempotent ?? true;
 
 export class AppStoreReconciliationService extends Context.Service<AppStoreReconciliationService>()(
   "@voidhash/backend/purchases/AppStoreReconciliationService",

@@ -1,13 +1,7 @@
 "use client";
 
 import type { PaywallAssetSchema } from "@voidhash/rpc";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@voidhash/ui";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@voidhash/ui";
 
 import { AssetLibrary } from "./asset-library";
 

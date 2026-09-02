@@ -207,38 +207,42 @@ const makeAnalyticsCapture = Effect.fn("makeAnalyticsCapture")(function* () {
         }
 
         const admitted = Arr.getSomes(
-          yield* Effect.forEach(request.events, (event) => {
-          if (isReservedRevenueEventName(event.event)) return Effect.succeed(Option.none());
-          if (
-            !admitEvent({
-              edition: config.edition,
-              eventName: event.event,
-              policy: project.policy.admission,
-            }).admitted
-          ) {
-            return Effect.succeed(Option.none());
-          }
-          return makeCaptureEnvelope({
-              event,
-              organizationId: project.organizationId,
-              projectId: project.projectId,
-              receivedAt: request.request.receivedAt,
-              request: request.request,
-              token: credential.lookupKey,
-            }).pipe(
-              Effect.provideService(Crypto.Crypto, crypto),
-              Effect.mapError(captureError),
-              Effect.map((envelope) =>
-                Option.some({
-                  envelope,
-                  quotaExempt: shouldBypassQuota({
-                    eventName: event.event,
-                    trustClass: "untrusted-sdk",
+          yield* Effect.forEach(
+            request.events,
+            (event) => {
+              if (isReservedRevenueEventName(event.event)) return Effect.succeed(Option.none());
+              if (
+                !admitEvent({
+                  edition: config.edition,
+                  eventName: event.event,
+                  policy: project.policy.admission,
+                }).admitted
+              ) {
+                return Effect.succeed(Option.none());
+              }
+              return makeCaptureEnvelope({
+                event,
+                organizationId: project.organizationId,
+                projectId: project.projectId,
+                receivedAt: request.request.receivedAt,
+                request: request.request,
+                token: credential.lookupKey,
+              }).pipe(
+                Effect.provideService(Crypto.Crypto, crypto),
+                Effect.mapError(captureError),
+                Effect.map((envelope) =>
+                  Option.some({
+                    envelope,
+                    quotaExempt: shouldBypassQuota({
+                      eventName: event.event,
+                      trustClass: "untrusted-sdk",
+                    }),
                   }),
-                }),
-              ),
-            );
-          }, { concurrency: 1 }),
+                ),
+              );
+            },
+            { concurrency: 1 },
+          ),
         );
         const reservation = yield* counters
           .reserveEvents({
@@ -258,22 +262,18 @@ const makeAnalyticsCapture = Effect.fn("makeAnalyticsCapture")(function* () {
         const deliveryResult = yield* Effect.result(delivery.deliver(envelopes));
         return yield* Result.match(deliveryResult, {
           onFailure: (failure) =>
-            reservation
-              .commit(Math.min(failure.stored, reservation.reserved))
-              .pipe(
-                Effect.catch(() => Effect.void),
-                Effect.flatMap(() => Effect.fail(captureError(failure))),
-              ),
+            reservation.commit(Math.min(failure.stored, reservation.reserved)).pipe(
+              Effect.catch(() => Effect.void),
+              Effect.flatMap(() => Effect.fail(captureError(failure))),
+            ),
           onSuccess: (outcome) =>
-            reservation
-              .commit(Math.min(outcome.stored, reservation.reserved))
-              .pipe(
-                Effect.mapError(captureError),
-                Effect.as({
-                  accepted: outcome.stored,
-                  rejected: request.events.length - outcome.stored,
-                }),
-              ),
+            reservation.commit(Math.min(outcome.stored, reservation.reserved)).pipe(
+              Effect.mapError(captureError),
+              Effect.as({
+                accepted: outcome.stored,
+                rejected: request.events.length - outcome.stored,
+              }),
+            ),
         });
       }),
   } satisfies AnalyticsCaptureShape;

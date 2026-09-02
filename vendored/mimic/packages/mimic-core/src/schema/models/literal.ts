@@ -1,10 +1,4 @@
-import type {
-  BooleanValue,
-  NumberValue,
-  Path,
-  StringValue,
-  Value,
-} from "../../core/types.ts";
+import type { BooleanValue, NumberValue, Path, StringValue, Value } from "../../core/types.ts";
 import { cloneValue } from "../../core/types.ts";
 import { makeSchemaError, SchemaErrorCodes } from "../errors.ts";
 import type { SchemaModel } from "../model.ts";

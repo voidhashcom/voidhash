@@ -160,9 +160,7 @@ export function parseWorkspacePath(path: string): ParseWorkspacePathResult {
   const [head, ...rest] = segments;
 
   if (head === COMPONENTS_SEGMENT) {
-    return reserved(
-      `"/components/*" (project-shared component library) is not supported yet`,
-    );
+    return reserved(`"/components/*" (project-shared component library) is not supported yet`);
   }
 
   if (head !== PAYWALLS_SEGMENT) {

@@ -79,7 +79,8 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                 })
                 .onConflictDoNothing();
             }
-            const configuration = existingConfiguration ??
+            const configuration =
+              existingConfiguration ??
               (yield* tx.query.paymentProviderConfigurations.findFirst({
                 where: { projectId, providerId: "development", deletedAt: { isNull: true } },
               }));
@@ -111,7 +112,8 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                 })
                 .onConflictDoNothing();
             }
-            const mapping = existingMapping ??
+            const mapping =
+              existingMapping ??
               (yield* tx.query.paymentProviderConfigurationProducts.findFirst({
                 where: {
                   paymentProviderConfigurationId: configuration.id,
@@ -226,22 +228,23 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
           } satisfies typeof PurchaseActionContext.Type;
           const pricedQuantity = product.type === ProductType.OneTimeConsumable ? quantity : 1;
           const money = Option.some(makeDevelopmentMoney(price.amount * pricedQuantity));
-          const result: PurchaseProcessingResult = product.type === ProductType.Subscription
-            ? yield* purchaseProcessing.startSubscription({
-              ...context,
-              expiresAt: Option.some(addDevelopmentBillingPeriod(input.purchaseDate, price)),
-              isTrial: false,
-              money,
-              purchasedAt: input.purchaseDate,
-              startsAt: input.purchaseDate,
-            })
-            : yield* purchaseProcessing.completeOneTimePurchase({
-              ...context,
-              money,
-              purchasedAt: input.purchaseDate,
-              purchaseType:
-                product.type === ProductType.OneTimeConsumable ? "consumable" : "one-time",
-            });
+          const result: PurchaseProcessingResult =
+            product.type === ProductType.Subscription
+              ? yield* purchaseProcessing.startSubscription({
+                  ...context,
+                  expiresAt: Option.some(addDevelopmentBillingPeriod(input.purchaseDate, price)),
+                  isTrial: false,
+                  money,
+                  purchasedAt: input.purchaseDate,
+                  startsAt: input.purchaseDate,
+                })
+              : yield* purchaseProcessing.completeOneTimePurchase({
+                  ...context,
+                  money,
+                  purchasedAt: input.purchaseDate,
+                  purchaseType:
+                    product.type === ProductType.OneTimeConsumable ? "consumable" : "one-time",
+                });
           return { result, warning: price.warning } satisfies DevelopmentPurchaseResult;
         },
         (effect) =>
@@ -276,12 +279,15 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
             "project:all",
             `Not authorized to inspect development purchases for ${input.projectId}`,
           );
-          const [project, person] = yield* Effect.all([
-            db.query.projects.findFirst({ where: { id: input.projectId } }),
-            db.query.persons.findFirst({
-              where: { id: input.personId, projectId: input.projectId },
-            }),
-          ], { concurrency: 1 });
+          const [project, person] = yield* Effect.all(
+            [
+              db.query.projects.findFirst({ where: { id: input.projectId } }),
+              db.query.persons.findFirst({
+                where: { id: input.personId, projectId: input.projectId },
+              }),
+            ],
+            { concurrency: 1 },
+          );
           if (!project || !person) {
             return yield* Effect.fail(
               new DevelopmentPaymentProviderServiceError({
@@ -290,47 +296,52 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
             );
           }
           const [subscriptionRows, purchaseRows, grantRows, catalogProducts, mappings] =
-            yield* Effect.all([
-              db.query.subscriptions.findMany({
-                where: {
-                  personId: input.personId,
-                  providerEnvironment: ProviderEnvironment.Development,
-                },
-              }),
-              db.query.purchases.findMany({
-                where: {
-                  personId: input.personId,
-                  providerEnvironment: ProviderEnvironment.Development,
-                },
-              }),
-              db.query.personUnlockedPerks.findMany({
-                where: {
-                  personId: input.personId,
-                  environment: ProviderEnvironment.Development,
-                },
-              }),
-              db.query.products.findMany({ where: { projectId: input.projectId } }),
-              db
-                .select({
-                  id: paymentProviderConfigurationProducts.id,
-                  productId: paymentProviderConfigurationProducts.productId,
-                })
-                .from(paymentProviderConfigurationProducts)
-                .innerJoin(
-                  paymentProviderConfigurations,
-                  eq(
-                    paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-                    paymentProviderConfigurations.id,
+            yield* Effect.all(
+              [
+                db.query.subscriptions.findMany({
+                  where: {
+                    personId: input.personId,
+                    providerEnvironment: ProviderEnvironment.Development,
+                  },
+                }),
+                db.query.purchases.findMany({
+                  where: {
+                    personId: input.personId,
+                    providerEnvironment: ProviderEnvironment.Development,
+                  },
+                }),
+                db.query.personUnlockedPerks.findMany({
+                  where: {
+                    personId: input.personId,
+                    environment: ProviderEnvironment.Development,
+                  },
+                }),
+                db.query.products.findMany({ where: { projectId: input.projectId } }),
+                db
+                  .select({
+                    id: paymentProviderConfigurationProducts.id,
+                    productId: paymentProviderConfigurationProducts.productId,
+                  })
+                  .from(paymentProviderConfigurationProducts)
+                  .innerJoin(
+                    paymentProviderConfigurations,
+                    eq(
+                      paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                      paymentProviderConfigurations.id,
+                    ),
+                  )
+                  .where(
+                    and(
+                      eq(paymentProviderConfigurations.projectId, input.projectId),
+                      eq(paymentProviderConfigurations.providerId, "development"),
+                    ),
                   ),
-                )
-                .where(
-                  and(
-                    eq(paymentProviderConfigurations.projectId, input.projectId),
-                    eq(paymentProviderConfigurations.providerId, "development"),
-                  ),
-                ),
-            ], { concurrency: 1 });
-          const productById = new MutableMap(catalogProducts.map((product) => [product.id, product]));
+              ],
+              { concurrency: 1 },
+            );
+          const productById = new MutableMap(
+            catalogProducts.map((product) => [product.id, product]),
+          );
           const productIdByMappingId = new MutableMap(
             mappings.map((mapping) => [mapping.id, mapping.productId]),
           );
@@ -472,12 +483,15 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               }),
             );
           }
-          const [configuration, product] = yield* Effect.all([
-            db.query.paymentProviderConfigurations.findFirst({
-              where: { id: mapping.paymentProviderConfigurationId },
-            }),
-            db.query.products.findFirst({ where: { id: mapping.productId } }),
-          ], { concurrency: 1 });
+          const [configuration, product] = yield* Effect.all(
+            [
+              db.query.paymentProviderConfigurations.findFirst({
+                where: { id: mapping.paymentProviderConfigurationId },
+              }),
+              db.query.products.findFirst({ where: { id: mapping.productId } }),
+            ],
+            { concurrency: 1 },
+          );
           if (
             !configuration ||
             configuration.providerId !== "development" ||
@@ -620,25 +634,28 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
             "project:all",
             `Not authorized to reset development purchases for ${projectId}`,
           );
-          const [mappings, people] = yield* Effect.all([
-            db
-              .select({ id: paymentProviderConfigurationProducts.id })
-              .from(paymentProviderConfigurationProducts)
-              .innerJoin(
-                paymentProviderConfigurations,
-                eq(
-                  paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-                  paymentProviderConfigurations.id,
+          const [mappings, people] = yield* Effect.all(
+            [
+              db
+                .select({ id: paymentProviderConfigurationProducts.id })
+                .from(paymentProviderConfigurationProducts)
+                .innerJoin(
+                  paymentProviderConfigurations,
+                  eq(
+                    paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                    paymentProviderConfigurations.id,
+                  ),
+                )
+                .where(
+                  and(
+                    eq(paymentProviderConfigurations.projectId, projectId),
+                    eq(paymentProviderConfigurations.providerId, "development"),
+                  ),
                 ),
-              )
-              .where(
-                and(
-                  eq(paymentProviderConfigurations.projectId, projectId),
-                  eq(paymentProviderConfigurations.providerId, "development"),
-                ),
-              ),
-            db.query.persons.findMany({ columns: { id: true }, where: { projectId } }),
-          ], { concurrency: 1 });
+              db.query.persons.findMany({ columns: { id: true }, where: { projectId } }),
+            ],
+            { concurrency: 1 },
+          );
           const mappingIds = mappings.map((mapping) => mapping.id);
           const personIds = people.map((person) => person.id);
           yield* db.transaction((tx) =>

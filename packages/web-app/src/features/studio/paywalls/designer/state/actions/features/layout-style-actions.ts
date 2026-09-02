@@ -1,4 +1,9 @@
-import { isStatefulNodeType, type AlignItems, type FlexDirection, type JustifyContent } from "@voidhash/mimic-schema";
+import {
+  isStatefulNodeType,
+  type AlignItems,
+  type FlexDirection,
+  type JustifyContent,
+} from "@voidhash/mimic-schema";
 import { collapseContainerStretch, expandContainerStretch } from "@voidhash/paywall-style-engine";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
@@ -185,9 +190,7 @@ export const updateLayoutStyle = commander.undoableAction<
     // on every node but the one it was derived from.
     const needsSizingRepair = hasSizingUpdates(params.style) && params.nodes.length > 0;
     const root: SnapshotNode | null =
-      needsSizingRepair || params.style.alignSelf === "stretch"
-        ? selectDocumentRoot(state)
-        : null;
+      needsSizingRepair || params.style.alignSelf === "stretch" ? selectDocumentRoot(state) : null;
     const previousStyles = new Map<string, StyleUpdateUndoTarget>();
     const touched: StyleTarget[] = [...params.nodes];
 
@@ -356,7 +359,13 @@ export const updateContainerAlignment = commander.undoableAction<
       touched.push(target);
       mergeUndo(
         previousStyles,
-        applyStyleUpdate(mimic, [target], parentPatch, state.stateOverrideSelection, ctx.transaction),
+        applyStyleUpdate(
+          mimic,
+          [target],
+          parentPatch,
+          state.stateOverrideSelection,
+          ctx.transaction,
+        ),
       );
 
       for (const child of children) {

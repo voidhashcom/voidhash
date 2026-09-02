@@ -43,9 +43,7 @@ export function Phone({
   url,
   ...props
 }: PhoneProps) {
-  const sizing = fitHeight
-    ? { aspectRatio: PHONE_ASPECT_RATIO, ...style }
-    : style;
+  const sizing = fitHeight ? { aspectRatio: PHONE_ASPECT_RATIO, ...style } : style;
 
   return (
     <div

@@ -153,9 +153,7 @@ export const NotificationHistoryRequestCodec = Schema.Struct({
 });
 export type NotificationHistoryRequestCodec = typeof NotificationHistoryRequestCodec.Type;
 
-export type NotificationHistoryRequest = Schema.Schema.Type<
-  typeof NotificationHistoryRequestCodec
->;
+export type NotificationHistoryRequest = Schema.Schema.Type<typeof NotificationHistoryRequestCodec>;
 
 /**
  * Request body for updating an app account token.

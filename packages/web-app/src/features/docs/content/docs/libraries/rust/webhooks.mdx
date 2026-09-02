@@ -43,15 +43,15 @@ names are rejected.
 
 ## Event catalog
 
-| Event                    | Fires when                                                     | Payload highlights                                                            |
-| ------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `subscription.created`   | A subscription becomes known to Voidhash for a person.         | `subscriptionId`, `startsAt`, `expiresAt`, `purchasedAt`, `isTrial`, `amount` |
-| `subscription.renewed`   | A renewal advances the subscription's period.                  | `subscriptionId`, `renewedAt`, `startsAt`, `expiresAt`, `isTrial`, `amount`   |
-| `subscription.cancelled` | Auto-renew is turned off, or access is revoked immediately.    | `canceledAt`, `cancelAtPeriodEnd`, `cancellationReason`, `expiresAt`          |
-| `subscription.expired`   | A subscription's access period ends.                           | `expiredAt`                                                                   |
-| `purchase.completed`     | A non-subscription purchase is recorded.                       | `purchaseId`, `purchaseKind`, `purchasedAt`, `providerKey`, `amount`          |
-| `purchase.refunded`      | A purchase or transaction is refunded.                         | `purchaseId`, `refundedAt`, `refundReason`, `amount`                          |
-| `test.ping`              | You send a test from Studio or call `test_webhook_endpoint`.   | `message`, `timestamp`                                                        |
+| Event                    | Fires when                                                   | Payload highlights                                                            |
+| ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `subscription.created`   | A subscription becomes known to Voidhash for a person.       | `subscriptionId`, `startsAt`, `expiresAt`, `purchasedAt`, `isTrial`, `amount` |
+| `subscription.renewed`   | A renewal advances the subscription's period.                | `subscriptionId`, `renewedAt`, `startsAt`, `expiresAt`, `isTrial`, `amount`   |
+| `subscription.cancelled` | Auto-renew is turned off, or access is revoked immediately.  | `canceledAt`, `cancelAtPeriodEnd`, `cancellationReason`, `expiresAt`          |
+| `subscription.expired`   | A subscription's access period ends.                         | `expiredAt`                                                                   |
+| `purchase.completed`     | A non-subscription purchase is recorded.                     | `purchaseId`, `purchaseKind`, `purchasedAt`, `providerKey`, `amount`          |
+| `purchase.refunded`      | A purchase or transaction is refunded.                       | `purchaseId`, `refundedAt`, `refundReason`, `amount`                          |
+| `test.ping`              | You send a test from Studio or call `test_webhook_endpoint`. | `message`, `timestamp`                                                        |
 
 `subscription.created` does not always mean a fresh purchase. Voidhash emits it the first time it
 sees a subscription. That is usually the subscription's start, but it can also be a renewal, for
@@ -126,10 +126,10 @@ Here is a complete `subscription.renewed` payload:
 
 Voidhash signs every request and sends three headers:
 
-| Header                | Value                                                                    |
-| --------------------- | ------------------------------------------------------------------------ |
-| `X-Webhook-Event`     | The event name, for example `purchase.completed`.                        |
-| `X-Webhook-Timestamp` | The Unix time in seconds when the request was signed.                    |
+| Header                | Value                                                                       |
+| --------------------- | --------------------------------------------------------------------------- |
+| `X-Webhook-Event`     | The event name, for example `purchase.completed`.                           |
+| `X-Webhook-Timestamp` | The Unix time in seconds when the request was signed.                       |
 | `X-Webhook-Signature` | `v1=` followed by the hex-encoded HMAC-SHA256 of `${timestamp}.${rawBody}`. |
 
 The HMAC key is the raw UTF-8 endpoint secret. The signature covers the exact bytes Voidhash sent,

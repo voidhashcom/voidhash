@@ -312,8 +312,7 @@ export const makeGuestSessionFactory =
       intentSink: options.onIntents,
       callbacks: {
         onTree: (tree, revision) => options.onTree(revision, tree),
-        onError: (error) =>
-          options.onError(error instanceof Error ? error.message : String(error)),
+        onError: (error) => options.onError(error instanceof Error ? error.message : String(error)),
       },
     });
     return session;

@@ -111,8 +111,4 @@ export {
   parsePreviewTree,
   PREVIEW_STATE_PATTERN,
 } from "./validate";
-export {
-  PANEL_ICON_NAMES,
-  type ParsePanelResult,
-  parsePanelTree,
-} from "./validate-panel";
+export { PANEL_ICON_NAMES, type ParsePanelResult, parsePanelTree } from "./validate-panel";

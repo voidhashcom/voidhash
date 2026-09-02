@@ -142,13 +142,14 @@ export const BUILTIN_EVENT_ADMISSION_LIST: readonly BuiltinEventAdmissionEntry[]
 ]);
 
 /** Registry entries indexed by the event names they admit. */
-const entriesByEventName: HashMap.HashMap<string, BuiltinEventAdmissionEntry> = HashMap.fromIterable(
-  BUILTIN_EVENT_ADMISSION_LIST.flatMap((entry) =>
-    entry.eventNames.map(
-      (eventName) => [eventName, entry] satisfies [string, BuiltinEventAdmissionEntry],
+const entriesByEventName: HashMap.HashMap<string, BuiltinEventAdmissionEntry> =
+  HashMap.fromIterable(
+    BUILTIN_EVENT_ADMISSION_LIST.flatMap((entry) =>
+      entry.eventNames.map(
+        (eventName) => [eventName, entry] satisfies [string, BuiltinEventAdmissionEntry],
+      ),
     ),
-  ),
-);
+  );
 
 /** The registry entry admitting `eventName`. */
 export const builtinEntryForEventName = (

@@ -9,7 +9,10 @@ import type {
 } from "@/features/studio/paywalls/designer/components/variables/types";
 import { VariableInput } from "@/features/studio/paywalls/designer/components/variables/variable-input";
 
-import { hexColorToRgbaString, rgbaStringToHexColor } from "../panels/right-panel/utils/component-color";
+import {
+  hexColorToRgbaString,
+  rgbaStringToHexColor,
+} from "../panels/right-panel/utils/component-color";
 import { ColorInput } from "./color-input";
 import { SelectInput } from "./select-input";
 

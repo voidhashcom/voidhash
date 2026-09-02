@@ -57,13 +57,13 @@ const grants = await voidhash.entitlements.getGrantsByDistinctId({
 
 Each grant has these fields.
 
-| Field            | Type                                       | Description                                                       |
-| ---------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `perkId`         | `string`                                   | The perk this grant is for. Match it against the perk you care about. |
-| `status`         | `"active" \| "expired"`                    | Only `active` grants confer access.                               |
-| `expiresAt`      | `string \| null`                           | An ISO timestamp. `null` means the grant never expires.           |
-| `source`         | `"subscription" \| "purchase" \| "manual"` | How the customer obtained the grant.                              |
-| `sourceId`       | `string \| null`                           | The subscription or purchase behind the grant.                    |
+| Field            | Type                                       | Description                                                                                    |
+| ---------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `perkId`         | `string`                                   | The perk this grant is for. Match it against the perk you care about.                          |
+| `status`         | `"active" \| "expired"`                    | Only `active` grants confer access.                                                            |
+| `expiresAt`      | `string \| null`                           | An ISO timestamp. `null` means the grant never expires.                                        |
+| `source`         | `"subscription" \| "purchase" \| "manual"` | How the customer obtained the grant.                                                           |
+| `sourceId`       | `string \| null`                           | The subscription or purchase behind the grant.                                                 |
 | `sourcePersonId` | `string`                                   | The person who holds the source. On shared plans this differs from the person you asked about. |
 
 Unlike `hasActivePerk`, this call treats an unknown `distinctId` as an error. That leaves the
@@ -127,11 +127,11 @@ The tags you are most likely to see are `Api/NotAuthenticatedError` (401),
 Grants are scoped to an environment. The server picks the scope from the `x-environment` request
 header.
 
-| `x-environment`        | Grants returned                                                |
-| ---------------------- | -------------------------------------------------------------- |
-| absent or `production` | Real purchases, from both store production and store sandbox.  |
-| `development`          | Only simulated purchases made by an SDK in a debug build.      |
-| `all`                  | Both of the above.                                             |
+| `x-environment`        | Grants returned                                               |
+| ---------------------- | ------------------------------------------------------------- |
+| absent or `production` | Real purchases, from both store production and store sandbox. |
+| `development`          | Only simulated purchases made by an SDK in a debug build.     |
+| `all`                  | Both of the above.                                            |
 
 The SDK never sends this header for you, so a plain client always reads production and sandbox
 grants. To read [development purchases](/sdks/react-native/development-mode), set the header on a

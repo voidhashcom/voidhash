@@ -149,7 +149,12 @@ export interface PanelTextProps {
 }
 
 /** Inline text node (`body`/`label` variants, default/muted tone). */
-export function PanelText({ content, variant = "body", tone = "default", className }: PanelTextProps) {
+export function PanelText({
+  content,
+  variant = "body",
+  tone = "default",
+  className,
+}: PanelTextProps) {
   return (
     <span
       className={cn(

@@ -161,16 +161,13 @@ export class NotificationSendingService extends Context.Service<NotificationSend
             readonly devices: ReadonlyArray<(typeof enabledDevices)[number]>;
             readonly seen: HashSet.HashSet<string>;
           } = { devices: [], seen: HashSet.empty() };
-          const deliverable = Arr.reduce(
-            enabledDevices,
-            emptyDeliveryState,
-            (state, device) =>
-              HashSet.has(state.seen, device.pushDeviceTokenId)
-                ? state
-                : {
-                    devices: [...state.devices, device],
-                    seen: HashSet.add(state.seen, device.pushDeviceTokenId),
-                  },
+          const deliverable = Arr.reduce(enabledDevices, emptyDeliveryState, (state, device) =>
+            HashSet.has(state.seen, device.pushDeviceTokenId)
+              ? state
+              : {
+                  devices: [...state.devices, device],
+                  seen: HashSet.add(state.seen, device.pushDeviceTokenId),
+                },
           ).devices;
           const skippedCount = devices.length - deliverable.length;
           const deliveries = deliverable.map((device) => ({
@@ -232,24 +229,26 @@ export class NotificationSendingService extends Context.Service<NotificationSend
             )
             .pipe(
               Effect.as<Option.Option<SendNotificationResult>>(Option.none()),
-              Effect.catch(Effect.fn("NotificationSendingService.recoverIdempotentSend")(function* (error) {
-                const idempotencyKey = input.idempotencyKey;
-                if (idempotencyKey === undefined) {
-                  return yield* Effect.fail(error);
-                }
-                const existing = yield* db.query.pushNotificationSends.findFirst({
-                  where: { projectId: input.projectId, idempotencyKey },
-                });
-                if (!existing) {
-                  return yield* Effect.fail(error);
-                }
-                return Option.some({
+              Effect.catch(
+                Effect.fn("NotificationSendingService.recoverIdempotentSend")(function* (error) {
+                  const idempotencyKey = input.idempotencyKey;
+                  if (idempotencyKey === undefined) {
+                    return yield* Effect.fail(error);
+                  }
+                  const existing = yield* db.query.pushNotificationSends.findFirst({
+                    where: { projectId: input.projectId, idempotencyKey },
+                  });
+                  if (!existing) {
+                    return yield* Effect.fail(error);
+                  }
+                  return Option.some({
                     pushNotificationSendId: existing.id,
                     deviceCount: existing.deviceCount,
                     status: existing.status,
                     unresolvedDistinctIds: existing.unresolvedDistinctIds,
                   } satisfies SendNotificationResult);
-              })),
+                }),
+              ),
             );
           if (Option.isSome(idempotentReplay)) {
             yield* Effect.annotateCurrentSpan("voidhash.push.idempotent_replay", true);

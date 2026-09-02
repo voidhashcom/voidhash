@@ -58,17 +58,17 @@ const { purchase, error, isLoading } = voidhash.usePurchase({
       // The customer dismissed the store sheet. This is expected, not an error.
     }
   }}
-/>
+/>;
 ```
 
 The `Ok` outcome carries one of these status values:
 
-| Status        | Meaning                                                                        |
-| ------------- | ------------------------------------------------------------------------------ |
-| `completed`   | Voidhash validated the purchase and refreshed the person snapshot.             |
-| `cancelled`   | The customer dismissed the native store sheet.                                 |
-| `pending`     | The purchase needs external action. Access arrives once it reconciles.         |
-| `disabled`    | The client was created with `enabled: false`.                                  |
+| Status      | Meaning                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| `completed` | Voidhash validated the purchase and refreshed the person snapshot.     |
+| `cancelled` | The customer dismissed the native store sheet.                         |
+| `pending`   | The purchase needs external action. Access arrives once it reconciles. |
+| `disabled`  | The client was created with `enabled: false`.                          |
 
 The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors). You will typically
 see `FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` when the SDK runs in observer mode.

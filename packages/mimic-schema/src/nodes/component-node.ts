@@ -75,7 +75,8 @@ const componentNodeData = Primitive.Struct({
  */
 export const ComponentNode: Primitive.TreeNodePrimitive<"component", typeof componentNodeData> =
   Primitive.TreeNode("component", {
-    children: () => constant([ViewNode, ScrollViewNode, TextNode, ShapeNode, Primitive.TreeNodeSelf]),
+    children: () =>
+      constant([ViewNode, ScrollViewNode, TextNode, ShapeNode, Primitive.TreeNodeSelf]),
     data: componentNodeData,
   });
 

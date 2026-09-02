@@ -88,10 +88,7 @@ interface GradientGeometry {
 
 function buildGradientSvg(gradient: GradientGeometry, stops: readonly GradientStop[]): string {
   const stopEls = stops
-    .map(
-      (stop) =>
-        `<stop offset='${stop.position}' stop-color='${stop.color}'/>`,
-    )
+    .map((stop) => `<stop offset='${stop.position}' stop-color='${stop.color}'/>`)
     .join("");
 
   const def =

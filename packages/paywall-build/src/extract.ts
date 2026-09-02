@@ -116,85 +116,86 @@ function extractManifestsEffect(
 
     const extracted = yield* Effect.forEach(
       compiled,
-      ({ component, code }) => Effect.gen(function* () {
-      const sourceHash = hashSource(component.source);
-      const base = { path: component.path, source: component.source, sourceHash };
+      ({ component, code }) =>
+        Effect.gen(function* () {
+          const sourceHash = hashSource(component.source);
+          const base = { path: component.path, source: component.source, sourceHash };
 
-      // 1. Cache hit — trust the cached manifest (may be null ⇒ known-unknown).
-      const cached = HashMap.get(cacheHits, sourceHash);
-      if (Option.isSome(cached)) {
-        return {
-          ...base,
-          manifest: cached.value.manifest,
-          status: Option.isSome(cached.value.manifest) ? "ready" : "unknown",
-        } satisfies ExtractedComponent;
-      }
+          // 1. Cache hit — trust the cached manifest (may be null ⇒ known-unknown).
+          const cached = HashMap.get(cacheHits, sourceHash);
+          if (Option.isSome(cached)) {
+            return {
+              ...base,
+              manifest: cached.value.manifest,
+              status: Option.isSome(cached.value.manifest) ? "ready" : "unknown",
+            } satisfies ExtractedComponent;
+          }
 
-      let manifest = Option.none<ComponentManifest>();
-      // Runtime diagnostics deferred until the static outcome is known: on a
-      // static success they downgrade to non-blocking warnings (the build
-      // proceeds on the static manifest, but a module that crashes at eval must
-      // stay observable); only when static ALSO fails do they surface at their
-      // original severity.
-      const deferred: BuildDiagnostic[] = [];
+          let manifest = Option.none<ComponentManifest>();
+          // Runtime diagnostics deferred until the static outcome is known: on a
+          // static success they downgrade to non-blocking warnings (the build
+          // proceeds on the static manifest, but a module that crashes at eval must
+          // stay observable); only when static ALSO fails do they surface at their
+          // original severity.
+          const deferred: BuildDiagnostic[] = [];
 
-      // 2. Runtime extract + validate (ground truth), when possible.
-      if (extractManifest && Option.isSome(code)) {
-        manifest = yield* Effect.tryPromise({
-          try: () => extractManifest(code.value),
-          catch: (cause) => cause,
-        }).pipe(
-          Effect.match({
-            onSuccess: (outcome) => validateOutcome(component.path, outcome, deferred),
-            onFailure: (cause) => {
-              deferred.push(error(component.path, "runtime", causeMessage(cause)));
-              return Option.none<ComponentManifest>();
-            },
-          }),
-        );
-      }
+          // 2. Runtime extract + validate (ground truth), when possible.
+          if (extractManifest && Option.isSome(code)) {
+            manifest = yield* Effect.tryPromise({
+              try: () => extractManifest(code.value),
+              catch: (cause) => cause,
+            }).pipe(
+              Effect.match({
+                onSuccess: (outcome) => validateOutcome(component.path, outcome, deferred),
+                onFailure: (cause) => {
+                  deferred.push(error(component.path, "runtime", causeMessage(cause)));
+                  return Option.none<ComponentManifest>();
+                },
+              }),
+            );
+          }
 
-      // 3. Static AST fallback — the only manifest source on a degraded runtime.
-      //    Runs whenever the runtime path did not resolve a manifest (including
-      //    the `code === null` short-circuit workerd hits).
-      if (Option.isNone(manifest)) {
-        const staticDiagnostics: BuildDiagnostic[] = [];
-        const staticManifest = validateOutcome(
-          component.path,
-          staticExtractManifest(component.source, component.path),
-          staticDiagnostics,
-        );
-        if (Option.isSome(staticManifest)) {
-          manifest = staticManifest;
-          deferred.forEach((diagnostic) => {
-            diagnostics.push({
-              ...diagnostic,
-              severity: "warning",
-              message: `Manifest resolved statically, but the runtime extractor failed: ${diagnostic.message}`,
-            });
-          });
-        } else {
-          // Both paths failed: surface the runtime's diagnostics (if any) AND the
-          // static extractor's, so the author sees why the manifest is unavailable.
-          diagnostics.push(...deferred, ...staticDiagnostics);
-        }
-      }
+          // 3. Static AST fallback — the only manifest source on a degraded runtime.
+          //    Runs whenever the runtime path did not resolve a manifest (including
+          //    the `code === null` short-circuit workerd hits).
+          if (Option.isNone(manifest)) {
+            const staticDiagnostics: BuildDiagnostic[] = [];
+            const staticManifest = validateOutcome(
+              component.path,
+              staticExtractManifest(component.source, component.path),
+              staticDiagnostics,
+            );
+            if (Option.isSome(staticManifest)) {
+              manifest = staticManifest;
+              deferred.forEach((diagnostic) => {
+                diagnostics.push({
+                  ...diagnostic,
+                  severity: "warning",
+                  message: `Manifest resolved statically, but the runtime extractor failed: ${diagnostic.message}`,
+                });
+              });
+            } else {
+              // Both paths failed: surface the runtime's diagnostics (if any) AND the
+              // static extractor's, so the author sees why the manifest is unavailable.
+              diagnostics.push(...deferred, ...staticDiagnostics);
+            }
+          }
 
-      // 4. Record fresh valid manifests best-effort (cache errors never fail).
-      if (Option.isSome(manifest) && cache) {
-        // Intentionally ignored — the cache is an optimization, not a gate.
-        yield* Effect.tryPromise({
-          try: () => cache.record({ sourceHash, manifest: manifest.value }),
-          catch: (cause) => cause,
-        }).pipe(Effect.ignore);
-      }
+          // 4. Record fresh valid manifests best-effort (cache errors never fail).
+          if (Option.isSome(manifest) && cache) {
+            // Intentionally ignored — the cache is an optimization, not a gate.
+            yield* Effect.tryPromise({
+              try: () => cache.record({ sourceHash, manifest: manifest.value }),
+              catch: (cause) => cause,
+            }).pipe(Effect.ignore);
+          }
 
-      return {
-        ...base,
-        manifest,
-        status: Option.isSome(manifest) ? "ready" : "unknown",
-      } satisfies ExtractedComponent;
-      }),
+          return {
+            ...base,
+            manifest,
+            status: Option.isSome(manifest) ? "ready" : "unknown",
+          } satisfies ExtractedComponent;
+        }),
       { concurrency: 1 },
     );
 

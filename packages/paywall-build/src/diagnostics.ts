@@ -8,13 +8,7 @@
  */
 
 /** Which build stage produced a diagnostic. */
-export type BuildPhase =
-  | "imports"
-  | "types"
-  | "grammar"
-  | "compile"
-  | "runtime"
-  | "validate";
+export type BuildPhase = "imports" | "types" | "grammar" | "compile" | "runtime" | "validate";
 
 /** Diagnostic severity. Only `"error"` blocks a successful build. */
 export type BuildSeverity = "error" | "warning" | "info";

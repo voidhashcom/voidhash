@@ -31,6 +31,7 @@ In Studio, open **Settings → API Keys** and create a secret key. The raw value
 
 Store the key in an environment variable or your secret manager. A secret key grants full access to
 the project. Never put it in a mobile app, a web bundle, or a repository.
+
 </Step>
 
 <Step>
@@ -46,11 +47,11 @@ let voidhash = VoidhashClient::new(std::env::var("VOIDHASH_SECRET_KEY")?)?;
 
 The client is configured through `new` and two builder methods.
 
-| Builder method | Default                    | Description                                                              |
-| -------------- | -------------------------- | ------------------------------------------------------------------------ |
-| `new`          | none                       | Takes the required secret key. The client sends it as `x-secret-key`.    |
-| `.base_url`    | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`.        |
-| `.header`      | none                       | Adds an extra header to every request from this client.                  |
+| Builder method | Default                    | Description                                                           |
+| -------------- | -------------------------- | --------------------------------------------------------------------- |
+| `new`          | none                       | Takes the required secret key. The client sends it as `x-secret-key`. |
+| `.base_url`    | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`.     |
+| `.header`      | none                       | Adds an extra header to every request from this client.               |
 
 `VoidhashClient::new` validates its input right away rather than on the first request. It returns
 `VoidhashError::Configuration` when the secret key is blank, the base URL is invalid, or `.header`
@@ -58,6 +59,7 @@ was given `x-secret-key` in any casing.
 
 The client is cheap to clone because it holds an `Arc` internally. Create one and share it across
 your handlers.
+
 </Step>
 
 </Steps>

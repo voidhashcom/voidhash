@@ -96,9 +96,7 @@ export type AgentServerMessage =
       readonly entries: ReadonlyArray<unknown>;
     };
 
-const decodeClientFrame = Schema.decodeUnknownSync(
-  Schema.fromJsonString(AgentClientMessage),
-);
+const decodeClientFrame = Schema.decodeUnknownSync(Schema.fromJsonString(AgentClientMessage));
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 /** Decodes and validates one text WebSocket command. */

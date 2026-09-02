@@ -84,15 +84,16 @@ export const makeControlStoreRpcServer = (store: ControlStoreApi) => ({
     store.findDatabaseByName(name).pipe(Effect.map((value) => Option.getOrNull(value))),
   listDatabases: store.listDatabases,
   deleteDatabase: store.deleteDatabase,
-  createCollection: (record: RpcCollectionRecord) => store.createCollection(decodeCollection(record)),
+  createCollection: (record: RpcCollectionRecord) =>
+    store.createCollection(decodeCollection(record)),
   findCollectionById: (id: string) =>
-    store.findCollectionById(id).pipe(
-      Effect.map((value) => encodeOptional(value, encodeCollection)),
-    ),
+    store
+      .findCollectionById(id)
+      .pipe(Effect.map((value) => encodeOptional(value, encodeCollection))),
   findCollectionByName: (databaseId: string, name: string) =>
-    store.findCollectionByName(databaseId, name).pipe(
-      Effect.map((value) => encodeOptional(value, encodeCollection)),
-    ),
+    store
+      .findCollectionByName(databaseId, name)
+      .pipe(Effect.map((value) => encodeOptional(value, encodeCollection))),
   listCollectionsByDatabase: (databaseId: string) =>
     store.listCollectionsByDatabase(databaseId).pipe(Effect.map(Arr.map(encodeCollection))),
   updateCollectionSchema: store.updateCollectionSchema,
@@ -101,9 +102,9 @@ export const makeControlStoreRpcServer = (store: ControlStoreApi) => ({
   addSchemaVersion: (record: RpcSchemaVersionRecord) =>
     store.addSchemaVersion(decodeSchemaVersion(record)),
   findSchemaVersion: (collectionId: string, version: number) =>
-    store.findSchemaVersion(collectionId, version).pipe(
-      Effect.map((value) => encodeOptional(value, encodeSchemaVersion)),
-    ),
+    store
+      .findSchemaVersion(collectionId, version)
+      .pipe(Effect.map((value) => encodeOptional(value, encodeSchemaVersion))),
   listSchemaVersions: (collectionId: string) =>
     store.listSchemaVersions(collectionId).pipe(Effect.map(Arr.map(encodeSchemaVersion))),
   createUser: store.createUser,
@@ -122,15 +123,15 @@ export const makeControlStoreRpcServer = (store: ControlStoreApi) => ({
   listGrantsByUser: store.listGrantsByUser,
   createToken: (record: RpcTokenRecord) => store.createToken(decodeToken(record)),
   findTokenByHash: (tokenHash: string) =>
-    store.findTokenByHash(tokenHash).pipe(
-      Effect.map((value) => encodeOptional(value, encodeToken)),
-    ),
+    store
+      .findTokenByHash(tokenHash)
+      .pipe(Effect.map((value) => encodeOptional(value, encodeToken))),
   markTokenUsed: store.markTokenUsed,
   registerDocument: store.registerDocument,
   findDocumentIndex: (documentId: string) =>
-    store.findDocumentIndex(documentId).pipe(
-      Effect.map((value) => encodeOptional(value, encodeDocumentIndex)),
-    ),
+    store
+      .findDocumentIndex(documentId)
+      .pipe(Effect.map((value) => encodeOptional(value, encodeDocumentIndex))),
   listDocumentsByCollection: (collectionId: string) =>
     store.listDocumentsByCollection(collectionId).pipe(Effect.map(Arr.map(encodeDocumentIndex))),
   markDocumentDeleted: store.markDocumentDeleted,
@@ -160,8 +161,7 @@ export const makeControlStoreRpcClient = <R>(
     provideContext(remote().findDatabaseByName(name)).pipe(Effect.map(Option.fromNullishOr)),
   listDatabases: () => provideContext(remote().listDatabases()),
   deleteDatabase: (id) => provideContext(remote().deleteDatabase(id)),
-  createCollection: (record) =>
-    provideContext(remote().createCollection(encodeCollection(record))),
+  createCollection: (record) => provideContext(remote().createCollection(encodeCollection(record))),
   findCollectionById: (id) =>
     provideContext(remote().findCollectionById(id)).pipe(
       Effect.map((value) => decodeOptional(value, decodeCollection)),
@@ -177,9 +177,7 @@ export const makeControlStoreRpcClient = <R>(
   updateCollectionSchema: (collectionId, schemaJson, version) =>
     provideContext(remote().updateCollectionSchema(collectionId, schemaJson, version)),
   updateCollectionMigration: (collectionId, schemaJson, migrationVersion) =>
-    provideContext(
-      remote().updateCollectionMigration(collectionId, schemaJson, migrationVersion),
-    ),
+    provideContext(remote().updateCollectionMigration(collectionId, schemaJson, migrationVersion)),
   deleteCollection: (id) => provideContext(remote().deleteCollection(id)),
   addSchemaVersion: (record) =>
     provideContext(remote().addSchemaVersion(encodeSchemaVersion(record))),
@@ -203,8 +201,7 @@ export const makeControlStoreRpcClient = <R>(
   createGrant: (record) => provideContext(remote().createGrant(record)),
   findGrant: (userId, databaseId) =>
     provideContext(remote().findGrant(userId, databaseId)).pipe(Effect.map(Option.fromNullishOr)),
-  removeGrant: (userId, databaseId) =>
-    provideContext(remote().removeGrant(userId, databaseId)),
+  removeGrant: (userId, databaseId) => provideContext(remote().removeGrant(userId, databaseId)),
   listGrants: () => provideContext(remote().listGrants()),
   listGrantsByUser: (userId) => provideContext(remote().listGrantsByUser(userId)),
   createToken: (record) => provideContext(remote().createToken(encodeToken(record))),

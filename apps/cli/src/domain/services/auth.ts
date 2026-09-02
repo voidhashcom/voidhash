@@ -22,10 +22,9 @@ import { CliConfig } from "./cli-config";
 import * as Schema from "effect/Schema";
 import * as P from "effect/Predicate";
 
-export class LoginCancelledError extends Schema.TaggedErrorClass<LoginCancelledError>("LoginCancelledError")(
+export class LoginCancelledError extends Schema.TaggedErrorClass<LoginCancelledError>(
   "LoginCancelledError",
-  { message: Schema.String },
-) {}
+)("LoginCancelledError", { message: Schema.String }) {}
 
 const host = "127.0.0.1";
 const port = 4004;

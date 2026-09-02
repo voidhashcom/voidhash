@@ -129,7 +129,9 @@ if (checkOnly) {
     console.log(`API reference docs are up to date (${wanted.size} files).`);
     process.exit(0);
   }
-  console.error("API reference docs are out of date. Run: node ./scripts/generate-api-reference-docs.mjs");
+  console.error(
+    "API reference docs are out of date. Run: node ./scripts/generate-api-reference-docs.mjs",
+  );
   for (const file of changed) console.error(`  changed: ${file[0]}`);
   for (const file of stale) console.error(`  stale:   ${file}`);
   process.exit(1);

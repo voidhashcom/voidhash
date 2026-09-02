@@ -62,13 +62,13 @@ grants, err := voidhash.Entitlements.GetGrantsByDistinctID(ctx, "user_123")
 
 Each grant has these fields.
 
-| Field            | Type                                   | Description                                                       |
-| ---------------- | -------------------------------------- | ----------------------------------------------------------------- |
-| `PerkID`         | `string`                               | The perk this grant is for. Match it against the perk you care about. |
-| `Status`         | `"active"\|"expired"`                  | Only `active` grants confer access.                               |
-| `ExpiresAt`      | `*time.Time`                           | `nil` means the grant never expires.                              |
-| `Source`         | `"subscription"\|"purchase"\|"manual"` | How the customer obtained the grant.                              |
-| `SourceID`       | `string`                               | The subscription or purchase behind the grant. Empty when there is no backing source. |
+| Field            | Type                                   | Description                                                                                    |
+| ---------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `PerkID`         | `string`                               | The perk this grant is for. Match it against the perk you care about.                          |
+| `Status`         | `"active"\|"expired"`                  | Only `active` grants confer access.                                                            |
+| `ExpiresAt`      | `*time.Time`                           | `nil` means the grant never expires.                                                           |
+| `Source`         | `"subscription"\|"purchase"\|"manual"` | How the customer obtained the grant.                                                           |
+| `SourceID`       | `string`                               | The subscription or purchase behind the grant. Empty when there is no backing source.          |
 | `SourcePersonID` | `string`                               | The person who holds the source. On shared plans this differs from the person you asked about. |
 
 Unlike `HasActivePerk`, this call treats an unknown `DistinctID` as an error. That leaves the
@@ -133,11 +133,11 @@ The tags you are most likely to see are `Api/NotAuthenticatedError` (401),
 Grants are scoped to an environment. The server picks the scope from the `x-environment` request
 header.
 
-| `x-environment`        | Grants returned                                                |
-| ---------------------- | -------------------------------------------------------------- |
-| absent or `production` | Real purchases, from both store production and store sandbox.  |
-| `development`          | Only simulated purchases made by an SDK in a debug build.      |
-| `all`                  | Both of the above.                                             |
+| `x-environment`        | Grants returned                                               |
+| ---------------------- | ------------------------------------------------------------- |
+| absent or `production` | Real purchases, from both store production and store sandbox. |
+| `development`          | Only simulated purchases made by an SDK in a debug build.     |
+| `all`                  | Both of the above.                                            |
 
 The library never sends this header for you, so a plain client always reads production and sandbox
 grants. To read [development purchases](/sdks/react-native/development-mode), create a second
@@ -155,8 +155,8 @@ the header does.
 
 <Callout type="warn" title="Any other value silently means production">
   An unrecognized `x-environment` value falls back to `production` instead of failing. Never wire
-  the header directly to a variable like `GO_ENV`. A value of `"test"` would quietly read
-  production grants.
+  the header directly to a variable like `GO_ENV`. A value of `"test"` would quietly read production
+  grants.
 </Callout>
 
 ## Caching and failures

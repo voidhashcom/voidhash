@@ -74,7 +74,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         const result: FeatureFlagsResult = {
           flags: response.flags.map((flag) => ({
             ...flag,
-              variantKey: flag.variantKey,
+            variantKey: flag.variantKey,
           })),
         };
 

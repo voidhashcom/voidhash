@@ -58,9 +58,7 @@ const errorText = (error: unknown): string =>
  * session down and mounts a fresh one from the same options (definition + wrap +
  * the LATEST inputs pushed via `update`).
  */
-export const createInProcessTransport = (
-  options: InProcessTransportOptions,
-): PanelTransport => {
+export const createInProcessTransport = (options: InProcessTransportOptions): PanelTransport => {
   const listeners = new Set<() => void>();
   let snapshot: PanelSnapshot = { status: "loading" };
   let session: PanelSession | null = null;

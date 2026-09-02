@@ -151,15 +151,15 @@ const readEntry = (entity: DurableEntityContext, index: number) =>
       Option.getOrUndefined(yield* entity.keyValue.get(entryMetaKey(index))),
     );
     if (Option.isNone(metaOption)) {
-      return yield* Effect.die(runtimeError(`Agent session log entry ${index} has invalid metadata`));
+      return yield* Effect.die(
+        runtimeError(`Agent session log entry ${index} has invalid metadata`),
+      );
     }
     const meta = metaOption.value;
     const chunks = yield* Effect.forEach(
       Array.from({ length: meta.chunks }, (_, chunk) => chunk),
       (chunk) =>
-        entity.keyValue
-          .get(entryChunkKey(index, chunk))
-          .pipe(Effect.map(Option.getOrUndefined)),
+        entity.keyValue.get(entryChunkKey(index, chunk)).pipe(Effect.map(Option.getOrUndefined)),
       { concurrency: 16 },
     );
     if (!chunks.every((chunk): chunk is string => P.isString(chunk))) {
@@ -196,9 +196,9 @@ export const readSessionLogCount = (
   address: DurableEntityAddress,
 ): Effect.Effect<number> =>
   host.run(address, (entity) =>
-    entity.keyValue.get(LOG_META_KEY).pipe(
-      Effect.map((value) => parseMeta(Option.getOrUndefined(value)).count),
-    ),
+    entity.keyValue
+      .get(LOG_META_KEY)
+      .pipe(Effect.map((value) => parseMeta(Option.getOrUndefined(value)).count)),
   );
 
 /**
@@ -213,37 +213,39 @@ export const appendSessionLog = (
 ): Effect.Effect<ReadonlyArray<SessionLogEntry>> => {
   if (Arr.isReadonlyArrayEmpty(inputs)) return Effect.succeed([]);
   return host.run(address, (entity) =>
-        Effect.gen(function* () {
-          let meta = parseMeta(
-            Option.getOrUndefined(yield* entity.keyValue.get(LOG_META_KEY)),
+    Effect.gen(function* () {
+      let meta = parseMeta(Option.getOrUndefined(yield* entity.keyValue.get(LOG_META_KEY)));
+      const appended: SessionLogEntry[] = [];
+
+      yield* Effect.forEach(
+        inputs,
+        Effect.fn("iterate")(function* (input) {
+          const entry = makeEntry(input, {
+            id: options.id(),
+            parentId: meta.headId ?? null,
+            timestamp: options.now(),
+          });
+          const entryIndex = meta.count;
+          const chunks = serializeEntry(entry);
+          yield* Effect.forEach(
+            chunks,
+            (chunk, chunkIndex) =>
+              entity.keyValue.put(entryChunkKey(entryIndex, chunkIndex), chunk),
+            { concurrency: 1, discard: true },
           );
-          const appended: SessionLogEntry[] = [];
-
-          yield* Effect.forEach(inputs, Effect.fn("iterate")(function* (input) {
-            const entry = makeEntry(input, {
-              id: options.id(),
-              parentId: meta.headId ?? null,
-              timestamp: options.now(),
-            });
-            const entryIndex = meta.count;
-            const chunks = serializeEntry(entry);
-            yield* Effect.forEach(
-              chunks,
-              (chunk, chunkIndex) =>
-                entity.keyValue.put(entryChunkKey(entryIndex, chunkIndex), chunk),
-              { concurrency: 1, discard: true },
-            );
-            yield* entity.keyValue.put(entryMetaKey(entryIndex), { chunks: chunks.length });
-            appended.push(entry);
-            meta = {
-              count: meta.count + 1,
-              headId: entry.id,
-            };
-          }), { concurrency: 1 });
-
-          yield* entity.keyValue.put(LOG_META_KEY, meta);
-          return appended;
+          yield* entity.keyValue.put(entryMetaKey(entryIndex), { chunks: chunks.length });
+          appended.push(entry);
+          meta = {
+            count: meta.count + 1,
+            headId: entry.id,
+          };
         }),
+        { concurrency: 1 },
+      );
+
+      yield* entity.keyValue.put(LOG_META_KEY, meta);
+      return appended;
+    }),
   );
 };
 

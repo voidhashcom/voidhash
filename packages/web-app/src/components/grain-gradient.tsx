@@ -1,6 +1,8 @@
 import { lazy, Suspense, type ComponentProps } from "react";
 
-type GrainGradientProps = ComponentProps<typeof import("@paper-design/shaders-react").GrainGradient>;
+type GrainGradientProps = ComponentProps<
+  typeof import("@paper-design/shaders-react").GrainGradient
+>;
 
 const ClientGrainGradient = import.meta.env.SSR
   ? null

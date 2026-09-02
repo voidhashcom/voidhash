@@ -25,9 +25,9 @@ export const saveEmailVerificationState = (state: EmailVerificationState): void 
   // sessionStorage can be unavailable (private mode, storage disabled). The
   // verify page degrades to the email search param, so this is non-fatal.
   Effect.runSync(
-    Effect.try(() =>
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)),
-    ).pipe(Effect.ignore),
+    Effect.try(() => window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))).pipe(
+      Effect.ignore,
+    ),
   );
 };
 
@@ -49,8 +49,6 @@ export const clearEmailVerificationState = (): void => {
   }
   // Ignore failures — nothing actionable if the entry can't be removed.
   Effect.runSync(
-    Effect.try(() => window.sessionStorage.removeItem(STORAGE_KEY)).pipe(
-      Effect.ignore,
-    ),
+    Effect.try(() => window.sessionStorage.removeItem(STORAGE_KEY)).pipe(Effect.ignore),
   );
 };

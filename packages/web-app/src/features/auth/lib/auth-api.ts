@@ -41,8 +41,4 @@ export type RootSignInResponse = {
 
 /** Standalone sign-in with the deployment's configured root credentials. */
 export const signInWithRootCredentials = (input: RootSignInInput) =>
-  postAuthJson<RootSignInResponse>(
-    "/api/auth/sign-in",
-    input,
-    "We could not sign you in.",
-  );
+  postAuthJson<RootSignInResponse>("/api/auth/sign-in", input, "We could not sign you in.");

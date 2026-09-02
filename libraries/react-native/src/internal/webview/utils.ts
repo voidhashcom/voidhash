@@ -11,9 +11,7 @@ export function wrapNitroCallback<T>(callback: T) {
   return { f: callback };
 }
 
-export function normalizeSource(
-  source?: PaywallWebViewProps["source"],
-) {
+export function normalizeSource(source?: PaywallWebViewProps["source"]) {
   if (!source || P.isNumber(source)) {
     return undefined;
   }

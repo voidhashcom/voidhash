@@ -151,7 +151,9 @@ export function useBoundingBoxManager() {
   const context = useContext(BoundingBoxManagerContext);
   if (!context) {
     return Effect.runSync(
-      Effect.die(new Error("useBoundingBoxManager must be used within a BoundingBoxManagerProvider")),
+      Effect.die(
+        new Error("useBoundingBoxManager must be used within a BoundingBoxManagerProvider"),
+      ),
     );
   }
   return context;

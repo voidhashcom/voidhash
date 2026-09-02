@@ -4,10 +4,9 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Arr from "effect/Array";
 
-export class FailedToLoadJsFileError extends Schema.TaggedErrorClass<FailedToLoadJsFileError>("FailedToLoadJsFileError")(
+export class FailedToLoadJsFileError extends Schema.TaggedErrorClass<FailedToLoadJsFileError>(
   "FailedToLoadJsFileError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("FailedToLoadJsFileError", { message: Schema.String, cause: Schema.optional(Schema.Unknown) }) {}
 
 /**
  * Lazily loads the tiny TypeScript probe used to detect an esbuild-register

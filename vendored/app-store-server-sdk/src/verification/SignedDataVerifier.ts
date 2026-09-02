@@ -182,7 +182,9 @@ export const SignedDataVerifier = {
         return payload;
       });
 
-    const checkBundle = (bundleId: Option.Option<string>): Effect.Effect<void, VerificationError> => {
+    const checkBundle = (
+      bundleId: Option.Option<string>,
+    ): Effect.Effect<void, VerificationError> => {
       if (Option.isSome(bundleId) && bundleId.value !== config.bundleId) {
         return Effect.fail(makeVerificationError(VerificationStatus.INVALID_APP_IDENTIFIER));
       }

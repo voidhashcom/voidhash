@@ -1,10 +1,5 @@
 import * as Arr from "effect/Array";
-import {
-  createdResponse,
-  Organization,
-  Project,
-  VoidhashV1Api,
-} from "@voidhash/api-contracts";
+import { createdResponse, Organization, Project, VoidhashV1Api } from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
   ApiOrganizationNotFoundError,
@@ -50,7 +45,11 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
               yield* requireCredential(authSession, ["user"]);
               // Membership already rides on the session, so this needs no
               // database round trip — and cannot reach a foreign organization.
-              const organizations = Arr.sortWith([...authSession.organizations], (item) => item.id, Order.String);
+              const organizations = Arr.sortWith(
+                [...authSession.organizations],
+                (item) => item.id,
+                Order.String,
+              );
               const page = yield* paginate(organizations, (org) => org.id, query);
               return {
                 data: page.data.map(

@@ -13,8 +13,9 @@ export type { FeatureFlagsResult };
  * Reactive store of the currently identified person. Written by the
  * person/identity facade paths and read by `useCurrentPerson`.
  */
-export const currentPersonAtom: Atom.Writable<Option.Option<SdkPerson>> =
-  Atom.make<Option.Option<SdkPerson>>(Option.none());
+export const currentPersonAtom: Atom.Writable<Option.Option<SdkPerson>> = Atom.make<
+  Option.Option<SdkPerson>
+>(Option.none());
 
 /**
  * Reactive store of the runtime schema fetched at init time and refreshed
@@ -25,8 +26,9 @@ export const currentPersonAtom: Atom.Writable<Option.Option<SdkPerson>> =
  * publishes — the cached value first, then the freshly refreshed value
  * when the background fetch lands. The two values are usually identical.
  */
-export const schemaAtom: Atom.Writable<Option.Option<RuntimeSchema>> =
-  Atom.make<Option.Option<RuntimeSchema>>(Option.none());
+export const schemaAtom: Atom.Writable<Option.Option<RuntimeSchema>> = Atom.make<
+  Option.Option<RuntimeSchema>
+>(Option.none());
 
 /**
  * Reactive store of feature flag results, keyed by their normalized flag-key

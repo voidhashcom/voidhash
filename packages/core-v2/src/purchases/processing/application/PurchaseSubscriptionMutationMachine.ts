@@ -238,7 +238,10 @@ const makePurchaseSubscriptionMutationMachine = Effect.fn(
           }
 
           const updated = yield* txRepository.updateSubscriptionIfFresher({
-            ...input.buildPatch({ ...existing, expiresAt: Option.fromNullishOr(existing.expiresAt) }),
+            ...input.buildPatch({
+              ...existing,
+              expiresAt: Option.fromNullishOr(existing.expiresAt),
+            }),
             id: existing.id,
             occurredAt: input.action.occurredAt,
           });

@@ -65,7 +65,9 @@ const workspaceCustomCommands = (sources: WorkspaceVfsSources): CustomCommand[] 
 const isFsError = (error: unknown): error is Error =>
   P.isError(error) && /^E[A-Z]+: /.test(error.message);
 
-const execOptions = (signal: AbortSignal | typeof Schema.Undefined.Type): { signal?: AbortSignal } => {
+const execOptions = (
+  signal: AbortSignal | typeof Schema.Undefined.Type,
+): { signal?: AbortSignal } => {
   if (signal === undefined) return {};
   return { signal };
 };
@@ -108,8 +110,7 @@ export const runWorkspaceBash = (
   sources: WorkspaceVfsSources,
   command: string,
   options: { readonly signal?: AbortSignal } = {},
-): Promise<ExecResult> =>
-  runPromise(workspaceBashResult(sources, command, options.signal));
+): Promise<ExecResult> => runPromise(workspaceBashResult(sources, command, options.signal));
 
 const truncate = (text: string, max: number, label: string): string => {
   if (text.length <= max) return text;

@@ -178,7 +178,10 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
         const recordedPersonId = result.personId;
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", recordedPersonId);
-        return { parked: false, personId: recordedPersonId } satisfies GooglePlaySdkTransactionResult;
+        return {
+          parked: false,
+          personId: recordedPersonId,
+        } satisfies GooglePlaySdkTransactionResult;
       },
       (effect) => effect.pipe(Effect.catch((error) => Effect.fail(toServiceError(error)))),
     );

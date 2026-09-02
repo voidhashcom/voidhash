@@ -88,7 +88,10 @@ const validateBackgroundGradient = (value: unknown, path: string, errors: string
     errors.push(`${path} must be an object`);
     return;
   }
-  for (const key of unknownKeys(value, new Set(["kind", "startX", "startY", "endX", "endY", "stops"]))) {
+  for (const key of unknownKeys(
+    value,
+    new Set(["kind", "startX", "startY", "endX", "endY", "stops"]),
+  )) {
     errors.push(`${path} has unknown key "${key}"`);
   }
   if (typeof value.kind !== "string" || !GRADIENT_KINDS.has(value.kind)) {

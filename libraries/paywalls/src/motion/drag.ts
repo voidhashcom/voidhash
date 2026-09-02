@@ -36,7 +36,11 @@ export const resolveDragGestureWinner = (input: {
   readonly gesturePriority?: "auto" | "drag";
 }): "drag" | "scroll" | "none" => {
   if (!input.drag || (input.drag !== true && input.drag !== input.direction)) return "none";
-  if (!input.scrollAxis || input.scrollAxis !== input.direction || input.gesturePriority === "drag") {
+  if (
+    !input.scrollAxis ||
+    input.scrollAxis !== input.direction ||
+    input.gesturePriority === "drag"
+  ) {
     return "drag";
   }
   return "scroll";

@@ -99,9 +99,7 @@ export function KanbanProvider({ children }: { children: ReactNode }) {
 export function useKanban() {
   const context = useContext(KanbanContext);
   if (!context) {
-    return Effect.runSync(
-      Effect.die(new Error("useKanban must be used within a KanbanProvider")),
-    );
+    return Effect.runSync(Effect.die(new Error("useKanban must be used within a KanbanProvider")));
   }
   return context;
 }

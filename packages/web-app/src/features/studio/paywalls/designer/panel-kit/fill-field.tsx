@@ -485,12 +485,7 @@ function FillEditorPopoverContent({
  * gradient stop rows and the org-scoped image picker all stay inside so the
  * wire never carries app context (router/auth/react-query).
  */
-export function FillField({
-  label,
-  open,
-  onOpenChange,
-  ...content
-}: FillFieldProps) {
+export function FillField({ label, open, onOpenChange, ...content }: FillFieldProps) {
   const previewType = content.isTypeMixed ? "solid" : content.backgroundType;
 
   return (

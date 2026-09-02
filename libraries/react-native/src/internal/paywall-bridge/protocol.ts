@@ -1,4 +1,3 @@
-
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 export const PAYWALL_BRIDGE_VERSION = 1 as const;

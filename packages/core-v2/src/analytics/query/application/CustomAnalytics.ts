@@ -312,54 +312,54 @@ const tokenizeTrendsFormula = (source: string) =>
     let offset = 0;
     const scan = (): Effect.Effect<TrendsFormulaToken[], InvalidAnalyticsQueryError> =>
       Effect.gen(function* () {
-      if (offset >= source.length) return tokens;
-      const character = source[offset];
-      if (character && /\s/u.test(character)) {
-        offset += 1;
-        return yield* scan();
-      }
-      const remainder = source.slice(offset);
-      const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu.exec(remainder)?.[0];
-      const identifier = /^[a-z][a-z0-9_]*/iu.exec(remainder)?.[0];
-      const operator = Option.getOrUndefined(arithmeticOperator(Option.fromNullishOr(character)));
-      if (number) {
-        const value = Number(number);
-        if (!Number.isFinite(value)) {
+        if (offset >= source.length) return tokens;
+        const character = source[offset];
+        if (character && /\s/u.test(character)) {
+          offset += 1;
+          return yield* scan();
+        }
+        const remainder = source.slice(offset);
+        const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu.exec(remainder)?.[0];
+        const identifier = /^[a-z][a-z0-9_]*/iu.exec(remainder)?.[0];
+        const operator = Option.getOrUndefined(arithmeticOperator(Option.fromNullishOr(character)));
+        if (number) {
+          const value = Number(number);
+          if (!Number.isFinite(value)) {
+            return yield* Effect.fail(
+              new InvalidAnalyticsQueryError({ message: "Formula numbers must be finite" }),
+            );
+          }
+          tokens.push({ kind: "number", value });
+          offset += number.length;
+        } else if (identifier) {
+          tokens.push({ kind: "identifier", value: identifier.toLowerCase() });
+          offset += identifier.length;
+        } else if (remainder.startsWith("**")) {
+          tokens.push({ kind: "operator", value: "**" });
+          offset += 2;
+        } else if (operator !== undefined) {
+          tokens.push({ kind: "operator", value: operator });
+          offset += 1;
+        } else if (character === "(") {
+          tokens.push({ kind: "left_parenthesis" });
+          offset += 1;
+        } else if (character === ")") {
+          tokens.push({ kind: "right_parenthesis" });
+          offset += 1;
+        } else {
           return yield* Effect.fail(
-            new InvalidAnalyticsQueryError({ message: "Formula numbers must be finite" }),
+            new InvalidAnalyticsQueryError({
+              message: `Unexpected character at position ${offset + 1}`,
+            }),
           );
         }
-        tokens.push({ kind: "number", value });
-        offset += number.length;
-      } else if (identifier) {
-        tokens.push({ kind: "identifier", value: identifier.toLowerCase() });
-        offset += identifier.length;
-      } else if (remainder.startsWith("**")) {
-        tokens.push({ kind: "operator", value: "**" });
-        offset += 2;
-      } else if (operator !== undefined) {
-        tokens.push({ kind: "operator", value: operator });
-        offset += 1;
-      } else if (character === "(") {
-        tokens.push({ kind: "left_parenthesis" });
-        offset += 1;
-      } else if (character === ")") {
-        tokens.push({ kind: "right_parenthesis" });
-        offset += 1;
-      } else {
-        return yield* Effect.fail(
-          new InvalidAnalyticsQueryError({
-            message: `Unexpected character at position ${offset + 1}`,
-          }),
-        );
-      }
-      if (tokens.length > 128) {
-        return yield* Effect.fail(
-          new InvalidAnalyticsQueryError({ message: "Formula is too complex" }),
-        );
-      }
-      return yield* scan();
-    });
+        if (tokens.length > 128) {
+          return yield* Effect.fail(
+            new InvalidAnalyticsQueryError({ message: "Formula is too complex" }),
+          );
+        }
+        return yield* scan();
+      });
     return yield* scan();
   });
 
@@ -431,22 +431,22 @@ const parseTrendsFormulaTokens = (
         left: TrendsFormulaNode,
       ): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
         Effect.gen(function* () {
-        const operator = current();
-        if (
-          operator?.kind !== "operator" ||
-          (operator.value !== "*" && operator.value !== "/" && operator.value !== "%")
-        ) {
-          return left;
-        }
-        yield* consume();
-        const right = yield* parseUnary();
-        return yield* continueParsing({
-          kind: "binary",
-          left,
-          operator: operator.value,
-          right,
+          const operator = current();
+          if (
+            operator?.kind !== "operator" ||
+            (operator.value !== "*" && operator.value !== "/" && operator.value !== "%")
+          ) {
+            return left;
+          }
+          yield* consume();
+          const right = yield* parseUnary();
+          return yield* continueParsing({
+            kind: "binary",
+            left,
+            operator: operator.value,
+            right,
+          });
         });
-      });
       return yield* continueParsing(yield* parseUnary());
     });
 
@@ -456,19 +456,19 @@ const parseTrendsFormulaTokens = (
         left: TrendsFormulaNode,
       ): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
         Effect.gen(function* () {
-        const operator = current();
-        if (operator?.kind !== "operator" || (operator.value !== "+" && operator.value !== "-")) {
-          return left;
-        }
-        yield* consume();
-        const right = yield* parseMultiplicative();
-        return yield* continueParsing({
-          kind: "binary",
-          left,
-          operator: operator.value,
-          right,
+          const operator = current();
+          if (operator?.kind !== "operator" || (operator.value !== "+" && operator.value !== "-")) {
+            return left;
+          }
+          yield* consume();
+          const right = yield* parseMultiplicative();
+          return yield* continueParsing({
+            kind: "binary",
+            left,
+            operator: operator.value,
+            right,
+          });
         });
-      });
       return yield* continueParsing(yield* parseMultiplicative());
     });
 
@@ -822,33 +822,33 @@ export const buildTrendsFormulaSeries = (
       );
       const sortedTimestamps = Arr.sort(Arr.fromIterable(timestamps), Order.Number);
       return Arr.map(Arr.zip(formulas, compiled), ([formula, node]) => {
-          const formulaLabel = formula.label ?? `Formula (${formula.expression})`;
-          return {
-            comparison: group.comparison,
-            key: `${keyWithBreakdown(formula.key, Option.fromNullishOr(group.breakdownValue))}${trendsComparisonKeySuffix(group.comparison)}`,
-            label: labelWithComparison(
-              labelWithBreakdown(formulaLabel, Option.fromNullishOr(group.breakdownValue)),
-              group.comparison,
-            ),
-            points: sortedTimestamps.map((timestamp) => {
-              const values = HashMap.fromIterable(
-                Arr.map(
-                  Arr.fromIterable(allowedSeries),
-                  (seriesKey) =>
-                    [
-                      seriesKey,
-                      Option.flatMap(HashMap.get(group.series, seriesKey), (points) =>
-                        HashMap.get(points, timestamp),
-                      ).pipe(Option.getOrElse(() => 0)),
-                    ] as const,
-                ),
-              );
-              return {
-                timestamp: dateFrom(timestamp),
-                value: evaluateTrendsFormulaNode(node, values),
-              };
-            }),
-          };
+        const formulaLabel = formula.label ?? `Formula (${formula.expression})`;
+        return {
+          comparison: group.comparison,
+          key: `${keyWithBreakdown(formula.key, Option.fromNullishOr(group.breakdownValue))}${trendsComparisonKeySuffix(group.comparison)}`,
+          label: labelWithComparison(
+            labelWithBreakdown(formulaLabel, Option.fromNullishOr(group.breakdownValue)),
+            group.comparison,
+          ),
+          points: sortedTimestamps.map((timestamp) => {
+            const values = HashMap.fromIterable(
+              Arr.map(
+                Arr.fromIterable(allowedSeries),
+                (seriesKey) =>
+                  [
+                    seriesKey,
+                    Option.flatMap(HashMap.get(group.series, seriesKey), (points) =>
+                      HashMap.get(points, timestamp),
+                    ).pipe(Option.getOrElse(() => 0)),
+                  ] as const,
+              ),
+            );
+            return {
+              timestamp: dateFrom(timestamp),
+              value: evaluateTrendsFormulaNode(node, values),
+            };
+          }),
+        };
       });
     });
   });
@@ -900,7 +900,7 @@ export const validateExecutableFunnelsDefinition = (
     }
     const predicateCounts = yield* Effect.forEach(
       definition.steps,
-      (step) => step.filters ? validateCustomEventFilter(step.filters) : Effect.succeed(0),
+      (step) => (step.filters ? validateCustomEventFilter(step.filters) : Effect.succeed(0)),
       { concurrency: 1 },
     );
     const predicateCount = Arr.reduce(predicateCounts, 0, (total, count) => total + count);

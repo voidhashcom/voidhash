@@ -195,12 +195,7 @@ function AuthDevicesPage() {
         <div className="flex flex-row items-center justify-center">
           <div className="grid auto-cols-auto grid-flow-col gap-1 leading-none lg:gap-3">
             {code.split("").map((char, i) => (
-              <CodeCharacter
-                char={char}
-                key={`${char}-${
-                  i
-                }`}
-              />
+              <CodeCharacter char={char} key={`${char}-${i}`} />
             ))}
           </div>
         </div>

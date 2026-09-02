@@ -28,10 +28,7 @@ import { useCallback } from "react";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updatePathStrokeStyle } from "../../../state/actions/features/path-stroke-style-actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
 interface PathStrokeStyle {

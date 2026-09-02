@@ -22,10 +22,7 @@ import { useCallback } from "react";
 
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updateTextFillStyle } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { useStyleOverrideResetContext } from "../utils/use-style-override-reset-context";
 import { useDefinitionNodes } from "./use-definition-nodes";
 
@@ -71,9 +68,7 @@ export function TextFillPanel(_ctx: PanelContext) {
           label="text color"
           show={showColorReset}
           onReset={() =>
-            handleChange(
-              overrideReset.buildResetPatch(COLOR_KEYS) as Partial<{ color: string }>,
-            )
+            handleChange(overrideReset.buildResetPatch(COLOR_KEYS) as Partial<{ color: string }>)
           }
         >
           <Panel.ColorField

@@ -29,6 +29,13 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
+  "typesVersions": {
+    "*": {
+      "effect": [
+        "./dist/effect.d.cts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "import": {
@@ -49,13 +56,6 @@
         "types": "./dist/effect.d.cts",
         "default": "./dist/effect.cjs"
       }
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "effect": [
-        "./dist/effect.d.cts"
-      ]
     }
   },
   "publishConfig": {

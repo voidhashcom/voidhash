@@ -65,7 +65,9 @@ const decodeParkedStripeEnvelope = Schema.decodeUnknownOption(ParkedStripeEnvelo
 
 const resolveParkedStripePayload = (
   parkedRawPayload: unknown,
-): { readonly rawBody: string; readonly verifiedMode?: StripeMode } | typeof Schema.Undefined.Type => {
+):
+  | { readonly rawBody: string; readonly verifiedMode?: StripeMode }
+  | typeof Schema.Undefined.Type => {
   if (P.isString(parkedRawPayload)) return { rawBody: parkedRawPayload };
   const envelope = decodeParkedStripeEnvelope(parkedRawPayload);
   if (Option.isSome(envelope)) return envelope.value;
@@ -428,45 +430,51 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
         "replayParkedTransactionNotifications",
       )(function* (input: { readonly paymentProviderConfigurationId: string }) {
         const parked = yield* queries.findParkedTransactionNotifications(input);
-        const results = yield* Effect.forEach(parked, Effect.fn("replayParkedStripeTransaction")(function* (row) {
-          const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
-          if (parkedPayload === undefined) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: "parked_raw_payload missing or malformed",
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-          const replayed = yield* acceptWebhookEvent({
-            isReplay: true,
-            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            rawBody: parkedPayload.rawBody,
-            receivedAt: yield* DateTime.nowAsDate,
-            signatureHeader: "",
-            verifiedMode: parkedPayload.verifiedMode,
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok && replayed.handled) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "applied",
-              resultNote: null,
-            });
-            return { appliedCount: 1, failedCount: 0 };
-          } else {
-            const resultNote = replayed.ok ? "original transaction is still unavailable" : replayed.error;
-            yield* queries.markParkedNotificationAttempted({
-              id: row.id,
-              resultNote,
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-        }), { concurrency: 1 });
+        const results = yield* Effect.forEach(
+          parked,
+          Effect.fn("replayParkedStripeTransaction")(function* (row) {
+            const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
+            if (parkedPayload === undefined) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "failed",
+                resultNote: "parked_raw_payload missing or malformed",
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+            const replayed = yield* acceptWebhookEvent({
+              isReplay: true,
+              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+              rawBody: parkedPayload.rawBody,
+              receivedAt: yield* DateTime.nowAsDate,
+              signatureHeader: "",
+              verifiedMode: parkedPayload.verifiedMode,
+            }).pipe(
+              Effect.match({
+                onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+                onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
+              }),
+            );
+            if (replayed.ok && replayed.handled) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "applied",
+                resultNote: null,
+              });
+              return { appliedCount: 1, failedCount: 0 };
+            } else {
+              const resultNote = replayed.ok
+                ? "original transaction is still unavailable"
+                : replayed.error;
+              yield* queries.markParkedNotificationAttempted({
+                id: row.id,
+                resultNote,
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+          }),
+          { concurrency: 1 },
+        );
         return {
           appliedCount: Arr.reduce(results, 0, (count, result) => count + result.appliedCount),
           failedCount: Arr.reduce(results, 0, (count, result) => count + result.failedCount),
@@ -499,46 +507,52 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
           providerProductKey: input.providerProductKey,
         });
-        const results = yield* Effect.forEach(parked, Effect.fn("replayParkedStripeProduct")(function* (row) {
-          const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
-          if (parkedPayload === undefined) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: "parked_raw_payload missing or malformed",
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-          const receivedAt = yield* DateTime.nowAsDate;
-          const replayed = yield* acceptWebhookEvent({
-            isReplay: true,
-            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            rawBody: parkedPayload.rawBody,
-            receivedAt,
-            signatureHeader: "",
-            verifiedMode: parkedPayload.verifiedMode,
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok && replayed.handled) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "applied",
-              resultNote: null,
-            });
-            return { appliedCount: 1, failedCount: 0 };
-          } else {
-            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
-            yield* queries.markParkedNotificationAttempted({
-              id: row.id,
-              resultNote,
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-        }), { concurrency: 1 });
+        const results = yield* Effect.forEach(
+          parked,
+          Effect.fn("replayParkedStripeProduct")(function* (row) {
+            const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
+            if (parkedPayload === undefined) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "failed",
+                resultNote: "parked_raw_payload missing or malformed",
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+            const receivedAt = yield* DateTime.nowAsDate;
+            const replayed = yield* acceptWebhookEvent({
+              isReplay: true,
+              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+              rawBody: parkedPayload.rawBody,
+              receivedAt,
+              signatureHeader: "",
+              verifiedMode: parkedPayload.verifiedMode,
+            }).pipe(
+              Effect.match({
+                onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+                onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
+              }),
+            );
+            if (replayed.ok && replayed.handled) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "applied",
+                resultNote: null,
+              });
+              return { appliedCount: 1, failedCount: 0 };
+            } else {
+              const resultNote = replayed.ok
+                ? "replay completed without applying purchase state"
+                : replayed.error;
+              yield* queries.markParkedNotificationAttempted({
+                id: row.id,
+                resultNote,
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+          }),
+          { concurrency: 1 },
+        );
         const appliedCount = Arr.reduce(results, 0, (count, result) => count + result.appliedCount);
         const failedCount = Arr.reduce(results, 0, (count, result) => count + result.failedCount);
         const dependent = yield* replayParkedTransactionNotifications({

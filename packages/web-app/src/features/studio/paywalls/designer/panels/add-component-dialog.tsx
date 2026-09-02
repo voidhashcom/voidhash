@@ -201,7 +201,8 @@ export function AddComponentCommand() {
   const insertLocal = useCallback(
     (definition: CodeComponentDefinition) =>
       runInsert("component", (parentId) => {
-        const manifest = store.getState().codeComponents.compiled[definition.id]?.artifact?.manifest;
+        const manifest =
+          store.getState().codeComponents.compiled[definition.id]?.artifact?.manifest;
         dispatch(insertLocalComponentNode)({
           componentPath: definition.path,
           manifest,

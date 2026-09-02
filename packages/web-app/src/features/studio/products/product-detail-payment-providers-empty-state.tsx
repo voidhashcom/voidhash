@@ -1,12 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@voidhash/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@voidhash/ui";
 
 export function ProductDetailPaymentProvidersEmptyState({
   projectSlug,

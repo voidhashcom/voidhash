@@ -70,10 +70,13 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
 
       // Identity has changed: surface the new person and clear stale
       // feature flag state, since flag evaluations are identity-scoped.
-      atomRegistry.set(currentPersonAtom, Option.some({
-        ...identifyRequest,
-        distinctId,
-      }));
+      atomRegistry.set(
+        currentPersonAtom,
+        Option.some({
+          ...identifyRequest,
+          distinctId,
+        }),
+      );
       atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 

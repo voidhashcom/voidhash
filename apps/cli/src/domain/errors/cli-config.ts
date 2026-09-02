@@ -1,11 +1,9 @@
 import * as Schema from "effect/Schema";
 
-export class CliConfigFileNotFoundError extends Schema.TaggedErrorClass<CliConfigFileNotFoundError>("ConfigFileNotFoundError")(
+export class CliConfigFileNotFoundError extends Schema.TaggedErrorClass<CliConfigFileNotFoundError>(
   "ConfigFileNotFoundError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("ConfigFileNotFoundError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}
 
-export class FailedToReadCliConfigError extends Schema.TaggedErrorClass<FailedToReadCliConfigError>("FailedToReadConfigError")(
+export class FailedToReadCliConfigError extends Schema.TaggedErrorClass<FailedToReadCliConfigError>(
   "FailedToReadConfigError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("FailedToReadConfigError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}

@@ -208,9 +208,7 @@ const emptyRoot = (): PanelRootNode => ({
 
 const byteSize = (value: PanelJsonValue): number => {
   const json = JSON.stringify(value);
-  return typeof TextEncoder !== "undefined"
-    ? new TextEncoder().encode(json).length
-    : json.length;
+  return typeof TextEncoder !== "undefined" ? new TextEncoder().encode(json).length : json.length;
 };
 
 /**
@@ -263,7 +261,9 @@ const buildContext = <P extends PanelProps>(
           return;
         }
         if (byteSize(value) > PANEL_CAPS.intentBytes) {
-          warn(`prop "${name}" set() value exceeds ${PANEL_CAPS.intentBytes} bytes and was dropped`);
+          warn(
+            `prop "${name}" set() value exceeds ${PANEL_CAPS.intentBytes} bytes and was dropped`,
+          );
           return;
         }
         emit([{ type: "set-prop", name, value, gesture: options?.gesture ?? "commit" }]);
@@ -404,11 +404,7 @@ export const createPanelSession = <P extends PanelProps = PanelProps>(
     renderTree();
   };
 
-  const dispatchEvent = (
-    nodeId: number,
-    name: string,
-    args: ReadonlyArray<unknown>,
-  ): boolean => {
+  const dispatchEvent = (nodeId: number, name: string, args: ReadonlyArray<unknown>): boolean => {
     if (disposed) return false;
     const instance = instances.get(nodeId);
     if (instance === undefined) return false;

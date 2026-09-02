@@ -132,17 +132,19 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
           collectionId,
           id,
           value,
-          Option.some((documentId): Effect.Effect<boolean> =>
-            docStub(collectionId, documentId)
-              .getSnapshot()
-              .pipe(
-                Effect.exit,
-                Effect.map((result) =>
-                  Exit.isFailure(result)
-                    ? true
-                    : result.value.found || result.value.error !== undefined,
+          Option.some(
+            (documentId): Effect.Effect<boolean> =>
+              docStub(collectionId, documentId)
+                .getSnapshot()
+                .pipe(
+                  Effect.exit,
+                  Effect.map((result) =>
+                    Exit.isFailure(result)
+                      ? true
+                      : result.value.found || result.value.error !== undefined,
+                  ),
                 ),
-              )),
+          ),
         );
         yield* docStub(collectionId, prepared.documentId).create(
           collectionId,
@@ -173,21 +175,24 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
     listDocuments: (collectionId) =>
       Effect.gen(function* () {
         const ids = yield* control.listDocumentIds(collectionId);
-        const snapshots = yield* Effect.forEach(ids, (documentId) =>
-          docStub(collectionId, documentId)
-            .getSnapshot()
-            .pipe(
-              Effect.map((snapshot) => {
-                if (!snapshot.found) return Option.none<DocumentSnapshotResponse>();
-                return Option.some({
-                  id: documentId,
-                  collectionId,
-                  value: snapshot.value,
-                  version: snapshot.version,
-                } satisfies DocumentSnapshotResponse);
-              }),
-            ),
-         { concurrency: 1 });
+        const snapshots = yield* Effect.forEach(
+          ids,
+          (documentId) =>
+            docStub(collectionId, documentId)
+              .getSnapshot()
+              .pipe(
+                Effect.map((snapshot) => {
+                  if (!snapshot.found) return Option.none<DocumentSnapshotResponse>();
+                  return Option.some({
+                    id: documentId,
+                    collectionId,
+                    value: snapshot.value,
+                    version: snapshot.version,
+                  } satisfies DocumentSnapshotResponse);
+                }),
+              ),
+          { concurrency: 1 },
+        );
         return Arr.getSomes(snapshots);
       }),
 

@@ -256,7 +256,9 @@ const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
           limit: QUERY_EVENT_LIMIT + 1,
           order: "asc",
           projectIds: compiledFilter.projectIds,
-          ...(!HashSet.has(HISTORY_INSIGHTS, query.insightId) && { start: resolvedTimeRange.start }),
+          ...(!HashSet.has(HISTORY_INSIGHTS, query.insightId) && {
+            start: resolvedTimeRange.start,
+          }),
         })
         .pipe(Effect.mapError(portError));
       if (events.length > QUERY_EVENT_LIMIT) {
@@ -342,19 +344,20 @@ const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
           events,
           HashMap.empty<string, { readonly timestamp: Date; readonly variantKey: string }>(),
           (all, event) => {
-          if (event.eventName !== "$experiment.exposed") return all;
-          if (event.properties.experimentId !== request.experimentId) return all;
-          if (!P.isString(event.properties.variantKey)) return all;
-          const key = identityKey(event);
-          const current = HashMap.get(all, key);
-          if (Option.isNone(current) || event.eventTimestamp < current.value.timestamp) {
-            return HashMap.set(all, key, {
-              timestamp: event.eventTimestamp,
-              variantKey: event.properties.variantKey,
-            });
-          }
-          return all;
-        });
+            if (event.eventName !== "$experiment.exposed") return all;
+            if (event.properties.experimentId !== request.experimentId) return all;
+            if (!P.isString(event.properties.variantKey)) return all;
+            const key = identityKey(event);
+            const current = HashMap.get(all, key);
+            if (Option.isNone(current) || event.eventTimestamp < current.value.timestamp) {
+              return HashMap.set(all, key, {
+                timestamp: event.eventTimestamp,
+                variantKey: event.properties.variantKey,
+              });
+            }
+            return all;
+          },
+        );
         const initialResults = Arr.reduce(
           Arr.fromIterable(HashMap.values(exposures)),
           HashMap.empty<
@@ -382,7 +385,8 @@ const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
         const results = Arr.reduce(events, initialResults, (all, event) => {
           const key = identityKey(event);
           const exposure = HashMap.get(exposures, key);
-          if (Option.isNone(exposure) || event.eventTimestamp < exposure.value.timestamp) return all;
+          if (Option.isNone(exposure) || event.eventTimestamp < exposure.value.timestamp)
+            return all;
           const result = HashMap.get(all, exposure.value.variantKey);
           if (Option.isNone(result)) return all;
           return HashMap.set(all, exposure.value.variantKey, {
@@ -399,21 +403,25 @@ const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
             Arr.fromIterable(results),
             Order.mapInput(
               Order.String,
-              (entry: readonly [string, { conversions: HashSet.HashSet<string>; exposures: number; revenueUsd: number }]) => entry[0],
+              (
+                entry: readonly [
+                  string,
+                  { conversions: HashSet.HashSet<string>; exposures: number; revenueUsd: number },
+                ],
+              ) => entry[0],
             ),
-          )
-            .map(([variantKey, result]) => {
-              const conversions = HashSet.size(result.conversions);
-              let conversionRate = 0;
-              if (result.exposures > 0) conversionRate = conversions / result.exposures;
-              return {
-                conversionRate,
-                conversions,
-                exposures: result.exposures,
-                revenueUsd: result.revenueUsd,
-                variantKey,
-              };
-            }),
+          ).map(([variantKey, result]) => {
+            const conversions = HashSet.size(result.conversions);
+            let conversionRate = 0;
+            if (result.exposures > 0) conversionRate = conversions / result.exposures;
+            return {
+              conversionRate,
+              conversions,
+              exposures: result.exposures,
+              revenueUsd: result.revenueUsd,
+              variantKey,
+            };
+          }),
         };
       }),
     listEventsPage: (request) =>

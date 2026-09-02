@@ -62,12 +62,7 @@ const captureAndUpdateNodeData = <
 };
 
 const VIEW_RESTORABLE_KEYS = ["name", "style"] as const;
-const SCROLLVIEW_RESTORABLE_KEYS = [
-  "name",
-  "style",
-  "horizontal",
-  "showsScrollIndicator",
-] as const;
+const SCROLLVIEW_RESTORABLE_KEYS = ["name", "style", "horizontal", "showsScrollIndicator"] as const;
 const SCREEN_RESTORABLE_KEYS = ["name", "style"] as const;
 const TEXT_RESTORABLE_KEYS = ["name", "style", "text"] as const;
 const PATH_RESTORABLE_KEYS = ["d", "name", "style", "transform"] as const;
@@ -173,11 +168,7 @@ export const restoreViewNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };
 
@@ -207,11 +198,7 @@ export const restoreScrollViewNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };
 
@@ -240,11 +227,7 @@ export const restoreScreenNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };
 
@@ -272,11 +255,7 @@ export const restoreTextNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };
 
@@ -306,11 +285,7 @@ export const restorePathNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };
 
@@ -340,10 +315,6 @@ export const restoreShapeNodeData = (
   const { style, ...rest } = previousValues;
   node.update(rest);
   if (style !== undefined) {
-    restoreStyle(
-      node.data.style,
-      style,
-      (node.get()?.data.style ?? {}) as Record<string, unknown>,
-    );
+    restoreStyle(node.data.style, style, (node.get()?.data.style ?? {}) as Record<string, unknown>);
   }
 };

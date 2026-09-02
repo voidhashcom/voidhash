@@ -36,10 +36,9 @@ const EDIT_SESSION_TOOLS = new MutableSet([
 ]);
 
 /** Raised when an agent uses an edit-session handle it does not own. */
-class AgentEditSessionError extends Schema.TaggedErrorClass<AgentEditSessionError>("AgentEditSessionError")(
+class AgentEditSessionError extends Schema.TaggedErrorClass<AgentEditSessionError>(
   "AgentEditSessionError",
-  { message: Schema.String },
-) {}
+)("AgentEditSessionError", { message: Schema.String }) {}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   if (value === null || Array.isArray(value)) return false;
@@ -58,21 +57,23 @@ const stringOrUndefined = (value: unknown): string | typeof Schema.Undefined.Typ
 
 /** The edit-session handle a `begin_paywall_edit` result reports as JSON text. */
 const decodeEditSessionOutput = Schema.decodeUnknownOption(
-  Schema.fromJsonString(
-    Schema.Struct({ editSessionId: Schema.String, paywallId: Schema.String }),
-  ),
+  Schema.fromJsonString(Schema.Struct({ editSessionId: Schema.String, paywallId: Schema.String })),
 );
 
 const decodedEditSession = (
   result: WorkspaceToolResult,
-): { readonly editSessionId: string; readonly paywallId: string } | typeof Schema.Undefined.Type => {
+):
+  | { readonly editSessionId: string; readonly paywallId: string }
+  | typeof Schema.Undefined.Type => {
   if (result.isError) return undefined;
   return Option.getOrUndefined(decodeEditSessionOutput(result.output));
 };
 
 const decodedEditSessionFromOutput = (
   output: unknown,
-): { readonly editSessionId: string; readonly paywallId: string } | typeof Schema.Undefined.Type => {
+):
+  | { readonly editSessionId: string; readonly paywallId: string }
+  | typeof Schema.Undefined.Type => {
   const text = stringOrUndefined(output);
   if (text === undefined) return undefined;
   return decodedEditSession({ output: text, isError: false });
@@ -83,7 +84,8 @@ export class AgentEditSessionTracker {
   readonly #activeByPaywallId = new MutableMap<string, string>();
 
   /** Returns the active edit-session id for a paywall, when one has been opened. */
-  readonly get = (paywallId: string): string | typeof Schema.Undefined.Type => this.#activeByPaywallId.get(paywallId);
+  readonly get = (paywallId: string): string | typeof Schema.Undefined.Type =>
+    this.#activeByPaywallId.get(paywallId);
 
   /** Returns the paywall owned by an active edit-session handle. */
   readonly paywallIdFor = (editSessionId: string): string | typeof Schema.Undefined.Type =>

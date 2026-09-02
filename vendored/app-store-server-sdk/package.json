@@ -27,8 +27,8 @@
     "test:workers": "node workerd-smoke/run-smoke.mjs"
   },
   "dependencies": {
-    "@voidhash/lib": "workspace:*",
     "@peculiar/x509": "^2.0.0",
+    "@voidhash/lib": "workspace:*",
     "jose": "^6.0.11",
     "reflect-metadata": "^0.2.2"
   },

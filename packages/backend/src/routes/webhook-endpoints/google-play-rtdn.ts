@@ -43,7 +43,9 @@ const invalidPayloadResponse = HttpServerResponse.json(
   { status: 400 },
 );
 
-const registerGooglePlayRtdnNotificationRoute = Effect.fn("registerGooglePlayRtdnNotificationRoute")(function* () {
+const registerGooglePlayRtdnNotificationRoute = Effect.fn(
+  "registerGooglePlayRtdnNotificationRoute",
+)(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(

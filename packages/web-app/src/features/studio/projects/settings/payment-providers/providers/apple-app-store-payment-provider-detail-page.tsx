@@ -49,9 +49,8 @@ export function AppleAppStorePaymentProviderDetailPage({
 }) {
   const [name, setName] = useState(paymentProviderConfiguration.name);
   const [activeTab, setActiveTab] = useState<AppStoreTabId>("app-details");
-  const configuration = paymentProviderConfiguration.configuration as
-    | Partial<AppleAppStoreGlobalConfiguration>
-    | null;
+  const configuration =
+    paymentProviderConfiguration.configuration as Partial<AppleAppStoreGlobalConfiguration> | null;
   const appleServerToServerNotificationUrl = getAppleServerToServerNotificationUrl({
     apiUrl: env.VITE_APP_API_URL,
     paymentProviderConfigurationId: paymentProviderConfiguration.id,

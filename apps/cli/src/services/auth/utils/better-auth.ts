@@ -7,10 +7,9 @@ import * as Layer from "effect/Layer";
 import { CliConfig } from "../../../domain/services/cli-config";
 import * as Schema from "effect/Schema";
 
-export class BetterAuthClientError extends Schema.TaggedErrorClass<BetterAuthClientError>("BetterAuthClientError")(
+export class BetterAuthClientError extends Schema.TaggedErrorClass<BetterAuthClientError>(
   "BetterAuthClientError",
-  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
-) {}
+)("BetterAuthClientError", { cause: Schema.optional(Schema.Unknown), message: Schema.String }) {}
 
 const make = Effect.fn("make")(function* effect() {
   const cliConfig = yield* CliConfig;

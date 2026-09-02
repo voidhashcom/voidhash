@@ -15,10 +15,12 @@ const GooglePubSubClaims = Schema.Struct({
 const GOOGLE_OIDC_ISSUERS = constant(["accounts.google.com", "https://accounts.google.com"]);
 const GOOGLE_OIDC_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
 
-export class GooglePubSubPushVerificationError extends Schema.TaggedErrorClass<GooglePubSubPushVerificationError>("GooglePubSubPushVerificationError")(
+export class GooglePubSubPushVerificationError extends Schema.TaggedErrorClass<GooglePubSubPushVerificationError>(
   "GooglePubSubPushVerificationError",
-  { kind: Schema.Literals(["misconfigured" , "unauthorized"]), message: Schema.String },
-) {}
+)("GooglePubSubPushVerificationError", {
+  kind: Schema.Literals(["misconfigured", "unauthorized"]),
+  message: Schema.String,
+}) {}
 
 export interface GooglePubSubPushVerifierShape {
   /** Verifies the authenticated Pub/Sub push bearer token and its bound identity. */
@@ -101,8 +103,7 @@ export const makeGooglePubSubPushVerifier = (
 const googleOidcJwks = createRemoteJWKSet(GOOGLE_OIDC_JWKS_URL);
 
 /** Production verifier configured by the authenticated push subscription settings. */
-const envString = (name: string) =>
-  Config.string(name).pipe(Config.withDefault(""), Effect.orDie);
+const envString = (name: string) => Config.string(name).pipe(Config.withDefault(""), Effect.orDie);
 
 export const GooglePubSubPushVerifierLive = Layer.effect(
   GooglePubSubPushVerifier,

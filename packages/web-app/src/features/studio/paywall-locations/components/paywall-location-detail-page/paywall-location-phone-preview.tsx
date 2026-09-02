@@ -8,7 +8,7 @@ import { ExternalLinkIcon, SmartphoneIcon } from "lucide-react";
 interface PaywallLocationPhonePreviewProps {
   organizationSlug: string;
   /** The paywall this location currently serves, if any. */
-  paywall: null | (typeof Paywall.Type);
+  paywall: null | typeof Paywall.Type;
   projectSlug: string;
 }
 

@@ -20,9 +20,7 @@ import { definitionForComponentPath } from "../state/utils/code-components";
  * matches `useComponentNodeWarnings` and fixes the historical bug where local
  * component instances resolved catalog-only and reported "not in catalog".
  */
-export function useComponentManifest(
-  node: ComponentSnapshotNode,
-): ComponentManifest | undefined {
+export function useComponentManifest(node: ComponentSnapshotNode): ComponentManifest | undefined {
   const store = usePaywallDesignerStore();
   const byContentHash = useStore(store, (state) => state.componentCatalog.byContentHash);
   const compiled = useStore(store, (state) => state.codeComponents.compiled);

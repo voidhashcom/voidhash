@@ -30,9 +30,7 @@ export const invitationsColumns: ColumnDef<unknown>[] = [
   },
   {
     accessorKey: "id",
-    cell: (props) => (
-      <CopyText text={getAppUrl(`/app/team/join/${props.getValue() as string}`)} />
-    ),
+    cell: (props) => <CopyText text={getAppUrl(`/app/team/join/${props.getValue() as string}`)} />,
     header: "Invite link",
   },
 ];

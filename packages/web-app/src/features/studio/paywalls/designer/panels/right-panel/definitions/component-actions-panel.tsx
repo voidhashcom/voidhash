@@ -45,10 +45,7 @@ import { useStore } from "zustand/react";
 
 import { useComponentManifest } from "../../../hooks/use-component-manifest";
 import { ACTION_TYPE_LABELS } from "../../../panel-kit/action-editor";
-import {
-  removeComponentActionBinding,
-  setComponentActionBinding,
-} from "../../../state/actions";
+import { removeComponentActionBinding, setComponentActionBinding } from "../../../state/actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import {
   collectAncestorVariables,
@@ -72,9 +69,7 @@ export function ComponentActionsPanel(_ctx: PanelContext) {
   const documentRoot = useStore(store, selectDocumentRoot);
 
   const node = nodes[0] as ComponentSnapshotNode | undefined;
-  const manifest = useComponentManifest(
-    (node ?? { data: {} }) as ComponentSnapshotNode,
-  );
+  const manifest = useComponentManifest((node ?? { data: {} }) as ComponentSnapshotNode);
 
   const nodeId = node?.id ?? "";
   const variables = useMemo(
@@ -86,10 +81,7 @@ export function ComponentActionsPanel(_ctx: PanelContext) {
     [variables],
   );
 
-  const actionEntries = useMemo(
-    () => Object.entries(manifest?.actions ?? {}),
-    [manifest],
-  );
+  const actionEntries = useMemo(() => Object.entries(manifest?.actions ?? {}), [manifest]);
 
   const [openActionName, setOpenActionName] = useState<string | null>(null);
 
@@ -123,17 +115,12 @@ export function ComponentActionsPanel(_ctx: PanelContext) {
         ) : (
           <Panel.Column gap="sm">
             {actionEntries.map(([actionName, manifestAction]) => {
-              const storedEntry = findComponentActionEntry(
-                node.data.actionBindings,
-                actionName,
-              );
+              const storedEntry = findComponentActionEntry(node.data.actionBindings, actionName);
               const boundAction =
                 (storedEntry === undefined
                   ? undefined
                   : componentBoundActionFromRaw(storedEntry.raw)) ?? UNBOUND_ACTION;
-              const payloadFields = Object.keys(
-                (manifestAction as ComponentAction).payload,
-              );
+              const payloadFields = Object.keys((manifestAction as ComponentAction).payload);
               return (
                 <Panel.Row key={actionName} align="center">
                   <Panel.Popover

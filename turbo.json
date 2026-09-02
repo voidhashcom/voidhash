@@ -12,12 +12,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/*", "!.next/cache/**"],
-      "env": [
-        "VITE_APP_API_URL",
-        "VITE_APP_ENV",
-        "VITE_EXAMPLE_SERVER_URL",
-        "VOIDHASH_NODE_BUNDLE"
-      ]
+      "env": ["VITE_APP_API_URL", "VITE_APP_ENV", "VITE_EXAMPLE_SERVER_URL", "VOIDHASH_NODE_BUNDLE"]
     },
     "clean": {},
     "format": {},

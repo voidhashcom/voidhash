@@ -24,9 +24,9 @@ const safeUrl = (value?: string) => {
   }
 
   return Result.try({
-      try: () => new URL(value),
-      catch: (error) => error,
-    }).pipe(Result.getSuccess);
+    try: () => new URL(value),
+    catch: (error) => error,
+  }).pipe(Result.getSuccess);
 };
 
 /** Renders a boolean as the `"true"` / `"false"` literal the SDK headers expect. */
@@ -97,9 +97,7 @@ const webCrypto = Crypto.make({
           method: "digest",
           module: "WebCrypto",
         }),
-    }).pipe(
-      Effect.map((buffer) => new Uint8Array(buffer)),
-    ),
+    }).pipe(Effect.map((buffer) => new Uint8Array(buffer))),
   // oxlint-disable-next-line effect/noGlobals -- this module IS the browser platform boundary: Effect ships no browser Crypto layer, and the identifiers this feeds must stay unpredictable, so the ambient Random service is deliberately not used (see the webCrypto doc comment above).
   randomBytes: (size) => crypto.getRandomValues(new Uint8Array(size)),
 });

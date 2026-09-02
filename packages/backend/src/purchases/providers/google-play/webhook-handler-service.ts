@@ -53,7 +53,10 @@ const truncateResultNote = (note: string): string => note.slice(0, 500);
 
 /** Lowercase hex sha256 over a UTF-8 string (WebCrypto via `uncrypto`, workerd-safe). */
 const sha256Hex = (value: string): Effect.Effect<string> =>
-  Effect.tryPromise({ try: () => createHash("SHA-256", "hex").digest(value), catch: (cause) => cause }).pipe(Effect.orDie);
+  Effect.tryPromise({
+    try: () => createHash("SHA-256", "hex").digest(value),
+    catch: (cause) => cause,
+  }).pipe(Effect.orDie);
 
 /** Serializes the (already JSON-parsed) Pub/Sub body for the audit hash. */
 const encodeJsonBody = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
@@ -150,7 +153,10 @@ const resolveNotificationType = (decoded: DecodedNotification): string => {
  * The notification's own event time, falling back to the receive time when the
  * RTDN body omits it or carries an unparseable value.
  */
-const resolveEventTime = (eventTimeMillis: string | typeof Schema.Undefined.Type, receivedAt: Date): Date => {
+const resolveEventTime = (
+  eventTimeMillis: string | typeof Schema.Undefined.Type,
+  receivedAt: Date,
+): Date => {
   if (!eventTimeMillis) return receivedAt;
   const parsed = DateTime.make(Number(eventTimeMillis));
   if (Option.isNone(parsed)) return receivedAt;
@@ -670,42 +676,44 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
         const webhookResults = yield* Effect.forEach(
           parked.filter((candidate) => candidate.source === "webhook"),
           Effect.fn("replayParkedGooglePlayWebhook")(function* (row) {
-          const rawPayload = row.parkedRawPayload;
-          if (rawPayload === null || rawPayload === undefined) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: "parked_raw_payload missing",
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-          const receivedAt = yield* DateTime.nowAsDate;
-          const replayed = yield* acceptRtdnNotification({
-            isReplay: true,
-            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            pubsubBody: rawPayload,
-            receivedAt,
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok && replayed.handled) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "applied",
-              resultNote: null,
-            });
-            return { appliedCount: 1, failedCount: 0 };
-          } else {
-            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
-            yield* queries.markParkedNotificationAttempted({
-              id: row.id,
-              resultNote,
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
+            const rawPayload = row.parkedRawPayload;
+            if (rawPayload === null || rawPayload === undefined) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "failed",
+                resultNote: "parked_raw_payload missing",
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+            const receivedAt = yield* DateTime.nowAsDate;
+            const replayed = yield* acceptRtdnNotification({
+              isReplay: true,
+              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+              pubsubBody: rawPayload,
+              receivedAt,
+            }).pipe(
+              Effect.match({
+                onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+                onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
+              }),
+            );
+            if (replayed.ok && replayed.handled) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "applied",
+                resultNote: null,
+              });
+              return { appliedCount: 1, failedCount: 0 };
+            } else {
+              const resultNote = replayed.ok
+                ? "replay completed without applying purchase state"
+                : replayed.error;
+              yield* queries.markParkedNotificationAttempted({
+                id: row.id,
+                resultNote,
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
           }),
           { concurrency: 1 },
         );
@@ -713,66 +721,68 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
         const sdkResults = yield* Effect.forEach(
           parked.filter((candidate) => candidate.source === "sdk"),
           Effect.fn("replayParkedGooglePlaySdkPurchase")(function* (row) {
-          const decoded = yield* Schema.decodeUnknownEffect(ParkedGooglePlaySdkPurchase)(
-            row.parkedRawPayload,
-          ).pipe(
-            Effect.match({
-              onFailure: () => ({ _tag: constant("Left") }),
-              onSuccess: (right) => ({ _tag: constant("Right"), right }),
-            }),
-          );
-          if (hasTag(decoded, "Left")) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: "parked SDK payload is invalid",
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
-          const payload = decoded.right;
-          const replayed = yield* Effect.fn("replayed")(function* () {
-            const configuration = yield* queries.findPaymentProviderConfigurationById(
-              row.paymentProviderConfigurationId,
+            const decoded = yield* Schema.decodeUnknownEffect(ParkedGooglePlaySdkPurchase)(
+              row.parkedRawPayload,
+            ).pipe(
+              Effect.match({
+                onFailure: () => ({ _tag: constant("Left") }),
+                onSuccess: (right) => ({ _tag: constant("Right"), right }),
+              }),
             );
-            if (!configuration) return yield* Effect.fail("configuration not found");
-            const project = yield* queries.findProjectById(configuration.projectId);
-            if (!project) return yield* Effect.fail("project not found");
-            const verified = yield* purchaseVerifier.verify({
-              configuration,
-              productId: payload.productId,
-              purchaseToken: payload.purchaseToken,
-            });
-            return yield* googlePlayPaymentProvider.recordPurchase({
-              configuration,
-              distinctId: payload.distinctId,
-              eventTime: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
-              project,
-              providerEnvironment: verified.providerEnvironment,
-              purchase: verified.purchase,
-              receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
-              source: "sdk",
-            });
-          })().pipe(
-            Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: (result) => ({ handled: !result.isIgnored(), ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok && replayed.handled) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "applied",
-              resultNote: null,
-            });
-            return { appliedCount: 1, failedCount: 0 };
-          } else {
-            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
-            yield* queries.markParkedNotificationAttempted({
-              id: row.id,
-              resultNote,
-            });
-            return { appliedCount: 0, failedCount: 1 };
-          }
+            if (hasTag(decoded, "Left")) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "failed",
+                resultNote: "parked SDK payload is invalid",
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
+            const payload = decoded.right;
+            const replayed = yield* Effect.fn("replayed")(function* () {
+              const configuration = yield* queries.findPaymentProviderConfigurationById(
+                row.paymentProviderConfigurationId,
+              );
+              if (!configuration) return yield* Effect.fail("configuration not found");
+              const project = yield* queries.findProjectById(configuration.projectId);
+              if (!project) return yield* Effect.fail("project not found");
+              const verified = yield* purchaseVerifier.verify({
+                configuration,
+                productId: payload.productId,
+                purchaseToken: payload.purchaseToken,
+              });
+              return yield* googlePlayPaymentProvider.recordPurchase({
+                configuration,
+                distinctId: payload.distinctId,
+                eventTime: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
+                project,
+                providerEnvironment: verified.providerEnvironment,
+                purchase: verified.purchase,
+                receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
+                source: "sdk",
+              });
+            })().pipe(
+              Effect.match({
+                onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+                onSuccess: (result) => ({ handled: !result.isIgnored(), ok: constant(true) }),
+              }),
+            );
+            if (replayed.ok && replayed.handled) {
+              yield* queries.markParkedNotificationResolved({
+                id: row.id,
+                result: "applied",
+                resultNote: null,
+              });
+              return { appliedCount: 1, failedCount: 0 };
+            } else {
+              const resultNote = replayed.ok
+                ? "replay completed without applying purchase state"
+                : replayed.error;
+              yield* queries.markParkedNotificationAttempted({
+                id: row.id,
+                resultNote,
+              });
+              return { appliedCount: 0, failedCount: 1 };
+            }
           }),
           { concurrency: 1 },
         );

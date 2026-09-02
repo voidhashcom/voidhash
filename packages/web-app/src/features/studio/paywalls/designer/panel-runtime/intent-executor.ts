@@ -73,10 +73,7 @@ export interface ExecutorTarget {
  * (`_commander.activeDraft`), so a dispatch during an open draft stages into the
  * draft automatically (no undo entry until commit).
  */
-export type ExecutorDispatch = CommandDispatch<
-  DesignerStoreState,
-  typeof PaywallDesignerDocument
->;
+export type ExecutorDispatch = CommandDispatch<DesignerStoreState, typeof PaywallDesignerDocument>;
 
 /** Options for {@link createIntentExecutor}. */
 export interface CreateIntentExecutorOptions {
@@ -199,9 +196,7 @@ function validateSetPropBinding(
  * Creates the host-side intent executor for a component-panel session. The
  * transport's `onIntents(raw)` feeds each raw intent to {@link IntentExecutor.handle}.
  */
-export const createIntentExecutor = (
-  options: CreateIntentExecutorOptions,
-): IntentExecutor => {
+export const createIntentExecutor = (options: CreateIntentExecutorOptions): IntentExecutor => {
   const scheduleFrame =
     options.scheduleFrame ??
     ((fn: () => void) => {
@@ -221,8 +216,7 @@ export const createIntentExecutor = (
   let frameScheduled = false;
 
   /** True when any current target has the prop variable-bound (host owns bind chrome). */
-  const propIsBound = (propName: string): boolean =>
-    options.isPropBound?.(propName) ?? false;
+  const propIsBound = (propName: string): boolean => options.isPropBound?.(propName) ?? false;
 
   const flushLive = (): void => {
     frameScheduled = false;
@@ -307,7 +301,11 @@ export const createIntentExecutor = (
       type: "literal",
       value: { key: "product", value: { productId: intent.productId } },
     };
-    options.dispatch(updateComponentPropBindingForNodes)({ nodeIds, propName: intent.name, binding });
+    options.dispatch(updateComponentPropBindingForNodes)({
+      nodeIds,
+      propName: intent.name,
+      binding,
+    });
   };
 
   const handleResetProp = (intent: Extract<PanelIntent, { type: "reset-prop" }>): void => {

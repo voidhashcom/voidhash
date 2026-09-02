@@ -19,7 +19,6 @@ import type { Plugin } from "vite";
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-
 const packageRootUrl = new URL("..", import.meta.url);
 const packageRoot = decodeURIComponent(packageRootUrl.pathname);
 const entryPoint = decodeURIComponent(new URL("src/runtime/hydrate.tsx", packageRootUrl).pathname);

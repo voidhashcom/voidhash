@@ -150,8 +150,8 @@ function ExperimentDetailPage() {
                       <Alert>
                         <InfoIcon className="size-4" />
                         <AlertDescription>
-                          Variants and placements are locked while the A/B test is running. Pause
-                          it to make changes.
+                          Variants and placements are locked while the A/B test is running. Pause it
+                          to make changes.
                         </AlertDescription>
                       </Alert>
                     )}

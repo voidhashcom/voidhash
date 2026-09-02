@@ -36,9 +36,8 @@ export type RevenueAnalyticsEventName = typeof RevenueAnalyticsEventName.Type;
  * PostHog convention for auto-captured / reserved system events) so they can
  * never collide with the customer's own event names sent via the SDK.
  */
-export const RESERVED_REVENUE_EVENT_NAMES: HashSet.HashSet<
-  typeof RevenueAnalyticsEventName.Type
-> = HashSet.fromIterable(RevenueAnalyticsEventName.literals);
+export const RESERVED_REVENUE_EVENT_NAMES: HashSet.HashSet<typeof RevenueAnalyticsEventName.Type> =
+  HashSet.fromIterable(RevenueAnalyticsEventName.literals);
 
 /**
  * Revenue events whose money fields represent realized signed deltas. Lifecycle
@@ -46,12 +45,12 @@ export const RESERVED_REVENUE_EVENT_NAMES: HashSet.HashSet<
  * must not be summed into realized revenue alongside `$purchase.completed`.
  */
 export const REVENUE_MONEY_EVENT_NAME_LIST: ReadonlyArray<typeof RevenueAnalyticsEventName.Type> = [
-    "$purchase.completed",
-    "$purchase.refunded",
-    "$purchase.revoked",
-    "$subscription.renewed",
-    "$subscription.canceled",
-    "$subscription.refund_reversed",
+  "$purchase.completed",
+  "$purchase.refunded",
+  "$purchase.revoked",
+  "$subscription.renewed",
+  "$subscription.canceled",
+  "$subscription.refund_reversed",
 ];
 
 export const REVENUE_MONEY_EVENT_NAMES: HashSet.HashSet<typeof RevenueAnalyticsEventName.Type> =

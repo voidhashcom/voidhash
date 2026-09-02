@@ -15,7 +15,7 @@
 
 ## Direction change
 
-The dev-auth work made WorkOS *optional for development*: an email-assertion
+The dev-auth work made WorkOS _optional for development_: an email-assertion
 provider, loopback-only, hard-refused in `SELFHOST_MODE=production`. Real
 self-host deployments still required BYO WorkOS ("Community Edition v1
 intentionally uses BYO WorkOS").
@@ -47,18 +47,18 @@ Non-goals (for now):
 Most of it. The dev-auth implementation (uncommitted on this branch) already
 built the right seams:
 
-| Piece | Fate |
-| --- | --- |
-| `IdentityProvider` port + consumers (`AuthSessionResolver`, `ApiMiddlewares`, `mcp.ts`, `AgentNodeWebSocket`) | **Keep unchanged** |
-| `AuthTokenVerifier` port | **Keep**; `provider` field widens (see §4) |
-| HS256 token module (`local-auth-token.ts`) | **Keep**; rename, constant `root` subject |
-| `LocalOrgDirectory` (synthesized `local_org_` / `local_mem_` ids, no migration) | **Keep**; rename `StandaloneOrgDirectory` |
-| Lazy user creation via `resolveLocalUser` | **Keep** |
-| www session seam (`session.ts`, `local-session.ts`, `AccessTokenBridge`) | **Keep shape**; loses the AuthKit fallback branch |
-| `/api/auth/dev/*` mint endpoints, email-assertion sign-in | **Replaced** by credential-checked `/api/auth/*` |
-| `AuthMode.ts` resolution matrix, `VOIDHASH_AUTH_MODE`, dev-signal allowlist | **Deleted** — OSS has exactly one provider |
-| `UnconfiguredWorkosLive` | **Deleted** (dies with `Workos` leaving `InfraServices`) |
-| `Workos.ts`, `WorkosIdentityProvider.ts`, webhook route, `McpAuthKit`, JWKS verifier | **Moved to mono** (§5) |
+| Piece                                                                                                         | Fate                                                     |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `IdentityProvider` port + consumers (`AuthSessionResolver`, `ApiMiddlewares`, `mcp.ts`, `AgentNodeWebSocket`) | **Keep unchanged**                                       |
+| `AuthTokenVerifier` port                                                                                      | **Keep**; `provider` field widens (see §4)               |
+| HS256 token module (`local-auth-token.ts`)                                                                    | **Keep**; rename, constant `root` subject                |
+| `LocalOrgDirectory` (synthesized `local_org_` / `local_mem_` ids, no migration)                               | **Keep**; rename `StandaloneOrgDirectory`                |
+| Lazy user creation via `resolveLocalUser`                                                                     | **Keep**                                                 |
+| www session seam (`session.ts`, `local-session.ts`, `AccessTokenBridge`)                                      | **Keep shape**; loses the AuthKit fallback branch        |
+| `/api/auth/dev/*` mint endpoints, email-assertion sign-in                                                     | **Replaced** by credential-checked `/api/auth/*`         |
+| `AuthMode.ts` resolution matrix, `VOIDHASH_AUTH_MODE`, dev-signal allowlist                                   | **Deleted** — OSS has exactly one provider               |
+| `UnconfiguredWorkosLive`                                                                                      | **Deleted** (dies with `Workos` leaving `InfraServices`) |
+| `Workos.ts`, `WorkosIdentityProvider.ts`, webhook route, `McpAuthKit`, JWKS verifier                          | **Moved to mono** (§5)                                   |
 
 Naming: "local" implied loopback-only development. The mode is now called
 **standalone**; the uncommitted `Local*` auth files are renamed `Standalone*`
@@ -94,7 +94,7 @@ existing `isExampleSecret` machinery, replacing the deleted `WORKOS_*` checks.
 - The JWT subject is the constant `root` — not derived from the email. It lands
   in `user.workos_user_id` as today (fits `varchar(64)`; column naming debt is
   §6). A stable subject means changing `VOIDHASH_ROOT_EMAIL` or the username
-  later updates the *same* user row via `resolveLocalUser`'s
+  later updates the _same_ user row via `resolveLocalUser`'s
   match-by-provider-id-then-email logic instead of creating a new identity.
 - Identity fields: `email` from env, `emailVerified: true`, `firstName` =
   username, `image: null`.
@@ -105,7 +105,7 @@ existing `isExampleSecret` machinery, replacing the deleted `WORKOS_*` checks.
   stays; invite/role flows remain `ee/` in mono).
 - Organizations are untouched: root creates and owns organizations through the
   normal UI; `StandaloneOrgDirectory` keeps satisfying the `NOT NULL` provider
-  columns with synthesized ids. Single-player means one *user*, not one org.
+  columns with synthesized ids. Single-player means one _user_, not one org.
 
 ### Sign-in flow
 
@@ -151,7 +151,7 @@ With one provider in OSS there is nothing to resolve:
 - `VOIDHASH_AUTH_MODE`, `AuthMode.ts` (`resolveAuthMode`, credential sniffing,
   the `SELFHOST_MODE=local-evaluation` / `NODE_ENV` dev-signal allowlist) and
   its tests are deleted. The subtle fail-open/fail-closed analysis that
-  motivated the allowlist becomes moot: standalone is *supposed* to run in
+  motivated the allowlist becomes moot: standalone is _supposed_ to run in
   production, and its production gate is "real credentials configured", not
   "mode forbidden".
 - `SelfhostAuthConfig` collapses to
@@ -186,7 +186,7 @@ with the route itself leaving OSS, the reason evaporates. Consequences:
   `"standalone"`, mono stamps `"workos"`, and OSS no longer enumerates
   proprietary providers in a shared schema.
 
-Provider-neutral pieces that only *sound* like WorkOS get renamed, not moved
+Provider-neutral pieces that only _sound_ like WorkOS get renamed, not moved
 (zero coupling in their bodies):
 
 - `WorkosOrgPort` → `OrgDirectoryPort` (+ `WorkosPort*` types, error).
@@ -203,16 +203,16 @@ Provider-neutral pieces that only *sound* like WorkOS get renamed, not moved
 Pure adapters, ~940 LOC total, four files importing `@workos-inc/node` in the
 whole repo:
 
-| OSS file | Destination |
-| --- | --- |
-| `packages/core/src/services/auth/Workos.ts` (369) | mono `stacks/backend/infrastructure/` (its `Workos.ts` layer factory already wraps this — the service definition simply relocates next to it) |
-| `packages/core/src/services/auth/WorkosIdentityProvider.ts` (48) | mono, same home |
-| `apps/backend/src/routes/webhooks/workos.ts` (314) | mono, mounted via `routeExtension`; the `workos_webhook_event` idempotency table stays in the shared schema for now (§6) |
-| `apps/backend/src/McpAuthKit.ts` + `routes/mcp-authkit.ts` (179) | mono, mounted via `routeExtension` |
-| `selfhost/entry/src/backend/AuthTokenVerifier.ts` (JWKS, 55) | **delete** — mono already has the `JwtAuth` DO + `AuthTokenVerifierLive` adapter |
-| `selfhost/entry/src/backend/Workos.ts` (`WorkosOrgPortLive`, 77) | **delete** — mono already has its own `WorkosOrgPortLive` in `BackendWorker.ts` |
-| `apps/www/src/features/auth/lib/workos-user-management.server.ts` (355) | mono www overlay, minus the generic HTTP helpers (`jsonResponse`, `getJsonBody`, safe-return-path), which split into an OSS `http.server.ts` module first — the standalone auth routes use them too |
-| `apps/www/src/routes/api/auth/{callback,email/*,oauth/*,password/*}.tsx` (~570 across 9 files) | mono www overlay routes |
+| OSS file                                                                                       | Destination                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/services/auth/Workos.ts` (369)                                              | mono `stacks/backend/infrastructure/` (its `Workos.ts` layer factory already wraps this — the service definition simply relocates next to it)                                                       |
+| `packages/core/src/services/auth/WorkosIdentityProvider.ts` (48)                               | mono, same home                                                                                                                                                                                     |
+| `apps/backend/src/routes/webhooks/workos.ts` (314)                                             | mono, mounted via `routeExtension`; the `workos_webhook_event` idempotency table stays in the shared schema for now (§6)                                                                            |
+| `apps/backend/src/McpAuthKit.ts` + `routes/mcp-authkit.ts` (179)                               | mono, mounted via `routeExtension`                                                                                                                                                                  |
+| `selfhost/entry/src/backend/AuthTokenVerifier.ts` (JWKS, 55)                                   | **delete** — mono already has the `JwtAuth` DO + `AuthTokenVerifierLive` adapter                                                                                                                    |
+| `selfhost/entry/src/backend/Workos.ts` (`WorkosOrgPortLive`, 77)                               | **delete** — mono already has its own `WorkosOrgPortLive` in `BackendWorker.ts`                                                                                                                     |
+| `apps/www/src/features/auth/lib/workos-user-management.server.ts` (355)                        | mono www overlay, minus the generic HTTP helpers (`jsonResponse`, `getJsonBody`, safe-return-path), which split into an OSS `http.server.ts` module first — the standalone auth routes use them too |
+| `apps/www/src/routes/api/auth/{callback,email/*,oauth/*,password/*}.tsx` (~570 across 9 files) | mono www overlay routes                                                                                                                                                                             |
 
 Dependency deletions in OSS: `@workos-inc/node` from `packages/core` and
 `packages/backend`; `@workos-inc/node` + `@workos/authkit-session` +
@@ -248,7 +248,7 @@ mechanism is exactly it:
   and render through the adapter, so the route tree itself never forks.
 
 Verification item for Phase 3: confirm the mono route-tree merge cleanly
-handles the overlay *adding* auth API routes and that nothing in the OSS tree
+handles the overlay _adding_ auth API routes and that nothing in the OSS tree
 still imports AuthKit at build time (the vite `noExternal` /
 `optimizeDeps.exclude` entries move to the mono config).
 

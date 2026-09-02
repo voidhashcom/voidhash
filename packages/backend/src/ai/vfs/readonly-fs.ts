@@ -130,11 +130,17 @@ export class LazyReadOnlyFs implements IFileSystem {
 
   private readFileEffect(path: string): Effect.Effect<string, ReadOnlyFsError> {
     return Effect.fn("readFileEffect")({ self: this }, function* () {
-      const content = yield* Effect.tryPromise({ try: () => this.provider.readFile(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const content = yield* Effect.tryPromise({
+        try: () => this.provider.readFile(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       if (content !== null) {
         return content;
       }
-      const stat = yield* Effect.tryPromise({ try: () => this.provider.stat(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const stat = yield* Effect.tryPromise({
+        try: () => this.provider.stat(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       if (stat?.kind === "dir") {
         return yield* eisdir("read", this.display(path));
       }
@@ -144,7 +150,10 @@ export class LazyReadOnlyFs implements IFileSystem {
 
   private statEffect(path: string): Effect.Effect<FsStat, ReadOnlyFsError> {
     return Effect.fn("statEffect")({ self: this }, function* () {
-      const stat = yield* Effect.tryPromise({ try: () => this.provider.stat(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const stat = yield* Effect.tryPromise({
+        try: () => this.provider.stat(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       if (stat === null) {
         return yield* enoent("stat", this.display(path));
       }
@@ -154,14 +163,20 @@ export class LazyReadOnlyFs implements IFileSystem {
       if (stat.size !== undefined) {
         return this.fsStat("file", stat.size);
       }
-      const content = yield* Effect.tryPromise({ try: () => this.provider.readFile(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const content = yield* Effect.tryPromise({
+        try: () => this.provider.readFile(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       return this.fsStat("file", new TextEncoder().encode(content ?? "").length);
     })();
   }
 
   private existsEffect(path: string): Effect.Effect<boolean> {
     return Effect.map(
-      Effect.tryPromise({ try: () => this.provider.stat(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie),
+      Effect.tryPromise({
+        try: () => this.provider.stat(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie),
       (stat) => stat !== null,
     );
   }
@@ -171,11 +186,17 @@ export class LazyReadOnlyFs implements IFileSystem {
     path: string,
   ): Effect.Effect<ReadonlyArray<ReadOnlyDirEntry>, ReadOnlyFsError> {
     return Effect.fn("listEffect")({ self: this }, function* () {
-      const entries = yield* Effect.tryPromise({ try: () => this.provider.readdir(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const entries = yield* Effect.tryPromise({
+        try: () => this.provider.readdir(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       if (entries !== null) {
         return entries;
       }
-      const stat = yield* Effect.tryPromise({ try: () => this.provider.stat(relative(path)), catch: (cause) => cause }).pipe(Effect.orDie);
+      const stat = yield* Effect.tryPromise({
+        try: () => this.provider.stat(relative(path)),
+        catch: (cause) => cause,
+      }).pipe(Effect.orDie);
       if (stat === null) {
         return yield* enoent("scandir", this.display(path));
       }

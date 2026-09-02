@@ -60,7 +60,11 @@ const make = Effect.fn("make")(function* () {
     (input: {
       readonly paymentProviderConfigurationId: string;
       readonly providerProductKey: string;
-    }): Effect.Effect<DbPaymentProviderConfigurationProduct | typeof Schema.Undefined.Type, DbError, Db> =>
+    }): Effect.Effect<
+      DbPaymentProviderConfigurationProduct | typeof Schema.Undefined.Type,
+      DbError,
+      Db
+    > =>
       Effect.fn("findPaymentProviderConfigurationProductByPrimaryKey")(function* () {
         return yield* db.query.paymentProviderConfigurationProducts.findFirst({
           where: {
@@ -73,7 +77,9 @@ const make = Effect.fn("make")(function* () {
   );
 
   const findPaymentProviderConfigurationById = Effect.fn("findPaymentProviderConfigurationById")(
-    (id: string): Effect.Effect<DbPaymentProviderConfiguration | typeof Schema.Undefined.Type, DbError, Db> =>
+    (
+      id: string,
+    ): Effect.Effect<DbPaymentProviderConfiguration | typeof Schema.Undefined.Type, DbError, Db> =>
       Effect.fn("findPaymentProviderConfigurationById")(function* () {
         return yield* db.query.paymentProviderConfigurations.findFirst({
           where: {
@@ -193,17 +199,19 @@ const make = Effect.fn("make")(function* () {
         hop: number,
       ): Effect.Effect<string, DbError> {
         if (hop >= MAX_MERGE_CHAIN_HOPS) return Effect.succeed(currentId);
-        return db.query.persons.findFirst({
-          columns: { mergedIntoPersonId: true },
-          where: { id: currentId },
-        }).pipe(
-          Effect.flatMap((row) => {
-            const mergedInto = row?.mergedIntoPersonId;
-            return !mergedInto || mergedInto === currentId
-              ? Effect.succeed(currentId)
-              : loop(mergedInto, hop + 1);
-          }),
-        );
+        return db.query.persons
+          .findFirst({
+            columns: { mergedIntoPersonId: true },
+            where: { id: currentId },
+          })
+          .pipe(
+            Effect.flatMap((row) => {
+              const mergedInto = row?.mergedIntoPersonId;
+              return !mergedInto || mergedInto === currentId
+                ? Effect.succeed(currentId)
+                : loop(mergedInto, hop + 1);
+            }),
+          );
       })(input.personId, 0),
   );
 

@@ -58,8 +58,4 @@ export const motionValue = <T>(initial: T): MotionValue<T> => new MotionValueImp
 
 /** Returns whether `value` implements the motion-value protocol. */
 export const isMotionValue = (value: unknown): value is MotionValue<unknown> =>
-  typeof value === "object" &&
-  value !== null &&
-  "get" in value &&
-  "set" in value &&
-  "on" in value;
+  typeof value === "object" && value !== null && "get" in value && "set" in value && "on" in value;

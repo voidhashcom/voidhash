@@ -6,7 +6,7 @@ import { motionValue } from "./value";
 import type { Transition } from "./types";
 
 /** Creates one stable mutable motion value for the lifetime of a component. */
-export const useMotionValue = <T,>(initial: T): MotionValue<T> => {
+export const useMotionValue = <T>(initial: T): MotionValue<T> => {
   const value = useRef<MotionValue<T> | null>(null);
   if (value.current === null) {
     value.current = motionValue(initial);
@@ -50,13 +50,17 @@ export function useTransform<T, U>(
       }
       const start = input[index]!;
       const end = input[index + 1]!;
-      const progress = end === start ? 0 : Math.min(1, Math.max(0, (number - start) / (end - start)));
+      const progress =
+        end === start ? 0 : Math.min(1, Math.max(0, (number - start) / (end - start)));
       return (output[index]! + (output[index + 1]! - output[index]!) * progress) as U;
     }) as (value: T) => U;
   }, [outputRange, transformerOrInputRange]);
   const value = useMotionValue(transformer(source.get()));
 
-  useEffect(() => source.on("change", (next) => value.set(transformer(next))), [source, transformer, value]);
+  useEffect(
+    () => source.on("change", (next) => value.set(transformer(next))),
+    [source, transformer, value],
+  );
   return value;
 }
 
@@ -98,7 +102,7 @@ export const useVelocity = (source: MotionValue<number>): MotionValue<number> =>
 };
 
 /** Subscribes to motion values without coupling changes to a React render. */
-export const useMotionValueEvent = <T,>(
+export const useMotionValueEvent = <T>(
   value: MotionValue<T>,
   eventName: "change" | "renderRequest",
   listener: (value: T) => void,

@@ -2,15 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Button,
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-  Input,
-} from "@voidhash/ui";
+import { Button, Form, FormControl, FormField, FormItem, FormMessage, Input } from "@voidhash/ui";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { SettingsCard, SettingsRow, SettingsSection } from "@/features/studio/settings";
@@ -69,9 +61,7 @@ export function ProjectNameForm({
           <SettingsCard
             footer={
               <>
-                <span className="text-[12px] text-muted-foreground">
-                  Use up to 32 characters.
-                </span>
+                <span className="text-[12px] text-muted-foreground">Use up to 32 characters.</span>
                 <Button disabled={isPending} size="sm" type="submit">
                   {isPending ? "Saving..." : "Save"}
                 </Button>

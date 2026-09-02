@@ -59,7 +59,8 @@ export const unsafeResult = <A, E>(value: Result.Result<A, E>): A => {
 export const processEnvironment = process["env"];
 
 /** Recovers a deliberately best-effort boundary with an explicit fallback. */
-export const recoverAll = <A2>(fallback: () => A2) =>
+export const recoverAll =
+  <A2>(fallback: () => A2) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A | A2, never, R> =>
     Effect.matchEffect(effect, {
       onFailure: () => Effect.succeed(fallback()),

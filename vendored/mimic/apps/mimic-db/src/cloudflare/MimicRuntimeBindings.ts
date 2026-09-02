@@ -22,17 +22,12 @@ export class HyperdriveBindingNotFoundError extends Schema.TaggedErrorClass<Hype
 }) {}
 
 const isRawHyperdrive = (value: unknown): value is RawHyperdrive =>
-  P.isObject(value) &&
-  value !== null &&
-  "host" in value &&
-  "user" in value &&
-  "database" in value;
+  P.isObject(value) && value !== null && "host" in value && "user" in value && "database" in value;
 
 /** Locates the Hyperdrive binding on a Cloudflare Worker environment. */
 export const findHyperdrive = (env: Record<string, unknown>): RawHyperdrive => {
-  const named = Arr.findFirst(
-    ["DatabaseHyperdrive", "DatabaseHyperdriveMain"],
-    (key) => isRawHyperdrive(env[key]),
+  const named = Arr.findFirst(["DatabaseHyperdrive", "DatabaseHyperdriveMain"], (key) =>
+    isRawHyperdrive(env[key]),
   ).pipe(Option.map((key) => env[key]));
   if (Option.isSome(named) && isRawHyperdrive(named.value)) return named.value;
   const discovered = Arr.findFirst(

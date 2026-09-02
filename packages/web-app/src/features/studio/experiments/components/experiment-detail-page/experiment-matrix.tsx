@@ -243,8 +243,7 @@ function MatrixCell({
         <div
           className={cn(
             "transition-opacity",
-            !disabled &&
-              "group-focus-within/cell:opacity-0 group-hover/cell:opacity-0",
+            !disabled && "group-focus-within/cell:opacity-0 group-hover/cell:opacity-0",
             pickerOpen && "opacity-0",
           )}
         >
@@ -524,9 +523,7 @@ export function ExperimentMatrix({ projectId }: { projectId: string }) {
 
               {/* Aligned to the top of the row so it sits on the same line as
                   the variant name, matching the header's + button. */}
-              <div
-                className={cn("flex items-start justify-center p-2", index > 0 && ROW_DIVIDER)}
-              >
+              <div className={cn("flex items-start justify-center p-2", index > 0 && ROW_DIVIDER)}>
                 {!matrixLocked && variants.length > 1 && (
                   <Button
                     aria-label="Remove variant"

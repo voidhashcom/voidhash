@@ -9,10 +9,7 @@ import { SettingsCard, SettingsRow } from "@/features/studio/settings";
 import { PaymentProviderCopyableValue } from "../components/payment-provider-copyable-value";
 import { PaymentProviderDetailSection } from "../components/payment-provider-detail-section";
 import { PaymentProviderTextFieldRow } from "../components/payment-provider-form-fields";
-import {
-  STRIPE_FIELD_LABELS,
-  type StripeTabId,
-} from "./stripe-payment-provider-detail-config";
+import { STRIPE_FIELD_LABELS, type StripeTabId } from "./stripe-payment-provider-detail-config";
 
 export function StripePaymentProviderTabContent({
   activeTab,
@@ -41,9 +38,7 @@ export function StripePaymentProviderTabContent({
               control={
                 <Input
                   className="w-full sm:w-96"
-                  onChange={(inputEvent) =>
-                    onNameChange(inputEvent.target.value)
-                  }
+                  onChange={(inputEvent) => onNameChange(inputEvent.target.value)}
                   placeholder="Provider name"
                   value={name}
                 />

@@ -69,11 +69,11 @@ export const buildDesignerContext = (
             componentFileNames: componentFileNamesFromDocument(resolved.root),
           })),
           recoverCause(() => ({
-              paywallId: row.id,
-              slug: row.slug,
-              name: row.name,
-              componentFileNames: [],
-            })),
+            paywallId: row.id,
+            slug: row.slug,
+            name: row.name,
+            componentFileNames: [],
+          })),
         ),
       { concurrency: 8 },
     );

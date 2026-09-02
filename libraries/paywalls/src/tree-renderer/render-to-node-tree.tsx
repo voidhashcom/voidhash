@@ -25,11 +25,7 @@ import {
   type PaywallNodeResizeMode,
   type PaywallNodeTree,
 } from "../schema/node-tree";
-import {
-  PAYWALL_STYLE_KEY_LIST,
-  type PaywallStyle,
-  type StyleProp,
-} from "../schema/style";
+import { PAYWALL_STYLE_KEY_LIST, type PaywallStyle, type StyleProp } from "../schema/style";
 import { flattenStyle } from "../style/resolve";
 import { TREE_ELEMENT_TYPES, treeHostComponents } from "./tree-host";
 
@@ -298,7 +294,12 @@ const serializeChild = (child: TreeChild): PaywallNode => {
         children: serializeChildren(child.children),
       };
     case TREE_ELEMENT_TYPES.text:
-      return { type: "text", style, ...(motion ? { motion } : {}), text: collectText(child.children) };
+      return {
+        type: "text",
+        style,
+        ...(motion ? { motion } : {}),
+        text: collectText(child.children),
+      };
     case TREE_ELEMENT_TYPES.image: {
       const resizeMode = child.props.resizeMode as PaywallNodeResizeMode | undefined;
       return {
@@ -421,10 +422,7 @@ export const renderToNodeTree = async (
 
   const wrapped = (
     <RendererProvider host={treeHostComponents} motion={staticMotionPlatformAdapter}>
-      <PaywallRuntimeProvider
-        bridge={silentBridge}
-        config={normalizeRuntimeConfig(options.config)}
-      >
+      <PaywallRuntimeProvider bridge={silentBridge} config={normalizeRuntimeConfig(options.config)}>
         <TreeErrorBoundary>{element}</TreeErrorBoundary>
       </PaywallRuntimeProvider>
     </RendererProvider>

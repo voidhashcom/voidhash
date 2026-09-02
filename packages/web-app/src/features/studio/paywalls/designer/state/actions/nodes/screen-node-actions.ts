@@ -32,9 +32,9 @@ export const createScreenNode = commander.undoableAction<
         return null;
       }
       return Effect.runSync(
-        Effect.try(() => parent.children.insertLast({ ...params.initialValues, type: "screen" }).id).pipe(
-          Effect.orElseSucceed((): string | null => null),
-        ),
+        Effect.try(
+          () => parent.children.insertLast({ ...params.initialValues, type: "screen" }).id,
+        ).pipe(Effect.orElseSucceed((): string | null => null)),
       );
     });
 

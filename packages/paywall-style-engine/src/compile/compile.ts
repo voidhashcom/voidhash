@@ -26,7 +26,10 @@ export interface CompiledScreenStyles {
 }
 
 /** Lower a screen node's style for a target surface. */
-export function compileScreenStyles(style: ScreenStyle, target: CompileTarget): CompiledScreenStyles {
+export function compileScreenStyles(
+  style: ScreenStyle,
+  target: CompileTarget,
+): CompiledScreenStyles {
   if (target === "runtime") {
     return {
       container: buildScreenContainerStyles(style),

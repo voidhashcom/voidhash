@@ -1,12 +1,5 @@
 "use client";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@voidhash/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@voidhash/ui";
 import { useState } from "react";
 import { CreateProjectModal } from "@/features/studio/projects/create-project-modal";
 

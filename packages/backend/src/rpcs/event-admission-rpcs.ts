@@ -35,10 +35,9 @@ export const EventAdmissionRpcsLive = EventAdmissionRpcsDef.toLayer(
     const eventAdmission = yield* EventAdmissionService;
     return {
       GetEventAdmissionPolicy: ({ projectId }) =>
-        eventAdmission.getPolicy(projectId).pipe(
-          Effect.map(toRpcPolicy),
-          Effect.catchTags(toRpcError),
-        ),
+        eventAdmission
+          .getPolicy(projectId)
+          .pipe(Effect.map(toRpcPolicy), Effect.catchTags(toRpcError)),
       SetBuiltinEventAdmission: (payload) =>
         eventAdmission
           .setBuiltinEventEnabled(payload)

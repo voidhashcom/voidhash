@@ -37,8 +37,7 @@ export function productsHookFactory(
     );
 
     const toList = React.useCallback(
-      (): Product[] =>
-        products ? Arr.getSomes(R.values(products)) : [],
+      (): Product[] => (products ? Arr.getSomes(R.values(products)) : []),
       [products],
     );
 

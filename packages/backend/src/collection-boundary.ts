@@ -129,10 +129,7 @@ export class MutableSet<V = never> implements Set<V> {
     return MutableHashSet.has(this.#values, value);
   }
 
-  forEach(
-    callbackfn: (value: V, value2: V, set: Set<V>) => void,
-    thisArg?: unknown,
-  ): void {
+  forEach(callbackfn: (value: V, value2: V, set: Set<V>) => void, thisArg?: unknown): void {
     Arr.forEach(Arr.fromIterable(this.#values), (value) =>
       callbackfn.call(thisArg, value, value, this),
     );
@@ -158,24 +155,27 @@ export class MutableSet<V = never> implements Set<V> {
 
   intersection<U>(other: ReadonlySetLike<U>): Set<V & U> {
     const result = new MutableSet<V & U>();
-    Arr.forEach(Arr.filter(Arr.fromIterable(this), (value) => contains(other, value)), (value) =>
-      result.add(overlap<V, U>(value)),
+    Arr.forEach(
+      Arr.filter(Arr.fromIterable(this), (value) => contains(other, value)),
+      (value) => result.add(overlap<V, U>(value)),
     );
     return result;
   }
 
   difference<U>(other: ReadonlySetLike<U>): Set<V> {
     const result = new MutableSet<V>();
-    Arr.forEach(Arr.filter(Arr.fromIterable(this), (value) => !contains(other, value)), (value) =>
-      result.add(value),
+    Arr.forEach(
+      Arr.filter(Arr.fromIterable(this), (value) => !contains(other, value)),
+      (value) => result.add(value),
     );
     return result;
   }
 
   symmetricDifference<U>(other: ReadonlySetLike<U>): Set<V | U> {
     const result = new MutableSet<V | U>();
-    Arr.forEach(Arr.filter(Arr.fromIterable(this), (value) => !contains(other, value)), (value) =>
-      result.add(value),
+    Arr.forEach(
+      Arr.filter(Arr.fromIterable(this), (value) => !contains(other, value)),
+      (value) => result.add(value),
     );
     Arr.forEach(
       Arr.filter(Arr.fromIterable(iterable(other.keys())), (value) => !contains(this, value)),

@@ -32,12 +32,14 @@ function TabsList({
   indicatorClassName?: string;
 }) {
   const listRef = React.useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = React.useState<Option.Option<{
-    height: number;
-    left: number;
-    top: number;
-    width: number;
-  }>>(Option.none());
+  const [indicator, setIndicator] = React.useState<
+    Option.Option<{
+      height: number;
+      left: number;
+      top: number;
+      width: number;
+    }>
+  >(Option.none());
 
   const updateIndicator = React.useCallback(() => {
     const list = listRef.current;
@@ -53,12 +55,14 @@ function TabsList({
     const triggerRect = activeTrigger.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
 
-    setIndicator(Option.some({
-      height: triggerRect.height,
-      left: triggerRect.left - listRect.left - (parseFloat(listStyle.borderLeftWidth) || 0),
-      top: triggerRect.top - listRect.top - (parseFloat(listStyle.borderTopWidth) || 0),
-      width: triggerRect.width,
-    }));
+    setIndicator(
+      Option.some({
+        height: triggerRect.height,
+        left: triggerRect.left - listRect.left - (parseFloat(listStyle.borderLeftWidth) || 0),
+        top: triggerRect.top - listRect.top - (parseFloat(listStyle.borderTopWidth) || 0),
+        width: triggerRect.width,
+      }),
+    );
   }, []);
 
   React.useEffect(() => {

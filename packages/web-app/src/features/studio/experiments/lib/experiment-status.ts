@@ -11,8 +11,7 @@ export const EXPERIMENT_STATUS = {
   concluded: 4,
 } as const;
 
-export type ExperimentStatusValue =
-  (typeof EXPERIMENT_STATUS)[keyof typeof EXPERIMENT_STATUS];
+export type ExperimentStatusValue = (typeof EXPERIMENT_STATUS)[keyof typeof EXPERIMENT_STATUS];
 
 export const EXPERIMENT_STATUS_LABELS: Record<number, string> = {
   [EXPERIMENT_STATUS.draft]: "Draft",

@@ -132,8 +132,6 @@ const make = Effect.fn("makeApiClient")(function* effect() {
 export class ApiClient extends Context.Service<
   ApiClient,
   Effect.Success<ReturnType<typeof make>>
->()(
-  "web-voidhash/ApiClient",
-) {
+>()("web-voidhash/ApiClient") {
   static Default = Layer.effect(ApiClient, make());
 }

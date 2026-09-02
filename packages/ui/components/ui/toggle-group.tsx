@@ -32,7 +32,7 @@ function ToggleGroup({
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
   VariantProps<typeof toggleVariants> & {
-  spacing?: number;
+    spacing?: number;
   }) {
   const rootStyle: React.CSSProperties & { "--gap": number } = { "--gap": spacing };
 

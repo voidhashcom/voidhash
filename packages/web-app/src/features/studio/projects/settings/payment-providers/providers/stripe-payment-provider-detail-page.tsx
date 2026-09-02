@@ -80,10 +80,7 @@ export function StripePaymentProviderDetailPage({
     providerTitle: stripe.title,
   });
 
-  const saveConfiguration = (
-    configuration: StripeGlobalConfiguration,
-    enabled: boolean,
-  ) => {
+  const saveConfiguration = (configuration: StripeGlobalConfiguration, enabled: boolean) => {
     updateConfiguration({
       configuration,
       enabled,
@@ -146,8 +143,7 @@ export function StripePaymentProviderDetailPage({
   }));
 
   const unsavedChangesCount =
-    Object.keys(dirtyFields).length +
-    (name === paymentProviderConfiguration.name ? 0 : 1);
+    Object.keys(dirtyFields).length + (name === paymentProviderConfiguration.name ? 0 : 1);
 
   return (
     <PaymentProviderDetailPageChrome
@@ -201,11 +197,7 @@ export function StripePaymentProviderDetailPage({
                 ? "No unsaved changes"
                 : `${unsavedChangesCount} unsaved change${unsavedChangesCount === 1 ? "" : "s"}`}
             </p>
-            <Button
-              disabled={isSaving || unsavedChangesCount === 0}
-              size="lg"
-              type="submit"
-            >
+            <Button disabled={isSaving || unsavedChangesCount === 0} size="lg" type="submit">
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </PaymentProviderDetailActionBar>

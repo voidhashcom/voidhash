@@ -36,9 +36,7 @@ export const makePaywallArtifactStore = (
   return {
     bucketName,
     putObject: ({ key, body, contentType }) =>
-      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(
-        Effect.asVoid,
-      ),
+      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(Effect.asVoid),
     getObject: (key) =>
       Effect.gen(function* () {
         const object = yield* tryR2("get", () => raw.get(key));

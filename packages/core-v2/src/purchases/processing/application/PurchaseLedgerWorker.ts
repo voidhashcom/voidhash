@@ -105,9 +105,7 @@ const makePurchaseLedgerWorker = Effect.fn("makePurchaseLedgerWorker")(function*
     return RETRIED;
   });
 
-  const poll = (
-    options: unknown = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS,
-  ) =>
+  const poll = (options: unknown = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS) =>
     Effect.gen(function* () {
       const decodedOptions = yield* Schema.decodeUnknownEffect(PurchaseLedgerWorkerPollOptions)(
         options,
@@ -124,8 +122,7 @@ const makePurchaseLedgerWorker = Effect.fn("makePurchaseLedgerWorker")(function*
         (current, outcome) => {
           if (outcome === PUBLISHED)
             return { ...current, publishedCount: current.publishedCount + 1 };
-          if (outcome === RETRIED)
-            return { ...current, retriedCount: current.retriedCount + 1 };
+          if (outcome === RETRIED) return { ...current, retriedCount: current.retriedCount + 1 };
           return { ...current, deadLetteredCount: current.deadLetteredCount + 1 };
         },
       );

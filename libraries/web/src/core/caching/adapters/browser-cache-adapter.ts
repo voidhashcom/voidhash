@@ -117,14 +117,14 @@ const detectLocalStorage = (): Option.Option<Storage> => {
   }
 
   return Result.try({
-      try: () => {
-        const probeKey = "__voidhash_probe__";
-        window.localStorage.setItem(probeKey, "1");
-        window.localStorage.removeItem(probeKey);
-        return Option.some(window.localStorage);
-      },
-      catch: (error) => error,
-    }).pipe(Result.getOrElse(() => Option.none()));
+    try: () => {
+      const probeKey = "__voidhash_probe__";
+      window.localStorage.setItem(probeKey, "1");
+      window.localStorage.removeItem(probeKey);
+      return Option.some(window.localStorage);
+    },
+    catch: (error) => error,
+  }).pipe(Result.getOrElse(() => Option.none()));
 };
 
 export const createBrowserCacheAdapterLayer = () =>

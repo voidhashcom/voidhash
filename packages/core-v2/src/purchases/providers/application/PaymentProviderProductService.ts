@@ -28,47 +28,47 @@ export type PaymentProviderProductServiceShape = PaymentProviderProductOperation
 
 const makePaymentProviderProductService = Effect.fn("makePaymentProviderProductService")(
   function* () {
-  const operations = yield* PaymentProviderProductOperations;
-  const invalid = (error: unknown) =>
-    new PaymentProviderProductServiceError({ cause: String(error) });
+    const operations = yield* PaymentProviderProductOperations;
+    const invalid = (error: unknown) =>
+      new PaymentProviderProductServiceError({ cause: String(error) });
 
-  return {
-    createPaymentProviderProduct: (input) =>
-      Schema.decodeUnknownEffect(CreateInput)(input).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.createPaymentProviderProduct),
-      ),
-    deletePaymentProviderProduct: (input) =>
-      Schema.decodeUnknownEffect(DeleteInput)(input).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.deletePaymentProviderProduct),
-      ),
-    getProviderProductById: (id) =>
-      Schema.decodeUnknownEffect(Id)(id).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.getProviderProductById),
-      ),
-    getProviderProductsByProductId: (productId) =>
-      Schema.decodeUnknownEffect(Id)(productId).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.getProviderProductsByProductId),
-      ),
-    getProviderProductsByProjectId: (projectId) =>
-      Schema.decodeUnknownEffect(Id)(projectId).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.getProviderProductsByProjectId),
-      ),
-    setActivePaymentProviderProduct: (input) =>
-      Schema.decodeUnknownEffect(ActivateInput)(input).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.setActivePaymentProviderProduct),
-      ),
-    updatePaymentProviderProduct: (input) =>
-      Schema.decodeUnknownEffect(UpdateInput)(input).pipe(
-        Effect.mapError(invalid),
-        Effect.flatMap(operations.updatePaymentProviderProduct),
-      ),
-  } satisfies PaymentProviderProductServiceShape;
+    return {
+      createPaymentProviderProduct: (input) =>
+        Schema.decodeUnknownEffect(CreateInput)(input).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.createPaymentProviderProduct),
+        ),
+      deletePaymentProviderProduct: (input) =>
+        Schema.decodeUnknownEffect(DeleteInput)(input).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.deletePaymentProviderProduct),
+        ),
+      getProviderProductById: (id) =>
+        Schema.decodeUnknownEffect(Id)(id).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.getProviderProductById),
+        ),
+      getProviderProductsByProductId: (productId) =>
+        Schema.decodeUnknownEffect(Id)(productId).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.getProviderProductsByProductId),
+        ),
+      getProviderProductsByProjectId: (projectId) =>
+        Schema.decodeUnknownEffect(Id)(projectId).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.getProviderProductsByProjectId),
+        ),
+      setActivePaymentProviderProduct: (input) =>
+        Schema.decodeUnknownEffect(ActivateInput)(input).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.setActivePaymentProviderProduct),
+        ),
+      updatePaymentProviderProduct: (input) =>
+        Schema.decodeUnknownEffect(UpdateInput)(input).pipe(
+          Effect.mapError(invalid),
+          Effect.flatMap(operations.updatePaymentProviderProduct),
+        ),
+    } satisfies PaymentProviderProductServiceShape;
   },
 )();
 

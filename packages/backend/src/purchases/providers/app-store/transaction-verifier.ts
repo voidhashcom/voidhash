@@ -15,10 +15,9 @@ import { AppStorePaymentProvider } from "./payment-provider.ts";
 import * as Schema from "effect/Schema";
 
 /** Apple returned transaction info without the signed payload we need to decode. */
-export class AppStoreSignedTransactionMissingError extends Schema.TaggedErrorClass<AppStoreSignedTransactionMissingError>("AppStoreSignedTransactionMissingError")(
+export class AppStoreSignedTransactionMissingError extends Schema.TaggedErrorClass<AppStoreSignedTransactionMissingError>(
   "AppStoreSignedTransactionMissingError",
-  { message: Schema.String },
-) {}
+)("AppStoreSignedTransactionMissingError", { message: Schema.String }) {}
 
 /** Canonical App Store transaction data accepted by the record engine. */
 export interface AppStoreVerifiedTransaction {

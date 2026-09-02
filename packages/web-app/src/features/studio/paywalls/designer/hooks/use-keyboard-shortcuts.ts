@@ -122,5 +122,12 @@ export function useKeyboardShortcuts() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dispatch, store, snapshot, selectedNodeIds, textEditingNodeId, componentCatalogByContentHash]);
+  }, [
+    dispatch,
+    store,
+    snapshot,
+    selectedNodeIds,
+    textEditingNodeId,
+    componentCatalogByContentHash,
+  ]);
 }

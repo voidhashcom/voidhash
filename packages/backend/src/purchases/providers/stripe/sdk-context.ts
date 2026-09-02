@@ -68,7 +68,10 @@ const initialSignatureParts: {
 
 const parseSignatureHeader = (
   header: string,
-): { readonly timestamp: string | typeof Schema.Undefined.Type; readonly signatures: ReadonlyArray<string> } => {
+): {
+  readonly timestamp: string | typeof Schema.Undefined.Type;
+  readonly signatures: ReadonlyArray<string>;
+} => {
   return Arr.reduce(header.split(","), initialSignatureParts, (result, part) => {
     const idx = part.indexOf("=");
     if (idx === -1) return result;
@@ -292,9 +295,7 @@ export const buildStripeContext = (config: StripeContextConfig) => {
   }) =>
     runOp(GetCheckoutSessionsSessionLineItems({ session: input.sessionId }), input.mode).pipe(
       Effect.flatMap((response) => {
-        const line = response.data.find(
-          (entry) => P.isObject(entry.price) && entry.price !== null,
-        );
+        const line = response.data.find((entry) => P.isObject(entry.price) && entry.price !== null);
         if (!line) return Effect.succeed(undefined);
         return decodePriceRef(line.price);
       }),

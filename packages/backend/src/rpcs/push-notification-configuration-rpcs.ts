@@ -47,19 +47,37 @@ export const PushNotificationConfigurationRpcsLive = PushNotificationConfigurati
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       return Match.value(tagged).pipe(
-        Match.when({ _tag: "ActionForbiddenError" }, () => new RpcActionForbiddenError({ message: tagged.message ?? "" })),
-        Match.when({ _tag: "NotificationConfigNotFoundError" }, () => new RpcPushNotificationConfigurationNotFoundError({
-            message: tagged.message ?? "",
-          })),
-        Match.when({ _tag: "NotificationConfigKeyUnavailableError" }, () => new RpcPushNotificationConfigurationKeyUnavailableError({
-            message: tagged.message ?? "",
-          })),
-        Match.when({ _tag: "NotificationConfigValidationError" }, () => new RpcPushNotificationConfigurationValidationError({
-            cause: String(tagged.cause ?? error),
-          })),
-        Match.orElse(() => new RpcPushNotificationConfigurationServiceError({
-            cause: String(tagged.cause ?? error),
-          })),
+        Match.when(
+          { _tag: "ActionForbiddenError" },
+          () => new RpcActionForbiddenError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "NotificationConfigNotFoundError" },
+          () =>
+            new RpcPushNotificationConfigurationNotFoundError({
+              message: tagged.message ?? "",
+            }),
+        ),
+        Match.when(
+          { _tag: "NotificationConfigKeyUnavailableError" },
+          () =>
+            new RpcPushNotificationConfigurationKeyUnavailableError({
+              message: tagged.message ?? "",
+            }),
+        ),
+        Match.when(
+          { _tag: "NotificationConfigValidationError" },
+          () =>
+            new RpcPushNotificationConfigurationValidationError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
+        Match.orElse(
+          () =>
+            new RpcPushNotificationConfigurationServiceError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
       );
     };
     return {

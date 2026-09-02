@@ -4,10 +4,7 @@ import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/rea
 import type { User as RpcUser } from "@voidhash/rpc";
 import { Spinner } from "@voidhash/ui";
 import { Effect, Result } from "effect";
-import {
-  getSessionUser,
-  type SessionUser,
-} from "@/features/auth/lib/session";
+import { getSessionUser, type SessionUser } from "@/features/auth/lib/session";
 import { AuthProvider } from "@/features/studio/components/auth-context";
 import { DefaultCatchBoundary } from "@/features/studio/components/default-cache-boundary";
 import { DesignerLoadingScreen } from "@/features/studio/paywalls/designer/loading-screen";
@@ -40,8 +37,7 @@ const isAuthenticationError = (error: unknown): error is AuthenticationError => 
   const authError = error as AuthenticationError;
   return (
     (authError._tag !== undefined && AUTHENTICATION_ERROR_TAGS.has(authError._tag)) ||
-    (authError.failure?._tag !== undefined &&
-      AUTHENTICATION_ERROR_TAGS.has(authError.failure._tag))
+    (authError.failure?._tag !== undefined && AUTHENTICATION_ERROR_TAGS.has(authError.failure._tag))
   );
 };
 

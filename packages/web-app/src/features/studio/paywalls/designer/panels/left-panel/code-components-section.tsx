@@ -67,12 +67,19 @@ function CodeComponentRow({
   onDelete: (definition: CodeComponentDefinition) => void;
 }) {
   const store = usePaywallDesignerStore();
-  const artifact = useStore(store, (state) => state.codeComponents.compiled[definition.id]?.artifact);
+  const artifact = useStore(
+    store,
+    (state) => state.codeComponents.compiled[definition.id]?.artifact,
+  );
   const [editingName, setEditingName] = useState<string | null>(null);
 
   return (
     <div className="group flex w-full items-center gap-2 rounded-sm p-1 hover:bg-accent/50">
-      <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onOpen(definition)} type="button">
+      <button
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        onClick={() => onOpen(definition)}
+        type="button"
+      >
         <Thumbnail artifact={artifact} />
         <div className="flex min-w-0 flex-1 flex-col">
           {editingName === null ? (

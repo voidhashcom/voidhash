@@ -61,7 +61,9 @@ export interface FieldsSchema {
   fields: Record<string, SerializedSchema>;
 }
 
-function hasFields(schema: SerializedSchema | undefined): schema is SerializedSchema & FieldsSchema {
+function hasFields(
+  schema: SerializedSchema | undefined,
+): schema is SerializedSchema & FieldsSchema {
   return schema !== undefined && "fields" in schema;
 }
 

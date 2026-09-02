@@ -33,15 +33,15 @@ const result = await paywall.show();
 `show()` never rejects. It resolves to a `ShowPaywallResult` whose `status` tells you what
 happened:
 
-| `status`                | Meaning                                                        |
-| ----------------------- | -------------------------------------------------------------- |
-| `shown`                 | The native presenter opened the paywall.                       |
-| `not_assigned`          | No published paywall is assigned to the location.              |
-| `not_initialized`       | Still initializing, or used outside `<voidhash.Provider>`.     |
-| `initialization_failed` | The provider's `init()` failed. The result carries `error`.    |
-| `native_unavailable`    | The platform has no native paywall presenter.                  |
-| `disabled`              | The client was created with `enabled: false`.                  |
-| `failed`                | Resolve, preload, or presentation failed. Carries `error`.     |
+| `status`                | Meaning                                                     |
+| ----------------------- | ----------------------------------------------------------- |
+| `shown`                 | The native presenter opened the paywall.                    |
+| `not_assigned`          | No published paywall is assigned to the location.           |
+| `not_initialized`       | Still initializing, or used outside `<voidhash.Provider>`.  |
+| `initialization_failed` | The provider's `init()` failed. The result carries `error`. |
+| `native_unavailable`    | The platform has no native paywall presenter.               |
+| `disabled`              | The client was created with `enabled: false`.               |
+| `failed`                | Resolve, preload, or presentation failed. Carries `error`.  |
 
 Purchase and restore failures do not come back from `show()`, because by then the paywall is
 already on screen. They are reported through the hook's `onError` callback instead.
@@ -68,12 +68,12 @@ The hook preloads this location's paywall in the background, so `show()` present
 on the network. The hook's options let you react to what happens on the hosted paywall and to
 preloading itself:
 
-| Option           | Fires when                                                               |
-| ---------------- | ------------------------------------------------------------------------- |
-| `onPurchase`     | A purchase started from the hosted paywall succeeded.                     |
-| `onRestore`      | A restore started from the hosted paywall succeeded.                      |
-| `onError`        | A hosted paywall `purchase` or `restore` action failed.                   |
-| `onPreloadError` | Background preloading of this location's paywall failed.                  |
+| Option           | Fires when                                               |
+| ---------------- | -------------------------------------------------------- |
+| `onPurchase`     | A purchase started from the hosted paywall succeeded.    |
+| `onRestore`      | A restore started from the hosted paywall succeeded.     |
+| `onError`        | A hosted paywall `purchase` or `restore` action failed.  |
+| `onPreloadError` | Background preloading of this location's paywall failed. |
 
 Treat `onPreloadError` as a place to report, not a place to recover. The SDK retries preloading on
 the next app foreground and again when you call `show()`. If `show()` hits the same failure, it

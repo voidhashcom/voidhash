@@ -24,7 +24,6 @@ import { Atom, AtomRegistry } from "effect/unstable/reactivity";
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-
 interface PaywallContextValue {
   getNodeVariables: (nodeId: string) => VariableReader;
   setNodeVariable: (nodeId: string, variableId: string, newValue: VariableValue) => void;
@@ -101,9 +100,11 @@ export function PaywallProvider({
 
   const storesAtom = useAtomRef(
     Atom.make<Option.Option<VariableMap<string, VariableStore>>>(
-      Option.some(new VariableMap(
-      [...scopes.stores].map(([nodeId, { store }]): [string, VariableStore] => [nodeId, store]),
-      )),
+      Option.some(
+        new VariableMap(
+          [...scopes.stores].map(([nodeId, { store }]): [string, VariableStore] => [nodeId, store]),
+        ),
+      ),
     ),
   ).current;
   const nodeStores = Option.getOrElse(useAtomValue(storesAtom), () => {
@@ -115,18 +116,18 @@ export function PaywallProvider({
   const chainReaders = new VariableMap<string, VariableReader>();
 
   const getNodeVariables = (nodeId: string): VariableReader => {
-      const cached = chainReaders.get(nodeId);
-      if (cached) {
-        return cached;
-      }
-      const reader = createChainVariableReader(scopes.parents, (id) => nodeStores.get(id), nodeId);
-      chainReaders.set(nodeId, reader);
-      return reader;
-    };
+    const cached = chainReaders.get(nodeId);
+    if (cached) {
+      return cached;
+    }
+    const reader = createChainVariableReader(scopes.parents, (id) => nodeStores.get(id), nodeId);
+    chainReaders.set(nodeId, reader);
+    return reader;
+  };
 
   const setNodeVariable = (nodeId: string, variableId: string, newValue: VariableValue) => {
-      atomRegistry.update(storesAtom, (current) =>
-        Option.map(current, (prev) => {
+    atomRegistry.update(storesAtom, (current) =>
+      Option.map(current, (prev) => {
         // Write to the nearest store in the ancestor chain declaring the id;
         // drop the write when no scope in the chain declares it.
         const declaringNodeId = findDeclaringNodeInChain(
@@ -156,9 +157,9 @@ export function PaywallProvider({
         const next = new VariableMap(prev);
         next.set(declaringNodeId, nextStore);
         return next;
-        }),
-      );
-    };
+      }),
+    );
+  };
 
   const onClosePaywall = () => {
     postPaywallMessage({ type: "paywall:close" });
@@ -171,22 +172,24 @@ export function PaywallProvider({
   // onSetVariable in ActionCallbacks doesn't know about nodeId — it's
   // wrapped per-node in use-interactions.ts via scopedCallbacks.
   const onSetVariable = (variableId: string, _newValue: VariableValue) => {
-    EffectRuntime.runFork(Console.warn(
-      `onSetVariable called directly for "${variableId}" without node context. ` +
-        "Use the scoped callback from useInteractions instead.",
-    ));
+    EffectRuntime.runFork(
+      Console.warn(
+        `onSetVariable called directly for "${variableId}" without node context. ` +
+          "Use the scoped callback from useInteractions instead.",
+      ),
+    );
   };
 
   const callbacks: ActionCallbacks = { onClosePaywall, onPurchaseProduct, onSetVariable };
 
   const contextValue: PaywallContextValue = {
-      getNodeVariables,
-      setNodeVariable,
-      callbacks,
-      componentArtifacts,
-      locale,
-      defaultLocale,
-    };
+    getNodeVariables,
+    setNodeVariable,
+    callbacks,
+    componentArtifacts,
+    locale,
+    defaultLocale,
+  };
 
   return createElement(PaywallContext.Provider, { value: contextValue }, children);
 }

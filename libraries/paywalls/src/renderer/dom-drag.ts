@@ -63,7 +63,12 @@ const constraintsFor = (
   return constraints;
 };
 
-const elastic = (value: number, min: number | undefined, max: number | undefined, amount: boolean | number | undefined): number => {
+const elastic = (
+  value: number,
+  min: number | undefined,
+  max: number | undefined,
+  amount: boolean | number | undefined,
+): number => {
   const factor = amount === false ? 0 : typeof amount === "number" ? amount : 0.35;
   if (min !== undefined && value < min) return min + (value - min) * factor;
   if (max !== undefined && value > max) return max + (value - max) * factor;
@@ -78,7 +83,12 @@ const dragInfo = (
   const delta = { x: point.x - session.lastPoint.x, y: point.y - session.lastPoint.y };
   const offset = { x: point.x - session.point.x, y: point.y - session.point.y };
   const elapsed = Math.max(1, timeStamp - session.lastTime);
-  return { delta, offset, point, velocity: { x: (delta.x / elapsed) * 1000, y: (delta.y / elapsed) * 1000 } };
+  return {
+    delta,
+    offset,
+    point,
+    velocity: { x: (delta.x / elapsed) * 1000, y: (delta.y / elapsed) * 1000 },
+  };
 };
 
 /** Maps pointer streams to the shared drag semantics without exposing DOM events publicly. */
@@ -94,7 +104,10 @@ export const useDomDrag = (
     if (!props.drag) return;
     const origin = controller.getVisualStyle();
     session.current = {
-      constraints: constraintsFor(props.dragConstraints, node, { x: origin.x ?? 0, y: origin.y ?? 0 }),
+      constraints: constraintsFor(props.dragConstraints, node, {
+        x: origin.x ?? 0,
+        y: origin.y ?? 0,
+      }),
       lastPoint: event.point,
       lastTime: event.timeStamp,
       lockedAxis: undefined,
@@ -104,9 +117,17 @@ export const useDomDrag = (
       won: true,
     };
     callbacks.onStart?.();
-    props.onDragStart?.(event, { delta: { x: 0, y: 0 }, offset: { x: 0, y: 0 }, point: event.point, velocity: { x: 0, y: 0 } });
+    props.onDragStart?.(event, {
+      delta: { x: 0, y: 0 },
+      offset: { x: 0, y: 0 },
+      point: event.point,
+      velocity: { x: 0, y: 0 },
+    });
   };
-  useDragControlRegistration(props.dragControls, props.dragListener === false ? startFromControls : undefined);
+  useDragControlRegistration(
+    props.dragControls,
+    props.dragListener === false ? startFromControls : undefined,
+  );
 
   const finish = (event: PointerEvent<HTMLElement>) => {
     const current = session.current;
@@ -136,13 +157,22 @@ export const useDomDrag = (
   };
 
   return {
-    touchAction: !props.drag ? "manipulation" : props.drag === "x" ? "pan-y" : props.drag === "y" ? "pan-x" : "none",
+    touchAction: !props.drag
+      ? "manipulation"
+      : props.drag === "x"
+        ? "pan-y"
+        : props.drag === "y"
+          ? "pan-x"
+          : "none",
     onPointerDown: (event) => {
       if (!props.drag || props.dragListener === false) return;
       controller.stop();
       const origin = controller.getVisualStyle();
       session.current = {
-        constraints: constraintsFor(props.dragConstraints, node, { x: origin.x ?? 0, y: origin.y ?? 0 }),
+        constraints: constraintsFor(props.dragConstraints, node, {
+          x: origin.x ?? 0,
+          y: origin.y ?? 0,
+        }),
         lastPoint: { x: event.clientX, y: event.clientY },
         lastTime: event.timeStamp,
         lockedAxis: undefined,
@@ -180,8 +210,18 @@ export const useDomDrag = (
       event.preventDefault();
       const xOffset = current.lockedAxis === "y" ? 0 : info.offset.x;
       const yOffset = current.lockedAxis === "x" ? 0 : info.offset.y;
-      const x = elastic(current.origin.x + xOffset, current.constraints?.left, current.constraints?.right, props.dragElastic);
-      const y = elastic(current.origin.y + yOffset, current.constraints?.top, current.constraints?.bottom, props.dragElastic);
+      const x = elastic(
+        current.origin.x + xOffset,
+        current.constraints?.left,
+        current.constraints?.right,
+        props.dragElastic,
+      );
+      const y = elastic(
+        current.origin.y + yOffset,
+        current.constraints?.top,
+        current.constraints?.bottom,
+        props.dragElastic,
+      );
       controller.setVisualStyle({ x, y });
       props.onDrag?.(normalized, info);
       current.lastPoint = normalized.point;

@@ -218,10 +218,12 @@ export default function AccountScreen() {
             tone={isFlagEnabled ? "positive" : "neutral"}
           />
         )}
-        {variant === null ? null : Option.match(variant.variantKey, {
-          onNone: () => null,
-          onSome: (variantKey) => <Field label="Variant" value={variantKey} />,
-        })}
+        {variant === null
+          ? null
+          : Option.match(variant.variantKey, {
+              onNone: () => null,
+              onSome: (variantKey) => <Field label="Variant" value={variantKey} />,
+            })}
         <Button
           onPress={() => {
             void refetchFlags();

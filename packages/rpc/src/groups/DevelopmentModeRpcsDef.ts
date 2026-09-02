@@ -44,9 +44,7 @@ const DevelopmentState = Schema.Struct({
       status: Schema.Number,
     }),
   ),
-}).pipe(
-  Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }),
-);
+}).pipe(Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }));
 
 export class DevelopmentModeRpcsDef extends RpcGroup.make(
   Rpc.make("GetDevelopmentModeSettings", {

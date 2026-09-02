@@ -27,7 +27,12 @@ import {
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
-import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "@/features/studio/settings";
+import {
+  SettingsCard,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from "@/features/studio/settings";
 
 import { NotificationProviderDetailPageChrome } from "../components/notification-provider-detail-page-chrome";
 import { notificationProviders } from "../notification-providers";

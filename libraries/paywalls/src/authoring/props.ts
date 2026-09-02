@@ -91,9 +91,7 @@ export class PropBuilder<
    * receiver's concrete kind so later kind-specific chaining (e.g. string-only
    * `.editor()`) still works.
    */
-  localizable(
-    this: PropBuilder<T, Opt, Def, "string" | "image">,
-  ): PropBuilder<T, Opt, Def, K> {
+  localizable(this: PropBuilder<T, Opt, Def, "string" | "image">): PropBuilder<T, Opt, Def, K> {
     // The returned builder preserves the receiver's concrete kind `K`, which the
     // `this` constraint widens to the localizable union; the cast re-narrows it.
     return new PropBuilder({ ...this.schema, localizable: true }) as PropBuilder<T, Opt, Def, K>;

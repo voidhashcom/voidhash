@@ -114,11 +114,7 @@ export function ComponentSettingsPanel(_ctx: PanelContext) {
   const effectivePreviewState = previewStateSelection ?? persistedPreviewState;
 
   const updatePlan = useMemo((): VersionUpdatePlan | null => {
-    if (
-      !node ||
-      !catalogEntry ||
-      catalogEntry.latestVersion <= node.data.componentVersion
-    ) {
+    if (!node || !catalogEntry || catalogEntry.latestVersion <= node.data.componentVersion) {
       return null;
     }
     const latest = catalogEntry.latest;
@@ -226,11 +222,7 @@ export function ComponentSettingsPanel(_ctx: PanelContext) {
       <Panel.Section title="Component">
         <Panel.Column gap="sm">
           <Panel.Field label="Name">
-            <Panel.TextField
-              kind="text"
-              value={node.data.name ?? ""}
-              onChange={handleNameChange}
-            />
+            <Panel.TextField kind="text" value={node.data.name ?? ""} onChange={handleNameChange} />
           </Panel.Field>
           <Panel.Field label="Component">
             <Panel.Text content={componentLabel} />
@@ -260,7 +252,12 @@ export function ComponentSettingsPanel(_ctx: PanelContext) {
         {previewStates.length > 1 && (
           <Panel.Subsection title="Preview state">
             {effectivePreviewState !== persistedPreviewState && (
-              <Panel.Button label="Set as default" variant="ghost" size="sm" onClick={handlePersistPreviewState} />
+              <Panel.Button
+                label="Set as default"
+                variant="ghost"
+                size="sm"
+                onClick={handlePersistPreviewState}
+              />
             )}
             <Panel.Column gap="none">
               {previewStates.map((state) => (

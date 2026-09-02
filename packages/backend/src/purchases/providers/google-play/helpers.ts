@@ -277,15 +277,24 @@ export const getGooglePlayPurchaseProcessingIdempotencyKey = (input: {
     return yield* Match.value(eventType).pipe(
       Match.whenOr("purchase", "renewal", "one_time_purchase", "refund", () =>
         Effect.gen(function* () {
-if (Option.isNone(purchase.orderId)) return yield* fail("orderId");
-        return `google:${purchase.orderId.value}:${eventType}`;
-        })),
+          if (Option.isNone(purchase.orderId)) return yield* fail("orderId");
+          return `google:${purchase.orderId.value}:${eventType}`;
+        }),
+      ),
       Match.when("revoke", () => Effect.succeed(`google:${purchase.purchaseToken}:revoke`)),
-      Match.whenOr("expired", "canceled", "billing_retry", "extended", "price_increase", "auto_renew_resumed", () =>
-        Effect.gen(function* () {
-if (Option.isNone(purchase.expiryTime)) return yield* fail("expiryTime");
-        return `google:${purchase.purchaseToken}:${eventType}:${purchase.expiryTime.value.getTime()}`;
-        })),
+      Match.whenOr(
+        "expired",
+        "canceled",
+        "billing_retry",
+        "extended",
+        "price_increase",
+        "auto_renew_resumed",
+        () =>
+          Effect.gen(function* () {
+            if (Option.isNone(purchase.expiryTime)) return yield* fail("expiryTime");
+            return `google:${purchase.purchaseToken}:${eventType}:${purchase.expiryTime.value.getTime()}`;
+          }),
+      ),
       Match.exhaustive,
     );
   });

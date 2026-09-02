@@ -204,7 +204,12 @@ function BaseValueCell({ row }: { row: TranslationRow }) {
       <div className="flex items-center gap-2 px-2 py-1">
         <div className="relative flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border/60 bg-muted">
           {url !== "" ? (
-            <img alt="" className="absolute inset-0 size-full object-cover" loading="lazy" src={url} />
+            <img
+              alt=""
+              className="absolute inset-0 size-full object-cover"
+              loading="lazy"
+              src={url}
+            />
           ) : (
             <ImageIcon className="size-3.5 text-muted-foreground" />
           )}

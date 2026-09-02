@@ -66,14 +66,12 @@ export const RevenueEventSinkLive = Layer.effect(
             events.map((event) => makeInternalCaptureEnvelope(event, receivedAt)),
           );
         },
-        (
-          Effect.mapError(
-            (error) =>
-              new RevenueEventSinkError({
-                cause: error,
-                message: error.message,
-              }),
-          )
+        Effect.mapError(
+          (error) =>
+            new RevenueEventSinkError({
+              cause: error,
+              message: error.message,
+            }),
         ),
       ),
     });

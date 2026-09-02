@@ -10,18 +10,14 @@ const STRIPE_WEBHOOK_SECRET_PATTERN = /^whsec_[A-Za-z0-9]+$/;
 const STRIPE_PRODUCT_ID_PATTERN = /^prod_[A-Za-z0-9]+$/;
 const STRIPE_PRICE_ID_PATTERN = /^price_[A-Za-z0-9]+$/;
 
-const isEncryptedSecret = (value: string): boolean =>
-  value.startsWith(ENCRYPTED_SECRET_PREFIX);
+const isEncryptedSecret = (value: string): boolean => value.startsWith(ENCRYPTED_SECRET_PREFIX);
 
 const stripeCredentialsSchema = (mode: "live" | "test") =>
   z.object({
     secretKey: z
       .string()
       .min(1, {
-        message:
-          mode === "live"
-            ? "Live API key is required"
-            : "Test API key is required",
+        message: mode === "live" ? "Live API key is required" : "Test API key is required",
       })
       .refine(
         (value) =>
@@ -43,13 +39,9 @@ const stripeCredentialsSchema = (mode: "live" | "test") =>
             ? "Live webhook signing secret is required"
             : "Test webhook signing secret is required",
       })
-      .refine(
-        (value) =>
-          isEncryptedSecret(value) || STRIPE_WEBHOOK_SECRET_PATTERN.test(value),
-        {
-          message: "Webhook signing secret must start with whsec_",
-        },
-      ),
+      .refine((value) => isEncryptedSecret(value) || STRIPE_WEBHOOK_SECRET_PATTERN.test(value), {
+        message: "Webhook signing secret must start with whsec_",
+      }),
   });
 
 export const stripeGlobalConfigurationSchema = z.object({
@@ -65,9 +57,7 @@ export const stripeGlobalConfigurationSchema = z.object({
   test: stripeCredentialsSchema("test"),
 });
 
-export type StripeGlobalConfiguration = z.infer<
-  typeof stripeGlobalConfigurationSchema
->;
+export type StripeGlobalConfiguration = z.infer<typeof stripeGlobalConfigurationSchema>;
 
 const stripeProductConfigurationSchema = z.object({
   priceId: z

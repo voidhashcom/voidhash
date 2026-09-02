@@ -22,11 +22,10 @@ export const bindEffectRunner =
     runner: EffectRunner<ConnectionData, R>,
     connectionData: ConnectionData,
   ): BoundEffectRunner<R> =>
-  (effect, ...signals) => runner(connectionData, effect, ...signals);
+  (effect, ...signals) =>
+    runner(connectionData, effect, ...signals);
 
-const runOptions = (
-  signal: AbortSignal | void,
-): Readonly<Partial<{ signal: AbortSignal }>> => {
+const runOptions = (signal: AbortSignal | void): Readonly<Partial<{ signal: AbortSignal }>> => {
   if (signal === undefined) return {};
   return { signal };
 };

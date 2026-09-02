@@ -38,32 +38,32 @@ function libFileName(libName: string): string {
 
 /** Follow the transitive `/// <reference lib />` graph from the root lib. */
 const collectLibs = Effect.fn("collectLibs")(function* (tsLibDir: string) {
-    const fileSystem = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
 
-    const visit = (
-      queue: readonly string[],
-      collected: HashMap.HashMap<string, string>,
-    ): Effect.Effect<HashMap.HashMap<string, string>, unknown> =>
-      Arr.match(queue, {
-        onEmpty: () => Effect.succeed(collected),
-        onNonEmpty: ([fileName, ...remaining]) => {
-          if (HashMap.has(collected, fileName)) return visit(remaining, collected);
-          return Effect.gen(function* () {
-      const contents = yield* fileSystem.readFileString(path.join(tsLibDir, fileName));
-            const references = Array.from(contents.matchAll(REFERENCE_RE)).flatMap((match) =>
-              match[1] === undefined ? [] : [libFileName(match[1])],
-            );
-            return yield* visit(
-              [...remaining, ...references],
-              HashMap.set(collected, fileName, contents),
-            );
-          });
-        },
-      });
+  const visit = (
+    queue: readonly string[],
+    collected: HashMap.HashMap<string, string>,
+  ): Effect.Effect<HashMap.HashMap<string, string>, unknown> =>
+    Arr.match(queue, {
+      onEmpty: () => Effect.succeed(collected),
+      onNonEmpty: ([fileName, ...remaining]) => {
+        if (HashMap.has(collected, fileName)) return visit(remaining, collected);
+        return Effect.gen(function* () {
+          const contents = yield* fileSystem.readFileString(path.join(tsLibDir, fileName));
+          const references = Array.from(contents.matchAll(REFERENCE_RE)).flatMap((match) =>
+            match[1] === undefined ? [] : [libFileName(match[1])],
+          );
+          return yield* visit(
+            [...remaining, ...references],
+            HashMap.set(collected, fileName, contents),
+          );
+        });
+      },
+    });
 
-    return yield* visit([ROOT_LIB], HashMap.empty());
-  });
+  return yield* visit([ROOT_LIB], HashMap.empty());
+});
 
 /** A stable identifier for a lib file name, used as its module export name. */
 function moduleIdent(fileName: string): string {

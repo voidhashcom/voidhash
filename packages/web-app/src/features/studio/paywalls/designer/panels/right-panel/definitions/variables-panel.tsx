@@ -129,7 +129,12 @@ export function VariablesPanel(_ctx: PanelContext) {
       } else {
         // Persist buffered edits on close, only if changed (mirrors the old row).
         if (editName !== variable.value.name) {
-          dispatch(updateVariable)({ newName: editName, nodeId, nodeType, variableId: variable.id });
+          dispatch(updateVariable)({
+            newName: editName,
+            nodeId,
+            nodeType,
+            variableId: variable.id,
+          });
         }
         if (JSON.stringify(editValue) !== JSON.stringify(variable.value.value)) {
           dispatch(updateVariable)({

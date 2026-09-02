@@ -53,9 +53,7 @@ export function flattenTree(root: TreeWalkNode | null | undefined): TreeWalkNode
 }
 
 /** Builds an id-keyed index of every node in the subtree rooted at `root`. */
-export function buildNodeIndex<T extends TreeWalkNode>(
-  root: T | null | undefined,
-): Map<string, T>;
+export function buildNodeIndex<T extends TreeWalkNode>(root: T | null | undefined): Map<string, T>;
 export function buildNodeIndex(root: TreeWalkNode | null | undefined): Map<string, TreeWalkNode> {
   const index = new Map<string, TreeWalkNode>();
   for (const node of flattenTree(root)) {

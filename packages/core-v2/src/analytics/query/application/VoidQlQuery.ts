@@ -257,12 +257,13 @@ const makeVoidQlQuery = Effect.fn("makeVoidQlQuery")(function* () {
       Effect.mapError(executionError("The saved query could not be loaded.")),
       Effect.flatMap(
         Option.match({
-          onNone: () => Effect.fail(
-          new VoidQlExecutionError({
-            cause: "not_found",
-            message: "The saved query was not found.",
-          }),
-          ),
+          onNone: () =>
+            Effect.fail(
+              new VoidQlExecutionError({
+                cause: "not_found",
+                message: "The saved query was not found.",
+              }),
+            ),
           onSome: Effect.succeed,
         }),
       ),

@@ -186,10 +186,7 @@ export function ComponentNodeRenderer({
             <BuiltinComponentContent node={node} />
           ) : isLocal ? (
             localArtifact !== undefined ? (
-              <LocalComponentPreviewContent
-                renderSlot={() => children}
-                tree={localTree}
-              />
+              <LocalComponentPreviewContent renderSlot={() => children} tree={localTree} />
             ) : !localDefinitionExists ? (
               <PlaceholderChip label={`Missing component file — ${node.data.componentPath}`} />
             ) : localStatus === "error" ? (

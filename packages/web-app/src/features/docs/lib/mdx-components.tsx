@@ -53,7 +53,5 @@ export const docsMdxComponents = {
   Tabs,
   TypeTable,
   a: DocsMdxLink,
-  iframe: (props: ComponentProps<"iframe">) => (
-    <iframe {...props} className="h-[500px] w-full" />
-  ),
+  iframe: (props: ComponentProps<"iframe">) => <iframe {...props} className="h-[500px] w-full" />,
 };

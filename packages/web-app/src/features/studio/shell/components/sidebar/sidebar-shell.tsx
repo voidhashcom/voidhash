@@ -131,9 +131,7 @@ export function SidebarShell({
                       {activeParent.items?.map((subItem) => (
                         <SidebarMenuItem key={subItem.title}>
                           <SidebarMenuButton asChild isActive={subItem.isActive?.()}>
-                            <TanstackLink
-                              to={subItem.url as any}
-                            >
+                            <TanstackLink to={subItem.url as any}>
                               {subItem.icon && <subItem.icon />}
                               <span>{subItem.title}</span>
                             </TanstackLink>

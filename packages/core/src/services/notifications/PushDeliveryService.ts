@@ -179,18 +179,18 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         readonly providerMessageId?: string;
         readonly lastError?: string;
       }) {
-          const completedAt = yield* DateTime.nowAsDate;
-          return yield* db
-            .update(pushNotificationDeliveries)
-            .set({
-              status: input.status,
-              completedAt,
-              nextAttemptAt: null,
-              ...(input.providerMessageId && { providerMessageId: input.providerMessageId }),
-              ...(input.lastError && { lastError: input.lastError.slice(0, 500) }),
-            })
-            .where(eq(pushNotificationDeliveries.id, input.deliveryId));
-        });
+        const completedAt = yield* DateTime.nowAsDate;
+        return yield* db
+          .update(pushNotificationDeliveries)
+          .set({
+            status: input.status,
+            completedAt,
+            nextAttemptAt: null,
+            ...(input.providerMessageId && { providerMessageId: input.providerMessageId }),
+            ...(input.lastError && { lastError: input.lastError.slice(0, 500) }),
+          })
+          .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+      });
 
       /** Non-terminal retry transition: status Failed, `completedAt` stays null (re-claimable). */
       const scheduleRetry = Effect.fn("PushDeliveryService.scheduleRetry")(function* (input: {
@@ -198,19 +198,19 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         readonly delaySeconds: number;
         readonly lastError: string;
       }) {
-          const now = yield* DateTime.now;
-          const nextAttemptAt = DateTime.toDateUtc(
-            DateTime.addDuration(now, Duration.seconds(input.delaySeconds)),
-          );
-          return yield* db
-            .update(pushNotificationDeliveries)
-            .set({
-              status: PushNotificationDeliveryStatus.Failed,
-              nextAttemptAt,
-              lastError: input.lastError.slice(0, 500),
-            })
-            .where(eq(pushNotificationDeliveries.id, input.deliveryId));
-        });
+        const now = yield* DateTime.now;
+        const nextAttemptAt = DateTime.toDateUtc(
+          DateTime.addDuration(now, Duration.seconds(input.delaySeconds)),
+        );
+        return yield* db
+          .update(pushNotificationDeliveries)
+          .set({
+            status: PushNotificationDeliveryStatus.Failed,
+            nextAttemptAt,
+            lastError: input.lastError.slice(0, 500),
+          })
+          .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+      });
 
       /**
        * Race-free parent roll-up: recompute the aggregate from the child rows.
@@ -218,12 +218,17 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
        * `completedAt` (terminal-device Failed); a Failed row awaiting retry is
        * still in flight.
        */
-      const rollupParentSend = Effect.fn("PushDeliveryService.rollupParentSend")(function* (sendId: string) {
-          const rows = yield* db.query.pushNotificationDeliveries.findMany({
-            where: { pushNotificationSendId: sendId },
-          });
-          const total = rows.length;
-          const tallies = Arr.reduce(rows, { inFlight: 0, settledFailed: 0, succeeded: 0 }, (state, row) => {
+      const rollupParentSend = Effect.fn("PushDeliveryService.rollupParentSend")(function* (
+        sendId: string,
+      ) {
+        const rows = yield* db.query.pushNotificationDeliveries.findMany({
+          where: { pushNotificationSendId: sendId },
+        });
+        const total = rows.length;
+        const tallies = Arr.reduce(
+          rows,
+          { inFlight: 0, settledFailed: 0, succeeded: 0 },
+          (state, row) => {
             if (row.status === PushNotificationDeliveryStatus.Succeeded) {
               return { ...state, succeeded: state.succeeded + 1 };
             }
@@ -234,20 +239,21 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
               return { ...state, settledFailed: state.settledFailed + 1 };
             }
             return { ...state, inFlight: state.inFlight + 1 };
-          });
-          const { inFlight, settledFailed, succeeded } = tallies;
-          const status = rollupSendStatus({ inFlight, succeeded, total });
-          const completedAt = yield* DateTime.nowAsDate;
-          yield* db
-            .update(pushNotificationSends)
-            .set({
-              status,
-              succeededCount: succeeded,
-              failedCount: settledFailed,
-              ...(inFlight === 0 && { completedAt }),
-            })
-            .where(eq(pushNotificationSends.id, sendId));
-        });
+          },
+        );
+        const { inFlight, settledFailed, succeeded } = tallies;
+        const status = rollupSendStatus({ inFlight, succeeded, total });
+        const completedAt = yield* DateTime.nowAsDate;
+        yield* db
+          .update(pushNotificationSends)
+          .set({
+            status,
+            succeededCount: succeeded,
+            failedCount: settledFailed,
+            ...(inFlight === 0 && { completedAt }),
+          })
+          .where(eq(pushNotificationSends.id, sendId));
+      });
 
       const processDelivery = Effect.fn("processPushDelivery")(
         function* (deliveryId: string) {
@@ -315,22 +321,22 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
             readonly errorMessage: string;
             readonly status: number;
           }) {
-              yield* recordAttempt({
-                deliveryId,
-                attemptNumber,
-                succeeded: false,
-                statusCode: Option.none(),
-                providerErrorCode: Option.some(input.providerErrorCode),
-                durationMs: Option.none(),
-                errorMessage: Option.some(input.errorMessage),
-              });
-              yield* finalizeDelivery({
-                deliveryId,
-                status: input.status,
-                lastError: input.errorMessage,
-              });
-              yield* rollupParentSend(row.pushNotificationSendId);
+            yield* recordAttempt({
+              deliveryId,
+              attemptNumber,
+              succeeded: false,
+              statusCode: Option.none(),
+              providerErrorCode: Option.some(input.providerErrorCode),
+              durationMs: Option.none(),
+              errorMessage: Option.some(input.errorMessage),
             });
+            yield* finalizeDelivery({
+              deliveryId,
+              status: input.status,
+              lastError: input.errorMessage,
+            });
+            yield* rollupParentSend(row.pushNotificationSendId);
+          });
 
           // Dereference the device (tenant-isolated on projectId AND id). A
           // missing/invalidated device is terminal: nothing to deliver to.
@@ -563,7 +569,8 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
        * DLQ backstop: mark a delivery Exhausted after the queue drained its
        * retries. Idempotent — only settles a still-open row.
        */
-      const markExhausted = Effect.fn("PushDeliveryService.markExhausted")(function* (deliveryId: string) {
+      const markExhausted = Effect.fn("PushDeliveryService.markExhausted")(
+        function* (deliveryId: string) {
           const completedAt = yield* DateTime.nowAsDate;
           const rows = yield* db
             .update(pushNotificationDeliveries)
@@ -579,12 +586,15 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           if (sendId) {
             yield* rollupParentSend(sendId);
           }
-        }, (effect) => effect.pipe(
-          Effect.catchTags({
-            EffectDrizzleQueryError: (error) =>
-              Effect.fail(new PushDeliveryServiceError({ cause: String(error.cause) })),
-          }),
-        ));
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(new PushDeliveryServiceError({ cause: String(error.cause) })),
+            }),
+          ),
+      );
 
       return constant({ processDelivery, markExhausted });
     }),

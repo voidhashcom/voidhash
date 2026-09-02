@@ -3,7 +3,11 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import { animateMotionValue, frameDriverFromAdapter } from "../motion/animation";
 import { useMotionConfig, useReducedMotion } from "../motion/context";
 import { useMotionPlatform } from "../motion/platform";
-import { resolveMotionDefinition, resolveMotionInitialStyle, resolveMotionRestStyle } from "../motion/resolve";
+import {
+  resolveMotionDefinition,
+  resolveMotionInitialStyle,
+  resolveMotionRestStyle,
+} from "../motion/resolve";
 import { compileMotionCss } from "../motion/transform";
 import { isMotionValue, motionValue } from "../motion/value";
 import type {
@@ -78,7 +82,14 @@ export const useDomNodeHandle = <T extends MotionNodeHandle = MotionNodeHandle>(
       getScrollMetrics: () => {
         const element = elementRef.current;
         if (!element) {
-          return { contentHeight: 0, contentWidth: 0, viewportHeight: 0, viewportWidth: 0, x: 0, y: 0 };
+          return {
+            contentHeight: 0,
+            contentWidth: 0,
+            viewportHeight: 0,
+            viewportWidth: 0,
+            x: 0,
+            y: 0,
+          };
         }
         return {
           contentHeight: element.scrollHeight,
@@ -104,10 +115,22 @@ export const useDomNodeHandle = <T extends MotionNodeHandle = MotionNodeHandle>(
   return handle;
 };
 
-const motionValuesFromStyle = (style: MotionStyleProp | undefined): Partial<Record<MotionStyleKey, ReturnType<typeof motionValue>>> => {
+const motionValuesFromStyle = (
+  style: MotionStyleProp | undefined,
+): Partial<Record<MotionStyleKey, ReturnType<typeof motionValue>>> => {
   const flat = flattenStyle(style as never) as Record<string, unknown>;
   const values: Partial<Record<MotionStyleKey, ReturnType<typeof motionValue>>> = {};
-  for (const key of ["x", "y", "scale", "scaleX", "scaleY", "rotate", "opacity", "backgroundColor", "transformOrigin"] as const) {
+  for (const key of [
+    "x",
+    "y",
+    "scale",
+    "scaleX",
+    "scaleY",
+    "rotate",
+    "opacity",
+    "backgroundColor",
+    "transformOrigin",
+  ] as const) {
     if (isMotionValue(flat[key])) values[key] = flat[key] as ReturnType<typeof motionValue>;
   }
   return values;
@@ -125,14 +148,25 @@ const transitionFor = (
 const mergeTarget = (
   props: MotionVisualProps,
   rest: ResolvedMotionStyle,
-  state: { readonly inView?: boolean; readonly pressed?: boolean; readonly focused?: boolean; readonly dragging?: boolean },
+  state: {
+    readonly inView?: boolean;
+    readonly pressed?: boolean;
+    readonly focused?: boolean;
+    readonly dragging?: boolean;
+  },
 ): ResolvedMotionStyle => {
   const target = { ...rest };
   const definitions = [
     state.inView ? props.whileInView : undefined,
-    state.pressed ? (props as MotionVisualProps & { whilePress?: MotionVisualProps["whileInView"] }).whilePress : undefined,
-    state.focused ? (props as MotionVisualProps & { whileFocus?: MotionVisualProps["whileInView"] }).whileFocus : undefined,
-    state.dragging ? (props as MotionVisualProps & { whileDrag?: MotionVisualProps["whileInView"] }).whileDrag : undefined,
+    state.pressed
+      ? (props as MotionVisualProps & { whilePress?: MotionVisualProps["whileInView"] }).whilePress
+      : undefined,
+    state.focused
+      ? (props as MotionVisualProps & { whileFocus?: MotionVisualProps["whileInView"] }).whileFocus
+      : undefined,
+    state.dragging
+      ? (props as MotionVisualProps & { whileDrag?: MotionVisualProps["whileInView"] }).whileDrag
+      : undefined,
   ];
   for (const definition of definitions) {
     Object.assign(target, resolveMotionDefinition(definition, props.variants));
@@ -143,9 +177,11 @@ const mergeTarget = (
 const writeMotionStyle = (element: DomElement, style: ResolvedMotionStyle): void => {
   const css = compileMotionCss(style);
   element.style.opacity = css.opacity === undefined ? "" : String(css.opacity);
-  element.style.backgroundColor = css.backgroundColor === undefined ? "" : String(css.backgroundColor);
+  element.style.backgroundColor =
+    css.backgroundColor === undefined ? "" : String(css.backgroundColor);
   element.style.transform = css.transform === undefined ? "" : String(css.transform);
-  element.style.transformOrigin = css.transformOrigin === undefined ? "" : String(css.transformOrigin);
+  element.style.transformOrigin =
+    css.transformOrigin === undefined ? "" : String(css.transformOrigin);
 };
 
 export interface DomMotionController {
@@ -160,7 +196,12 @@ export interface DomMotionController {
 export const useDomMotion = (
   elementRef: RefObject<DomElement | null>,
   props: MotionVisualProps & { readonly style?: MotionStyleProp },
-  state: { readonly inView?: boolean; readonly pressed?: boolean; readonly focused?: boolean; readonly dragging?: boolean } = {},
+  state: {
+    readonly inView?: boolean;
+    readonly pressed?: boolean;
+    readonly focused?: boolean;
+    readonly dragging?: boolean;
+  } = {},
 ): DomMotionController => {
   const config = useMotionConfig();
   const platform = useMotionPlatform();
@@ -185,11 +226,15 @@ export const useDomMotion = (
         stops.current.forEach((stop) => stop());
         const target = { ...visual.current, ...patch };
         const disposers: Array<() => void> = [];
-        for (const [key, next] of Object.entries(target) as Array<[MotionStyleKey, ResolvedMotionStyle[MotionStyleKey]]>) {
+        for (const [key, next] of Object.entries(target) as Array<
+          [MotionStyleKey, ResolvedMotionStyle[MotionStyleKey]]
+        >) {
           const current = visual.current[key];
           if (typeof current === "number" && typeof next === "number") {
             const value = motionValue(current);
-            disposers.push(value.on("change", (updated) => controller.setVisualStyle({ [key]: updated })));
+            disposers.push(
+              value.on("change", (updated) => controller.setVisualStyle({ [key]: updated })),
+            );
             disposers.push(animateMotionValue(value, next, transition));
           } else {
             controller.setVisualStyle({ [key]: next });
@@ -218,7 +263,7 @@ export const useDomMotion = (
     const animationDefinition =
       props.animate && typeof props.animate === "object" && "start" in props.animate
         ? target
-        : props.animate ?? target;
+        : (props.animate ?? target);
     const finish = () => {
       if (completed) return;
       completed = true;
@@ -236,7 +281,9 @@ export const useDomMotion = (
       let remaining = numericKeys.length;
       for (const [key, next] of numericKeys) {
         const value = motionValue(start[key] as number);
-        disposers.push(value.on("change", (current) => controller.setVisualStyle({ [key]: current })));
+        disposers.push(
+          value.on("change", (current) => controller.setVisualStyle({ [key]: current })),
+        );
         disposers.push(
           animateMotionValue(
             value,
@@ -255,7 +302,9 @@ export const useDomMotion = (
           ),
         );
       }
-      for (const [key, next] of Object.entries(target) as Array<[MotionStyleKey, ResolvedMotionStyle[MotionStyleKey]]>) {
+      for (const [key, next] of Object.entries(target) as Array<
+        [MotionStyleKey, ResolvedMotionStyle[MotionStyleKey]]
+      >) {
         if (typeof next !== "number" || typeof start[key] !== "number") {
           controller.setVisualStyle({ [key]: next });
         }

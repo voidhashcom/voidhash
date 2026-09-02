@@ -146,7 +146,9 @@ function styleValuesEqual(a: unknown, b: unknown): boolean {
  * when it is available for every node, and a field is mixed when any two nodes
  * disagree on its effective value. Empty selections yield `null`.
  */
-export function selectionCapabilities(views: readonly StyleTargetView[]): SelectionCapabilities | null {
+export function selectionCapabilities(
+  views: readonly StyleTargetView[],
+): SelectionCapabilities | null {
   if (views.length === 0) return null;
   const firstView = views[0];
   if (firstView === undefined) return null;

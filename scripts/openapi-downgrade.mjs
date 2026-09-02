@@ -150,7 +150,12 @@ const transformNode = (node) => {
   const rawPrefixItems = Array.isArray(node.prefixItems) ? node.prefixItems : undefined;
   const result = {};
   for (const [key, value] of Object.entries(node)) {
-    if (key === "$schema" || key === "jsonSchemaDialect" || key === "webhooks" || key === "prefixItems") {
+    if (
+      key === "$schema" ||
+      key === "jsonSchemaDialect" ||
+      key === "webhooks" ||
+      key === "prefixItems"
+    ) {
       continue;
     }
     result[key] = transformNode(value);
@@ -202,7 +207,9 @@ const parseArgs = (argv) => {
 const { renames, flattenErrors, anySchemas, positional } = parseArgs(process.argv.slice(2));
 const [inputPath, outputPath] = positional;
 if (!inputPath || !outputPath) {
-  console.error("Usage: node ./scripts/openapi-downgrade.mjs [--rename-schema old=new]... <input.json> <output.json>");
+  console.error(
+    "Usage: node ./scripts/openapi-downgrade.mjs [--rename-schema old=new]... <input.json> <output.json>",
+  );
   process.exit(1);
 }
 
@@ -238,12 +245,11 @@ if (renames.size > 0) {
 }
 
 if (anySchemas.size > 0) {
-  const schemas = (document.components ??= {}).schemas ??= {};
+  const schemas = ((document.components ??= {}).schemas ??= {});
   for (const name of anySchemas) {
     if (name in schemas) schemas[name] = { description: "Arbitrary JSON value." };
   }
 }
-
 
 /**
  * Collapses a single-member `anyOf`/`oneOf` into that member.
@@ -304,7 +310,7 @@ const stripParameterNullability = (document) => {
 };
 
 if (flattenErrors) {
-  const schemas = (document.components ??= {}).schemas ??= {};
+  const schemas = ((document.components ??= {}).schemas ??= {});
   schemas.ApiError = {
     type: "object",
     properties: { _tag: { type: "string" } },
@@ -312,7 +318,16 @@ if (flattenErrors) {
     additionalProperties: true,
   };
 
-  const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete", "options", "head", "trace"]);
+  const HTTP_METHODS = new Set([
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete",
+    "options",
+    "head",
+    "trace",
+  ]);
   for (const pathItem of Object.values(document.paths ?? {})) {
     for (const [method, operation] of Object.entries(pathItem)) {
       if (!HTTP_METHODS.has(method) || !isPlainObject(operation?.responses)) continue;

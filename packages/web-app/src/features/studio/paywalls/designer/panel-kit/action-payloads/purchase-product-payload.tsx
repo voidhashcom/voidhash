@@ -115,11 +115,7 @@ export function PurchaseProductPayloadEditor({
               />
             )}
 
-            <Button
-              onClick={handleSourceToggle}
-              size="icon-sm"
-              variant="ghost"
-            >
+            <Button onClick={handleSourceToggle} size="icon-sm" variant="ghost">
               <DiamondIcon
                 className={cn("text-muted-foreground", !isLiteral && "text-primary")}
                 fill={isLiteral ? "transparent" : "currentColor"}

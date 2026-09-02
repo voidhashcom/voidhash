@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@voidhash/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@voidhash/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@voidhash/ui/input-group";
 import { PercentIcon } from "lucide-react";
 import { useEffect, useState } from "react";

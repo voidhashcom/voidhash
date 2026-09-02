@@ -1,7 +1,4 @@
-import type {
-  ComponentSnapshotNode,
-  VariableReader,
-} from "@voidhash/paywall-renderer-web-core";
+import type { ComponentSnapshotNode, VariableReader } from "@voidhash/paywall-renderer-web-core";
 import { h, render } from "preact";
 
 import { BUILTIN_RENDERERS } from "./renderers";
@@ -28,10 +25,7 @@ const EMPTY_VARIABLES: VariableReader = { get: () => undefined };
  * own placeholder). No JSX here: the module must typecheck under consumers'
  * react-jsx configs too, so the vnode is built with `h`.
  */
-export function mountBuiltinPreview(
-  container: HTMLElement,
-  options: MountBuiltinPreviewOptions,
-) {
+export function mountBuiltinPreview(container: HTMLElement, options: MountBuiltinPreviewOptions) {
   const renderer = BUILTIN_RENDERERS[options.slug];
   if (!renderer) {
     return undefined;

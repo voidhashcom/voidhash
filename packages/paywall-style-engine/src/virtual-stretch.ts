@@ -23,15 +23,10 @@ function crossSizeField(direction: FlexDirection): "width" | "height" {
   return direction === "column" ? "width" : "height";
 }
 
-function isContainerDrivenFill(
-  child: StretchChildView,
-  direction: FlexDirection,
-): boolean {
+function isContainerDrivenFill(child: StretchChildView, direction: FlexDirection): boolean {
   const alignSelf = child.style["alignSelf"];
   const crossSize = child.style[crossSizeField(direction)];
-  return (
-    (alignSelf === "auto" || alignSelf === undefined) && typeof crossSize !== "number"
-  );
+  return (alignSelf === "auto" || alignSelf === undefined) && typeof crossSize !== "number";
 }
 
 /**

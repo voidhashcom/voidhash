@@ -98,7 +98,5 @@ function sha256Hex(bytes: Uint8Array): string {
     h[7] = ((h[7] ?? 0) + hh) >>> 0;
   });
 
-  return Array.from({ length: 8 }, (_, i) =>
-    (h[i] ?? 0).toString(16).padStart(8, "0"),
-  ).join("");
+  return Array.from({ length: 8 }, (_, i) => (h[i] ?? 0).toString(16).padStart(8, "0")).join("");
 }

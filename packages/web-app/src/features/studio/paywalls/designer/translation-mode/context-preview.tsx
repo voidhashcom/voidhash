@@ -44,7 +44,9 @@ function withHighlight(html: string, nodeId: string | null): string {
     `<style>${selector}{outline:2px solid #0673ff;outline-offset:2px;border-radius:2px;}</style>` +
     `<script>document.querySelector('${selector}')` +
     `?.scrollIntoView({block:"center",inline:"center"});</script>`;
-  return html.includes("</body>") ? html.replace("</body>", `${injection}</body>`) : html + injection;
+  return html.includes("</body>")
+    ? html.replace("</body>", `${injection}</body>`)
+    : html + injection;
 }
 
 /**

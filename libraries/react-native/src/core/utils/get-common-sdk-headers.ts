@@ -44,10 +44,9 @@ export const getCommonSdkHeaders = (): Effect.Effect<
     const { appVersion } = platformProvider;
 
     const { locales } = platformProvider;
-    const preferredLocales =
-      Arr.isReadonlyArrayNonEmpty(locales)
-        ? locales.map((locale) => locale.languageTag).join(",")
-        : undefined;
+    const preferredLocales = Arr.isReadonlyArrayNonEmpty(locales)
+      ? locales.map((locale) => locale.languageTag).join(",")
+      : undefined;
     const clientLocale = locales[0]?.languageTag ?? undefined;
 
     return {

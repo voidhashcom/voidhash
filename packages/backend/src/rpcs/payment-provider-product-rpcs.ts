@@ -32,23 +32,47 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
     const mapCreateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       return Match.value(tagged).pipe(
-        Match.when({ _tag: "PurchaseActionForbiddenError" }, () => new RpcActionForbiddenError({ message: tagged.message ?? "" })),
-        Match.when({ _tag: "PaymentProviderProductNotFoundError" }, () => new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" })),
-        Match.when({ _tag: "PaymentProviderProductValidationError" }, () => new RpcPaymentProviderProductValidationError({ message: tagged.message ?? "" })),
-        Match.orElse(() => new RpcPaymentProviderProductServiceError({
-            cause: String(tagged.cause ?? error),
-          })),
+        Match.when(
+          { _tag: "PurchaseActionForbiddenError" },
+          () => new RpcActionForbiddenError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderProductNotFoundError" },
+          () => new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderProductValidationError" },
+          () => new RpcPaymentProviderProductValidationError({ message: tagged.message ?? "" }),
+        ),
+        Match.orElse(
+          () =>
+            new RpcPaymentProviderProductServiceError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
       );
     };
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       return Match.value(tagged).pipe(
-        Match.when({ _tag: "PurchaseActionForbiddenError" }, () => new RpcActionForbiddenError({ message: tagged.message ?? "" })),
-        Match.when({ _tag: "PaymentProviderProductNotFoundError" }, () => new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" })),
-        Match.when({ _tag: "PaymentProviderProductValidationError" }, () => new RpcPaymentProviderProductValidationError({ message: tagged.message ?? "" })),
-        Match.orElse(() => new RpcPaymentProviderProductServiceError({
-            cause: String(tagged.cause ?? error),
-          })),
+        Match.when(
+          { _tag: "PurchaseActionForbiddenError" },
+          () => new RpcActionForbiddenError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderProductNotFoundError" },
+          () => new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderProductValidationError" },
+          () => new RpcPaymentProviderProductValidationError({ message: tagged.message ?? "" }),
+        ),
+        Match.orElse(
+          () =>
+            new RpcPaymentProviderProductServiceError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
       );
     };
     return {

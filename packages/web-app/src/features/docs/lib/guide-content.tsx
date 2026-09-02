@@ -9,8 +9,7 @@ import { DocsBody } from "@/features/docs/components/docs-body";
 import { docsMdxComponents } from "@/features/docs/lib/mdx-components";
 
 /** Strips the generated doc-map decorations from a key: `./a/b.mdx` -> `a/b`. */
-const normalizeKey = (key: string): string =>
-  key.replace(/^\.\//, "").replace(/\.mdx?$/, "");
+const normalizeKey = (key: string): string => key.replace(/^\.\//, "").replace(/\.mdx?$/, "");
 
 const guideKeyBySlug = new Map<string, string>(
   Object.keys(docMap).map((key) => [normalizeKey(key), key]),

@@ -79,7 +79,8 @@ export const AdvancedCommerceOneTimeChargeItemCodec = Schema.Struct({
   displayName: Schema.String,
   price: Schema.Number,
 });
-export type AdvancedCommerceOneTimeChargeItemCodec = typeof AdvancedCommerceOneTimeChargeItemCodec.Type;
+export type AdvancedCommerceOneTimeChargeItemCodec =
+  typeof AdvancedCommerceOneTimeChargeItemCodec.Type;
 
 export type AdvancedCommerceOneTimeChargeItem = Schema.Schema.Type<
   typeof AdvancedCommerceOneTimeChargeItemCodec
@@ -96,7 +97,8 @@ export const AdvancedCommerceSubscriptionCreateItemCodec = Schema.Struct({
   offer: Schema.OptionFromOptionalKey(AdvancedCommerceOfferCodec),
   price: Schema.Number,
 });
-export type AdvancedCommerceSubscriptionCreateItemCodec = typeof AdvancedCommerceSubscriptionCreateItemCodec.Type;
+export type AdvancedCommerceSubscriptionCreateItemCodec =
+  typeof AdvancedCommerceSubscriptionCreateItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionCreateItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionCreateItemCodec
@@ -113,7 +115,8 @@ export const AdvancedCommerceRequestRefundItemCodec = Schema.Struct({
   revoke: Schema.OptionFromOptionalKey(Schema.Boolean),
   refundAmount: Schema.OptionFromOptionalKey(Schema.Number),
 });
-export type AdvancedCommerceRequestRefundItemCodec = typeof AdvancedCommerceRequestRefundItemCodec.Type;
+export type AdvancedCommerceRequestRefundItemCodec =
+  typeof AdvancedCommerceRequestRefundItemCodec.Type;
 
 export type AdvancedCommerceRequestRefundItem = Schema.Schema.Type<
   typeof AdvancedCommerceRequestRefundItemCodec
@@ -130,7 +133,8 @@ export const AdvancedCommercePriceIncreaseInfoCodec = Schema.Struct({
     Schema.Union([AdvancedCommercePriceIncreaseInfoStatusSchema, Schema.String]),
   ),
 });
-export type AdvancedCommercePriceIncreaseInfoCodec = typeof AdvancedCommercePriceIncreaseInfoCodec.Type;
+export type AdvancedCommercePriceIncreaseInfoCodec =
+  typeof AdvancedCommercePriceIncreaseInfoCodec.Type;
 
 export type AdvancedCommercePriceIncreaseInfo = Schema.Schema.Type<
   typeof AdvancedCommercePriceIncreaseInfoCodec
@@ -275,7 +279,8 @@ export const AdvancedCommerceSubscriptionModifyAddItemCodec = Schema.Struct({
   offer: Schema.OptionFromOptionalKey(AdvancedCommerceOfferCodec),
   price: Schema.Number,
 });
-export type AdvancedCommerceSubscriptionModifyAddItemCodec = typeof AdvancedCommerceSubscriptionModifyAddItemCodec.Type;
+export type AdvancedCommerceSubscriptionModifyAddItemCodec =
+  typeof AdvancedCommerceSubscriptionModifyAddItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyAddItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyAddItemCodec
@@ -295,7 +300,8 @@ export const AdvancedCommerceSubscriptionModifyChangeItemCodec = Schema.Struct({
   effective: Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
   reason: Schema.Union([AdvancedCommerceReasonSchema, Schema.String]),
 });
-export type AdvancedCommerceSubscriptionModifyChangeItemCodec = typeof AdvancedCommerceSubscriptionModifyChangeItemCodec.Type;
+export type AdvancedCommerceSubscriptionModifyChangeItemCodec =
+  typeof AdvancedCommerceSubscriptionModifyChangeItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyChangeItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyChangeItemCodec
@@ -308,7 +314,8 @@ export type AdvancedCommerceSubscriptionModifyChangeItem = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionModifyRemoveItemCodec = Schema.Struct({
   SKU: Schema.String,
 });
-export type AdvancedCommerceSubscriptionModifyRemoveItemCodec = typeof AdvancedCommerceSubscriptionModifyRemoveItemCodec.Type;
+export type AdvancedCommerceSubscriptionModifyRemoveItemCodec =
+  typeof AdvancedCommerceSubscriptionModifyRemoveItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyRemoveItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyRemoveItemCodec
@@ -322,7 +329,8 @@ export const AdvancedCommerceSubscriptionModifyPeriodChangeCodec = Schema.Struct
   period: Schema.Union([AdvancedCommercePeriodSchema, Schema.String]),
   effective: Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
 });
-export type AdvancedCommerceSubscriptionModifyPeriodChangeCodec = typeof AdvancedCommerceSubscriptionModifyPeriodChangeCodec.Type;
+export type AdvancedCommerceSubscriptionModifyPeriodChangeCodec =
+  typeof AdvancedCommerceSubscriptionModifyPeriodChangeCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyPeriodChange = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyPeriodChangeCodec
@@ -337,7 +345,8 @@ export const AdvancedCommerceSubscriptionModifyDescriptorsCodec = Schema.Struct(
   displayName: Schema.String,
   effective: Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
 });
-export type AdvancedCommerceSubscriptionModifyDescriptorsCodec = typeof AdvancedCommerceSubscriptionModifyDescriptorsCodec.Type;
+export type AdvancedCommerceSubscriptionModifyDescriptorsCodec =
+  typeof AdvancedCommerceSubscriptionModifyDescriptorsCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyDescriptors = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyDescriptorsCodec
@@ -352,7 +361,8 @@ export const AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec = Schema
   displayName: Schema.String,
   effective: Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
 });
-export type AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec = typeof AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec.Type;
+export type AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec =
+  typeof AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec.Type;
 
 export type AdvancedCommerceSubscriptionChangeMetadataDescriptors = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec
@@ -366,7 +376,8 @@ export const AdvancedCommerceSubscriptionMigrateDescriptorsCodec = Schema.Struct
   description: Schema.String,
   displayName: Schema.String,
 });
-export type AdvancedCommerceSubscriptionMigrateDescriptorsCodec = typeof AdvancedCommerceSubscriptionMigrateDescriptorsCodec.Type;
+export type AdvancedCommerceSubscriptionMigrateDescriptorsCodec =
+  typeof AdvancedCommerceSubscriptionMigrateDescriptorsCodec.Type;
 
 export type AdvancedCommerceSubscriptionMigrateDescriptors = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionMigrateDescriptorsCodec
@@ -383,7 +394,8 @@ export const AdvancedCommerceSubscriptionChangeMetadataItemCodec = Schema.Struct
   currentSKU: Schema.String,
   effective: Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
 });
-export type AdvancedCommerceSubscriptionChangeMetadataItemCodec = typeof AdvancedCommerceSubscriptionChangeMetadataItemCodec.Type;
+export type AdvancedCommerceSubscriptionChangeMetadataItemCodec =
+  typeof AdvancedCommerceSubscriptionChangeMetadataItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionChangeMetadataItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionChangeMetadataItemCodec
@@ -396,7 +408,8 @@ export type AdvancedCommerceSubscriptionChangeMetadataItem = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionReactivateItemCodec = Schema.Struct({
   SKU: Schema.String,
 });
-export type AdvancedCommerceSubscriptionReactivateItemCodec = typeof AdvancedCommerceSubscriptionReactivateItemCodec.Type;
+export type AdvancedCommerceSubscriptionReactivateItemCodec =
+  typeof AdvancedCommerceSubscriptionReactivateItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionReactivateItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionReactivateItemCodec
@@ -411,7 +424,8 @@ export const AdvancedCommerceSubscriptionMigrateItemCodec = Schema.Struct({
   description: Schema.String,
   displayName: Schema.String,
 });
-export type AdvancedCommerceSubscriptionMigrateItemCodec = typeof AdvancedCommerceSubscriptionMigrateItemCodec.Type;
+export type AdvancedCommerceSubscriptionMigrateItemCodec =
+  typeof AdvancedCommerceSubscriptionMigrateItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionMigrateItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionMigrateItemCodec
@@ -426,7 +440,8 @@ export const AdvancedCommerceSubscriptionMigrateRenewalItemCodec = Schema.Struct
   description: Schema.String,
   displayName: Schema.String,
 });
-export type AdvancedCommerceSubscriptionMigrateRenewalItemCodec = typeof AdvancedCommerceSubscriptionMigrateRenewalItemCodec.Type;
+export type AdvancedCommerceSubscriptionMigrateRenewalItemCodec =
+  typeof AdvancedCommerceSubscriptionMigrateRenewalItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionMigrateRenewalItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionMigrateRenewalItemCodec
@@ -444,7 +459,8 @@ export const AdvancedCommerceSubscriptionPriceChangeItemCodec = Schema.Struct({
     Schema.Union([AdvancedCommerceEffectiveSchema, Schema.String]),
   ),
 });
-export type AdvancedCommerceSubscriptionPriceChangeItemCodec = typeof AdvancedCommerceSubscriptionPriceChangeItemCodec.Type;
+export type AdvancedCommerceSubscriptionPriceChangeItemCodec =
+  typeof AdvancedCommerceSubscriptionPriceChangeItemCodec.Type;
 
 export type AdvancedCommerceSubscriptionPriceChangeItem = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionPriceChangeItemCodec
@@ -465,7 +481,8 @@ export const AdvancedCommerceOneTimeChargeCreateRequestCodec = Schema.Struct({
   item: AdvancedCommerceOneTimeChargeItemCodec,
   taxCode: Schema.String,
 });
-export type AdvancedCommerceOneTimeChargeCreateRequestCodec = typeof AdvancedCommerceOneTimeChargeCreateRequestCodec.Type;
+export type AdvancedCommerceOneTimeChargeCreateRequestCodec =
+  typeof AdvancedCommerceOneTimeChargeCreateRequestCodec.Type;
 
 export type AdvancedCommerceOneTimeChargeCreateRequest = Schema.Schema.Type<
   typeof AdvancedCommerceOneTimeChargeCreateRequestCodec
@@ -482,7 +499,8 @@ export const AdvancedCommerceSubscriptionCreateRequestCodec = Schema.Struct({
   previousTransactionId: Schema.OptionFromOptionalKey(Schema.String),
   taxCode: Schema.String,
 });
-export type AdvancedCommerceSubscriptionCreateRequestCodec = typeof AdvancedCommerceSubscriptionCreateRequestCodec.Type;
+export type AdvancedCommerceSubscriptionCreateRequestCodec =
+  typeof AdvancedCommerceSubscriptionCreateRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionCreateRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionCreateRequestCodec
@@ -494,7 +512,8 @@ export const AdvancedCommerceRequestRefundRequestCodec = Schema.Struct({
   refundRiskingPreference: Schema.OptionFromOptionalKey(Schema.Boolean),
   currency: Schema.OptionFromOptionalKey(Schema.String),
 });
-export type AdvancedCommerceRequestRefundRequestCodec = typeof AdvancedCommerceRequestRefundRequestCodec.Type;
+export type AdvancedCommerceRequestRefundRequestCodec =
+  typeof AdvancedCommerceRequestRefundRequestCodec.Type;
 
 export type AdvancedCommerceRequestRefundRequest = Schema.Schema.Type<
   typeof AdvancedCommerceRequestRefundRequestCodec
@@ -503,7 +522,8 @@ export type AdvancedCommerceRequestRefundRequest = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionCancelRequestCodec = Schema.Struct({
   ...acRequestBase,
 });
-export type AdvancedCommerceSubscriptionCancelRequestCodec = typeof AdvancedCommerceSubscriptionCancelRequestCodec.Type;
+export type AdvancedCommerceSubscriptionCancelRequestCodec =
+  typeof AdvancedCommerceSubscriptionCancelRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionCancelRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionCancelRequestCodec
@@ -519,7 +539,8 @@ export const AdvancedCommerceSubscriptionRevokeRequestCodec = Schema.Struct({
     Schema.Union([AdvancedCommerceRefundTypeSchema, Schema.String]),
   ),
 });
-export type AdvancedCommerceSubscriptionRevokeRequestCodec = typeof AdvancedCommerceSubscriptionRevokeRequestCodec.Type;
+export type AdvancedCommerceSubscriptionRevokeRequestCodec =
+  typeof AdvancedCommerceSubscriptionRevokeRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionRevokeRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionRevokeRequestCodec
@@ -530,7 +551,8 @@ export const AdvancedCommerceSubscriptionPriceChangeRequestCodec = Schema.Struct
   items: Schema.NonEmptyArray(AdvancedCommerceSubscriptionPriceChangeItemCodec),
   currency: Schema.OptionFromOptionalKey(Schema.String),
 });
-export type AdvancedCommerceSubscriptionPriceChangeRequestCodec = typeof AdvancedCommerceSubscriptionPriceChangeRequestCodec.Type;
+export type AdvancedCommerceSubscriptionPriceChangeRequestCodec =
+  typeof AdvancedCommerceSubscriptionPriceChangeRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionPriceChangeRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionPriceChangeRequestCodec
@@ -545,7 +567,8 @@ export const AdvancedCommerceSubscriptionChangeMetadataRequestCodec = Schema.Str
     AdvancedCommerceSubscriptionChangeMetadataDescriptorsCodec,
   ),
 });
-export type AdvancedCommerceSubscriptionChangeMetadataRequestCodec = typeof AdvancedCommerceSubscriptionChangeMetadataRequestCodec.Type;
+export type AdvancedCommerceSubscriptionChangeMetadataRequestCodec =
+  typeof AdvancedCommerceSubscriptionChangeMetadataRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionChangeMetadataRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionChangeMetadataRequestCodec
@@ -559,7 +582,8 @@ export const AdvancedCommerceSubscriptionMigrateRequestCodec = Schema.Struct({
   targetProductId: Schema.String,
   retainBillingCycle: Schema.OptionFromOptionalKey(Schema.Boolean),
 });
-export type AdvancedCommerceSubscriptionMigrateRequestCodec = typeof AdvancedCommerceSubscriptionMigrateRequestCodec.Type;
+export type AdvancedCommerceSubscriptionMigrateRequestCodec =
+  typeof AdvancedCommerceSubscriptionMigrateRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionMigrateRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionMigrateRequestCodec
@@ -585,7 +609,8 @@ export const AdvancedCommerceSubscriptionModifyInAppRequestCodec = Schema.Struct
   ),
   periodChange: Schema.OptionFromOptionalKey(AdvancedCommerceSubscriptionModifyPeriodChangeCodec),
 });
-export type AdvancedCommerceSubscriptionModifyInAppRequestCodec = typeof AdvancedCommerceSubscriptionModifyInAppRequestCodec.Type;
+export type AdvancedCommerceSubscriptionModifyInAppRequestCodec =
+  typeof AdvancedCommerceSubscriptionModifyInAppRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionModifyInAppRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionModifyInAppRequestCodec
@@ -598,7 +623,8 @@ export const AdvancedCommerceSubscriptionReactivateInAppRequestCodec = Schema.St
   items: Schema.NonEmptyArray(AdvancedCommerceSubscriptionReactivateItemCodec),
   transactionId: Schema.String,
 });
-export type AdvancedCommerceSubscriptionReactivateInAppRequestCodec = typeof AdvancedCommerceSubscriptionReactivateInAppRequestCodec.Type;
+export type AdvancedCommerceSubscriptionReactivateInAppRequestCodec =
+  typeof AdvancedCommerceSubscriptionReactivateInAppRequestCodec.Type;
 
 export type AdvancedCommerceSubscriptionReactivateInAppRequest = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionReactivateInAppRequestCodec
@@ -612,7 +638,8 @@ const acResponseFields = {
 };
 
 export const AdvancedCommerceRequestRefundResponseCodec = Schema.Struct({ ...acResponseFields });
-export type AdvancedCommerceRequestRefundResponseCodec = typeof AdvancedCommerceRequestRefundResponseCodec.Type;
+export type AdvancedCommerceRequestRefundResponseCodec =
+  typeof AdvancedCommerceRequestRefundResponseCodec.Type;
 export type AdvancedCommerceRequestRefundResponse = Schema.Schema.Type<
   typeof AdvancedCommerceRequestRefundResponseCodec
 >;
@@ -620,7 +647,8 @@ export type AdvancedCommerceRequestRefundResponse = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionCancelResponseCodec = Schema.Struct({
   ...acResponseFields,
 });
-export type AdvancedCommerceSubscriptionCancelResponseCodec = typeof AdvancedCommerceSubscriptionCancelResponseCodec.Type;
+export type AdvancedCommerceSubscriptionCancelResponseCodec =
+  typeof AdvancedCommerceSubscriptionCancelResponseCodec.Type;
 export type AdvancedCommerceSubscriptionCancelResponse = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionCancelResponseCodec
 >;
@@ -628,7 +656,8 @@ export type AdvancedCommerceSubscriptionCancelResponse = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionRevokeResponseCodec = Schema.Struct({
   ...acResponseFields,
 });
-export type AdvancedCommerceSubscriptionRevokeResponseCodec = typeof AdvancedCommerceSubscriptionRevokeResponseCodec.Type;
+export type AdvancedCommerceSubscriptionRevokeResponseCodec =
+  typeof AdvancedCommerceSubscriptionRevokeResponseCodec.Type;
 export type AdvancedCommerceSubscriptionRevokeResponse = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionRevokeResponseCodec
 >;
@@ -636,7 +665,8 @@ export type AdvancedCommerceSubscriptionRevokeResponse = Schema.Schema.Type<
 export const AdvancedCommerceSubscriptionPriceChangeResponseCodec = Schema.Struct({
   ...acResponseFields,
 });
-export type AdvancedCommerceSubscriptionPriceChangeResponseCodec = typeof AdvancedCommerceSubscriptionPriceChangeResponseCodec.Type;
+export type AdvancedCommerceSubscriptionPriceChangeResponseCodec =
+  typeof AdvancedCommerceSubscriptionPriceChangeResponseCodec.Type;
 export type AdvancedCommerceSubscriptionPriceChangeResponse = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionPriceChangeResponseCodec
 >;
@@ -644,7 +674,8 @@ export type AdvancedCommerceSubscriptionPriceChangeResponse = Schema.Schema.Type
 export const AdvancedCommerceSubscriptionChangeMetadataResponseCodec = Schema.Struct({
   ...acResponseFields,
 });
-export type AdvancedCommerceSubscriptionChangeMetadataResponseCodec = typeof AdvancedCommerceSubscriptionChangeMetadataResponseCodec.Type;
+export type AdvancedCommerceSubscriptionChangeMetadataResponseCodec =
+  typeof AdvancedCommerceSubscriptionChangeMetadataResponseCodec.Type;
 export type AdvancedCommerceSubscriptionChangeMetadataResponse = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionChangeMetadataResponseCodec
 >;
@@ -652,7 +683,8 @@ export type AdvancedCommerceSubscriptionChangeMetadataResponse = Schema.Schema.T
 export const AdvancedCommerceSubscriptionMigrateResponseCodec = Schema.Struct({
   ...acResponseFields,
 });
-export type AdvancedCommerceSubscriptionMigrateResponseCodec = typeof AdvancedCommerceSubscriptionMigrateResponseCodec.Type;
+export type AdvancedCommerceSubscriptionMigrateResponseCodec =
+  typeof AdvancedCommerceSubscriptionMigrateResponseCodec.Type;
 export type AdvancedCommerceSubscriptionMigrateResponse = Schema.Schema.Type<
   typeof AdvancedCommerceSubscriptionMigrateResponseCodec
 >;

@@ -14,7 +14,10 @@ class PaywallActionError extends Data.TaggedError("PaywallActionError")<{
 
 /** Runs a promise-returning SDK call, keeping the rejection value as display text. */
 const attempt = <A,>(run: () => Promise<A>) =>
-  Effect.tryPromise({ try: run, catch: (cause) => new PaywallActionError({ text: String(cause) }) });
+  Effect.tryPromise({
+    try: run,
+    catch: (cause) => new PaywallActionError({ text: String(cause) }),
+  });
 
 const personStateLabel = (isLoading: boolean, person: unknown) => {
   if (isLoading) return "Loading person...";
@@ -149,9 +152,7 @@ export default function PaywallScreen() {
         </Text>
         <Text style={styles.location}>Location: {PAYWALL_LOCATION_SLUG}</Text>
         {statusMessage && <Text style={styles.statusMessage}>{statusMessage}</Text>}
-        <Text style={styles.personState}>
-          {personStateLabel(isPersonLoading, person)}
-        </Text>
+        <Text style={styles.personState}>{personStateLabel(isPersonLoading, person)}</Text>
 
         <Button
           disabled={isOpening || isReconciling}

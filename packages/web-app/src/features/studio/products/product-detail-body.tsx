@@ -83,10 +83,7 @@ export function ProductDetailBody({
 
         <div className="mt-8">
           {(productPerks ?? []).length === 0 && (
-            <ProductDetailPerksEmptyState
-              perks={perksWithoutProductPerks}
-              productId={productId}
-            />
+            <ProductDetailPerksEmptyState perks={perksWithoutProductPerks} productId={productId} />
           )}
           {(productPerks ?? []).length > 0 && (
             <Card className="gap-0 overflow-hidden pt-0 pb-0">

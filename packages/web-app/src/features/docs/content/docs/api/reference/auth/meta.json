@@ -1,6 +1,4 @@
 {
   "title": "Auth",
-  "pages": [
-    "auth.session"
-  ]
+  "pages": ["auth.session"]
 }

@@ -32,8 +32,6 @@ export const ListGrants = Rpc.make("ListGrants", {
   error: ForbiddenError,
 });
 
-export const GrantsRpcs = RpcGroup.make(
-  GrantPermission,
-  RevokePermission,
-  ListGrants,
-).middleware(AuthMiddleware);
+export const GrantsRpcs = RpcGroup.make(GrantPermission, RevokePermission, ListGrants).middleware(
+  AuthMiddleware,
+);

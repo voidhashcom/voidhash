@@ -53,7 +53,11 @@ const RESIZE_MODE_TO_BACKGROUND_SIZE: Record<PaywallBackgroundImage["resizeMode"
  * passing them through. `backgroundColor` is the exception: `solid` (and every
  * disabled/degenerate case) resolves back to it.
  */
-const BACKGROUND_DERIVED_KEYS = ["backgroundType", "backgroundGradient", "backgroundImage"] as const;
+const BACKGROUND_DERIVED_KEYS = [
+  "backgroundType",
+  "backgroundGradient",
+  "backgroundImage",
+] as const;
 
 /**
  * Builds an inline SVG whose gradient uses `objectBoundingBox` units, so the

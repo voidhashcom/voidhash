@@ -163,7 +163,9 @@ const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.mak
  * The StoreKit transaction id the SDK client observed, present only on the
  * `"sdk"` arm of {@link RecordTransactionInput}.
  */
-const sdkTransactionIdOf = (input: RecordTransactionInput): string | typeof Schema.Undefined.Type => {
+const sdkTransactionIdOf = (
+  input: RecordTransactionInput,
+): string | typeof Schema.Undefined.Type => {
   if (input.source === "sdk") {
     return input.sdkTransactionId;
   }

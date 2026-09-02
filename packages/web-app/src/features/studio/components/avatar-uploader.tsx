@@ -180,13 +180,7 @@ export function AvatarUploader({
         />
       </button>
       {src ? (
-        <Button
-          disabled={isPending}
-          onClick={onRemove}
-          size="xs"
-          type="button"
-          variant="ghost"
-        >
+        <Button disabled={isPending} onClick={onRemove} size="xs" type="button" variant="ghost">
           Remove
         </Button>
       ) : null}

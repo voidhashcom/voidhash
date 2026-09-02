@@ -54,9 +54,7 @@ export interface TextProps extends MotionVisualProps {
 }
 
 export interface PressableProps
-  extends MotionVisualProps,
-    PressableMotionProps,
-    DraggableMotionProps {
+  extends MotionVisualProps, PressableMotionProps, DraggableMotionProps {
   style?: MotionStyleProp;
   /** Static children, or a render-prop receiving the {@link PressableState}. */
   children?: ReactNode | ((state: PressableState) => ReactNode);

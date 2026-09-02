@@ -107,10 +107,7 @@ const revenuePropertiesBase = (
  * `amount` / `amountUsd` mirror `grossAmount` / `grossAmountUsd` for the
  * benefit of readers that haven't migrated to the breakdown columns yet.
  */
-const signedMoneyProperties = (
-  money: Option.Option<PurchaseProcessingMoney>,
-  sign: 1 | -1,
-) =>
+const signedMoneyProperties = (money: Option.Option<PurchaseProcessingMoney>, sign: 1 | -1) =>
   Option.match(money, {
     onNone: () => ({}),
     onSome: (m) => {
@@ -171,10 +168,9 @@ const buildEnvelope = (input: {
   personId: input.personId,
   projectId: input.cfg.projectId,
   token: input.cfg.token,
-  transactionId:
-    P.isString(input.transactionId)
-      ? input.transactionId
-      : Option.getOrNull(input.transactionId),
+  transactionId: P.isString(input.transactionId)
+    ? input.transactionId
+    : Option.getOrNull(input.transactionId),
 });
 
 /**

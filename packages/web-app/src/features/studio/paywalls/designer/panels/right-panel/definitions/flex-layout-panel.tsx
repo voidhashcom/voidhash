@@ -54,10 +54,7 @@ import {
 } from "../../../panel-kit/dimension-field";
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
 import { updateContainerAlignment, updateLayoutStyle } from "../../../state/actions";
-import {
-  usePaywallDesignerActions,
-  usePaywallDesignerStore,
-} from "../../../state/designer-store";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../../state/designer-store";
 import { getAlignItems, getFlexDirection } from "../../../state/utils/node-type-helpers";
 import { getNodeById } from "../../../state/utils/nodes";
 import { useStyleOverrideResetContext } from "../utils/use-style-override-reset-context";
@@ -251,7 +248,10 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
                 justifyContent={node.justifyContent}
                 mixed={mixedKeys.has("alignItems") || mixedKeys.has("justifyContent")}
                 onChange={(value) => {
-                  const changes = value as { alignItems: AlignItems; justifyContent: JustifyContent };
+                  const changes = value as {
+                    alignItems: AlignItems;
+                    justifyContent: JustifyContent;
+                  };
                   // Container alignment goes through the virtual-stretch
                   // expand transform so leaving a stretch container keeps its
                   // filling children filling (per-child alignSelf: "stretch").

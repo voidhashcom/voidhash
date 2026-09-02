@@ -21,7 +21,10 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="voidhash-v1" operations={[{"path":"/api/v1/webhooks/endpoints/{endpointId}/test","method":"post"}]} />
+      <Comp
+        document="voidhash-v1"
+        operations={[{ path: "/api/v1/webhooks/endpoints/{endpointId}/test", method: "post" }]}
+      />
     </>
   );
 }

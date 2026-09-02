@@ -92,10 +92,8 @@ const navigateToPath = (hex: string, path: readonly number[]): Option.Option<str
       Option.map(parseAsn1(current, offset), (node) => node.value),
     );
   };
-  return Arr.reduce(
-    path,
-    Option.some(outer.value.value),
-    (current, targetIndex) => Option.flatMap(current, (value) => childAt(value, targetIndex)),
+  return Arr.reduce(path, Option.some(outer.value.value), (current, targetIndex) =>
+    Option.flatMap(current, (value) => childAt(value, targetIndex)),
   );
 };
 

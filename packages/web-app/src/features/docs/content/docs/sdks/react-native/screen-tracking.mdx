@@ -67,16 +67,16 @@ voidhash.client.screen("Onboarding step 2", { step: 2 });
 
 ## Event properties
 
-| Property | Meaning |
-| --- | --- |
-| `$screen_name` | Stable identity of the screen. Never contains ids. |
-| `$screen_path` | Concrete location, including dynamic segment values. |
-| `$screen_title` | Human title when the router exposes one. |
-| `$previous_screen_name` | Screen the user came from. `null` on the first screen. |
-| `$previous_screen_path` | Path of the previous screen. |
+| Property                       | Meaning                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `$screen_name`                 | Stable identity of the screen. Never contains ids.                           |
+| `$screen_path`                 | Concrete location, including dynamic segment values.                         |
+| `$screen_title`                | Human title when the router exposes one.                                     |
+| `$previous_screen_name`        | Screen the user came from. `null` on the first screen.                       |
+| `$previous_screen_path`        | Path of the previous screen.                                                 |
 | `$previous_screen_duration_ms` | Milliseconds spent on the previous screen, including time in the background. |
-| `$screen_source` | Which integration produced the event. |
-| `$screen_params` | Route params. Only sent when you opt in. |
+| `$screen_source`               | Which integration produced the event.                                        |
+| `$screen_params`               | Route params. Only sent when you opt in.                                     |
 
 A screen is recorded once when it becomes visible. Returning from the background does not record it
 again. Opening the same route with different params, such as `/item/1` and then `/item/2`, records

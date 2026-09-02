@@ -25,12 +25,7 @@ export function DashboardShellSkeleton() {
   // `~` denotes an org-scoped sub-route (e.g. /studio/<org>/~/settings),
   // not a project slug — render the organization layout.
   if (projectSlug && projectSlug !== "~") {
-    return (
-      <ProjectLayoutSkeleton
-        organizationSlug={organizationSlug}
-        projectSlug={projectSlug}
-      />
-    );
+    return <ProjectLayoutSkeleton organizationSlug={organizationSlug} projectSlug={projectSlug} />;
   }
 
   return <OrganizationLayoutSkeleton organizationSlug={organizationSlug} />;

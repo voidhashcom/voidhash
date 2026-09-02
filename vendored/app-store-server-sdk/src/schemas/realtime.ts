@@ -29,9 +29,7 @@ export const DecodedRealtimeRequestBodyCodec = Schema.Struct({
 });
 export type DecodedRealtimeRequestBodyCodec = typeof DecodedRealtimeRequestBodyCodec.Type;
 
-export type DecodedRealtimeRequestBody = Schema.Schema.Type<
-  typeof DecodedRealtimeRequestBodyCodec
->;
+export type DecodedRealtimeRequestBody = Schema.Schema.Type<typeof DecodedRealtimeRequestBodyCodec>;
 
 const decodeRealtimeRequestEffect = Schema.decodeUnknownEffect(DecodedRealtimeRequestBodyCodec);
 

@@ -77,11 +77,7 @@ export function ComponentWarningsBlock({ nodeId }: ComponentWarningsBlockProps) 
             <LinkIcon />
             Pair to a component file…
           </Button>
-          <PairComponentPicker
-            nodeId={nodeId}
-            onOpenChange={setPickerOpen}
-            open={pickerOpen}
-          />
+          <PairComponentPicker nodeId={nodeId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>
       )}
     </div>

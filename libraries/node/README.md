@@ -43,13 +43,13 @@ const voidhash = createVoidhashSdk({
 });
 ```
 
-| Option      | Type                                 | Default                    | Notes                                        |
-| ----------- | ------------------------------------ | -------------------------- | -------------------------------------------- |
-| `secretKey` | `string`                             | —                          | Required. Sent as the `x-secret-key` header. |
-| `baseUrl`   | `string`                             | `https://api.voidhash.com` | Must be `http:` or `https:`.                 |
-| `ingestUrl` | `string`                             | `https://ingest.voidhash.com` | Analytics ingestion base URL. Must be `http:` or `https:`. |
-| `publishableKey` | `string`                        | —                          | Optional. Sent as the body `token` on capture, matching the client SDKs. Capture works without it. |
-| `headers`   | `Record<string, string \| undefined>` | `{}`                       | Extra headers on every request.              |
+| Option           | Type                                  | Default                       | Notes                                                                                              |
+| ---------------- | ------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `secretKey`      | `string`                              | —                             | Required. Sent as the `x-secret-key` header.                                                       |
+| `baseUrl`        | `string`                              | `https://api.voidhash.com`    | Must be `http:` or `https:`.                                                                       |
+| `ingestUrl`      | `string`                              | `https://ingest.voidhash.com` | Analytics ingestion base URL. Must be `http:` or `https:`.                                         |
+| `publishableKey` | `string`                              | —                             | Optional. Sent as the body `token` on capture, matching the client SDKs. Capture works without it. |
+| `headers`        | `Record<string, string \| undefined>` | `{}`                          | Extra headers on every request.                                                                    |
 
 `createVoidhashSdk` validates eagerly and throws
 `VoidhashNodeConfigurationError` on a blank `secretKey`, an invalid `baseUrl`
@@ -113,7 +113,7 @@ what they have paid for.
 
 ## Check entitlements from your backend
 
-*What the user paid for* lives on `entitlements`. The usual question — may this
+_What the user paid for_ lives on `entitlements`. The usual question — may this
 user have the thing they bought? — is one call:
 
 ```ts
@@ -159,14 +159,14 @@ const grants = await voidhash.entitlements.getGrantsByDistinctId({
 });
 ```
 
-| Field            | Type                                        | Notes                                       |
-| ---------------- | ------------------------------------------- | ------------------------------------------- |
-| `perkId`         | `string`                                    | Match this against the perk you care about. |
-| `status`         | `"active" \| "expired"`                     | Only `"active"` grants confer access.       |
-| `expiresAt`      | `string \| null`                            | ISO timestamp; `null` never expires.        |
-| `source`         | `"subscription" \| "purchase" \| "manual"`  | How the grant was obtained.                 |
-| `sourceId`       | `string \| null`                            | The subscription or purchase behind it.     |
-| `sourcePersonId` | `string`                                    | Differs from the person on shared plans.    |
+| Field            | Type                                       | Notes                                       |
+| ---------------- | ------------------------------------------ | ------------------------------------------- |
+| `perkId`         | `string`                                   | Match this against the perk you care about. |
+| `status`         | `"active" \| "expired"`                    | Only `"active"` grants confer access.       |
+| `expiresAt`      | `string \| null`                           | ISO timestamp; `null` never expires.        |
+| `source`         | `"subscription" \| "purchase" \| "manual"` | How the grant was obtained.                 |
+| `sourceId`       | `string \| null`                           | The subscription or purchase behind it.     |
+| `sourcePersonId` | `string`                                   | Differs from the person on shared plans.    |
 
 Unlike `hasActivePerk`, an unknown `distinctId` is an error here — the caller
 gets to decide whether "never seen" and "seen, nothing bought" mean the same
@@ -178,9 +178,7 @@ try {
     distinctId: "user_123",
   });
 
-  const premium = grants.find(
-    (grant) => grant.perkId === "perk_abc" && grant.status === "active",
-  );
+  const premium = grants.find((grant) => grant.perkId === "perk_abc" && grant.status === "active");
 
   return { hasPremium: premium !== undefined, until: premium?.expiresAt ?? null };
 } catch (error) {
@@ -206,11 +204,11 @@ try {
 Grants are scoped to an environment, and the server picks the scope from the
 `x-environment` request header:
 
-| `x-environment`            | Grants returned                                          |
-| -------------------------- | -------------------------------------------------------- |
-| absent or `production`     | Real purchases — store production **and** store sandbox  |
-| `development`              | Only simulated purchases made by an SDK in a debug build |
-| `all`                      | Both of the above                                        |
+| `x-environment`        | Grants returned                                          |
+| ---------------------- | -------------------------------------------------------- |
+| absent or `production` | Real purchases — store production **and** store sandbox  |
+| `development`          | Only simulated purchases made by an SDK in a debug build |
+| `all`                  | Both of the above                                        |
 
 Any other value falls back to `production` rather than erroring, so do not wire
 the header straight to something like `NODE_ENV` — `"test"` would silently read
@@ -254,15 +252,15 @@ await voidhash.eventCapture.capture({
 Use the same distinct id your app passed to `identify()`, so server-side events
 land on the same person as client-side ones.
 
-| Field        | Type                     | Notes                                                         |
-| ------------ | ------------------------ | ------------------------------------------------------------- |
-| `event`      | `string`                 | Required. Event name, e.g. `paywall_viewed`.                  |
-| `distinctId` | `string`                 | Required. The person the event belongs to.                    |
+| Field        | Type                      | Notes                                                         |
+| ------------ | ------------------------- | ------------------------------------------------------------- |
+| `event`      | `string`                  | Required. Event name, e.g. `paywall_viewed`.                  |
+| `distinctId` | `string`                  | Required. The person the event belongs to.                    |
 | `properties` | `Record<string, unknown>` | The event's own attributes. Defaults to `{}`.                 |
 | `context`    | `Record<string, unknown>` | Ambient attributes (app version, platform). Defaults to `{}`. |
-| `uuid`       | `string`                 | Deduplication key. Generated per call when omitted.           |
-| `sessionId`  | `string`                 | Groups events into a session.                                 |
-| `timestamp`  | `string`                 | Required. ISO 8601 time when the event occurred.              |
+| `uuid`       | `string`                  | Deduplication key. Generated per call when omitted.           |
+| `sessionId`  | `string`                  | Groups events into a session.                                 |
+| `timestamp`  | `string`                  | Required. ISO 8601 time when the event occurred.              |
 
 Retries are deduplicated on `uuid`: pass your own — a stable id derived from
 whatever you are recording — when the same event may be sent twice.
@@ -317,7 +315,7 @@ try {
 ```
 
 Transport failures (DNS, TLS, timeouts) reject with an Effect
-`HttpClientError` instead, which has no `data`. Treat those as *unknown*, not
+`HttpClientError` instead, which has no `data`. Treat those as _unknown_, not
 as a definitive answer — see [Caching and failure handling](#caching-and-failure-handling).
 
 Common tags: `Api/NotAuthenticatedError` (401), `Api/AuthenticationError`
@@ -335,10 +333,10 @@ secret key.
 
 Voidhash POSTs the event payload as the raw request body with three headers:
 
-| Header                | Value                                                                |
-| --------------------- | -------------------------------------------------------------------- |
-| `X-Webhook-Event`     | Event name, e.g. `purchase.completed`                                |
-| `X-Webhook-Timestamp` | Unix seconds when the request was signed                             |
+| Header                | Value                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| `X-Webhook-Event`     | Event name, e.g. `purchase.completed`                                 |
+| `X-Webhook-Timestamp` | Unix seconds when the request was signed                              |
 | `X-Webhook-Signature` | `v1=` followed by the hex HMAC-SHA256 of `timestamp` + `.` + raw body |
 
 `constructWebhookEvent` verifies all of it for you:
@@ -460,6 +458,6 @@ result yourself for a short window — 60 seconds is a reasonable start — and
 refresh in the background.
 
 When a call fails with a transport error or a 5xx, treat the answer as
-**unknown**, not as *no access*. Serve the last known good value, or fail the
+**unknown**, not as _no access_. Serve the last known good value, or fail the
 request; revoking a paying user's access because of a network blip is worse
 than a slightly stale cache.

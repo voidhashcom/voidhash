@@ -72,8 +72,8 @@ interface SessionUserFields extends Omit<SessionUserWire, "isEmailVerified"> {
   readonly emailVerified: boolean;
 }
 
-const SessionUserValue = Schema.declare<SessionUserFields>(
-  (input): input is SessionUserFields => P.isObject(input),
+const SessionUserValue = Schema.declare<SessionUserFields>((input): input is SessionUserFields =>
+  P.isObject(input),
 );
 type SessionUserValue = typeof SessionUserValue.Type;
 

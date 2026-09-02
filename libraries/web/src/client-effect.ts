@@ -123,10 +123,12 @@ export const initializeEffect = (initialDistinctId?: string) =>
 
 // Drain the analytics queue so any pending events are attributed to the
 // current distinct id before it is switched out by identify/reset.
-const flushAnalyticsForIdentitySwitch = Effect.fn("flushAnalyticsForIdentitySwitch")(function* flushForIdentitySwitch() {
-  const analyticsService = yield* AnalyticsService;
-  yield* analyticsService.flush();
-});
+const flushAnalyticsForIdentitySwitch = Effect.fn("flushAnalyticsForIdentitySwitch")(
+  function* flushForIdentitySwitch() {
+    const analyticsService = yield* AnalyticsService;
+    yield* analyticsService.flush();
+  },
+);
 
 export const identifyEffect = (distinctId: string, traits?: VoidhashTraits) =>
   Effect.gen(function* identify() {

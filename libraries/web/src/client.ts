@@ -158,31 +158,33 @@ export class VoidhashWebClient {
   }
 
   destroy(): Promise<void> {
-    return this.runtime.runPromise(
-      Effect.gen({ self: this }, function* destroyClient() {
-        if (this.state === "destroyed") {
-          return;
-        }
+    return this.runtime
+      .runPromise(
+        Effect.gen({ self: this }, function* destroyClient() {
+          if (this.state === "destroyed") {
+            return;
+          }
 
-        if (this.state === "initializing" && Option.isSome(this.initializePromise)) {
-          const pending = this.initializePromise.value;
-          yield* fromPromise(() => pending);
-        }
+          if (this.state === "initializing" && Option.isSome(this.initializePromise)) {
+            const pending = this.initializePromise.value;
+            yield* fromPromise(() => pending);
+          }
 
-        this.detachBrowserListeners();
+          this.detachBrowserListeners();
 
-        const config = resolveVoidhashConfig(this.options);
-        if (config.analytics.enabled) {
-          // Best effort
-          yield* Effect.ignore(fromPromise(() => this.flushAnalyticsInternal()));
-          yield* fromPromise(() =>
-            this.runEffect(stopAnalyticsEffect(), "FAILED_TO_STOP_ANALYTICS"),
-          );
-        }
+          const config = resolveVoidhashConfig(this.options);
+          if (config.analytics.enabled) {
+            // Best effort
+            yield* Effect.ignore(fromPromise(() => this.flushAnalyticsInternal()));
+            yield* fromPromise(() =>
+              this.runEffect(stopAnalyticsEffect(), "FAILED_TO_STOP_ANALYTICS"),
+            );
+          }
 
-        this.state = "destroyed";
-      }),
-    ).then(() => this.runtime.dispose());
+          this.state = "destroyed";
+        }),
+      )
+      .then(() => this.runtime.dispose());
   }
 
   getDistinctId() {

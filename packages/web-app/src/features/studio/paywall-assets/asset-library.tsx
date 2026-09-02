@@ -35,14 +35,19 @@ const GRID_CLASSES = "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:gr
 /** Maps a server-side upload failure to a friendly message (surfacing validation text). */
 function uploadErrorMessage(error: unknown, fileName: string): string {
   const fallback = `Failed to upload "${fileName}"`;
-  return error && typeof error === "object" && "_tag" in error && error._tag === "EffectQueryFailure"
-    ? (error as unknown as {
-        match: (matcher: {
-          "Rpc/PaywallAssetValidationError": (failure: { message: string }) => string;
-          "Rpc/ActionForbiddenError": (failure: { message: string }) => string;
-          OrElse: () => string;
-        }) => string;
-      }).match({
+  return error &&
+    typeof error === "object" &&
+    "_tag" in error &&
+    error._tag === "EffectQueryFailure"
+    ? (
+        error as unknown as {
+          match: (matcher: {
+            "Rpc/PaywallAssetValidationError": (failure: { message: string }) => string;
+            "Rpc/ActionForbiddenError": (failure: { message: string }) => string;
+            OrElse: () => string;
+          }) => string;
+        }
+      ).match({
         "Rpc/ActionForbiddenError": (failure) => failure.message,
         "Rpc/PaywallAssetValidationError": (failure) => failure.message,
         OrElse: () => fallback,
@@ -125,7 +130,12 @@ export function AssetLibrary({
   };
 
   const uploadButton = (
-    <Button disabled={isUploading} onClick={() => inputRef.current?.click()} size="sm" type="button">
+    <Button
+      disabled={isUploading}
+      onClick={() => inputRef.current?.click()}
+      size="sm"
+      type="button"
+    >
       <UploadIcon />
       {isUploading ? "Uploading..." : "Upload"}
     </Button>
@@ -159,7 +169,8 @@ export function AssetLibrary({
           <div className="flex flex-col gap-1">
             <p className="font-medium text-sm">Upload your first image</p>
             <p className="text-muted-foreground text-xs">
-              PNG, JPEG, WebP, or GIF up to 8 MB. Uploaded images can be used as paywall backgrounds.
+              PNG, JPEG, WebP, or GIF up to 8 MB. Uploaded images can be used as paywall
+              backgrounds.
             </p>
           </div>
           {uploadButton}

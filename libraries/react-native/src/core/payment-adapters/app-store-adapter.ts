@@ -334,27 +334,29 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     FailedToPresentCodeRedemptionSheetError,
     never
   > {
-    return Effect.fn("PaymentAdapter.presentCodeRedemptionSheet")(function* presentCodeRedemptionSheet() {
-      const storekit = Storekit;
-      if (!storekit) {
-        return yield* Effect.fail(
-          new FailedToPresentCodeRedemptionSheetError({
-            message: "StoreKit is not available on this platform",
-          }),
-        );
-      }
+    return Effect.fn("PaymentAdapter.presentCodeRedemptionSheet")(
+      function* presentCodeRedemptionSheet() {
+        const storekit = Storekit;
+        if (!storekit) {
+          return yield* Effect.fail(
+            new FailedToPresentCodeRedemptionSheetError({
+              message: "StoreKit is not available on this platform",
+            }),
+          );
+        }
 
-      yield* Effect.try({
-        catch: (error) =>
-          new FailedToPresentCodeRedemptionSheetError({
-            cause: error,
-            message: "Failed to present code redemption sheet",
-          }),
-        try: () => storekit.presentCodeRedemptionSheet(),
-      });
+        yield* Effect.try({
+          catch: (error) =>
+            new FailedToPresentCodeRedemptionSheetError({
+              cause: error,
+              message: "Failed to present code redemption sheet",
+            }),
+          try: () => storekit.presentCodeRedemptionSheet(),
+        });
 
-      return yield* Effect.void;
-    })();
+        return yield* Effect.void;
+      },
+    )();
   },
 
   showManageSubscriptions(): Effect.Effect<void, FailedToShowManageSubscriptionsError, never> {

@@ -33,7 +33,9 @@ const make = Effect.fn("make")(function* () {
   const db = yield* Db;
 
   const findPaymentProviderConfigurationById = Effect.fn("findPaymentProviderConfigurationById")(
-    (id: string): Effect.Effect<DbPaymentProviderConfiguration | typeof Schema.Undefined.Type, DbError, Db> =>
+    (
+      id: string,
+    ): Effect.Effect<DbPaymentProviderConfiguration | typeof Schema.Undefined.Type, DbError, Db> =>
       Effect.fn("findPaymentProviderConfigurationById")(function* () {
         return yield* db.query.paymentProviderConfigurations.findFirst({
           where: {
@@ -62,7 +64,10 @@ const make = Effect.fn("make")(function* () {
       readonly paymentProviderConfigurationId: string;
       readonly providerProductKey: string;
     }): Effect.Effect<
-      Option.Option<{ readonly id: string; readonly productType: number | typeof Schema.Undefined.Type }>,
+      Option.Option<{
+        readonly id: string;
+        readonly productType: number | typeof Schema.Undefined.Type;
+      }>,
       DbError,
       Db
     > =>
@@ -77,7 +82,10 @@ const make = Effect.fn("make")(function* () {
           with: { product: { columns: { type: true } } },
         });
         if (row) return Option.some({ id: row.id, productType: row.product?.type });
-        return Option.none<{ readonly id: string; readonly productType: number | typeof Schema.Undefined.Type }>();
+        return Option.none<{
+          readonly id: string;
+          readonly productType: number | typeof Schema.Undefined.Type;
+        }>();
       })(),
   );
 
@@ -177,17 +185,19 @@ const make = Effect.fn("make")(function* () {
         hop: number,
       ): Effect.Effect<string, DbError> {
         if (hop >= MAX_MERGE_CHAIN_HOPS) return Effect.succeed(currentId);
-        return db.query.persons.findFirst({
-          columns: { mergedIntoPersonId: true },
-          where: { id: currentId },
-        }).pipe(
-          Effect.flatMap((row) => {
-            const mergedInto = row?.mergedIntoPersonId;
-            return !mergedInto || mergedInto === currentId
-              ? Effect.succeed(currentId)
-              : loop(mergedInto, hop + 1);
-          }),
-        );
+        return db.query.persons
+          .findFirst({
+            columns: { mergedIntoPersonId: true },
+            where: { id: currentId },
+          })
+          .pipe(
+            Effect.flatMap((row) => {
+              const mergedInto = row?.mergedIntoPersonId;
+              return !mergedInto || mergedInto === currentId
+                ? Effect.succeed(currentId)
+                : loop(mergedInto, hop + 1);
+            }),
+          );
       })(input.personId, 0),
   );
 
@@ -327,7 +337,9 @@ const make = Effect.fn("make")(function* () {
     DbError,
     Db
   > => {
-    const keys = [...new MutableSet(input.storeTransactionIds.filter((key) => Str.isNonEmpty(key)))];
+    const keys = [
+      ...new MutableSet(input.storeTransactionIds.filter((key) => Str.isNonEmpty(key))),
+    ];
     if (Arr.isReadonlyArrayEmpty(keys)) {
       return Effect.succeedNone;
     }

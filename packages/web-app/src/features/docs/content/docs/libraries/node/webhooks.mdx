@@ -125,10 +125,10 @@ Here is a complete `subscription.renewed` payload:
 
 Voidhash signs every request and sends three headers:
 
-| Header                | Value                                                                    |
-| --------------------- | ------------------------------------------------------------------------ |
-| `X-Webhook-Event`     | The event name, for example `purchase.completed`.                        |
-| `X-Webhook-Timestamp` | The Unix time in seconds when the request was signed.                    |
+| Header                | Value                                                                       |
+| --------------------- | --------------------------------------------------------------------------- |
+| `X-Webhook-Event`     | The event name, for example `purchase.completed`.                           |
+| `X-Webhook-Timestamp` | The Unix time in seconds when the request was signed.                       |
 | `X-Webhook-Signature` | `v1=` followed by the hex-encoded HMAC-SHA256 of `${timestamp}.${rawBody}`. |
 
 The HMAC key is the raw UTF-8 endpoint secret. The signature covers the exact bytes Voidhash sent,

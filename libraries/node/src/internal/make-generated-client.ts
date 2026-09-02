@@ -74,7 +74,11 @@ const resolveOptions = (options: VoidhashNodeClientOptions) =>
     }
 
     return {
-      baseUrl: yield* resolveUrl("baseUrl", Option.fromNullishOr(options.baseUrl), DEFAULT_BASE_URL),
+      baseUrl: yield* resolveUrl(
+        "baseUrl",
+        Option.fromNullishOr(options.baseUrl),
+        DEFAULT_BASE_URL,
+      ),
       headers: normalizeHeaders(options.headers),
       ingestUrl: yield* resolveUrl(
         "ingestUrl",

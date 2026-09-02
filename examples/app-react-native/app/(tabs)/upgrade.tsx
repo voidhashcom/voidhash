@@ -12,11 +12,7 @@ import { EVENTS, ONBOARDING_LOCATION, PRO_PERK, PRO_PRODUCT_SLUGS } from "../../
 import { useTheme } from "../../lib/theme";
 import { voidhash } from "../../lib/voidhash";
 
-const PRO_BENEFITS = [
-  "Unlimited notes",
-  "Markdown export",
-  "Everything syncs across your devices",
-];
+const PRO_BENEFITS = ["Unlimited notes", "Markdown export", "Everything syncs across your devices"];
 
 export default function UpgradeScreen() {
   const theme = useTheme();

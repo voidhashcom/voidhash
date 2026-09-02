@@ -64,7 +64,8 @@ export function assumeType(value: unknown): unknown {
 }
 
 /** Recovers a deliberately best-effort adapter with an explicit fallback value. */
-export const recoverAll = <A2>(fallback: () => A2) =>
+export const recoverAll =
+  <A2>(fallback: () => A2) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A | A2, never, R> =>
     Effect.matchEffect(effect, {
       onFailure: () => Effect.succeed(fallback()),
@@ -72,7 +73,8 @@ export const recoverAll = <A2>(fallback: () => A2) =>
     });
 
 /** Recovers failures and defects from an optional enrichment boundary. */
-export const recoverCause = <A2>(fallback: () => A2) =>
+export const recoverCause =
+  <A2>(fallback: () => A2) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A | A2, never, R> =>
     Effect.matchCauseEffect(effect, {
       onFailure: () => Effect.succeed(fallback()),

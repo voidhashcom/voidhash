@@ -154,9 +154,13 @@ function getResolvedPaywallEntry(
 
 function toPaywallError(value: unknown): Error {
   if (P.isError(value)) return value;
-  return new VoidhashError("UNKNOWN", P.isObject(value) && "message" in value && P.isString(value.message)
-    ? value.message
-    : String(value), { cause: value });
+  return new VoidhashError(
+    "UNKNOWN",
+    P.isObject(value) && "message" in value && P.isString(value.message)
+      ? value.message
+      : String(value),
+    { cause: value },
+  );
 }
 
 /**
@@ -416,10 +420,12 @@ async function handlePaywallBridgeEvent(options: {
       );
 
       if (Option.isNone(product)) {
-        return Option.some(new VoidhashError(
-          "FAILED_TO_PURCHASE",
-          `Product not found: ${bridgeEvent.payload.productId}`,
-        ));
+        return Option.some(
+          new VoidhashError(
+            "FAILED_TO_PURCHASE",
+            `Product not found: ${bridgeEvent.payload.productId}`,
+          ),
+        );
       }
 
       const result = await client.purchase(product.value);

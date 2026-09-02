@@ -8,9 +8,7 @@ import { hasTag } from "../runtime-boundary.ts";
 
 const METADATA_HEADERS = constant({ "cache-control": "public, max-age=300" });
 
-const requestOrigin = (
-  request: HttpServerRequest.HttpServerRequest,
-): Effect.Effect<string> =>
+const requestOrigin = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<string> =>
   Effect.try(() => new URL(request.originalUrl).origin).pipe(
     Effect.orElseSucceed(() => {
       const host = stringOr(request.headers.host, "localhost");

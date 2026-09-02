@@ -121,7 +121,8 @@ export type GooglePlayRecordInput = GooglePlayRecordInputBase &
     | { readonly source: "webhook" | "reconciliation"; readonly distinctId?: never }
   );
 
-const optionAttr = <A>(value: Option.Option<A>): A | typeof Schema.Undefined.Type => Option.getOrUndefined(value);
+const optionAttr = <A>(value: Option.Option<A>): A | typeof Schema.Undefined.Type =>
+  Option.getOrUndefined(value);
 
 const crossOwnerTransferOutcome = (transferred: boolean): string => {
   if (transferred) return "cross_owner_transfer";

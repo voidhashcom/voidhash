@@ -1,7 +1,4 @@
-import {
-  buildPreviewNodeStyles,
-  type PreviewNode,
-} from "@voidhash/paywall-renderer-web-core";
+import { buildPreviewNodeStyles, type PreviewNode } from "@voidhash/paywall-renderer-web-core";
 import type { CSSProperties } from "react";
 
 /** Mirrors a component preview root's flex-child sizing onto Studio's selectable wrapper. */

@@ -143,9 +143,7 @@ const formatRequestType = ({ methodName, pathParameters, queryParameters, hasBod
  * bare rather than wrapped.
  */
 const formatCall = ({ methodName, pathParameters, queryParameters, hasBody }) => {
-  const args = pathParameters.map(
-    (parameter) => `request.params[${jsonLiteral(parameter.name)}]`,
-  );
+  const args = pathParameters.map((parameter) => `request.params[${jsonLiteral(parameter.name)}]`);
 
   const formatQuery = () => {
     if (queryParameters.length === 0) {
@@ -153,7 +151,10 @@ const formatCall = ({ methodName, pathParameters, queryParameters, hasBody }) =>
     }
 
     return `{ ${queryParameters
-      .map((parameter) => `${jsonLiteral(parameter.name)}: request.params[${jsonLiteral(parameter.name)}]`)
+      .map(
+        (parameter) =>
+          `${jsonLiteral(parameter.name)}: request.params[${jsonLiteral(parameter.name)}]`,
+      )
       .join(", ")} }`;
   };
   const query = formatQuery();
@@ -275,7 +276,8 @@ const program = Effect.gen(function* () {
 
   if (!specPathArg || !outputPathArg) {
     return yield* new UsageError({
-      message: "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>",
+      message:
+        "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>",
     });
   }
 

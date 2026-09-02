@@ -28,14 +28,19 @@ export const resolveMotionDefinition = (
         ? definition
         : undefined;
   if (!labels) return definition as MotionTarget;
-  return labels.reduce<MotionTarget>((target, label) => ({
-    ...target,
-    ...variants?.[label],
-  }), {});
+  return labels.reduce<MotionTarget>(
+    (target, label) => ({
+      ...target,
+      ...variants?.[label],
+    }),
+    {},
+  );
 };
 
 /** Resolves literal motion style values, deliberately excluding live values from static artifacts. */
-export const resolveLiteralMotionStyle = (style: MotionStyleProp | undefined): ResolvedMotionStyle => {
+export const resolveLiteralMotionStyle = (
+  style: MotionStyleProp | undefined,
+): ResolvedMotionStyle => {
   const flat = flattenStyle(style as never) as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const key of MOTION_STYLE_KEYS) {

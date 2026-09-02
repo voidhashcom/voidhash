@@ -1,41 +1,45 @@
 import * as Schema from "effect/Schema";
 
-export class PackageJsonNotFoundError extends Schema.TaggedErrorClass<PackageJsonNotFoundError>("PackageJsonNotFoundError")(
+export class PackageJsonNotFoundError extends Schema.TaggedErrorClass<PackageJsonNotFoundError>(
   "PackageJsonNotFoundError",
-  { message: Schema.String },
-) {}
+)("PackageJsonNotFoundError", { message: Schema.String }) {}
 
-export class InvalidPackageJsonError extends Schema.TaggedErrorClass<InvalidPackageJsonError>("InvalidPackageJsonError")(
+export class InvalidPackageJsonError extends Schema.TaggedErrorClass<InvalidPackageJsonError>(
   "InvalidPackageJsonError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("InvalidPackageJsonError", { message: Schema.String, cause: Schema.optional(Schema.Unknown) }) {}
 
-export class FailedToLoadPackageJsonError extends Schema.TaggedErrorClass<FailedToLoadPackageJsonError>("FailedToLoadPackageJsonError")(
+export class FailedToLoadPackageJsonError extends Schema.TaggedErrorClass<FailedToLoadPackageJsonError>(
   "FailedToLoadPackageJsonError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("FailedToLoadPackageJsonError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}
 
-export class NoPackageManagerFoundError extends Schema.TaggedErrorClass<NoPackageManagerFoundError>("NoPackageManagerFoundError")(
+export class NoPackageManagerFoundError extends Schema.TaggedErrorClass<NoPackageManagerFoundError>(
   "NoPackageManagerFoundError",
-  { message: Schema.String },
-) {}
+)("NoPackageManagerFoundError", { message: Schema.String }) {}
 
-export class FailedToDetectPackageManagerError extends Schema.TaggedErrorClass<FailedToDetectPackageManagerError>("FailedToDetectPackageManagerError")(
+export class FailedToDetectPackageManagerError extends Schema.TaggedErrorClass<FailedToDetectPackageManagerError>(
   "FailedToDetectPackageManagerError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("FailedToDetectPackageManagerError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}
 
-export class VoidhashConfigNotFoundError extends Schema.TaggedErrorClass<VoidhashConfigNotFoundError>("VoidhashConfigNotFoundError")(
+export class VoidhashConfigNotFoundError extends Schema.TaggedErrorClass<VoidhashConfigNotFoundError>(
   "VoidhashConfigNotFoundError",
-  { message: Schema.String },
-) {}
+)("VoidhashConfigNotFoundError", { message: Schema.String }) {}
 
-export class InvalidVoidhashConfigError extends Schema.TaggedErrorClass<InvalidVoidhashConfigError>("InvalidVoidhashConfigError")(
+export class InvalidVoidhashConfigError extends Schema.TaggedErrorClass<InvalidVoidhashConfigError>(
   "InvalidVoidhashConfigError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("InvalidVoidhashConfigError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}
 
-export class FailedToLoadVoidhashConfigError extends Schema.TaggedErrorClass<FailedToLoadVoidhashConfigError>("FailedToLoadVoidhashConfigError")(
+export class FailedToLoadVoidhashConfigError extends Schema.TaggedErrorClass<FailedToLoadVoidhashConfigError>(
   "FailedToLoadVoidhashConfigError",
-  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
-) {}
+)("FailedToLoadVoidhashConfigError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}

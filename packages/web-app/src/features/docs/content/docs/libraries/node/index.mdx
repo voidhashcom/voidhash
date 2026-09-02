@@ -32,6 +32,7 @@ In Studio, open **Settings → API Keys** and create a secret key. The raw value
 
 Store the key in an environment variable or your secret manager. A secret key grants full access to
 the project. Never put it in a mobile app, a web bundle, or a repository.
+
 </Step>
 
 <Step>
@@ -58,6 +59,7 @@ export const voidhash = createVoidhashSdk({
 `createVoidhashSdk` validates its options right away rather than on the first request. It throws
 `VoidhashNodeConfigurationError` when `secretKey` is blank, `baseUrl` is invalid, there is no global
 `fetch`, or `headers` contains `x-secret-key` in any casing.
+
 </Step>
 
 </Steps>

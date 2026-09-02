@@ -32,9 +32,7 @@ export const STRIPE_TABS: StripePaymentProviderDetailTab[] = [
   },
 ];
 
-export const STRIPE_FIELD_LABELS: Partial<
-  Record<FieldPath<StripeGlobalConfiguration>, string>
-> = {
+export const STRIPE_FIELD_LABELS: Partial<Record<FieldPath<StripeGlobalConfiguration>, string>> = {
   accountId: "Stripe account ID",
   "live.secretKey": "Live API key",
   "live.webhookSecret": "Live webhook signing secret",

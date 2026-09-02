@@ -1,1 +1,4 @@
-export { buildScreenContainerStyles, buildScreenLayoutStyles } from "@voidhash/paywall-style-engine";
+export {
+  buildScreenContainerStyles,
+  buildScreenLayoutStyles,
+} from "@voidhash/paywall-style-engine";

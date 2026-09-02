@@ -39,7 +39,7 @@ export const defaultFrameDriver: FrameDriver = {
   now: () => (typeof performance === "undefined" ? Date.now() : performance.now()),
   requestFrame: (callback) =>
     typeof requestAnimationFrame === "undefined"
-      ? setTimeout(() => callback(Date.now()), 16) as unknown as number
+      ? (setTimeout(() => callback(Date.now()), 16) as unknown as number)
       : requestAnimationFrame(callback),
   cancelFrame: (frame) => {
     if (typeof cancelAnimationFrame === "undefined") {

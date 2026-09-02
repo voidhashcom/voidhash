@@ -36,8 +36,7 @@ export const updateComponentPropBinding = commander.undoableAction<
       writeComponentPropBinding(root, params.nodeId, params.propName, params.binding),
     );
     return {
-      previous:
-        result === undefined ? null : { existed: result.existed, raw: result.previousRaw },
+      previous: result === undefined ? null : { existed: result.existed, raw: result.previousRaw },
     };
   },
   (ctx, params, result) => {
@@ -87,9 +86,7 @@ export const updateComponentPropBindingForNodes = commander.undoableAction<
         return {
           nodeId,
           previous:
-            result === undefined
-              ? null
-              : { existed: result.existed, raw: result.previousRaw },
+            result === undefined ? null : { existed: result.existed, raw: result.previousRaw },
         };
       }),
     );
@@ -211,8 +208,7 @@ export const setComponentActionBinding = commander.undoableAction<
       writeComponentActionBinding(root, params.nodeId, params.actionName, params.action),
     );
     return {
-      previous:
-        result === undefined ? null : { existed: result.existed, raw: result.previousRaw },
+      previous: result === undefined ? null : { existed: result.existed, raw: result.previousRaw },
     };
   },
   (ctx, params, result) => {

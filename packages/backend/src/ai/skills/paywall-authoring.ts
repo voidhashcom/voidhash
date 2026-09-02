@@ -42,7 +42,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 function styleValueLabel(field: string, schema: SerializedSchema): string {
   const acc = acceptanceOf(schema);
-  if (Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsString && !acc.acceptsBoolean) {
+  if (
+    Arr.isReadonlyArrayNonEmpty(acc.literals) &&
+    !acc.acceptsNumber &&
+    !acc.acceptsString &&
+    !acc.acceptsBoolean
+  ) {
     return acc.literals.map((literal) => jsonText(literal)).join(" | ");
   }
   if (acc.isStructured) return "object";

@@ -62,26 +62,33 @@ interface SdkBindings {
 
 /** Collect the SDK import bindings declared by a source file. */
 function sdkBindingsOf(file: ts.SourceFile): SdkBindings {
-  return file.statements.reduce<SdkBindings>((collected, statement) => {
-    if (!ts.isImportDeclaration(statement)) return collected;
-    const spec = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(spec) || spec.text !== SDK_SPECIFIER) return collected;
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings) return collected;
-    if (ts.isNamedImports(bindings)) {
-      return {
-        ...collected,
-        named: bindings.elements.reduce(
-          (named, element) =>
-            HashMap.set(named, element.name.text, element.propertyName?.text ?? element.name.text),
-          collected.named,
-        ),
-      };
-    }
-    return ts.isNamespaceImport(bindings)
-      ? { ...collected, namespaces: HashSet.add(collected.namespaces, bindings.name.text) }
-      : collected;
-  }, { named: HashMap.empty(), namespaces: HashSet.empty() });
+  return file.statements.reduce<SdkBindings>(
+    (collected, statement) => {
+      if (!ts.isImportDeclaration(statement)) return collected;
+      const spec = statement.moduleSpecifier;
+      if (!ts.isStringLiteral(spec) || spec.text !== SDK_SPECIFIER) return collected;
+      const bindings = statement.importClause?.namedBindings;
+      if (!bindings) return collected;
+      if (ts.isNamedImports(bindings)) {
+        return {
+          ...collected,
+          named: bindings.elements.reduce(
+            (named, element) =>
+              HashMap.set(
+                named,
+                element.name.text,
+                element.propertyName?.text ?? element.name.text,
+              ),
+            collected.named,
+          ),
+        };
+      }
+      return ts.isNamespaceImport(bindings)
+        ? { ...collected, namespaces: HashSet.add(collected.namespaces, bindings.name.text) }
+        : collected;
+    },
+    { named: HashMap.empty(), namespaces: HashSet.empty() },
+  );
 }
 
 /**
@@ -204,7 +211,8 @@ function literalValue(expr: ts.Expression): unknown {
 /** Require an array-literal of string literals (for `p.select([...])`). */
 function stringLiteralArray(expr: ts.Expression, what: string): string[] {
   const node = unwrap(expr);
-  if (!ts.isArrayLiteralExpression(node)) return bail(`${what} must be an array literal of strings.`);
+  if (!ts.isArrayLiteralExpression(node))
+    return bail(`${what} must be an array literal of strings.`);
   return node.elements.map((el) => {
     const item = unwrap(el);
     if (ts.isStringLiteral(item) || ts.isNoSubstitutionTemplateLiteral(item)) return item.text;
@@ -327,7 +335,9 @@ function applyPropModifiers(schema: StaticPropSchema, modifiers: ts.CallExpressi
     } else if (name === "localizable") {
       if (modifier.arguments[0] !== undefined) bail("`.localizable()` takes no arguments.");
       if (schema.kind !== "string" && schema.kind !== "image") {
-        bail(`\`.localizable()\` is only valid on \`p.string()\`/\`p.image()\` props, not \`${schema.kind}\`.`);
+        bail(
+          `\`.localizable()\` is only valid on \`p.string()\`/\`p.image()\` props, not \`${schema.kind}\`.`,
+        );
       }
       schema.localizable = true;
     } else {
@@ -443,9 +453,7 @@ function builderArrowBody(value: ts.Expression, field: string): ts.ObjectLiteral
 
 /** The object literal returned by a single-`return` builder block body, or `bail`. */
 function blockReturnObject(block: ts.Block, field: string): ts.Expression {
-  const ret = block.statements.find(
-    (s): s is ts.ReturnStatement => ts.isReturnStatement(s),
-  );
+  const ret = block.statements.find((s): s is ts.ReturnStatement => ts.isReturnStatement(s));
   if (!ret?.expression) return bail(`\`${field}\` must return an object literal.`);
   return unwrap(ret.expression);
 }
@@ -465,7 +473,9 @@ function resolveProps(objectExpr: ts.ObjectLiteralExpression): Record<string, St
 function resolveActions(
   objectExpr: ts.ObjectLiteralExpression,
 ): Record<string, { payload: Record<string, { kind: string }> }> {
-  return objectExpr.properties.reduce<Record<string, { payload: Record<string, { kind: string }> }>>((actions, member) => {
+  return objectExpr.properties.reduce<
+    Record<string, { payload: Record<string, { kind: string }> }>
+  >((actions, member) => {
     if (!ts.isPropertyAssignment(member)) {
       return bail("Each action must be a `name: a.action(...)` assignment.");
     }
@@ -488,7 +498,9 @@ function resolveActionPayload(expr: ts.Expression): Record<string, { kind: strin
   if (first === undefined) return {};
   const arg = unwrap(first);
   if (!ts.isObjectLiteralExpression(arg)) {
-    return bail("`a.action(...)` payload must be an object literal of `a.string/number/boolean()`.");
+    return bail(
+      "`a.action(...)` payload must be an object literal of `a.string/number/boolean()`.",
+    );
   }
   return arg.properties.reduce<Record<string, { kind: string }>>((payload, member) => {
     if (!ts.isPropertyAssignment(member)) {
@@ -659,29 +671,33 @@ function findDefaultExportedDefineComponent(file: ts.SourceFile): Option.Option<
     }, collected);
   }, HashMap.empty<string, ts.CallExpression>());
 
-  return Option.firstSomeOf(file.statements.map((statement) => {
-    // `export default defineComponent(...)` / `export default X`
-    if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
-      const direct = isDefineCall(Option.some(statement.expression));
-      if (Option.isSome(direct)) return direct;
-      if (ts.isIdentifier(statement.expression)) {
-        return HashMap.get(bindings, statement.expression.text);
+  return Option.firstSomeOf(
+    file.statements.map((statement) => {
+      // `export default defineComponent(...)` / `export default X`
+      if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
+        const direct = isDefineCall(Option.some(statement.expression));
+        if (Option.isSome(direct)) return direct;
+        if (ts.isIdentifier(statement.expression)) {
+          return HashMap.get(bindings, statement.expression.text);
+        }
       }
-    }
-    // `export { X as default }`
-    if (
-      ts.isExportDeclaration(statement) &&
-      statement.exportClause &&
-      ts.isNamedExports(statement.exportClause)
-    ) {
-      return Option.firstSomeOf(statement.exportClause.elements.map((element) => {
-        if (element.name.text !== "default") return Option.none<ts.CallExpression>();
-        const local = element.propertyName?.text ?? element.name.text;
-        return HashMap.get(bindings, local);
-      }));
-    }
-    return Option.none<ts.CallExpression>();
-  }));
+      // `export { X as default }`
+      if (
+        ts.isExportDeclaration(statement) &&
+        statement.exportClause &&
+        ts.isNamedExports(statement.exportClause)
+      ) {
+        return Option.firstSomeOf(
+          statement.exportClause.elements.map((element) => {
+            if (element.name.text !== "default") return Option.none<ts.CallExpression>();
+            const local = element.propertyName?.text ?? element.name.text;
+            return HashMap.get(bindings, local);
+          }),
+        );
+      }
+      return Option.none<ts.CallExpression>();
+    }),
+  );
 }
 
 /**
@@ -745,11 +761,14 @@ export function staticExtractManifest(source: string, fileName = "component.tsx"
 function lowerDefinition(call: ts.CallExpression, file: ts.SourceFile): Record<string, unknown> {
   const resolved = resolveDefinition(call, sdkBindingsOf(file));
 
-  const props = R.toEntries(resolved.props).reduce<Record<string, unknown>>((manifestProps, [name, schema]) => {
-    assertUsableName(name);
-    assertSelectHasOptions(name, schema);
-    return { ...manifestProps, [name]: toManifestProp(schema) };
-  }, {});
+  const props = R.toEntries(resolved.props).reduce<Record<string, unknown>>(
+    (manifestProps, [name, schema]) => {
+      assertUsableName(name);
+      assertSelectHasOptions(name, schema);
+      return { ...manifestProps, [name]: toManifestProp(schema) };
+    },
+    {},
+  );
   R.keys(resolved.actions).forEach(assertUsableName);
 
   const usesProducts =
@@ -795,6 +814,8 @@ function assertSelectHasOptions(name: string, schema: StaticPropSchema): void {
     empty(schema) ||
     (schema.kind === "array" && Option.exists(Option.fromUndefinedOr(schema.item), empty))
   ) {
-    bail(`prop "${name}" declares \`p.select([])\` with no options — select props need at least one option.`);
+    bail(
+      `prop "${name}" declares \`p.select([])\` with no options — select props need at least one option.`,
+    );
   }
 }

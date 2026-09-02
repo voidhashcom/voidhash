@@ -10,10 +10,9 @@ export const AnalyticsConfigData = Schema.Struct({
 export type AnalyticsConfigData = typeof AnalyticsConfigData.Type;
 
 /** Configuration required by analytics capture and query services. */
-export class AnalyticsConfig extends Context.Service<
-  AnalyticsConfig,
-  AnalyticsConfigData
->()("@voidhash/core-v2/analytics/AnalyticsConfig") {}
+export class AnalyticsConfig extends Context.Service<AnalyticsConfig, AnalyticsConfigData>()(
+  "@voidhash/core-v2/analytics/AnalyticsConfig",
+) {}
 
 /**
  * Decode application configuration once and reuse the returned layer wherever

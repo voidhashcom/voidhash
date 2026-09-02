@@ -4,9 +4,9 @@
   "private": true,
   "description": "Validation, normalization, capability derivation, and CSS lowering for paywall node styles.",
   "keywords": [
+    "layout",
     "paywalls",
     "styles",
-    "layout",
     "voidhash"
   ],
   "homepage": "https://voidhash.com/docs",

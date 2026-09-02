@@ -111,9 +111,7 @@ function isSerializedNode(value: unknown): value is SerializedNode {
  */
 function parseClipboardData(text: string): ClipboardData | null {
   // Not valid JSON -> no clipboard payload.
-  const decoded = Effect.runSync(
-    Effect.try(() => JSON.parse(text) as unknown).pipe(Effect.option),
-  );
+  const decoded = Effect.runSync(Effect.try(() => JSON.parse(text) as unknown).pipe(Effect.option));
   if (Option.isNone(decoded)) {
     return null;
   }
@@ -322,9 +320,9 @@ export const copyNodes = commander.action(async (ctx) => {
 
   // Ignore failures — the Clipboard API might not be available.
   await Effect.runPromise(
-    Effect.tryPromise(() =>
-      navigator.clipboard.writeText(JSON.stringify(clipboardData)),
-    ).pipe(Effect.ignore),
+    Effect.tryPromise(() => navigator.clipboard.writeText(JSON.stringify(clipboardData))).pipe(
+      Effect.ignore,
+    ),
   );
 });
 

@@ -60,10 +60,7 @@ export function VoidhashGate(props: VoidhashGateProps) {
             title="Voidhash is disabled"
           />
         ) : (
-          <Card
-            subtitle={initErrorMessage}
-            title="Could not reach Voidhash"
-          >
+          <Card subtitle={initErrorMessage} title="Could not reach Voidhash">
             <Button onPress={retryInit} title="Try again" />
           </Card>
         )}

@@ -145,9 +145,7 @@ export const resolveUserSession = (
     ): Effect.Effect<UserSession, RpcAuthFailure, Db> =>
       mapAuthenticationErrors(
         Effect.fn("authenticateBearerToken")(function* () {
-          const token = yield* extractBearerToken(
-            HttpHeaders.get(requestHeaders, "authorization"),
-          );
+          const token = yield* extractBearerToken(HttpHeaders.get(requestHeaders, "authorization"));
           const validated = yield* authTokenVerifier.validateToken(token);
 
           if (!validated.payload.sub) {

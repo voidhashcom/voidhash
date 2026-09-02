@@ -82,7 +82,10 @@ export interface MimicDocumentObjectOptions {
  * name, falling back to the identity persisted on a previous boot when the name
  * carries no separator.
  */
-const identityFromName = (name: string, stored: Option.Option<DocumentIdentity>): DocumentIdentity => {
+const identityFromName = (
+  name: string,
+  stored: Option.Option<DocumentIdentity>,
+): DocumentIdentity => {
   const separator = name.indexOf(":");
   if (separator >= 0) {
     return { collectionId: name.slice(0, separator), documentId: name.slice(separator + 1) };
@@ -232,26 +235,27 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
         let headlessConnections = HashMap.empty<string, HeadlessConnection>();
         yield* Effect.forEach(
           yield* state.getWebSockets(),
-          (socket) => Effect.sync(() => {
-            const attachment = Option.fromNullishOr(
-              socket.deserializeAttachment<SessionAttachment>(),
-            );
-            if (Option.isSome(attachment)) {
-              registry.restore(
-                attachment.value.connectionId,
-                socket,
-                attachment.value.authenticated,
-                Option.fromUndefinedOr(attachment.value.connectedAt),
+          (socket) =>
+            Effect.sync(() => {
+              const attachment = Option.fromNullishOr(
+                socket.deserializeAttachment<SessionAttachment>(),
               );
-              if (attachment.value.authenticated && attachment.value.presence !== undefined) {
-                presence = HashMap.set(
-                  presence,
+              if (Option.isSome(attachment)) {
+                registry.restore(
                   attachment.value.connectionId,
-                  attachment.value.presence,
+                  socket,
+                  attachment.value.authenticated,
+                  Option.fromUndefinedOr(attachment.value.connectedAt),
                 );
+                if (attachment.value.authenticated && attachment.value.presence !== undefined) {
+                  presence = HashMap.set(
+                    presence,
+                    attachment.value.connectionId,
+                    attachment.value.presence,
+                  );
+                }
               }
-            }
-          }),
+            }),
           { discard: true, concurrency: 1 },
         );
         const storedHeadless = yield* state.storage.list<HeadlessConnection>({
@@ -302,7 +306,8 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             storage: idleStorage,
             debounceMs: getConfig().idleNotifyDebounceMs,
             now: () => Clock.Clock.defaultValue().currentTimeMillisUnsafe(),
-            authenticatedCount: () => registry.authenticated().length + HashMap.size(headlessConnections),
+            authenticatedCount: () =>
+              registry.authenticated().length + HashMap.size(headlessConnections),
             publish: (message) => options.publishIdleMessage?.(env, message) ?? Effect.void,
           });
 
@@ -366,14 +371,16 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
           registry,
           presence: {
             snapshot: () => Effect.sync(() => R.fromEntries(presence)),
-            set: (connectionId, entry) => Effect.sync(() => {
-              presence = HashMap.set(presence, connectionId, entry);
-            }),
-            remove: (connectionId) => Effect.sync(() => {
-              const existed = HashMap.has(presence, connectionId);
-              presence = HashMap.remove(presence, connectionId);
-              return existed;
-            }),
+            set: (connectionId, entry) =>
+              Effect.sync(() => {
+                presence = HashMap.set(presence, connectionId, entry);
+              }),
+            remove: (connectionId) =>
+              Effect.sync(() => {
+                const existed = HashMap.has(presence, connectionId);
+                presence = HashMap.remove(presence, connectionId);
+                return existed;
+              }),
             prune: () => pruneHeadlessConnections().pipe(Effect.asVoid),
           },
           onAccepted: (seq) =>

@@ -196,10 +196,7 @@ function moveComponent(
  * hold no render subtree). `path` is the component's canonical
  * document-relative identity.
  */
-export function lowerComponentDelete(
-  liveTree: TreeValue,
-  path: string,
-): ApplyFileWriteResult {
+export function lowerComponentDelete(liveTree: TreeValue, path: string): ApplyFileWriteResult {
   const target = deleteComponent(liveTree, path);
   if (target === undefined) {
     return rejected(`No component at "${path}" to delete.`);

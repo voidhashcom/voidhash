@@ -16,11 +16,7 @@ export class HttpError extends Error {
 }
 
 /** Writes a JSON response and ends the request. */
-export const sendJson = (
-  response: ServerResponse,
-  status: number,
-  body: unknown,
-): void => {
+export const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
   const payload = Buffer.from(`${JSON.stringify(body, null, 2)}\n`, "utf8");
 
   response.writeHead(status, {
@@ -36,10 +32,7 @@ export const sendJson = (
  * Webhook verification needs the exact bytes Voidhash signed, so the raw string
  * is the primitive everything else is built on — see `routes/webhook.ts`.
  */
-export const readRawBody = (
-  request: IncomingMessage,
-  maxBytes = MAX_BODY_BYTES,
-): Promise<string> =>
+export const readRawBody = (request: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<string> =>
   new Promise((resolve, reject) => {
     const chunks: Array<Buffer> = [];
     let size = 0;

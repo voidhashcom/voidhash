@@ -76,7 +76,10 @@ export const stripeProviderEnvironment = (
   pick(livemode === false, ProviderEnvironment.Sandbox, ProviderEnvironment.Production);
 
 const metadataDistinctId = (
-  metadata: Readonly<Record<string, string>> | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+  metadata:
+    | Readonly<Record<string, string>>
+    | typeof Schema.Null.Type
+    | typeof Schema.Undefined.Type,
 ): string | typeof Schema.Undefined.Type => metadata?.[STRIPE_DISTINCT_ID_METADATA_KEY];
 
 /**
@@ -89,9 +92,11 @@ const metadataDistinctId = (
 export const extractStripeDistinctId = (object: {
   readonly client_reference_id?: string | typeof Schema.Null.Type;
   readonly metadata?: Readonly<Record<string, string>> | typeof Schema.Null.Type;
-  readonly subscription_details?: {
-    readonly metadata?: Readonly<Record<string, string>> | typeof Schema.Null.Type;
-  } | typeof Schema.Null.Type;
+  readonly subscription_details?:
+    | {
+        readonly metadata?: Readonly<Record<string, string>> | typeof Schema.Null.Type;
+      }
+    | typeof Schema.Null.Type;
 }): string | typeof Schema.Undefined.Type =>
   object.client_reference_id ??
   metadataDistinctId(object.metadata) ??
@@ -153,7 +158,8 @@ export const resolveChargeKey = (object: {
   readonly payment_intent?: string | typeof Schema.Null.Type;
   readonly charge?: string | typeof Schema.Null.Type;
   readonly id?: string;
-}): string | typeof Schema.Undefined.Type => object.payment_intent ?? object.charge ?? object.id ?? undefined;
+}): string | typeof Schema.Undefined.Type =>
+  object.payment_intent ?? object.charge ?? object.id ?? undefined;
 
 /** Total tax (minor units) from an invoice — legacy `tax` or summed `total_taxes`. */
 export const invoiceTaxMinor = (invoice: typeof StripeInvoice.Type): number => {
@@ -170,5 +176,6 @@ export const isPaidOneTimeCheckout = (session: typeof StripeCheckoutSession.Type
   session.mode === "payment" && session.payment_status === "paid";
 
 /** Storefront ISO-3166 alpha-2 country from a charge's billing details, if present. */
-export const chargeStorefront = (charge: typeof StripeCharge.Type): string | typeof Schema.Undefined.Type =>
-  charge.billing_details?.address?.country ?? undefined;
+export const chargeStorefront = (
+  charge: typeof StripeCharge.Type,
+): string | typeof Schema.Undefined.Type => charge.billing_details?.address?.country ?? undefined;

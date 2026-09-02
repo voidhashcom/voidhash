@@ -81,13 +81,14 @@ export interface PaywallComponentMeta {
  * read-only handle, everything else a writable {@link PanelPropHandle} typed to
  * the prop's value.
  */
-type PanelPropHandleFor<B> = B extends PropBuilder<infer T, boolean, boolean, infer K>
-  ? K extends "ref"
-    ? PanelRefPropHandle
-    : K extends "component"
-      ? PanelReadonlyPropHandle<T>
-      : PanelPropHandle<T>
-  : never;
+type PanelPropHandleFor<B> =
+  B extends PropBuilder<infer T, boolean, boolean, infer K>
+    ? K extends "ref"
+      ? PanelRefPropHandle
+      : K extends "component"
+        ? PanelReadonlyPropHandle<T>
+        : PanelPropHandle<T>
+    : never;
 
 /** The `ctx.props` bag for a panel, refined against the component's prop map. */
 export type PanelPropsFor<M extends PropMap> = {

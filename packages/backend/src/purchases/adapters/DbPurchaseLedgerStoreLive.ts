@@ -255,24 +255,24 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
 
               const requeued = Arr.isReadonlyArrayNonEmpty(candidates)
                 ? yield* tx
-                  .update(purchaseLedger)
-                  .set({
-                    attemptCount: 0,
-                    claimedAt: null,
-                    claimedBy: null,
-                    nextAttemptAt: null,
-                    status: PurchaseLedgerStatus.Pending,
-                  })
-                  .where(
-                    and(
-                      eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
-                      inArray(
-                        purchaseLedger.id,
-                        candidates.map((candidate) => candidate.id),
+                    .update(purchaseLedger)
+                    .set({
+                      attemptCount: 0,
+                      claimedAt: null,
+                      claimedBy: null,
+                      nextAttemptAt: null,
+                      status: PurchaseLedgerStatus.Pending,
+                    })
+                    .where(
+                      and(
+                        eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
+                        inArray(
+                          purchaseLedger.id,
+                          candidates.map((candidate) => candidate.id),
+                        ),
                       ),
-                    ),
-                  )
-                  .returning({ id: purchaseLedger.id })
+                    )
+                    .returning({ id: purchaseLedger.id })
                 : [];
               const requeuedCount = Arr.length(requeued);
 
@@ -290,7 +290,9 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
               const overdue = yield* tx
                 .select({
                   count: sql<number>`count(*)`,
-                  oldest: sql<Date | typeof Schema.Null.Type>`min(COALESCE(${purchaseLedger.nextAttemptAt}, ${purchaseLedger.createdAt}))`,
+                  oldest: sql<
+                    Date | typeof Schema.Null.Type
+                  >`min(COALESCE(${purchaseLedger.nextAttemptAt}, ${purchaseLedger.createdAt}))`,
                 })
                 .from(purchaseLedger)
                 .where(
@@ -307,17 +309,13 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
               const overduePendingCount = Number(overdue[0]?.count ?? 0);
               const oldestOverdue = overdue[0]?.oldest;
               const now = yield* DateTime.nowAsDate;
-              const oldestPendingAgeSeconds = pendingCount > 0 && oldest !== null && oldest !== undefined
-                ? Math.max(0, (now.getTime() - oldest.getTime()) / 1_000)
-                : 0;
+              const oldestPendingAgeSeconds =
+                pendingCount > 0 && oldest !== null && oldest !== undefined
+                  ? Math.max(0, (now.getTime() - oldest.getTime()) / 1_000)
+                  : 0;
               const oldestOverdueAgeSeconds =
-                overduePendingCount > 0 &&
-                oldestOverdue !== null &&
-                oldestOverdue !== undefined
-                  ? Math.max(
-                  0,
-                  (now.getTime() - oldestOverdue.getTime()) / 1_000,
-                )
+                overduePendingCount > 0 && oldestOverdue !== null && oldestOverdue !== undefined
+                  ? Math.max(0, (now.getTime() - oldestOverdue.getTime()) / 1_000)
                   : 0;
 
               return {

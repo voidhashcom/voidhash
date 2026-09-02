@@ -1,7 +1,4 @@
 {
   "title": "Schema",
-  "pages": [
-    "schema.getSchema",
-    "schema.getSchemaVersion"
-  ]
+  "pages": ["schema.getSchema", "schema.getSchemaVersion"]
 }

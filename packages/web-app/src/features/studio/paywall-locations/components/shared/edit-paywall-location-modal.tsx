@@ -11,14 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@voidhash/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@voidhash/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@voidhash/ui/form";
 import { Input } from "@voidhash/ui/input";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";

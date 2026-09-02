@@ -1,10 +1,5 @@
 import type { PanelNodeType } from "@voidhash/paywalls/schema";
-import {
-  Button,
-  Slider,
-  Switch,
-  ToggleGroup,
-} from "@voidhash/ui";
+import { Button, Slider, Switch, ToggleGroup } from "@voidhash/ui";
 import type { ComponentType } from "react";
 
 import { ActionEditorField } from "./action-editor-field";
@@ -16,11 +11,7 @@ import { DimensionField } from "./dimension-field";
 import { FillField } from "./fill-field";
 import { GradientStopBar } from "./gradient-stop-bar";
 import { PanelCallout, PanelColumn, PanelField, PanelRow, PanelText } from "./chrome";
-import {
-  PanelSection,
-  PanelSectionHeaderActions,
-  PanelSubSection,
-} from "./panel-section";
+import { PanelSection, PanelSectionHeaderActions, PanelSubSection } from "./panel-section";
 import { OverrideResetAffordance } from "./reset-affordance";
 import { SelectInput } from "./select-input";
 import { TextInput } from "./text-input";

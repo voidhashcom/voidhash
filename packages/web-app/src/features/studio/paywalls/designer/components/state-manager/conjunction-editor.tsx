@@ -39,21 +39,11 @@ export function ConjunctionEditor({
       <PanelSectionHeader className="px-3 py-2">
         <PanelSubSectionTitle>IF ALL OF THESE ARE TRUE</PanelSubSectionTitle>
         <PanelSectionHeaderActions>
-          <Button
-            onClick={onAddPredicate}
-            size="icon-sm"
-            title="Add condition"
-            variant="outline"
-          >
+          <Button onClick={onAddPredicate} size="icon-sm" title="Add condition" variant="outline">
             <PlusIcon />
           </Button>
           {canRemove && (
-            <Button
-              onClick={onRemove}
-              size="icon-sm"
-              title="Remove this group"
-              variant="ghost"
-            >
+            <Button onClick={onRemove} size="icon-sm" title="Remove this group" variant="ghost">
               <MinusIcon />
             </Button>
           )}

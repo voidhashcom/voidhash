@@ -25,14 +25,13 @@ const providerCatalog = (provider: string): Option.Option<Record<string, unknown
  * rather than asserted.
  */
 const isCatalogModel = (value: unknown): value is Model<string> =>
-  P.isObject(value) &&
-  value !== null &&
-  "id" in value &&
-  "api" in value &&
-  "provider" in value;
+  P.isObject(value) && value !== null && "id" in value && "api" in value && "provider" in value;
 
 /** Looks up a model in Pi's built-in catalog from runtime provider settings. */
-export const getCatalogModel = (provider: string, modelId: string): Option.Option<Model<string>> => {
+export const getCatalogModel = (
+  provider: string,
+  modelId: string,
+): Option.Option<Model<string>> => {
   const catalog = providerCatalog(provider);
   if (Option.isNone(catalog)) return Option.none();
   const entry = catalog.value[modelId];

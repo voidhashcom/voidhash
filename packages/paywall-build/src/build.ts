@@ -112,7 +112,9 @@ function buildPaywallEffect(
 }
 
 /** The typecheck options a `true`/options capability value resolves to. */
-function typecheckOptions(capability: NonNullable<BuildCapabilities["typecheck"]>): TypecheckOptions {
+function typecheckOptions(
+  capability: NonNullable<BuildCapabilities["typecheck"]>,
+): TypecheckOptions {
   if (P.isObject(capability)) return capability;
   return {};
 }
@@ -126,9 +128,11 @@ function toComponentArtifacts(
   imported: ReturnType<typeof resolveImports>["components"],
   extracted: readonly ExtractedComponent[],
 ): readonly ComponentArtifact[] {
-  const byPath = HashMap.fromIterable(extracted.map((extractedComponent) => [extractedComponent.path, extractedComponent] as const));
-  return Arr.sort(imported
-    .map((component): ComponentArtifact => {
+  const byPath = HashMap.fromIterable(
+    extracted.map((extractedComponent) => [extractedComponent.path, extractedComponent] as const),
+  );
+  return Arr.sort(
+    imported.map((component): ComponentArtifact => {
       const e = HashMap.get(byPath, component.path).valueOrUndefined;
       return {
         path: component.path,
@@ -137,5 +141,7 @@ function toComponentArtifacts(
         manifest: e?.manifest ?? Option.none(),
         status: e?.status ?? "unknown",
       };
-    }), Order.mapInput(Order.String, (artifact: ComponentArtifact) => artifact.path));
+    }),
+    Order.mapInput(Order.String, (artifact: ComponentArtifact) => artifact.path),
+  );
 }

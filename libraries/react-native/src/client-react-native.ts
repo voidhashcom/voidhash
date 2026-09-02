@@ -71,9 +71,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     options.unstable_internalSchema,
     dev,
     enabled,
-    options.unstable_nativeEngine === true
-      ? Option.getOrUndefined(getVoidhashEngine())
-      : undefined,
+    options.unstable_nativeEngine === true ? Option.getOrUndefined(getVoidhashEngine()) : undefined,
     options.screenTracking,
   );
 

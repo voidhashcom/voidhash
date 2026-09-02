@@ -136,11 +136,7 @@ function cloneStructuredValue<T>(value: T): T {
   return structuredClone(value);
 }
 
-function setStateStyleOverride(
-  stateProxy: StateOverridesProxy,
-  key: string,
-  value: unknown,
-): void {
+function setStateStyleOverride(stateProxy: StateOverridesProxy, key: string, value: unknown): void {
   stateProxy.overrides.style.update({
     [key]: cloneStructuredValue(value),
   });

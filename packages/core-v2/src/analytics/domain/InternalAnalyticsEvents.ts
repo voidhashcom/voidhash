@@ -22,8 +22,7 @@ export const TRUST_BYPASS_QUOTA = HashSet.empty<string>();
 export const shouldBypassQuota = (input: {
   readonly trustClass?: string;
   readonly eventName: string;
-}) =>
-  input.trustClass === "trusted-revenue" || HashSet.has(TRUST_BYPASS_QUOTA, input.eventName);
+}) => input.trustClass === "trusted-revenue" || HashSet.has(TRUST_BYPASS_QUOTA, input.eventName);
 
 /** Trusted source topic for server-emitted experiment exposures. */
 export const EXPERIMENT_TRUSTED_SOURCE_TOPIC = constant("experiment.trusted.v1");

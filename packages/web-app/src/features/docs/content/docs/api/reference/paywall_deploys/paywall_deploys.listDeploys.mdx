@@ -21,7 +21,10 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="voidhash-v1" operations={[{"path":"/api/v1/paywall-deploys","method":"get"}]} />
+      <Comp
+        document="voidhash-v1"
+        operations={[{ path: "/api/v1/paywall-deploys", method: "get" }]}
+      />
     </>
   );
 }

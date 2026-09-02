@@ -52,8 +52,7 @@ const canonicalize = (value: unknown): unknown => {
       Arr.sort(
         R.toEntries(value),
         orderFromCompare<[string, unknown]>(([left], [right]) => compareKeys(left, right)),
-      )
-        .map(([key, entry]) => [key, canonicalize(entry)]),
+      ).map(([key, entry]) => [key, canonicalize(entry)]),
     );
   }
   return value;
@@ -474,7 +473,9 @@ export const makeMimicHostLive = (
   const resolveRawCollection = Effect.fn("resolveRawCollection")(function* () {
     const sdk = yield* resolveSdk;
     yield* resolveCollection;
-    return sdk.database(unsafeDefined(idsCache).databaseId).collectionRaw(unsafeDefined(idsCache).collectionId);
+    return sdk
+      .database(unsafeDefined(idsCache).databaseId)
+      .collectionRaw(unsafeDefined(idsCache).collectionId);
   })();
 
   const paywallDocumentFromRaw = (document: {

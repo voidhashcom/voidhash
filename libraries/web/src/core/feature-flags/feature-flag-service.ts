@@ -73,14 +73,14 @@ const make = Effect.fn("makeFeatureFlagService")(function* effect() {
 
   // Sync accessors (plain functions, not Effects)
   const isEnabled = (key: string) =>
-    HashMap.get(latestFlags, key).pipe(Option.map((flag) => flag.enabled), Option.getOrElse(() => false));
+    HashMap.get(latestFlags, key).pipe(
+      Option.map((flag) => flag.enabled),
+      Option.getOrElse(() => false),
+    );
 
   const getVariant = (key: string) => HashMap.get(latestFlags, key);
 
-  const getOrRefreshFeatureFlags = (
-    forceRefresh: boolean,
-    keys?: ReadonlyArray<string>,
-  ) =>
+  const getOrRefreshFeatureFlags = (forceRefresh: boolean, keys?: ReadonlyArray<string>) =>
     Effect.gen(function* getOrRefreshFeatureFlags() {
       const distinctId = identityManager.getDistinctId();
       if (Option.isNone(distinctId)) {

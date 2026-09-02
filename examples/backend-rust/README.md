@@ -10,14 +10,14 @@ example, not a database tutorial.
 
 ## What it demonstrates
 
-| Thing | Where |
-| --- | --- |
-| Client construction and boot-time config validation | [`src/main.rs`](src/main.rs) |
-| Entitlement checks behind a 60s cache | [`src/entitlements.rs`](src/entitlements.rs) |
-| Treating transport and `5xx` failures as *unknown*, never as a denial | [`src/entitlements.rs`](src/entitlements.rs) |
-| Signature verification over raw bytes, with a dedupe set | [`src/webhooks.rs`](src/webhooks.rs), [`src/routes/webhooks.rs`](src/routes/webhooks.rs) |
-| Analytics capture, best-effort on writes and strict on the forwarding route | [`src/analytics.rs`](src/analytics.rs) |
-| Branching on `voidhash::Error` variants rather than on message text | [`src/error.rs`](src/error.rs) |
+| Thing                                                                       | Where                                                                                    |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Client construction and boot-time config validation                         | [`src/main.rs`](src/main.rs)                                                             |
+| Entitlement checks behind a 60s cache                                       | [`src/entitlements.rs`](src/entitlements.rs)                                             |
+| Treating transport and `5xx` failures as _unknown_, never as a denial       | [`src/entitlements.rs`](src/entitlements.rs)                                             |
+| Signature verification over raw bytes, with a dedupe set                    | [`src/webhooks.rs`](src/webhooks.rs), [`src/routes/webhooks.rs`](src/routes/webhooks.rs) |
+| Analytics capture, best-effort on writes and strict on the forwarding route | [`src/analytics.rs`](src/analytics.rs)                                                   |
+| Branching on `voidhash::Error` variants rather than on message text         | [`src/error.rs`](src/error.rs)                                                           |
 
 ## Prerequisites
 
@@ -37,13 +37,13 @@ cp .env.example .env
 $EDITOR .env
 ```
 
-| Variable | Required | Default |
-| --- | --- | --- |
-| `VOIDHASH_SECRET_KEY` | yes | — |
-| `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | — |
-| `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
-| `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
-| `PORT` | no | `8080` |
+| Variable                  | Required                 | Default                       |
+| ------------------------- | ------------------------ | ----------------------------- |
+| `VOIDHASH_SECRET_KEY`     | yes                      | —                             |
+| `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | —                             |
+| `VOIDHASH_BASE_URL`       | no                       | `https://api.voidhash.com`    |
+| `VOIDHASH_INGEST_URL`     | no                       | `https://ingest.voidhash.com` |
+| `PORT`                    | no                       | `8080`                        |
 
 `VOIDHASH_BASE_URL` is the management API root — the SDK appends `/api/v1/…`
 itself. Analytics ingestion is a separate origin with its own variable.
@@ -281,18 +281,18 @@ Every failure uses the same envelope:
 { "error": "note_limit_reached", "message": "…" }
 ```
 
-| Status | `error` | When |
-| --- | --- | --- |
-| `400` | `missing_distinct_id` | no usable `?distinctId=` |
-| `400` | `invalid_body` | malformed or incomplete JSON |
-| `400` | `invalid_signature` / `missing_signature_headers` | webhook verification |
-| `402` | `premium_required` | export without the `pro` perk |
-| `403` | `note_limit_reached` | fourth note on a free account |
-| `429` | `rate_limited` | Voidhash rate limit |
-| `500` | `voidhash_auth_failed` | your secret key was rejected |
-| `502` | `voidhash_unreachable` / `voidhash_unavailable` | Voidhash is down |
-| `502` | `analytics_rejected` / `analytics_unreachable` | ingestion refused the event |
-| `503` | `entitlements_unavailable` | Voidhash is down *and* nothing is cached |
+| Status | `error`                                           | When                                     |
+| ------ | ------------------------------------------------- | ---------------------------------------- |
+| `400`  | `missing_distinct_id`                             | no usable `?distinctId=`                 |
+| `400`  | `invalid_body`                                    | malformed or incomplete JSON             |
+| `400`  | `invalid_signature` / `missing_signature_headers` | webhook verification                     |
+| `402`  | `premium_required`                                | export without the `pro` perk            |
+| `403`  | `note_limit_reached`                              | fourth note on a free account            |
+| `429`  | `rate_limited`                                    | Voidhash rate limit                      |
+| `500`  | `voidhash_auth_failed`                            | your secret key was rejected             |
+| `502`  | `voidhash_unreachable` / `voidhash_unavailable`   | Voidhash is down                         |
+| `502`  | `analytics_rejected` / `analytics_unreachable`    | ingestion refused the event              |
+| `503`  | `entitlements_unavailable`                        | Voidhash is down _and_ nothing is cached |
 
 ## Testing the webhook locally
 
@@ -354,7 +354,7 @@ lifetime: perks are project configuration, not per-user state.
 
 ### 2. Failure is not denial
 
-A transport error or a `5xx` means *unknown*. The cached answer is served past
+A transport error or a `5xx` means _unknown_. The cached answer is served past
 its TTL and marked `"freshness": "stale"`:
 
 ```json
@@ -377,7 +377,7 @@ its TTL and marked `"freshness": "stale"`:
 ```
 
 Revoking a paying customer because a network hop flapped is a support ticket;
-serving a minute of stale truth is not. When Voidhash is unreachable *and* the
+serving a minute of stale truth is not. When Voidhash is unreachable _and_ the
 caller has never been resolved by this process there is nothing to serve, and
 the route answers `503 entitlements_unavailable` rather than quietly
 downgrading them to the free tier.
@@ -399,8 +399,8 @@ Two details, both easy to miss:
   the payload does not. `delivery_key` uses the subject id plus `occurredAt`,
   falling back to the whole body for event shapes it does not know yet.
 
-The key is claimed *before* the handler runs, so two concurrent redeliveries
-cannot both get through, and the response is sent *before* handling, so a slow
+The key is claimed _before_ the handler runs, so two concurrent redeliveries
+cannot both get through, and the response is sent _before_ handling, so a slow
 handler does not turn into another retry.
 
 ## What to steal for your own app
@@ -420,7 +420,7 @@ handler does not turn into another retry.
 - **[`src/main.rs`](src/main.rs)** — `Config::from_env`. Validate at boot, exit
   with a sentence a human can act on.
 
-What *not* to steal: `NoteStore` (use a database) and the fact that
+What _not_ to steal: `NoteStore` (use a database) and the fact that
 `distinctId` arrives in the query string. A real service resolves the distinct
 id from the caller's access token and never from user-controlled input.
 
@@ -437,7 +437,7 @@ with the project's secret key — capture needs no second credential:
   rather than onto every event's properties.
 
 What that module owns is the example's policy — best-effort on write paths,
-strict on `POST /v1/events` where forwarding *is* the request — not the wire
+strict on `POST /v1/events` where forwarding _is_ the request — not the wire
 format, which the SDK owns.
 
 ## Layout

@@ -37,16 +37,16 @@ export class PaywallService extends Context.Service<PaywallService>()(
       const getPaywallForLocation = Effect.fn("PaywallService.getPaywallForLocation")(function* (
         locationSlug: LocationSlug,
       ) {
-          const commonHeaders = yield* getCommonSdkHeaders();
-          const distinctId = yield* identityManager.getDistinctId();
-          return yield* apiClient.sdk.resolvePaywall({
-            headers: {
-              ...commonHeaders,
-              "x-distinct-id": distinctId,
-            },
-            payload: { locationSlug: String(locationSlug) },
-          });
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const distinctId = yield* identityManager.getDistinctId();
+        return yield* apiClient.sdk.resolvePaywall({
+          headers: {
+            ...commonHeaders,
+            "x-distinct-id": distinctId,
+          },
+          payload: { locationSlug: String(locationSlug) },
         });
+      });
 
       return { getPaywallForLocation } as const;
     }),

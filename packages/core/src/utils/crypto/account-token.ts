@@ -77,9 +77,7 @@ export const uuidV5 = (namespaceUuid: string, name: string): Effect.Effect<strin
     const inputBytes = new Uint8Array(input);
     inputBytes.set(namespaceBytes, 0);
     inputBytes.set(nameBytes, namespaceBytes.length);
-    const digest = new Uint8Array(
-      yield* promiseOrDie(() => subtle.digest("SHA-1", input)),
-    );
+    const digest = new Uint8Array(yield* promiseOrDie(() => subtle.digest("SHA-1", input)));
     const uuidBytes = digest.slice(0, 16);
     uuidBytes[6] = ((uuidBytes[6] ?? 0) & 0x0f) | 0x50;
     uuidBytes[8] = ((uuidBytes[8] ?? 0) & 0x3f) | 0x80;

@@ -90,11 +90,13 @@ export type AgentSessionFactory<ConnectionData = unknown> = {
 
 /** Optional persistence hook for the Postgres session index. */
 export interface AgentSessionIndex<ConnectionData = unknown> {
-  readonly touch: (input: {
-    readonly sessionId: string;
-    readonly owner: AgentSessionOwner;
-    readonly connectionData: ConnectionData;
-  } & Readonly<Partial<{ title: string; metadata: AgentSessionMetadata }>>) => Promise<void>;
+  readonly touch: (
+    input: {
+      readonly sessionId: string;
+      readonly owner: AgentSessionOwner;
+      readonly connectionData: ConnectionData;
+    } & Readonly<Partial<{ title: string; metadata: AgentSessionMetadata }>>,
+  ) => Promise<void>;
 }
 
 /** Configuration for {@link AgentSessionCore}. */
@@ -119,10 +121,9 @@ interface LiveAgentSession<ConnectionData> {
 }
 
 /** Raised when a WebSocket text frame is not a valid agent command. */
-class InvalidAgentCommandError extends Schema.TaggedErrorClass<InvalidAgentCommandError>("InvalidAgentCommandError")(
+class InvalidAgentCommandError extends Schema.TaggedErrorClass<InvalidAgentCommandError>(
   "InvalidAgentCommandError",
-  { message: Schema.String },
-) {}
+)("InvalidAgentCommandError", { message: Schema.String }) {}
 
 const sameOwner = (left: AgentSessionOwner, right: AgentSessionOwner): boolean =>
   left.organizationId === right.organizationId &&
@@ -139,7 +140,8 @@ const isPromiseLike = <A>(value: Promise<A> | A): value is Promise<A> => {
 const fromMaybePromise = <A>(thunk: () => Promise<A> | A): Effect.Effect<A> =>
   Effect.suspend(() => {
     const value = thunk();
-    if (isPromiseLike(value)) return Effect.tryPromise({ try: () => value, catch: (cause) => cause }).pipe(Effect.orDie);
+    if (isPromiseLike(value))
+      return Effect.tryPromise({ try: () => value, catch: (cause) => cause }).pipe(Effect.orDie);
     return Effect.succeed(value);
   });
 
@@ -152,12 +154,12 @@ const touchIndex = <ConnectionData>(
   } & Readonly<Partial<{ title: string; metadata: AgentSessionMetadata }>>,
 ): Effect.Effect<void> => {
   if (index === undefined) return Effect.void;
-  return Effect.tryPromise({ try: () => index.touch(input), catch: (cause) => cause }).pipe(Effect.orDie);
+  return Effect.tryPromise({ try: () => index.touch(input), catch: (cause) => cause }).pipe(
+    Effect.orDie,
+  );
 };
 
-const optionalPaywallId = (
-  value: typeof NullableString.Type | void,
-): string | void => {
+const optionalPaywallId = (value: typeof NullableString.Type | void): string | void => {
   if (P.isString(value)) return value;
   return undefined;
 };
@@ -309,129 +311,123 @@ export class AgentSessionCore<ConnectionData = unknown> {
       if (command === undefined) return;
 
       if (command.type === "get_entries") {
-          const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
-          yield* send({
-            v: AGENT_PROTOCOL_VERSION,
-            type: "entries",
-            requestId: command.requestId,
-            entries,
-          });
-          return;
-        }
+        const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
+        yield* send({
+          v: AGENT_PROTOCOL_VERSION,
+          type: "entries",
+          requestId: command.requestId,
+          entries,
+        });
+        return;
+      }
       if (command.type === "get_state") {
-          const live = yield* getOrCreate();
-          const entryCount = yield* readSessionLogCount(
-            host,
-            agentSessionAddress(connection.sessionId),
-          );
+        const live = yield* getOrCreate();
+        const entryCount = yield* readSessionLogCount(
+          host,
+          agentSessionAddress(connection.sessionId),
+        );
+        yield* send({
+          v: AGENT_PROTOCOL_VERSION,
+          type: "state",
+          requestId: command.requestId,
+          state: {
+            sessionId: connection.sessionId,
+            isStreaming: live.agent.state.isStreaming,
+            model: {
+              provider: live.agent.state.model.provider,
+              id: live.agent.state.model.id,
+            },
+            entryCount,
+            context: live.dynamicContext.current,
+          },
+        });
+        return;
+      }
+      if (command.type === "set_context") {
+        const live = yield* getOrCreate();
+        live.dynamicContext.current = dynamicSessionContext(
+          command.paywallId,
+          command.selectedNodeIds,
+        );
+        live.metadata = {
+          surface: live.metadata?.surface ?? "designer",
+          paywallId: command.paywallId ?? null,
+        };
+        yield* touchIndex(index, {
+          sessionId: connection.sessionId,
+          owner: connection.owner,
+          metadata: live.metadata,
+          connectionData: live.connectionData,
+        });
+        yield* ack(command);
+        return;
+      }
+      if (command.type === "set_model") {
+        const live = yield* getOrCreate();
+        const model = yield* fromMaybePromise(() =>
+          factory.resolveModel(command.provider, command.modelId, live.connectionData),
+        );
+        if (model === undefined) {
           yield* send({
             v: AGENT_PROTOCOL_VERSION,
-            type: "state",
+            type: "error",
             requestId: command.requestId,
-            state: {
-              sessionId: connection.sessionId,
-              isStreaming: live.agent.state.isStreaming,
-              model: {
-                provider: live.agent.state.model.provider,
-                id: live.agent.state.model.id,
-              },
-              entryCount,
-              context: live.dynamicContext.current,
-            },
+            message: `Unknown model: ${command.provider}/${command.modelId}`,
           });
           return;
         }
-      if (command.type === "set_context") {
-          const live = yield* getOrCreate();
-          live.dynamicContext.current = dynamicSessionContext(
-            command.paywallId,
-            command.selectedNodeIds,
-          );
-          live.metadata = {
-            surface: live.metadata?.surface ?? "designer",
-            paywallId: command.paywallId ?? null,
-          };
-          yield* touchIndex(index, {
-            sessionId: connection.sessionId,
-            owner: connection.owner,
-            metadata: live.metadata,
-            connectionData: live.connectionData,
-          });
-          yield* ack(command);
-          return;
-        }
-      if (command.type === "set_model") {
-          const live = yield* getOrCreate();
-          const model = yield* fromMaybePromise(() =>
-            factory.resolveModel(command.provider, command.modelId, live.connectionData),
-          );
-          if (model === undefined) {
+        live.agent.state.model = model;
+        yield* appendSessionLog(host, agentSessionAddress(connection.sessionId), [
+          { type: "model_change", provider: model.provider, modelId: model.id },
+        ]);
+        yield* ack(command);
+        return;
+      }
+      if (command.type === "abort") {
+        Option.getOrUndefined(MutableHashMap.get(sessions, connection.sessionId))?.agent.abort();
+        yield* ack(command);
+        return;
+      }
+      if (command.type === "prompt" || command.type === "steer" || command.type === "follow_up") {
+        const live = yield* getOrCreate();
+        const images = promptImages(command);
+        const message = yield* userMessage(command.text, images);
+        if (command.type === "prompt") {
+          if (live.agent.state.isStreaming) {
             yield* send({
               v: AGENT_PROTOCOL_VERSION,
               type: "error",
               requestId: command.requestId,
-              message: `Unknown model: ${command.provider}/${command.modelId}`,
+              message: "Agent is already running; use steer or follow_up",
             });
             return;
           }
-          live.agent.state.model = model;
-          yield* appendSessionLog(host, agentSessionAddress(connection.sessionId), [
-            { type: "model_change", provider: model.provider, modelId: model.id },
-          ]);
-          yield* ack(command);
-          return;
-        }
-      if (command.type === "abort") {
-          Option.getOrUndefined(MutableHashMap.get(sessions, connection.sessionId))?.agent.abort();
-          yield* ack(command);
-          return;
-        }
-      if (
-        command.type === "prompt" ||
-        command.type === "steer" ||
-        command.type === "follow_up"
-      ) {
-          const live = yield* getOrCreate();
-          const images = promptImages(command);
-          const message = yield* userMessage(command.text, images);
-          if (command.type === "prompt") {
-            if (live.agent.state.isStreaming) {
-              yield* send({
-                v: AGENT_PROTOCOL_VERSION,
-                type: "error",
-                requestId: command.requestId,
-                message: "Agent is already running; use steer or follow_up",
-              });
-              return;
-            }
-            yield* fromMaybePromise(() =>
-              factory.preparePrompt?.({
-                agent: live.agent,
-                message,
-                sessionId: connection.sessionId,
-                owner: connection.owner,
-                connectionData: live.connectionData,
-                dynamicContext: live.dynamicContext,
-              }),
-            );
-            void live.agent
-              .prompt(message)
-              .catch((cause) =>
-                runPromise(broadcastError(command.requestId, causeMessage(cause))),
-              );
-            yield* touchIndex(index, {
+          yield* fromMaybePromise(() =>
+            factory.preparePrompt?.({
+              agent: live.agent,
+              message,
               sessionId: connection.sessionId,
               owner: connection.owner,
-              title: titleFromText(command.text),
-              ...(live.metadata === undefined ? {} : { metadata: live.metadata }),
               connectionData: live.connectionData,
-            });
-          } else if (command.type === "steer") {
-            live.agent.steer(message);
-          } else {
-            live.agent.followUp(message);
-          }
-          yield* ack(command);
+              dynamicContext: live.dynamicContext,
+            }),
+          );
+          void live.agent
+            .prompt(message)
+            .catch((cause) => runPromise(broadcastError(command.requestId, causeMessage(cause))));
+          yield* touchIndex(index, {
+            sessionId: connection.sessionId,
+            owner: connection.owner,
+            title: titleFromText(command.text),
+            ...(live.metadata === undefined ? {} : { metadata: live.metadata }),
+            connectionData: live.connectionData,
+          });
+        } else if (command.type === "steer") {
+          live.agent.steer(message);
+        } else {
+          live.agent.followUp(message);
+        }
+        yield* ack(command);
       }
     });
   };
@@ -487,7 +483,10 @@ export class AgentSessionCore<ConnectionData = unknown> {
       const pending = Option.getOrUndefined(
         MutableHashMap.get(this.#creating, connection.sessionId),
       );
-      if (pending !== undefined) return Effect.tryPromise({ try: () => pending, catch: (cause) => cause }).pipe(Effect.orDie);
+      if (pending !== undefined)
+        return Effect.tryPromise({ try: () => pending, catch: (cause) => cause }).pipe(
+          Effect.orDie,
+        );
 
       const creating = this.#create(connection).finally(() =>
         MutableHashMap.remove(this.#creating, connection.sessionId),

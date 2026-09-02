@@ -179,7 +179,8 @@ export const MassExtendRenewalDateStatusResponseCodec = Schema.Struct({
   /** The number of subscriptions that failed to extend. */
   failedCount: Schema.OptionFromOptionalKey(Schema.Number),
 });
-export type MassExtendRenewalDateStatusResponseCodec = typeof MassExtendRenewalDateStatusResponseCodec.Type;
+export type MassExtendRenewalDateStatusResponseCodec =
+  typeof MassExtendRenewalDateStatusResponseCodec.Type;
 
 export type MassExtendRenewalDateStatusResponse = Schema.Schema.Type<
   typeof MassExtendRenewalDateStatusResponseCodec
@@ -305,9 +306,7 @@ export const AppTransactionInfoResponseCodec = Schema.Struct({
 });
 export type AppTransactionInfoResponseCodec = typeof AppTransactionInfoResponseCodec.Type;
 
-export type AppTransactionInfoResponse = Schema.Schema.Type<
-  typeof AppTransactionInfoResponseCodec
->;
+export type AppTransactionInfoResponse = Schema.Schema.Type<typeof AppTransactionInfoResponseCodec>;
 
 /**
  * An image list response item.
@@ -352,9 +351,7 @@ export const GetMessageListResponseItemCodec = Schema.Struct({
 });
 export type GetMessageListResponseItemCodec = typeof GetMessageListResponseItemCodec.Type;
 
-export type GetMessageListResponseItem = Schema.Schema.Type<
-  typeof GetMessageListResponseItemCodec
->;
+export type GetMessageListResponseItem = Schema.Schema.Type<typeof GetMessageListResponseItemCodec>;
 
 /**
  * Response for getting the message list.

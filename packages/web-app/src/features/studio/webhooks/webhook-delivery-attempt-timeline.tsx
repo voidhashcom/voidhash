@@ -1,13 +1,7 @@
 "use client";
 
 import type { WebhookDeliveryAttempt } from "@voidhash/rpc";
-import {
-  Badge,
-  cn,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@voidhash/ui";
+import { Badge, cn, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@voidhash/ui";
 import { format } from "date-fns";
 import { ChevronDownIcon } from "lucide-react";
 

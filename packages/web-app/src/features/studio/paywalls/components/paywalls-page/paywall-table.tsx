@@ -2,15 +2,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { Paywall } from "@voidhash/rpc";
-import {
-  Badge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@voidhash/ui";
+import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@voidhash/ui";
 import { Smartphone } from "lucide-react";
 
 import { PaywallActionsMenu } from "./paywall-actions-menu";

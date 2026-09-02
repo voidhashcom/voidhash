@@ -34,11 +34,7 @@ function defaultRenderLoading() {
   );
 }
 
-function defaultRenderError(
-  domain: Option.Option<string>,
-  code: number,
-  description: string,
-) {
+function defaultRenderError(domain: Option.Option<string>, code: number, description: string) {
   return (
     <View style={styles.loadingOrErrorView}>
       <Text style={styles.errorTextTitle}>Error loading page</Text>
@@ -105,16 +101,25 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
   ) => {
     // Nitro Views rely on Fabric/New Architecture.
     if (!("nativeFabricUIManager" in globalThis)) {
-      throw new TypeError("PaywallWebView requires React Native New Architecture (Fabric) enabled.");
+      throw new TypeError(
+        "PaywallWebView requires React Native New Architecture (Fabric) enabled.",
+      );
     }
 
     const hybridViewRef = React.useRef<PaywallWebViewHostRef>(undefined);
-    const [viewState, setViewState] = React.useState<ViewState>(startInLoadingState ? "LOADING" : "IDLE");
-    const [lastErrorEvent, setLastErrorEvent] = React.useState<Option.Option<PaywallWebViewErrorEvent>>(Option.none());
+    const [viewState, setViewState] = React.useState<ViewState>(
+      startInLoadingState ? "LOADING" : "IDLE",
+    );
+    const [lastErrorEvent, setLastErrorEvent] = React.useState<
+      Option.Option<PaywallWebViewErrorEvent>
+    >(Option.none());
     const startUrl = React.useRef<string>(undefined);
 
     const sourceNormalized = React.useMemo(() => normalizeSource(source), [source]);
-    const compiledWhitelist = React.useMemo(() => compileWhitelist(originWhitelist), [originWhitelist]);
+    const compiledWhitelist = React.useMemo(
+      () => compileWhitelist(originWhitelist),
+      [originWhitelist],
+    );
 
     const onHybridRef = React.useCallback((hybridRef: PaywallWebViewHostRef) => {
       hybridViewRef.current = hybridRef;
@@ -241,95 +246,95 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
     return (
       <View style={[styles.container, containerStyle]}>
         <View style={StyleSheet.flatten([styles.webView, style])}>
-        <PaywallWebViewNativeComponent
-          style={styles.webView}
-          allowFileAccess={allowFileAccess}
-          allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
-          allowUniversalAccessFromFileURLs={allowUniversalAccessFromFileURLs}
-          allowsAirPlayForMediaPlayback={allowsAirPlayForMediaPlayback}
-          allowsFullscreenVideo={allowsFullscreenVideo}
-          allowsInlineMediaPlayback={allowsInlineMediaPlayback}
-          allowsPictureInPictureMediaPlayback={allowsPictureInPictureMediaPlayback}
-          androidLayerType="none"
-          applicationNameForUserAgent={applicationNameForUserAgent}
-          bounces={bounces}
-          cacheEnabled={cacheEnabled}
-          cacheMode="LOAD_DEFAULT"
-          dataDetectorTypes={dataDetectorTypes}
-          geolocationEnabled={geolocationEnabled}
-          hybridRef={wrapNitroCallback(onHybridRef)}
-          incognito={incognito}
-          injectedJavaScript={injectedJavaScript}
-          injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
-          injectedJavaScriptBeforeContentLoadedForMainFrameOnly={
-            injectedJavaScriptBeforeContentLoadedForMainFrameOnly
-          }
-          injectedJavaScriptForMainFrameOnly={injectedJavaScriptForMainFrameOnly}
-          javaScriptEnabled={javaScriptEnabled}
-          mediaPlaybackRequiresUserAction={mediaPlaybackRequiresUserAction}
-          messagingEnabled={P.isFunction(onMessage)}
-          mixedContentMode="never"
-          nestedScrollEnabled={nestedScrollEnabled}
-          onContentProcessDidTerminate={wrapNitroCallback(
-            onContentProcessDidTerminate
-              ? (event: PaywallWebViewBaseEvent) => {
-                  onContentProcessDidTerminate(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onFileDownload={wrapNitroCallback(
-            onFileDownload
-              ? (event: PaywallWebViewFileDownloadEvent) => {
-                  onFileDownload(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onHttpError={wrapNitroCallback(
-            onHttpError
-              ? (event: PaywallWebViewHttpErrorEvent) => {
-                  onHttpError(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onLoadingError={wrapNitroCallback(onLoadingError)}
-          onLoadingFinish={wrapNitroCallback(onLoadingFinish)}
-          onLoadingProgress={wrapNitroCallback(onLoadingProgress)}
-          onLoadingStart={wrapNitroCallback(onLoadingStart)}
-          onMessage={wrapNitroCallback(
-            onMessage
-              ? (event: PaywallWebViewMessageEvent) => {
-                  onMessage(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onOpenWindow={wrapNitroCallback(
-            onOpenWindow
-              ? (event: PaywallWebViewOpenWindowEvent) => {
-                  onOpenWindow(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onRenderProcessGone={wrapNitroCallback(
-            onRenderProcessGone
-              ? (event: PaywallWebViewRenderProcessGoneEvent) => {
-                  onRenderProcessGone(createNativeEvent(event));
-                }
-              : undefined,
-          )}
-          onShouldStartLoadWithRequest={wrapNitroCallback(onShouldStartLoad)}
-          originWhitelist={originWhitelist}
-          overScrollMode="always"
-          pullToRefreshEnabled={pullToRefreshEnabled}
-          scalesPageToFit={scalesPageToFit}
-          setBuiltInZoomControls={setBuiltInZoomControls}
-          setDisplayZoomControls={setDisplayZoomControls}
-          setSupportMultipleWindows={setSupportMultipleWindows}
-          sharedCookiesEnabled={sharedCookiesEnabled}
-          source={sourceNormalized}
-          textZoom={textZoom}
-          thirdPartyCookiesEnabled={thirdPartyCookiesEnabled}
-          userAgent={userAgent}
-        />
+          <PaywallWebViewNativeComponent
+            style={styles.webView}
+            allowFileAccess={allowFileAccess}
+            allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
+            allowUniversalAccessFromFileURLs={allowUniversalAccessFromFileURLs}
+            allowsAirPlayForMediaPlayback={allowsAirPlayForMediaPlayback}
+            allowsFullscreenVideo={allowsFullscreenVideo}
+            allowsInlineMediaPlayback={allowsInlineMediaPlayback}
+            allowsPictureInPictureMediaPlayback={allowsPictureInPictureMediaPlayback}
+            androidLayerType="none"
+            applicationNameForUserAgent={applicationNameForUserAgent}
+            bounces={bounces}
+            cacheEnabled={cacheEnabled}
+            cacheMode="LOAD_DEFAULT"
+            dataDetectorTypes={dataDetectorTypes}
+            geolocationEnabled={geolocationEnabled}
+            hybridRef={wrapNitroCallback(onHybridRef)}
+            incognito={incognito}
+            injectedJavaScript={injectedJavaScript}
+            injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
+            injectedJavaScriptBeforeContentLoadedForMainFrameOnly={
+              injectedJavaScriptBeforeContentLoadedForMainFrameOnly
+            }
+            injectedJavaScriptForMainFrameOnly={injectedJavaScriptForMainFrameOnly}
+            javaScriptEnabled={javaScriptEnabled}
+            mediaPlaybackRequiresUserAction={mediaPlaybackRequiresUserAction}
+            messagingEnabled={P.isFunction(onMessage)}
+            mixedContentMode="never"
+            nestedScrollEnabled={nestedScrollEnabled}
+            onContentProcessDidTerminate={wrapNitroCallback(
+              onContentProcessDidTerminate
+                ? (event: PaywallWebViewBaseEvent) => {
+                    onContentProcessDidTerminate(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onFileDownload={wrapNitroCallback(
+              onFileDownload
+                ? (event: PaywallWebViewFileDownloadEvent) => {
+                    onFileDownload(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onHttpError={wrapNitroCallback(
+              onHttpError
+                ? (event: PaywallWebViewHttpErrorEvent) => {
+                    onHttpError(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onLoadingError={wrapNitroCallback(onLoadingError)}
+            onLoadingFinish={wrapNitroCallback(onLoadingFinish)}
+            onLoadingProgress={wrapNitroCallback(onLoadingProgress)}
+            onLoadingStart={wrapNitroCallback(onLoadingStart)}
+            onMessage={wrapNitroCallback(
+              onMessage
+                ? (event: PaywallWebViewMessageEvent) => {
+                    onMessage(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onOpenWindow={wrapNitroCallback(
+              onOpenWindow
+                ? (event: PaywallWebViewOpenWindowEvent) => {
+                    onOpenWindow(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onRenderProcessGone={wrapNitroCallback(
+              onRenderProcessGone
+                ? (event: PaywallWebViewRenderProcessGoneEvent) => {
+                    onRenderProcessGone(createNativeEvent(event));
+                  }
+                : undefined,
+            )}
+            onShouldStartLoadWithRequest={wrapNitroCallback(onShouldStartLoad)}
+            originWhitelist={originWhitelist}
+            overScrollMode="always"
+            pullToRefreshEnabled={pullToRefreshEnabled}
+            scalesPageToFit={scalesPageToFit}
+            setBuiltInZoomControls={setBuiltInZoomControls}
+            setDisplayZoomControls={setDisplayZoomControls}
+            setSupportMultipleWindows={setSupportMultipleWindows}
+            sharedCookiesEnabled={sharedCookiesEnabled}
+            source={sourceNormalized}
+            textZoom={textZoom}
+            thirdPartyCookiesEnabled={thirdPartyCookiesEnabled}
+            userAgent={userAgent}
+          />
         </View>
         {otherView}
       </View>

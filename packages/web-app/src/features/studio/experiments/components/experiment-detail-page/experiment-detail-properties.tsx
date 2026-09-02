@@ -159,9 +159,7 @@ export function ExperimentDetailProperties() {
         {metricsLocked ? (
           <PropertyValue>
             {secondaryList.length > 0 ? (
-              <span className="min-w-0 truncate font-mono text-xs">
-                {secondaryList.join(", ")}
-              </span>
+              <span className="min-w-0 truncate font-mono text-xs">{secondaryList.join(", ")}</span>
             ) : (
               <PropertyEmpty>None</PropertyEmpty>
             )}

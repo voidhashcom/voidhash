@@ -232,13 +232,15 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
             ),
           );
           if (Option.isSome(thumbnailKey)) {
-            yield* publicFileStore.deleteObject(thumbnailKey.value).pipe(
-              Effect.catchCause((cause) =>
-                Effect.logWarning(
-                  `Failed to delete paywall thumbnail object ${thumbnailKey.value}: ${Cause.pretty(cause)}`,
+            yield* publicFileStore
+              .deleteObject(thumbnailKey.value)
+              .pipe(
+                Effect.catchCause((cause) =>
+                  Effect.logWarning(
+                    `Failed to delete paywall thumbnail object ${thumbnailKey.value}: ${Cause.pretty(cause)}`,
+                  ),
                 ),
-              ),
-            );
+              );
           }
         }
 

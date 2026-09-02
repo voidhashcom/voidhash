@@ -148,16 +148,16 @@ Emitted per component by the authoring pipeline and validated server-side at fin
 
 Prop kinds: `string | number | boolean | select | image | ref | component | array`. Per-kind fields and constraints:
 
-| `kind`      | extra fields                                                                                              | `editor`                    | `default`                        |
-| ----------- | --------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------- |
-| `string`    | —                                                                                                         | allowed (`"color"` for now) | `string`                         |
-| `number`    | —                                                                                                         | not allowed                 | `number`                         |
-| `boolean`   | —                                                                                                         | not allowed                 | `boolean`                        |
+| `kind`      | extra fields                                                                                   | `editor`                    | `default`                        |
+| ----------- | ---------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------- |
+| `string`    | —                                                                                              | allowed (`"color"` for now) | `string`                         |
+| `number`    | —                                                                                              | not allowed                 | `number`                         |
+| `boolean`   | —                                                                                              | not allowed                 | `boolean`                        |
 | `select`    | `options`: **non-empty** `string[]` (empty options are a build error and rejected at finalize) | not allowed                 | `string`                         |
-| `image`     | —                                                                                                         | not allowed                 | `string` (URL / asset reference) |
-| `ref`       | `refType`: `"product"` only in P1                                                                         | not allowed                 | —                                |
-| `component` | —                                                                                                         | not allowed                 | —                                |
-| `array`     | `item`: a non-array kind (carries the same per-kind fields)                                               | not allowed                 | array of scalars matching `item` |
+| `image`     | —                                                                                              | not allowed                 | `string` (URL / asset reference) |
+| `ref`       | `refType`: `"product"` only in P1                                                              | not allowed                 | —                                |
+| `component` | —                                                                                              | not allowed                 | —                                |
+| `array`     | `item`: a non-array kind (carries the same per-kind fields)                                    | not allowed                 | array of scalars matching `item` |
 
 `editor` is a UI hint and only legal on `string` props — the authoring API enforces this at the type level. Non-JSON-serializable defaults (e.g. React nodes) are omitted from the manifest. A prop with a `default` is always emitted with `optional: true`. All kinds also accept optional `label`, `description`, `optional`.
 
