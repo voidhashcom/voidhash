@@ -1,33 +1,33 @@
 ---
 title: Swift SDK
-description: Client configuration and API reference for the Voidhash iOS SDK.
+description: Configure the Voidhash iOS SDK and look up its client options and methods.
 icon: svgl:swift
 ---
 
-The Voidhash iOS SDK adds entitlements, feature flags, analytics, and observer-mode transaction
-reporting to native Swift apps.
+The Swift SDK adds entitlements, feature flags, analytics, and observer-mode transaction reporting
+to native iOS apps. Use this page to create the client, set its options, and find the methods you
+need. Each feature also has its own guide, linked from the section that introduces it.
 
-<Callout type="warn" title="Initial release is observer-only">
+<Callout type="warn" title="The initial release is observer-only">
   SDK-started purchases and hosted paywalls are temporarily unavailable. StoreKit transactions are
   still observed and submitted to Voidhash for revenue analytics, but the SDK never finishes them.
 </Callout>
 
 ## Compatibility
 
-| Requirement | Version                                          |
-| ----------- | ------------------------------------------------ |
-| Platform    | iOS 15+ (paywalls require UIKit)                 |
-| Toolchain   | Swift 6, builds with the Swift 5.9 language mode |
-| StoreKit    | StoreKit 2                                       |
+The SDK has three requirements.
 
-The package ships two library products:
+- iOS 15 or later. Paywalls require UIKit.
+- Swift 6, building with the Swift 5.9 language mode.
+- StoreKit 2.
 
-- **`Voidhash`** — the SDK you integrate against.
-- **`VoidhashCore`** — the shared native core (StoreKit engine, paywall bridge and presenter, API
-  client, identity, caching, schema). Also consumed by the React Native SDK's native layer.
+The package ships two library products. `Voidhash` is the SDK you integrate against. `VoidhashCore`
+is the shared native core: the StoreKit engine, the paywall bridge and presenter, the API client,
+identity, caching, and the schema. The React Native SDK's native layer uses `VoidhashCore` as well.
 
-CocoaPods is supported through the npm package `@voidhash/ios`; declare both pods because the local
-`Voidhash` pod cannot resolve its local `VoidhashCore` dependency alone:
+You can also install the SDK with CocoaPods through the npm package `@voidhash/ios`. Declare both
+pods, because the local `Voidhash` pod cannot resolve its local `VoidhashCore` dependency on its
+own.
 
 ```ruby
 pod "VoidhashCore", :path => "../node_modules/@voidhash/ios"
@@ -36,7 +36,7 @@ pod "Voidhash", :path => "../node_modules/@voidhash/ios"
 
 ## Create the client
 
-Create one client for the lifetime of the app:
+Create one client and keep it for the lifetime of the app.
 
 ```swift
 import Voidhash
@@ -46,20 +46,23 @@ let voidhash = Voidhash.configure(publishableKey: "vh_pk_...")
 
 The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
 
-`configure` returns the client, also reachable as `Voidhash.shared`. There is no schema argument:
-the schema lives on the server and is fetched during initialization.
+`configure` returns the client. The same client is also reachable as `Voidhash.shared`. There is no
+schema argument, because the schema lives on the server and the SDK fetches it during
+initialization.
 
-Initialization — store connection, schema resolution, reconciliation of transactions observed while
-the app was away — runs in the background and is awaited implicitly by the first call that needs it.
-Await it explicitly when you need to gate UI on it:
+Initialization runs in the background. It connects to the store, resolves the schema, and reconciles
+transactions that were observed while the app was away. The first call that needs initialization
+waits for it implicitly. When you want to gate UI on it, await it explicitly.
 
 ```swift
 try await voidhash.waitForInitialization()
 ```
 
-A failed initialization is retried on the next call that needs it.
+If initialization fails, the SDK retries it on the next call that needs it.
 
 ## Client options
+
+Pass a `VoidhashOptions` value to `configure` to change the defaults.
 
 ```swift
 var options = VoidhashOptions()
@@ -74,20 +77,22 @@ options.onWarning = { message in } // Diagnostics never raised to the caller
 let voidhash = Voidhash.configure(publishableKey: "vh_pk_...", options: options)
 ```
 
-| Option       | Default                    | Use                                                                        |
-| ------------ | -------------------------- | -------------------------------------------------------------------------- |
-| `baseUrl`    | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
-| `ingestUrl`  | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
-| `debug`      | `false`                    | Enable diagnostics and mark requests as debug-build traffic.               |
-| `distinctId` | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
-| `enabled`    | `true`                     | Set `false` to ship the SDK fully inert.                                   |
-| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                         |
-| `onWarning`  | Unified log                | Receives background failures that are not surfaced as thrown errors.       |
+Each option is described below.
+
+| Option       | Default                    | Description                                                                 |
+| ------------ | -------------------------- | --------------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.voidhash.com` | Overrides the API origin for self-hosted deployments.                       |
+| `ingestUrl`  | Same origin as `baseUrl`   | Overrides only the analytics origin.                                        |
+| `debug`      | `false`                    | Enables diagnostics and marks requests as debug-build traffic.              |
+| `distinctId` | Generated anonymous ID     | Seeds the initial customer identity. Usually omit it and call `identify()`. |
+| `enabled`    | `true`                     | Set it to `false` to ship the SDK fully inert.                              |
+| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                          |
+| `onWarning`  | Unified log                | Receives background failures that are not surfaced as thrown errors.        |
 
 ### Disabled clients
 
-With `enabled: false`, every method is inert: no requests are made, no store connection opens,
-`getProducts()` returns an empty list, and `getCurrentPerson()` returns `nil`.
+With `enabled: false`, every method is inert. The SDK makes no requests and opens no store
+connection. `getProducts()` returns an empty list, and `getCurrentPerson()` returns `nil`.
 
 ### Observer mode
 
@@ -95,6 +100,8 @@ The initial release always uses observer mode. Passing `readOnly: false` or call
 `setReadOnly(false)` cannot transfer StoreKit ownership to Voidhash yet.
 
 ## Products and transaction reporting
+
+Load the product catalog and restore the customer's existing purchases.
 
 ```swift
 let products = try await voidhash.getProducts()
@@ -108,10 +115,12 @@ try await voidhash.restorePurchases()
 ```
 
 Initialization and restore submit observed StoreKit transactions to Voidhash without finishing
-them. `purchase(product:)` is retained for a later commerce launch but currently throws
-`READ_ONLY_PURCHASE_NOT_ALLOWED` before StoreKit is touched. SDK-owned store sheets are inert.
+them. `purchase(product:)` remains in the SDK for a later commerce launch, but it currently throws
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before it touches StoreKit. SDK-owned store sheets are inert.
 
 ## People and entitlements
+
+Read the current person, identify them when they sign in, and reset the client when they sign out.
 
 ```swift
 let person = try await voidhash.getCurrentPerson()
@@ -127,14 +136,16 @@ let distinctId = await voidhash.getDistinctId()
 await voidhash.reset() // Sign out: clears the identity and every cached response
 ```
 
-The person snapshot is cached for two days and served stale after five minutes; pass
-`getCurrentPerson(forceFetch: true)` to bypass the cache. The SDK refreshes it after purchases,
-restores, and identity changes.
+The SDK caches the person snapshot for two days. After five minutes it treats the snapshot as stale
+but still serves it from the cache. Pass `getCurrentPerson(forceFetch: true)` to bypass the cache.
+The SDK refreshes the snapshot on its own after purchases, restores, and identity changes.
 
 See [Check access](/sdks/swift/entitlements) and [Identify customers](/sdks/swift/identify-users) for the underlying
 concepts.
 
 ## Feature flags
+
+Evaluate the flags you need by key.
 
 ```swift
 let flags = try await voidhash.getFeatureFlags(["new-onboarding"])
@@ -146,16 +157,19 @@ identity behavior.
 
 ## Analytics
 
+Capture an event, and call `flush()` when you need the queue sent right away.
+
 ```swift
 await voidhash.capture("checkout_started", properties: ["plan": .string("pro")])
 await voidhash.flush()
 ```
 
-Events are batched (20 per request, flushed every 5 seconds) and retried with exponential backoff;
-`flush()` sends everything queued right now. Names beginning with `$` are reserved for Voidhash
-events. See [Capture analytics](/sdks/swift/analytics).
+The SDK batches events, sending up to 20 per request and flushing every 5 seconds. Failed requests
+are retried with exponential backoff, so the wait grows after each failure. `flush()` sends
+everything queued right now. Event names beginning with `$` are reserved for Voidhash events. See
+[Capture analytics](/sdks/swift/analytics).
 
 ## Paywalls
 
 Hosted paywalls are temporarily unavailable. `presentPaywall(...)` returns `.notAssigned`, paywall
-resolution returns `nil`, and no network or presentation work is performed.
+resolution returns `nil`, and the SDK performs no network or presentation work.

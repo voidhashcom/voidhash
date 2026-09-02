@@ -1,38 +1,43 @@
 ---
 title: Node.js library
-description: Typed server-side client for the Voidhash REST API.
+description: A typed server-side client for the Voidhash REST API.
 icon: svgl:nodejs
 ---
 
-Client-side checks decide what to render. Anything a customer could get by calling your API
-directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
-the server as well.
+The mobile SDKs decide what to show on the device. They cannot protect anything a customer can
+reach by calling your API directly, such as an export endpoint or a paid model. Those checks belong
+on your server, and this library is how you make them.
 
-`@voidhash/node` wraps the Voidhash REST API with a typed client and authenticates with a project
-secret key.
+`@voidhash/node` is a typed client for the Voidhash REST API. It authenticates every request with a
+project secret key.
 
 ## Install the SDK
+
+Install the package from npm.
 
 ```sh
 npm install @voidhash/node
 ```
 
-Requires Node 18+ with a global `fetch`. `require()` additionally needs Node 20.19+ or 22.12+,
-because the CommonJS build loads the ESM-only `effect` package; `import` has no such constraint.
+The package needs Node 18 or newer with a global `fetch`. If you load it with `require()`, you also
+need Node 20.19 or newer, or Node 22.12 or newer. The CommonJS build loads the ESM-only `effect`
+package, and only those versions can do that. Loading it with `import` has no such constraint.
 
 <Steps>
 
 <Step>
 ### Create a secret key
 
-In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown only once.
 
-Store it in an environment variable or your secret manager. A secret key grants full project access:
-never put it in a mobile app, a web bundle, or a repository.
+Store the key in an environment variable or your secret manager. A secret key grants full access to
+the project. Never put it in a mobile app, a web bundle, or a repository.
 </Step>
 
 <Step>
 ### Create the client
+
+Create one client with your secret key and export it for the rest of your server to use.
 
 ```ts title="server/voidhash.ts"
 import { createVoidhashSdk } from "@voidhash/node";
@@ -42,15 +47,17 @@ export const voidhash = createVoidhashSdk({
 });
 ```
 
-| Option      | Default                    | Use                                                       |
-| ----------- | -------------------------- | --------------------------------------------------------- |
-| `secretKey` | —                          | Required. Sent as the `x-secret-key` header.              |
-| `baseUrl`   | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.     |
-| `headers`   | `{}`                       | Extra headers added to every request from this client.    |
+`createVoidhashSdk` accepts these options.
 
-`createVoidhashSdk` validates eagerly and throws `VoidhashNodeConfigurationError` on a blank
-`secretKey`, an invalid `baseUrl`, a missing global `fetch`, or an `x-secret-key` passed through
-`headers` in any casing.
+| Option      | Default                    | Description                                                       |
+| ----------- | -------------------------- | ----------------------------------------------------------------- |
+| `secretKey` | none                       | Required. The SDK sends it as the `x-secret-key` header.          |
+| `baseUrl`   | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`. |
+| `headers`   | `{}`                       | Extra headers the SDK adds to every request from this client.     |
+
+`createVoidhashSdk` validates its options right away rather than on the first request. It throws
+`VoidhashNodeConfigurationError` when `secretKey` is blank, `baseUrl` is invalid, there is no global
+`fetch`, or `headers` contains `x-secret-key` in any casing.
 </Step>
 
 </Steps>
@@ -60,7 +67,10 @@ With the client configured, continue with [checking access](/libraries/node/chec
 
 ## Effect entrypoint
 
-Every method also exists as an `Effect`:
+The SDK also ships an Effect entrypoint. Effect is the TypeScript library the SDK depends on
+internally, and this entrypoint exposes every method as an `Effect` value instead of a Promise.
+
+Import from `@voidhash/node/effect` to get the Effect-based client.
 
 ```ts
 import { createVoidhashSdk } from "@voidhash/node/effect";
@@ -74,8 +84,8 @@ const program = voidhash.entitlements.hasActivePerk({
 ```
 
 This entrypoint exposes Effect types across the package boundary, so your app must resolve to the
-same `effect` instance and version the SDK depends on. Effect v4 is still in beta and its types are
-not stable across releases. The default entrypoint has no such constraint — it returns plain
+same `effect` instance and version the SDK depends on. Effect v4 is still in beta, and its types are
+not stable across releases. The default entrypoint has no such constraint because it returns plain
 Promises.
 
-The webhook helpers are Effect-free and exported identically from both entrypoints.
+The webhook helpers do not use Effect. Both entrypoints export them identically.

@@ -4,8 +4,8 @@ description: Pick your platform and show your first paywall.
 icon: Rocket
 ---
 
-Voidhash ships native SDKs for every major mobile stack. Each quickstart takes an existing app from
-installation to a working paywall and entitlement check.
+Voidhash ships native SDKs for every major mobile stack. Each quickstart starts from an existing
+app and ends with a working paywall and entitlement check. Pick your platform to begin.
 
 <Cards>
   <Card
@@ -27,15 +27,17 @@ installation to a working paywall and entitlement check.
 
 ## What you need before you start
 
-- a Voidhash project with its **publishable key** (`vh_pk_...`) — store credentials and secret keys
-  never ship inside the app;
-- a subscription or one-time product in App Store Connect or Google Play Console; and
-- a paywall published in Studio, assigned to a location such as `onboarding`.
+Every quickstart assumes you already have three things:
 
-The React Native quickstart uses [development purchase mode](/sdks/react-native/development-mode) so
-you can test without store setup first. Swift and Kotlin test against App Store Sandbox or Google
-Play testing tracks from the start — see [Store setup](/store-setup/apple-app-store) and
-[Connect Google Play](/store-setup/google-play).
+- A Voidhash project with its **publishable key** (`vh_pk_...`). Store credentials and secret keys
+  never ship inside the app.
+- A subscription or one-time product in App Store Connect or Google Play Console.
+- A paywall published in Studio and assigned to a location, such as `onboarding`.
+
+The React Native quickstart uses [development purchase mode](/sdks/react-native/development-mode),
+so you can test before you set up a store. Swift and Kotlin test against App Store Sandbox or
+Google Play testing tracks from the start. See [Store setup](/store-setup/apple-app-store) and
+[Connect Google Play](/store-setup/google-play) to prepare those.
 
 ## Next steps
 

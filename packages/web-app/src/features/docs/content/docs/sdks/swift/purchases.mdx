@@ -1,16 +1,16 @@
 ---
 title: Make and restore purchases
-description: Build a custom purchase UI with store-backed products.
+description: Build your own purchase screen on top of store-backed products.
 icon: ShoppingBag
 ---
 
-Hosted paywalls already handle purchase and restore actions. Use the APIs on this page when you
-build your own purchase screen.
+Hosted paywalls handle purchases and restores for you. Use the APIs on this page when you build
+your own purchase screen and need to load products, start a purchase, or restore earlier ones.
 
 ## Load products
 
-The SDK returns the store-backed products configured in your project, with prices already formatted
-for the customer's storefront:
+`getProducts()` returns the store-backed products configured in your project. Prices come already
+formatted for the customer's storefront, so you can render them directly.
 
 ```swift
 let products = try await voidhash.getProducts()
@@ -21,14 +21,14 @@ if let monthly {
 }
 ```
 
-A product is absent from the result when it is not available on the current store account,
-environment, or provider configuration.
+If a product is missing from the result, the store did not return it. That happens when the product
+is not available on the current store account, environment, or provider configuration.
 
 ## Start a purchase
 
-`purchase(product:)` buys through StoreKit 2, syncs the transaction to Voidhash for server
-validation, and only then finishes it with the store. The current person refreshes after success,
-so entitlement grants update without extra work:
+`purchase(product:)` buys through StoreKit 2 and syncs the transaction to Voidhash for server
+validation. Only after Voidhash accepts the transaction does the SDK finish it with the store. On
+success the SDK refreshes the current person, so entitlement grants update without extra work.
 
 ```swift
 do {
@@ -41,9 +41,9 @@ do {
 }
 ```
 
-Errors surface as `VoidhashStoreError`, whose string form is `"CODE: message"`. Match known codes
-such as `USER_CANCELLED` and `PURCHASE_PENDING` when recovery differs. See
-[Errors](/sdks/swift/errors) for the full list.
+Errors surface as `VoidhashStoreError`. Its string form is `"CODE: message"`. Match known codes such
+as `USER_CANCELLED` and `PURCHASE_PENDING` when recovery differs. See [Errors](/sdks/swift/errors)
+for the full list.
 
 <Callout type="warn" title="Grant access from Voidhash state">
   A successful store dialog is not the entitlement check. Unlock the feature only after the
@@ -52,14 +52,17 @@ such as `USER_CANCELLED` and `PURCHASE_PENDING` when recovery differs. See
 
 ## Restore purchases
 
-Apps should expose a visible restore action. Restore reconciles every purchase the store still
-reports with Voidhash and refreshes the current person. It does not create a second purchase:
+Give customers a visible restore action. Restore reconciles every purchase the store still reports
+with Voidhash and refreshes the current person. It never creates a second purchase.
 
 ```swift
 try await voidhash.restorePurchases()
 ```
 
 ## Store sheets
+
+The SDK can also present two StoreKit sheets for you: the code redemption sheet and the manage
+subscriptions screen.
 
 ```swift
 try await voidhash.presentCodeRedemptionSheet()
@@ -68,12 +71,12 @@ try await voidhash.showManageSubscriptions()
 
 ## Common failure cases
 
-- **Product is missing** — verify the store product mapping in Studio and the Sandbox environment.
-- **Purchase already in progress** — disable repeated taps while a purchase is running.
-- **Customer cancels** — match `USER_CANCELLED` and treat it as an expected result, not an error.
-- **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
-  the expected perk in Studio.
-- **Restore finds nothing** — confirm the device uses the same App Store account as the original
+- **Product is missing.** Verify the store product mapping in Studio and the Sandbox environment.
+- **Purchase already in progress.** Disable repeated taps while a purchase is running.
+- **Customer cancels.** Match `USER_CANCELLED` and treat it as an expected result, not an error.
+- **Purchase succeeds but access is absent.** Retry the person fetch, and verify in Studio that the
+  product grants the expected perk.
+- **Restore finds nothing.** Confirm the device uses the same App Store account as the original
   purchase.
 
 ## Next steps

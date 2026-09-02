@@ -4,24 +4,29 @@ description: Connect projects and generate types from the terminal.
 icon: SquareTerminal
 ---
 
-`voidhash-cli` is not a dependency of the SDK. Run it directly, without installing anything:
+The Voidhash CLI, `voidhash-cli`, connects a local project to Studio and keeps generated types in
+sync. It is not a dependency of the SDK, so you can run it directly without installing anything.
+
+Print the available commands to confirm it runs:
 
 ```bash
 npx voidhash-cli --help
 ```
 
-`pnpm dlx voidhash-cli --help` works the same way. Isolated invocation keeps the CLI out of your
-app's dependency tree, so it cannot influence your bundle or lockfile resolution.
+`pnpm dlx voidhash-cli --help` works the same way. Running the CLI this way keeps it out of your
+app's dependency tree, so it cannot affect your bundle or lockfile resolution.
 
 ## Install it as a dev dependency
 
-Install it when you run it repeatedly, and specifically when you use the Metro plugin. The plugin
-spawns `voidhash-cli types generate --watch` alongside the Metro dev server and resolves the binary
-from `PATH`, which a dev-dependency install provides:
+Install the CLI when you run it often, and always when you use the Metro plugin. The plugin spawns
+`voidhash-cli types generate --watch` alongside the Metro dev server and looks up the binary on
+`PATH`. A dev-dependency install puts it there.
 
 ```package-install
 npm install voidhash-cli --save-dev
 ```
+
+Then wrap your Metro config with the plugin:
 
 ```js title="metro.config.js"
 const { getDefaultConfig } = require("expo/metro-config");
@@ -30,10 +35,12 @@ const { withVoidhash } = require("@voidhash/react-native/metro");
 module.exports = withVoidhash(getDefaultConfig(__dirname));
 ```
 
-If the binary is not on `PATH`, `withVoidhash` warns and returns the Metro config unchanged, so the
-dev server still starts.
+If the binary is not on `PATH`, `withVoidhash` prints a warning and returns the Metro config
+unchanged. The dev server still starts.
 
 ## Commands
+
+Run each command as `npx voidhash-cli <command>`.
 
 | Command                       | Use                                                                              |
 | ----------------------------- | -------------------------------------------------------------------------------- |
@@ -48,40 +55,47 @@ dev server still starts.
 
 ## Initialize an app
 
+Run `init` from the app root to connect it to a project:
+
 ```bash
 npx voidhash-cli init
 ```
 
-The interactive command creates `voidhash.config.ts`, `src/lib/voidhash.ts`, and
+The command is interactive. It creates `voidhash.config.ts`, `src/lib/voidhash.ts`, and
 `voidhash.gen.d.ts`. It does not install packages or create a local schema.
 
 ## Keep types in sync
+
+After the project schema changes in Studio, regenerate the declaration file:
 
 ```bash
 npx voidhash-cli types generate
 ```
 
-Commit the generated declaration. Add this CI check to catch dashboard changes that have not been
-pulled into the repository:
+Commit the generated declaration. To catch Studio changes that nobody has pulled into the
+repository yet, add a check to CI:
 
 ```bash
 npx voidhash-cli types check
 ```
 
+The check fails when the committed types are behind the server schema.
+
 ## Profiles
 
-Use a profile to keep environment-specific CLI settings separate:
+A profile keeps environment-specific CLI settings separate. Set a value under a profile, then pass
+the same profile to later commands:
 
 ```bash
 npx voidhash-cli config set api_url https://example.test --profile staging
 npx voidhash-cli types generate --profile staging
 ```
 
-The base configuration lives in `~/.voidhash`; project selection lives in the committed
+The base configuration lives in `~/.voidhash`. Project selection lives in the committed
 `voidhash.config.ts`.
 
 ## Troubleshooting
 
-- **Not logged in** — run `npx voidhash-cli auth login`.
-- **Project config missing** — run `npx voidhash-cli init` from the app root.
-- **Generated types are stale** — run `npx voidhash-cli types generate` and commit the file.
+- **Not logged in.** Run `npx voidhash-cli auth login`.
+- **Project config missing.** Run `npx voidhash-cli init` from the app root.
+- **Generated types are stale.** Run `npx voidhash-cli types generate` and commit the file.

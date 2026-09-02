@@ -1,7 +1,10 @@
 ---
 title: Find App Store Connect API values
-description: Locate the Issuer ID, Key ID, and Vendor Number requested by Voidhash.
+description: Find the Issuer ID, Key ID, and Vendor Number that Voidhash asks for.
 ---
+
+Voidhash uses an App Store Connect API team key to read product metadata for your app. You collect
+three values from App Store Connect: the **Issuer ID**, the **Key ID**, and your **Vendor Number**.
 
 <Steps>
 
@@ -11,31 +14,35 @@ description: Locate the Issuer ID, Key ID, and Vendor Number requested by Voidha
 In [App Store Connect](https://appstoreconnect.apple.com), open **Users and Access**, choose
 **Integrations**, then open **App Store Connect API → Team Keys**.
 
-The Account Holder must enable API access before an Account Holder or Admin can generate team keys.
+The Account Holder must enable API access first. After that, an Account Holder or Admin can
+generate team keys.
 
 </Step>
 
 <Step>
 ### Copy the Issuer ID
 
-Copy the team-wide **Issuer ID** shown above the active keys table and paste it into Voidhash.
+The team-wide **Issuer ID** is shown above the active keys table. Copy it and paste it into
+Voidhash.
 
 </Step>
 
 <Step>
 ### Copy the Key ID
 
-Generate or select the Team Key used for product metadata access. Copy its **Key ID** into
-Voidhash. If you generate a new key, securely store its one-time `.p8` download with your team's
-credentials.
+Generate or select the Team Key that Voidhash will use for product metadata access, then copy its
+**Key ID** into Voidhash.
+
+If you generate a new key, Apple offers its `.p8` file for download only once. Store that download
+securely with your team's credentials.
 
 </Step>
 
 <Step>
 ### Find the Vendor Number
 
-Open **Payments and Financial Reports**, choose **Reports**, and copy the **Vendor Number** shown for
-the legal entity that owns this app. Paste it into Voidhash.
+Open **Payments and Financial Reports** and choose **Reports**. Copy the **Vendor Number** shown
+for the legal entity that owns this app, and paste it into Voidhash.
 
 </Step>
 

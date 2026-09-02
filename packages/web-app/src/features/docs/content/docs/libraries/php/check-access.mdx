@@ -4,10 +4,14 @@ description: Gate server-side features on a customer's active perk grants.
 icon: ServerCog
 ---
 
-Set up the [PHP library with a secret key](/libraries/php) first. This page covers deciding access:
-gate server-side features on a customer's active perk grants.
+Use the PHP library to decide, on your server, whether a customer may use a feature. The check asks
+Voidhash for the customer's active perk grants, so nothing a customer reaches through your API
+depends on a client-side decision. Set up the [PHP library with a secret key](/libraries/php) first.
 
 ## Check a perk
+
+`hasActivePerk` answers one question: does this customer hold an active grant for this perk? The
+handler below gates an export route on the `premium` perk.
 
 ```php title="routes/export.php"
 $app->get("/reports/export", function (Request $request, Response $response) {
@@ -25,22 +29,24 @@ $app->get("/reports/export", function (Request $request, Response $response) {
 ```
 
 `distinctId` is the same identifier your app passed to
-[`identify()`](/sdks/react-native/identify-users). Pass **exactly one** of `perkId` or `perkSlug` —
-both or neither throws `Voidhash\ConfigurationException` before any request is made.
+[`identify()`](/sdks/react-native/identify-users). Pass exactly one of `perkId` or `perkSlug`. If
+you pass both or neither, the call throws `Voidhash\ConfigurationException` before any request is
+made.
 
-`perkSlug` costs one extra `perks.listPerks` round trip to resolve. On a hot path, resolve the slug
-to its id once at boot and pass `perkId`.
+Checking by `perkSlug` is convenient, but it costs one extra request (`perks.listPerks`) to resolve
+the slug to an id. On a hot path, look the id up once when your server starts and pass `perkId`
+instead.
 
 <Callout type="info" title="An unknown customer has no access">
-  `hasActivePerk` returns `false` for a `distinctId` Voidhash has never seen, and for a `perkSlug`
-  that matches no perk. It does **not** swallow authentication, authorization, `5xx`, or transport
-  failures — those throw, so a mistyped secret key can never be mistaken for "nobody has premium".
+  `hasActivePerk` returns `false` when Voidhash has never seen the `distinctId`, and when the
+  `perkSlug` matches no perk. It does not hide authentication, authorization, `5xx`, or transport
+  failures. Those throw, so a mistyped secret key can never look like "nobody has premium".
 </Callout>
 
 ## Read the grants yourself
 
-When you need to render an account page, show an expiry date, or branch on where access came from,
-read the grants directly:
+`hasActivePerk` only returns a boolean. When you need to render an account page, show an expiry
+date, or branch on where access came from, read the grants directly.
 
 ```php
 $grants = $voidhash->entitlements()->getGrantsByDistinctId(
@@ -48,19 +54,21 @@ $grants = $voidhash->entitlements()->getGrantsByDistinctId(
 );
 ```
 
-| Field              | Type                                                | Notes                                    |
-| ------------------ | --------------------------------------------------- | ---------------------------------------- |
-| `perkId`           | `string`                                            | Match against the perk you care about.   |
-| `status`           | `"active"\|"expired"`                               | Only `active` grants confer access.      |
-| `expiresAt`        | `string\|null`                                      | ISO timestamp; `null` never expires.     |
-| `source`           | `"subscription"\|"purchase"\|"manual"`              | How the grant was obtained.              |
-| `sourceId`         | `string\|null`                                      | The subscription or purchase behind it.  |
-| `sourcePersonId`   | `string`                                            | Differs from the person on shared plans. |
+Each grant has these fields.
 
-Unlike `hasActivePerk`, an unknown `distinctId` is an error here, so the caller decides whether
-"never seen" and "seen, bought nothing" mean the same thing.
+| Field            | Type                                   | Description                                                       |
+| ---------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| `perkId`         | `string`                               | The perk this grant is for. Match it against the perk you care about. |
+| `status`         | `"active"\|"expired"`                  | Only `active` grants confer access.                               |
+| `expiresAt`      | `string\|null`                         | An ISO timestamp. `null` means the grant never expires.           |
+| `source`         | `"subscription"\|"purchase"\|"manual"` | How the customer obtained the grant.                              |
+| `sourceId`       | `string\|null`                         | The subscription or purchase behind the grant.                    |
+| `sourcePersonId` | `string`                               | The person who holds the source. On shared plans this differs from the person you asked about. |
 
-The same two calls are available separately when you already hold a `personId`:
+Unlike `hasActivePerk`, this call treats an unknown `distinctId` as an error. That leaves the
+decision to you: whether "never seen" and "seen, but bought nothing" should mean the same thing.
+
+If you already hold a `personId`, the same lookup is available as two separate calls.
 
 ```php
 $person = $voidhash->persons()->getPersonByDistinctId(
@@ -72,14 +80,17 @@ $entitlements = $voidhash->persons()->getPersonEntitlements(
 );
 ```
 
-`Person` is intentionally thin — `personId`, `distinctId`, `email`, `name` — because it identifies
-the customer, it does not describe what they paid for.
+`Person` is intentionally thin. It carries `personId`, `distinctId`, `email`, and `name`, because
+it identifies the customer. It does not describe what they paid for.
 
 ## Handle errors deliberately
 
-A failed API call throws `Voidhash\ApiErrorException`, which carries the decoded server error and
-its stable `_tag` on `getTag()`. Transport failures (DNS, TLS, timeouts) throw
-`Voidhash\TransportException` instead.
+When an API call fails, the library throws `Voidhash\ApiErrorException`. It carries the decoded
+server error, and `getTag()` returns the stable `_tag` so you can switch on it. Transport failures
+(DNS, TLS, timeouts) throw `Voidhash\TransportException` instead.
+
+The example below treats an unknown person as "no access", treats a bad key as your own bug,
+rethrows every other API error, and treats an unreachable API as an unknown answer.
 
 ```php
 use Voidhash\ApiErrorException;
@@ -104,7 +115,7 @@ try {
             return false;
         case "Api/NotAuthenticatedError":
         case "Api/ActionForbiddenError":
-            // Our key is wrong. Our bug, not the customer's — do not lock them out.
+            // Our key is wrong. Our bug, not the customer's. Do not lock them out.
             throw new RuntimeException("Voidhash secret key is invalid or lacks access.");
         default:
             throw $error;
@@ -115,23 +126,24 @@ try {
 }
 ```
 
-Common tags: `Api/NotAuthenticatedError` (401), `Api/ActionForbiddenError` (403),
-`Api/PersonNotFoundError` (404), `Api/WebhookEndpointNotFoundError` (404),
-`Api/WebhookValidationError` (400).
+The tags you are most likely to see are `Api/NotAuthenticatedError` (401),
+`Api/ActionForbiddenError` (403), `Api/PersonNotFoundError` (404),
+`Api/WebhookEndpointNotFoundError` (404), and `Api/WebhookValidationError` (400).
 
 ## Live and development data
 
-Grants are scoped to an environment, and the server picks the scope from the `x-environment` request
-header:
+Grants are scoped to an environment. The server picks the scope from the `x-environment` request
+header.
 
-| `x-environment`        | Grants returned                                          |
-| ---------------------- | -------------------------------------------------------- |
-| absent or `production` | Real purchases — store production **and** store sandbox  |
-| `development`          | Only simulated purchases made by an SDK in a debug build |
-| `all`                  | Both of the above                                        |
+| `x-environment`        | Grants returned                                                |
+| ---------------------- | -------------------------------------------------------------- |
+| absent or `production` | Real purchases, from both store production and store sandbox.  |
+| `development`          | Only simulated purchases made by an SDK in a debug build.      |
+| `all`                  | Both of the above.                                             |
 
-The library never sends the header for you, so a plain client always reads production and sandbox
-grants. To read [development purchases](/sdks/react-native/development-mode), create a second client:
+The library never sends this header for you, so a plain client always reads production and sandbox
+grants. To read [development purchases](/sdks/react-native/development-mode), create a second
+client that sets the header.
 
 ```php
 $voidhashDevelopment = new Client(
@@ -140,12 +152,12 @@ $voidhashDevelopment = new Client(
 );
 ```
 
-Secret keys are not environment-scoped — which key you use does not change the answer, only the
-header does.
+Secret keys are not scoped to an environment. Which key you use does not change the answer. Only
+the header does.
 
 <Callout type="warn" title="Any other value silently means production">
-  An unrecognized `x-environment` value falls back to `production` instead of erroring. Never wire
-  the header directly to something like `APP_ENV`: a value of `"testing"` would quietly read
+  An unrecognized `x-environment` value falls back to `production` instead of failing. Never wire
+  the header directly to a variable like `APP_ENV`. A value of `"testing"` would quietly read
   production grants.
 </Callout>
 
@@ -153,16 +165,16 @@ header does.
 
 The library does not cache, retry, or de-duplicate. Every call is a live HTTP round trip.
 
-For a check on every request, cache the result yourself for a short window — 60 seconds is a
-reasonable start — and refresh in the background. A PSR-6 or PSR-16 cache pool works well here; keep
-the TTL short enough that a revoked grant expires quickly.
+If you check access on every request, cache the result yourself for a short window and refresh it
+in the background. 60 seconds is a reasonable starting point. A PSR-6 or PSR-16 cache pool works
+well here. Keep the TTL short enough that a revoked grant expires from the cache quickly.
 
-When a call fails with a transport error or a `5xx`, treat the answer as **unknown**, not as *no
-access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
-because of a network blip is worse than a slightly stale cache.
+When a call fails with a transport error or a `5xx`, treat the answer as **unknown**, not as no
+access. Serve the last known good value, or fail the request. Revoking a paying customer's access
+because of a network blip is worse than serving a slightly stale cache.
 
-To keep a cache warm without polling, subscribe to [webhooks](/libraries/php/webhooks) and invalidate
-the cached entry when a subscription or purchase event arrives for that person.
+To keep the cache warm without polling, subscribe to [webhooks](/libraries/php/webhooks) and
+invalidate the cached entry when a subscription or purchase event arrives for that person.
 
 ## Next steps
 

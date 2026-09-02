@@ -1,15 +1,17 @@
 ---
 title: Display a paywall
-description: Resolve a paywall by location and present it from your app.
+description: Resolve the paywall assigned to a location and present it from your app.
 icon: PanelsTopLeft
 ---
 
-A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
-such as `onboarding` or `settings-upsell`. You publish and assign paywalls to locations in Studio —
-see [Paywall locations](/setup/paywall-locations). This page covers presenting them with the Swift
-SDK.
+Use this page to show a hosted paywall from the Swift SDK. A **paywall** is the screen a customer
+sees. A **location** is the stable slug your app asks for, such as `onboarding` or
+`settings-upsell`. You publish paywalls and assign them to locations in Studio, as described in
+[Paywall locations](/setup/paywall-locations).
 
 ## Present it
+
+Ask for a location, and the SDK presents whichever paywall is assigned to it.
 
 ```swift
 let result = try await voidhash.presentPaywall(
@@ -18,19 +20,17 @@ let result = try await voidhash.presentPaywall(
 )
 ```
 
-`presentPaywall` resolves the paywall configured for the location, presents it fullscreen, and
-speaks the paywall bridge protocol natively: purchases, restores, close, and external links are
+`presentPaywall` resolves the paywall configured for the location and presents it fullscreen. It
+speaks the paywall bridge protocol natively, so purchases, restores, close, and external links are
 handled for you.
 
-The result names the outcome:
+The result tells you what happened:
 
-| Result        | Meaning                                           |
-| ------------- | ------------------------------------------------- |
-| `.shown`      | The presenter opened the paywall.                 |
-| `.notAssigned`| No published paywall is assigned to the location. |
-| `.failed`     | Resolve or presentation failed.                   |
+- `.shown`: the presenter opened the paywall.
+- `.notAssigned`: no published paywall is assigned to the location.
+- `.failed`: resolving or presenting the paywall failed.
 
-The delegate receives purchase completions and dismissal:
+Pass a delegate to be told about purchases and dismissal.
 
 ```swift
 final class Paywalls: VoidhashPaywallDelegate {
@@ -39,23 +39,24 @@ final class Paywalls: VoidhashPaywallDelegate {
 }
 ```
 
-Every delegate method has a default no-op implementation. The delegate is held weakly, so keep your
-own strong reference for as long as the paywall is presented — a released delegate silently stops
-receiving callbacks.
+Every delegate method has a default no-op implementation, so you only implement the ones you need.
+The SDK holds the delegate weakly. Keep your own strong reference for as long as the paywall is
+presented, because a released delegate silently stops receiving callbacks.
 
-Dismiss the paywall yourself with:
+You can also close the paywall from your own code.
 
 ```swift
 try await voidhash.dismissPaywall()
 ```
 
-Hosted paywalls send purchase and restore actions through the same purchase pipeline. After a
-successful transaction, Voidhash refreshes the person snapshot and dismisses the paywall.
+Purchases and restores started from a hosted paywall go through the same purchase pipeline as any
+other purchase. After a successful transaction, Voidhash refreshes the person snapshot and dismisses
+the paywall.
 
 ## Fall back when nothing was shown
 
-Clearing or archiving a location in Studio makes future presentations return `.notAssigned`. Keep a
-fallback for important entry points:
+When you clear or archive a location in Studio, later presentations return `.notAssigned`. Keep a
+fallback for important entry points so the customer still has a way to upgrade.
 
 ```swift
 let result = try await voidhash.presentPaywall(location: "settings-upsell")

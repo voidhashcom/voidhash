@@ -1,12 +1,14 @@
 ---
 title: Find your Small Business Program dates
-description: Determine the Start date and optional End date for your Apple App Store Small Business Program enrollment so Voidhash's commission math matches Apple's reduced rate.
+description: Work out the Start date and optional End date of your Apple Small Business Program enrollment so Voidhash's commission math matches Apple's reduced rate.
 ---
 
-The **Start date** is when your reduced ~15% App Store commission under the Apple Small Business
-Program became effective, and the **End date** is when it ended if you left or no longer qualify.
-Apple does not show these as fields in App Store Connect, so you derive the Start date from your
-enrollment approval, and leave the End date blank unless the standard rate has resumed.
+If your account is in the Apple Small Business Program, Voidhash needs to know when Apple's reduced
+commission (roughly 15%) applies. The **Start date** is when the reduced rate became effective. The
+**End date** is when it ended, if you left the program or no longer qualify.
+
+Apple does not show either date as a field in App Store Connect. You derive the Start date from
+your enrollment approval, and you leave the End date blank unless the standard rate has resumed.
 
 <Steps>
 
@@ -15,49 +17,55 @@ enrollment approval, and leave the End date blank unless the standard rate has r
 
 Sign in to [App Store Connect](https://appstoreconnect.apple.com) as the **Account Holder**. You
 qualify if you (and any associated accounts) made up to 1,000,000 USD in proceeds in the prior
-calendar year, or you are new to the App Store. Review the
-[Small Business Program](https://developer.apple.com/app-store/small-business-program/) page and
-submit the enrollment form via the **Learn More** block on the App Store Connect home page.
+calendar year, or if you are new to the App Store.
+
+Review the [Small Business Program](https://developer.apple.com/app-store/small-business-program/)
+page, then submit the enrollment form through the **Learn More** block on the App Store Connect
+home page.
 </Step>
 
 <Step>
 ### Accept the Paid Apps agreement
 
-The program requires the current Paid Apps agreement to be active. In App Store Connect choose
-**Business** at the top of the page, open the **Agreements** tab, find the **Paid Apps** row, and
-click **View and Agree to Terms**. Its status must show **Active**.
+The program requires the current Paid Apps agreement to be active. In App Store Connect, choose
+**Business** at the top of the page and open the **Agreements** tab. Find the **Paid Apps** row
+and click **View and Agree to Terms**. Its status must show **Active**.
 </Step>
 
 <Step>
 ### Capture the approval date from Apple's email
 
-After you submit, Apple emails a confirmation and later an approval email when you are accepted.
-Record the date in that approval email — Apple does not expose an enrollment date or effective-start
-field anywhere in the App Store Connect UI.
+After you submit, Apple emails a confirmation. Later, Apple emails again when you are accepted.
+Record the date of that approval email. Apple does not expose an enrollment date or an
+effective-start field anywhere in the App Store Connect UI.
 
 <Callout type="warn" title="The approval date is not the start date">
-The reduced rate is not effective on the approval date. Apple adjusts your proceeds fifteen days
-after the end of the fiscal calendar month in which your enrollment is approved — for example,
-approved February 10, 2022 means proceeds adjust starting March 14, 2022.
+The reduced rate does not take effect on the approval date. Apple adjusts your proceeds fifteen
+days after the end of the fiscal calendar month in which your enrollment is approved. For example,
+an approval on February 10, 2022 means proceeds adjust starting March 14, 2022.
 </Callout>
 </Step>
 
 <Step>
 ### Verify the rate and enter the Start date
 
-Confirm the 15% rate is live before trusting the computed date: download your app's pricing/proceeds
-report and check that Year 1 and Year 2 proceeds are equal and roughly 15% below the list price. Use
-the date the reduced rate first appears as the authoritative value, then paste it (a plain
-month/day/year) into the **Start date** field in Voidhash.
+Confirm the 15% rate is live before you trust the computed date. Download your app's
+pricing/proceeds report and check that Year 1 and Year 2 proceeds are equal and roughly 15% below
+the list price.
+
+Use the date the reduced rate first appears as the authoritative value. Enter it as a plain
+month/day/year in the **Start date** field in Voidhash.
 </Step>
 
 <Step>
 ### Leave the End date blank unless you left the program
 
-There is no fixed end date and no annual re-confirmation — membership carries over each calendar year
-while you stay eligible and keep the Paid Apps agreement active. Set the **End date** in Voidhash only
-if you exceeded 1,000,000 USD in proceeds this calendar year (the standard rate then applies to future
-sales) or you formally left, using the date the standard rate resumed.
+There is no fixed end date and no annual re-confirmation. Membership carries over each calendar
+year while you stay eligible and keep the Paid Apps agreement active.
+
+Set the **End date** in Voidhash only in two cases. Either you exceeded 1,000,000 USD in proceeds
+this calendar year, so the standard rate applies to future sales, or you formally left the program.
+In both cases, use the date the standard rate resumed.
 </Step>
 
 </Steps>

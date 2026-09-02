@@ -4,10 +4,13 @@ description: Track product events and customer traits with the Voidhash SDK.
 icon: ChartNoAxesCombined
 ---
 
-The SDK attributes events to the current person and sends them in background batches. No separate
-analytics package is required.
+The SDK captures product events and sends them to Voidhash for you. Every event is attributed to
+the current person and delivered in background batches. You do not need a separate analytics
+package.
 
 ## Capture an event
+
+Call `capture` with an event name and any properties you want to attach:
 
 ```ts
 voidhash.client.capture("upgrade_button_clicked", {
@@ -16,14 +19,14 @@ voidhash.client.capture("upgrade_button_clicked", {
 });
 ```
 
-`capture()` is synchronous. It queues the event and returns immediately, including when the
-provider is still initializing.
+`capture()` is synchronous. It queues the event and returns immediately. This is true even while
+the provider is still initializing, so you can capture events from your first render.
 
-Use clear, stable event names. Names beginning with `$` are reserved for Voidhash events.
+Use clear, stable event names. Names that begin with `$` are reserved for Voidhash's own events.
 
 ## Automatic events
 
-The SDK records common lifecycle events for you:
+The SDK records common lifecycle events for you, so you do not need to capture them yourself:
 
 - `$app_installed`
 - `$app_updated`
@@ -34,26 +37,30 @@ The SDK records common lifecycle events for you:
 
 ## Flush before a boundary
 
-Events flush automatically in batches (20 per request or every 5 seconds, retried with exponential
-backoff). Force delivery when the app is about to cross an important boundary:
+Events flush automatically in batches. A batch is sent when it reaches 20 events or every 5
+seconds, whichever comes first, and failed requests are retried with exponential backoff (each
+retry waits longer than the last). Force delivery when the app is about to cross an important
+boundary, such as a screen the customer may not return from:
 
 ```ts
 await voidhash.client.flush();
 ```
 
-Identity methods flush at the correct time automatically, so events captured before `identify()`
-or `signOut()` stay attached to the previous identity.
+You do not need to flush around identity changes. The identity methods flush at the correct time
+on their own, so events captured before `identify()` or `signOut()` stay attached to the previous
+identity.
 
 ## Update customer traits
 
-See [Set customer attributes](/sdks/react-native/identify-users#set-customer-attributes) — trait
-updates ride the same pipeline as analytics events.
+Trait updates travel through the same pipeline as analytics events. See
+[Set customer attributes](/sdks/react-native/identify-users#set-customer-attributes) for how to
+set them.
 
 ## Event capture API
 
-Backend and non-mobile clients can send individual events or batches through the
-[Event Capture API](/api/event-capture). Use the project's publishable token in the request body;
-do not send a secret key to the ingestion endpoint.
+Your backend, and any client that is not a mobile app, can send single events or batches through
+the [Event Capture API](/api/event-capture). Authenticate those requests with the project's
+publishable token in the request body. Never send a secret key to the ingestion endpoint.
 
 ## Next steps
 

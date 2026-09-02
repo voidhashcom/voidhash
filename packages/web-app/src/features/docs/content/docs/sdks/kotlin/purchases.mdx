@@ -1,31 +1,31 @@
 ---
 title: Make and restore purchases
-description: Build a custom purchase UI with store-backed products.
+description: Build your own purchase screen on top of store-backed products.
 icon: ShoppingBag
 ---
 
-Hosted paywalls already handle purchase and restore actions. Use the APIs on this page when you
-build your own purchase screen.
+Hosted paywalls handle purchases and restores for you. Use the APIs on this page when you build
+your own purchase screen and need to load products, start a purchase, or restore earlier ones.
 
 ## Load products
 
-The SDK returns the store-backed products configured in your project, with prices already formatted
-for the customer's storefront:
+`getProducts()` returns the store-backed products configured in your project. Prices come already
+formatted for the customer's storefront, so you can render them directly.
 
 ```kotlin
 val products = voidhash.getProducts()
 val monthly = products.firstOrNull { it.slug == "monthly" }
 ```
 
-A product is absent from the result when it is not available on the current store account,
-environment, or provider configuration.
+If a product is missing from the result, the store did not return it. That happens when the product
+is not available on the current store account, environment, or provider configuration.
 
 ## Start a purchase
 
-`purchase` launches the Play Billing flow from an activity, syncs the resulting transaction to
-Voidhash for server validation, and then acknowledges it — or consumes it for
-`one-time-consumable` products. The current person refreshes after success, so entitlement grants
-update without extra work:
+`purchase` launches the Play Billing flow from an activity and syncs the resulting transaction to
+Voidhash for server validation. It then acknowledges the transaction, or consumes it for
+`one-time-consumable` products. On success the SDK refreshes the current person, so entitlement
+grants update without extra work.
 
 ```kotlin
 lifecycleScope.launch {
@@ -41,8 +41,9 @@ lifecycleScope.launch {
 }
 ```
 
-Errors surface as `VoidhashException` with a stable `code`. See [Errors](/sdks/kotlin/errors) for
-the full list.
+The `CancellationException` branch rethrows so that coroutine cancellation keeps working. Every
+other failure surfaces as `VoidhashException` with a stable `code`. See
+[Errors](/sdks/kotlin/errors) for the full list.
 
 <Callout type="warn" title="Grant access from Voidhash state">
   A successful store dialog is not the entitlement check. Unlock the feature only after the
@@ -51,8 +52,8 @@ the full list.
 
 ## Restore purchases
 
-Apps should expose a visible restore action. Restore reconciles every purchase the store still
-reports and refreshes the current person. It does not create a second purchase:
+Give customers a visible restore action. Restore reconciles every purchase the store still reports
+and refreshes the current person. It never creates a second purchase.
 
 ```kotlin
 voidhash.restorePurchases()
@@ -60,13 +61,13 @@ voidhash.restorePurchases()
 
 ## Common failure cases
 
-- **Product is missing** — verify the store product mapping in Studio and the testing track.
-- **Purchase already in progress** — disable repeated taps while a purchase is running.
-- **Customer cancels** — on Android the flow resolves without a transaction; treat that as an
+- **Product is missing.** Verify the store product mapping in Studio and the testing track.
+- **Purchase already in progress.** Disable repeated taps while a purchase is running.
+- **Customer cancels.** On Android the flow resolves without a transaction. Treat that as an
   expected result, not an app crash.
-- **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
-  the expected perk in Studio.
-- **Restore finds nothing** — confirm the device uses the same Google Play account as the original
+- **Purchase succeeds but access is absent.** Retry the person fetch, and verify in Studio that the
+  product grants the expected perk.
+- **Restore finds nothing.** Confirm the device uses the same Google Play account as the original
   purchase.
 
 ## Next steps

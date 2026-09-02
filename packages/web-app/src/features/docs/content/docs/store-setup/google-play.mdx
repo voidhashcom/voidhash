@@ -1,12 +1,15 @@
 ---
 title: Connect Google Play
-description: Configure Google Play Developer API access for purchase validation and subscriptions.
+description: Connect the Google Play Developer API to Voidhash so it can validate purchases and track subscriptions.
 icon: svgl:google-play
 ---
 
-Connect Google Play after the Android app and subscription products exist in Play Console.
+Connecting Google Play lets Voidhash validate purchases on the server and keep subscription state
+current. Do this once your Android app and its subscription products exist in Play Console.
 
 ## Configure API access
+
+Voidhash talks to Google through a service account. Work through the sections in order.
 
 <Steps>
 
@@ -14,9 +17,10 @@ Connect Google Play after the Android app and subscription products exist in Pla
 ### Enable the Developer API
 
 Create or choose a Google Cloud project, then enable the **Google Play Android Developer API**.
-Google no longer requires linking that Cloud project to the Play developer account.
+Google no longer requires you to link that Cloud project to the Play developer account.
 
-Follow Google's [Developer API setup](https://developers.google.com/android-publisher/getting_started).
+Follow Google's [Developer API setup](https://developers.google.com/android-publisher/getting_started)
+for the current steps.
 
 </Step>
 
@@ -25,12 +29,13 @@ Follow Google's [Developer API setup](https://developers.google.com/android-publ
 
 In Google Cloud, create a service account and a JSON key. Keep the downloaded key private.
 
-In Play Console, open **Users and permissions**, invite the service account email, and grant:
+In Play Console, open **Users and permissions**, invite the service account email, and grant it
+these permissions:
 
-- **View financial data, orders, and cancellation survey responses**; and
-- **Manage orders and subscriptions**.
+- **View financial data, orders, and cancellation survey responses**
+- **Manage orders and subscriptions**
 
-Scope access to the app where possible.
+Scope the access to the app where possible.
 
 </Step>
 
@@ -56,7 +61,8 @@ plan or offer that should be available in the app.
 
 ## Real-time developer notifications
 
-RTDN keeps subscription state current when the app is not running. To configure it:
+Real-time developer notifications (RTDN) keep subscription state current even when the app is not
+running. Google publishes them to a Pub/Sub topic that you own. To configure it:
 
 1. Create a Pub/Sub topic in Google Cloud.
 2. Grant `google-play-developer-notifications@system.gserviceaccount.com` the **Pub/Sub Publisher**
@@ -69,7 +75,8 @@ RTDN keeps subscription state current when the app is not running. To configure 
 Google's [Play Billing setup guide](https://developer.android.com/google/play/billing/getting-ready#configure-rtdn)
 has the current Pub/Sub instructions.
 
-Use the optional forwarding URL only when your backend also needs the raw Google event.
+The provider also has an optional forwarding URL. Use it only when your backend needs a copy of the
+raw Google event.
 
 ## Verify
 
@@ -79,7 +86,7 @@ Use the optional forwarding URL only when your backend also needs the raw Google
 4. Complete a test purchase and check for an active grant in `useCurrentPerson()`.
 5. Send an RTDN test message and verify the provider remains healthy.
 
-<Callout type="info" title="Use a Play-distributed build">
+<Callout type="info" title="Test with a Play-distributed build">
   Google Play Billing behavior depends on the installed package, signing key, tester account, and
   track. A locally sideloaded build is not a reliable end-to-end subscription test.
 </Callout>

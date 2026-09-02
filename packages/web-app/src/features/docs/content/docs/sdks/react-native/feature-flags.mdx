@@ -4,12 +4,14 @@ description: Gate features with remotely evaluated flags and variants.
 icon: Flag
 ---
 
-Feature flags are evaluated for the current person. Use them for staged rollouts, experiments, and
-remote configuration.
+Feature flags let you turn features on or off, and pick variants, without shipping a new build.
+Voidhash evaluates every flag for the current person, so the same flag can resolve differently for
+different customers. Use flags for staged rollouts, experiments, and remote configuration.
 
 ## Evaluate flags
 
-Keep the requested key array stable so the hook does not re-run on every render:
+The `useFeatureFlags` hook evaluates the keys you pass it. Define the key array once, outside the
+component, so the hook does not re-run on every render:
 
 ```tsx
 const FLAG_KEYS = ["new-onboarding", "pricing-test"];
@@ -30,21 +32,22 @@ export function HomeScreen() {
 }
 ```
 
-The hook returns:
+The hook returns these values:
 
-| Value                           | Purpose                                                              |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `data.flags`                    | All evaluated results.                                               |
-| `isEnabled(key)`                | Whether a flag is enabled. Unknown and loading flags return `false`. |
-| `getVariant(key)`               | The enabled state, variant key, and optional payload, or `null`.     |
-| `isLoading`, `error`, `refetch` | Request state and retry control.                                     |
+| Value                           | Purpose                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `data.flags`                    | All evaluated results.                                                       |
+| `isEnabled(key)`                | Whether the flag is enabled. Unknown and still-loading flags return `false`. |
+| `getVariant(key)`               | The enabled state, variant key, and optional payload, or `null`.             |
+| `isLoading`, `error`, `refetch` | The request state, and a way to retry the request.                           |
 
-Validate a variant payload before using it; payloads are untyped JSON.
+A variant may carry a payload. Payloads are untyped JSON, so validate a payload before you use
+it.
 
 ## Identity behavior
 
 Flag results are scoped to the current person. The SDK clears them after `identify()` or a
-sign-out/reset so one customer never sees another customer's assignment.
+sign-out or reset, so one customer never sees another customer's assignment.
 
-Choose a safe default while a flag is loading or unavailable. For paid access, use
-[entitlement grants](/sdks/react-native/entitlements) rather than a feature flag.
+Choose a safe default to use while a flag is loading or unavailable. Do not use a feature flag to
+gate paid access. Use [entitlement grants](/sdks/react-native/entitlements) for that instead.

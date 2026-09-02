@@ -4,14 +4,15 @@ description: Add Voidhash to an Expo or React Native app and show your first pay
 icon: Rocket
 ---
 
-This guide takes an existing app from installation to a paywall and access check.
+This guide adds Voidhash to an existing Expo or React Native app. By the end you will have the SDK
+installed, a paywall on screen, and an access check that gates a premium feature.
 
 <Steps>
 
 <Step>
 ### Install the SDK
 
-Install the SDK and its native peers:
+Install the SDK package and its native peers.
 
 ```package-install
 npm install @voidhash/react-native react-native-nitro-modules @react-native-async-storage/async-storage effect expo-constants expo-linking
@@ -21,7 +22,7 @@ The SDK requires `react-native-nitro-modules` 0.35.x (peer range `^0.35.5`). In 
 `npx expo install react-native-nitro-modules` picks the version that matches your Expo SDK. Every
 Nitro-based module in the app must resolve to the same Nitro version.
 
-For iOS, install pods after adding the packages:
+On iOS, install pods after adding the packages.
 
 ```bash
 npx pod-install
@@ -32,21 +33,21 @@ npx pod-install
 <Step>
 ### Connect your project
 
-Run the interactive initializer from your app's root. The CLI is not a dependency of the SDK — run
-it directly:
+Link the app directory to a Voidhash project with the interactive initializer. The CLI is not a
+dependency of the SDK, so run it directly from your app's root.
 
 ```bash
 npx voidhash-cli init
 ```
 
-`pnpm dlx voidhash-cli init` works the same way. Install it with `--save-dev` only if you want the
-Metro integration, which runs `types generate --watch` alongside the dev server and needs the
-binary on `PATH`. See the [CLI reference](/setup/cli).
+`pnpm dlx voidhash-cli init` works the same way. Install the CLI with `--save-dev` only if you want
+the Metro integration. That integration runs `types generate --watch` alongside the dev server and
+needs the binary on `PATH`. See the [CLI reference](/setup/cli).
 
-The command signs you in, connects the directory to a Voidhash project, and creates:
+The command signs you in, connects the directory to a Voidhash project, and creates three files:
 
-- `voidhash.config.ts` with your team and project slugs;
-- `src/lib/voidhash.ts` with the project's publishable key; and
+- `voidhash.config.ts` with your team and project slugs.
+- `src/lib/voidhash.ts` with the project's publishable key.
 - `voidhash.gen.d.ts` with typed product, perk, and paywall-location slugs.
 
 It does not change your dependencies or create a local product schema. Products and paywall
@@ -57,7 +58,8 @@ locations are managed in Studio.
 <Step>
 ### Add a deep-link scheme
 
-The SDK uses your app's scheme for purchase callbacks. Expo projects can set it in `app.json`:
+Give the SDK a URL scheme so purchase callbacks can return to your app. Expo projects set it in
+`app.json`.
 
 ```json title="app.json"
 {
@@ -67,7 +69,7 @@ The SDK uses your app's scheme for purchase callbacks. Expo projects can set it 
 }
 ```
 
-For bare React Native, pass the same value when creating the client:
+In a bare React Native app, pass the same value when you create the client.
 
 ```ts title="src/lib/voidhash.ts"
 import { createVoidhashClient } from "@voidhash/react-native";
@@ -77,7 +79,8 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 });
 ```
 
-Expo Router apps should also prevent callback links from becoming routes:
+Expo Router treats incoming links as routes. If you use Expo Router, add a native intent handler so
+callback links do not become routes.
 
 ```ts title="app/+native-intent.ts"
 import { expoRouterWithVoidhashCallback } from "@voidhash/react-native";
@@ -92,32 +95,33 @@ export function redirectSystemPath(options: { path: string; initial: boolean }) 
 <Step>
 ### Configure one test offer in Studio
 
-Create the smallest complete catalog:
+Set up the smallest catalog that can show a paywall and grant access.
 
 1. Create a perk such as `premium`.
 2. Create a product, choose its billing duration, and attach the perk.
 3. Create a paywall that includes the product, then publish it.
 4. Create a paywall location such as `onboarding` and assign the published paywall.
 
-The generated client enables development purchases in debug builds, so store configuration is not
-required for this first run. Connect App Store or Google Play before testing a release build. See
-[Development purchase mode](/sdks/react-native/development-mode) for fixed prices, isolation, and lifecycle tools.
+You do not need a store connection for this first run. The generated client enables development
+purchases in debug builds. Connect App Store or Google Play before you test a release build. See
+[Development purchase mode](/sdks/react-native/development-mode) for fixed prices, isolation, and
+lifecycle tools.
 
-Run type generation after changing product, perk, or location slugs:
+Regenerate the types whenever you change a product, perk, or location slug.
 
 ```bash
 npx voidhash-cli types generate
 ```
 
-See [Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/react-native/paywalls) for the model behind these
-steps.
+For the model behind the catalog, see [Products and perks](/setup/products-and-perks) and
+[Paywalls](/sdks/react-native/paywalls).
 
 </Step>
 
 <Step>
 ### Wrap your app
 
-Mount the generated provider once at the app root:
+Mount the generated provider once at the app root.
 
 ```tsx title="app/_layout.tsx"
 import { Stack } from "expo-router";
@@ -141,7 +145,7 @@ current identity, and starts observing transactions.
 <Step>
 ### Show the paywall
 
-Resolve the paywall by location and call `show()`:
+Resolve the paywall assigned to a location and call `show()`.
 
 ```tsx title="app/upgrade.tsx"
 import { Button } from "react-native";
@@ -159,7 +163,7 @@ export default function UpgradeScreen() {
 
         if (result.status !== "shown") {
           // `not_assigned` is the expected case when the location has no
-          // published paywall — fall back to your own screen instead of
+          // published paywall. Fall back to your own screen instead of
           // leaving the customer with nothing.
           console.warn("Paywall not shown", result.status);
         }
@@ -172,14 +176,15 @@ export default function UpgradeScreen() {
 `show()` resolves to a `ShowPaywallResult` that names why a paywall was not presented. See
 [Display a paywall](/sdks/react-native/paywalls) for every status.
 
-The SDK handles product loading, purchase and restore actions, and dismissal for a hosted paywall.
+For a hosted paywall, the SDK handles product loading, purchase and restore actions, and dismissal
+for you.
 
 </Step>
 
 <Step>
 ### Check access
 
-Gate features with `useHasPerk`:
+Gate a feature on an active perk grant with `useHasPerk`.
 
 ```tsx
 const { hasAccess, isLoading } = voidhash.useHasPerk("premium");
@@ -189,8 +194,8 @@ return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
 ```
 
 The person snapshot refreshes after a successful purchase or restore, so React re-renders with the
-new grant. See [Check access](/sdks/react-native/entitlements) for offline behavior and the imperative
-`client.hasPerk()`.
+new grant. See [Check access](/sdks/react-native/entitlements) for offline behavior and the
+imperative `client.hasPerk()`.
 
 </Step>
 
@@ -198,7 +203,7 @@ new grant. See [Check access](/sdks/react-native/entitlements) for offline behav
 
 ## Run the app
 
-Because the SDK contains native modules, rebuild the app after installation:
+The SDK contains native modules, so rebuild the app after installing it.
 
 ```bash
 npx expo run:ios

@@ -4,9 +4,12 @@ description: Structured error codes and recovery guidance for the Swift SDK.
 icon: TriangleAlert
 ---
 
-Swift SDK methods `throw` on failure. Errors surface as typed errors whose string form is
-`"CODE: message"`. Match on `code` when recovery differs, and report the full error for everything
-else:
+When an SDK call fails, it throws. Every error the SDK throws is a typed error that carries a
+`code` string, and its string form is `"CODE: message"`. The code tells you which operation
+failed and what to do next. Match on `code` when the recovery differs by cause, and report the full
+error for everything else.
+
+This example handles one specific code and lets every other error propagate:
 
 ```swift
 do {
@@ -18,27 +21,25 @@ do {
 
 ## Operation codes
 
-These codes name the client operation that failed. The message text is informational — never match
+These codes name the client operation that failed. The message text is informational. Never match
 on it.
 
-| Code                              | Thrown by                     | Recovery guidance                                                 |
-| --------------------------------- | ----------------------------- | ----------------------------------------------------------------- |
-| `CONFIGURATION_MISSING`           | Any call before init succeeds | Await `waitForInitialization()` or retry later.                   |
-| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state; see [Check access](/sdks/swift/entitlements). |
-| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                      |
-| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry; an already-identified person surfaces this code too.       |
-| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to defaults.                                            |
-| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry or render without store metadata.                           |
-| `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                           |
-| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                     |
+| Code                              | Thrown by                     | Recovery guidance                                                   |
+| --------------------------------- | ----------------------------- | ------------------------------------------------------------------- |
+| `CONFIGURATION_MISSING`           | Any call before init succeeds | Await `waitForInitialization()`, or retry later.                    |
+| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state. See [Check access](/sdks/swift/entitlements).   |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                        |
+| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry. An already-identified person surfaces this code too.         |
+| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to your default values.                                   |
+| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry, or render the screen without store metadata.                 |
+| `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                             |
+| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                       |
 
 ## Purchase availability
 
-`purchase(product:)` currently throws before StoreKit is touched:
-
-| Code                             | Meaning                                                          |
-| -------------------------------- | ---------------------------------------------------------------- |
-| `READ_ONLY_PURCHASE_NOT_ALLOWED` | Purchase initiation is unavailable in the observer-only release. |
+`purchase(product:)` currently throws before StoreKit is touched. The error carries the code
+`READ_ONLY_PURCHASE_NOT_ALLOWED`, which means purchase initiation is unavailable in the
+observer-only release.
 
 ## Next steps
 

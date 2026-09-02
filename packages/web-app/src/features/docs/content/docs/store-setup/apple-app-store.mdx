@@ -1,35 +1,39 @@
 ---
 title: Connect the App Store
-description: Configure App Store Connect for server-side purchase validation and subscription updates.
+description: Connect App Store Connect to Voidhash so it can validate purchases and receive subscription updates.
 icon: svgl:app-store
 ---
 
-Connect App Store after the app and its subscription products exist in App Store Connect. You need
-an Account Holder or Admin for key creation; other steps may be completed by an App Manager.
+Connecting the App Store lets Voidhash validate StoreKit transactions on the server and receive
+subscription lifecycle updates from Apple. Do this once your app and its subscription products
+exist in App Store Connect.
+
+Creating keys requires an Account Holder or Admin in App Store Connect. An App Manager can complete
+the other steps.
 
 ## Before you connect
 
-Confirm that:
+Confirm the following in App Store Connect:
 
-- the **Paid Apps Agreement** is active and banking and tax details are complete;
-- the app's bundle identifier matches Xcode;
-- at least one auto-renewable subscription exists; and
-- you can create and download an In-App Purchase key.
+- The **Paid Apps Agreement** is active, and banking and tax details are complete.
+- The app's bundle identifier matches the one in Xcode.
+- At least one auto-renewable subscription exists.
+- You can create and download an In-App Purchase key.
 
 Apple's [In-App Purchase setup overview](https://developer.apple.com/help/app-store-connect/configure-in-app-purchase-settings/overview-for-configuring-in-app-purchases/)
-describes the account prerequisites.
+describes the account prerequisites in more detail.
 
 ## Configure Voidhash
 
-In Studio, open **Settings → Payment providers → App Store**.
+In Studio, open **Settings → Payment providers → App Store**. Work through the sections in order.
 
 <Steps>
 
 <Step>
 ### Add app details
 
-Enter the bundle identifier from Xcode and the app's numeric Apple ID from **Apps → App
-Information**.
+Enter the bundle identifier from Xcode and the app's numeric Apple ID. The Apple ID is listed in
+App Store Connect under **Apps → App Information**.
 
 - [Find the bundle ID](/guides/payment-providers/apple-app-store/bundle-id)
 - [Find the App Apple ID](/guides/payment-providers/apple-app-store/app-apple-id)
@@ -39,10 +43,10 @@ Information**.
 <Step>
 ### Add an In-App Purchase key
 
-In App Store Connect, open **Users and Access → Integrations → In-App Purchase**. Generate a key,
-then copy its Issuer ID and Key ID and upload the `.p8` file to Voidhash.
+In App Store Connect, open **Users and Access → Integrations → In-App Purchase** and generate a
+key. Copy its Issuer ID and Key ID into Studio, then upload the `.p8` file.
 
-Apple allows the private key to be downloaded once. Store it securely and revoke it if it is ever
+Apple lets you download the private key only once. Store it securely, and revoke it if it is ever
 exposed.
 
 [Follow the key guide](/guides/payment-providers/apple-app-store/in-app-purchase-key).
@@ -53,7 +57,7 @@ exposed.
 ### Add App Store Connect identifiers
 
 Open **Users and Access → Integrations → App Store Connect API** and copy the Team Key Issuer ID
-and Key ID requested by Studio. Find the Vendor Number in **Payments and Financial Reports**.
+and Key ID that Studio asks for. The Vendor Number is in **Payments and Financial Reports**.
 
 [Find the App Store Connect values](/guides/payment-providers/apple-app-store/app-store-connect-api).
 
@@ -62,8 +66,8 @@ and Key ID requested by Studio. Find the Vendor Number in **Payments and Financi
 <Step>
 ### Configure server notifications
 
-Copy the notification URL shown by Voidhash. In App Store Connect, set it as both the Production and
-Sandbox App Store Server Notifications URL and choose **Version 2**.
+Copy the notification URL shown in Studio. In App Store Connect, set it as both the Production and
+the Sandbox App Store Server Notifications URL, and choose **Version 2** for each.
 
 [Configure Apple Server Notifications](/guides/payment-providers/apple-app-store/apple-server-notifications).
 
@@ -72,7 +76,7 @@ Sandbox App Store Server Notifications URL and choose **Version 2**.
 <Step>
 ### Save and enable
 
-Save each section, resolve any validation errors, then enable the provider. Voidhash can now
+Save each section and resolve any validation errors, then enable the provider. Voidhash can now
 validate StoreKit transactions and receive subscription lifecycle updates.
 
 </Step>
@@ -81,17 +85,17 @@ validate StoreKit transactions and receive subscription lifecycle updates.
 
 ## Connect products
 
-Open each Voidhash product and add the matching App Store subscription product ID. Product IDs are
-immutable in App Store Connect, so copy them exactly.
+Open each Voidhash product and add the matching App Store subscription product ID. Product IDs
+cannot be changed in App Store Connect, so copy them exactly.
 
-Product metadata can take time to reach Apple's sandbox. If `useProducts()` returns `null`
-immediately after a change, wait and retry before changing your app code.
+Product metadata can take time to reach Apple's sandbox. If `useProducts()` returns `null` right
+after a change, wait and retry before you change your app code.
 
 ## Optional settings
 
-- **Small Business Program** — add the effective dates only if your account participates.
-- **Notification forwarding URL** — receive a copy of the raw Apple notification in your backend.
-- **StoreKit development assets** — upload the subscription-offer key and local testing
+- **Small Business Program**. Add the effective dates only if your account participates.
+- **Notification forwarding URL**. Receive a copy of the raw Apple notification in your backend.
+- **StoreKit development assets**. Upload the subscription-offer key and the local testing
   certificate only when your Xcode test setup needs them.
 
 ## Verify

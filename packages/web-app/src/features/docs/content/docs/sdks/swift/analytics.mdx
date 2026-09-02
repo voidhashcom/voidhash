@@ -4,10 +4,13 @@ description: Track product events and customer traits with the Voidhash SDK.
 icon: ChartNoAxesCombined
 ---
 
-The SDK attributes events to the current person and sends them in background batches. No separate
-analytics package is required.
+The SDK captures product events and sends them to Voidhash for you. Every event is attributed to
+the current person and delivered in background batches. You do not need a separate analytics
+package.
 
 ## Capture an event
+
+Call `capture` with an event name and any properties you want to attach:
 
 ```swift
 await voidhash.capture("upgrade_button_clicked", properties: [
@@ -16,11 +19,11 @@ await voidhash.capture("upgrade_button_clicked", properties: [
 ])
 ```
 
-Use clear, stable event names. Names beginning with `$` are reserved for Voidhash events.
+Use clear, stable event names. Names that begin with `$` are reserved for Voidhash's own events.
 
 ## Automatic events
 
-The SDK records common lifecycle events for you:
+The SDK records common lifecycle events for you, so you do not need to capture them yourself:
 
 - `$app_installed`
 - `$app_updated`
@@ -31,19 +34,21 @@ The SDK records common lifecycle events for you:
 
 ## Flush before a boundary
 
-Events flush automatically in batches (20 per request or every 5 seconds, retried with exponential
-backoff). Force delivery when the app is about to cross an important boundary:
+Events flush automatically in batches. A batch is sent when it reaches 20 events or every 5
+seconds, whichever comes first, and failed requests are retried with exponential backoff (each
+retry waits longer than the last). Force delivery when the app is about to cross an important
+boundary, such as a screen the customer may not return from:
 
 ```swift
 await voidhash.flush()
 ```
 
-Sends everything queued right now.
+This sends everything that is queued right now.
 
 ## Update customer traits
 
-See [Set customer attributes](/sdks/swift/identify-users#set-customer-attributes) — trait updates
-ride the same pipeline as analytics events.
+Trait updates travel through the same pipeline as analytics events. See
+[Set customer attributes](/sdks/swift/identify-users#set-customer-attributes) for how to set them.
 
 ## Next steps
 

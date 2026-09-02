@@ -5,27 +5,31 @@ icon: BookOpen
 ---
 
 Voidhash is the subscription platform for mobile apps. It connects your app to the App Store and
-Google Play so you can build paywalls, validate purchases, keep subscription state in sync, and
+Google Play, so you can build paywalls, validate purchases, keep subscription state in sync, and
 decide what each customer can access.
 
 ## How it fits together
 
-| Part                 | What it does                                                                      |
-| -------------------- | --------------------------------------------------------------------------------- |
-| **Studio**           | Configure products and perks, design paywalls, and review customers and revenue.  |
-| **Mobile SDKs**      | Display paywalls, make and restore purchases, and read access state in your app.  |
-| **Voidhash backend** | Validate store transactions and keep subscriptions and entitlements current.      |
-| **CLI**              | Connect a local project, generate typed slugs, and deploy code-authored paywalls. |
+Voidhash has four parts. You will meet all of them early on, so it helps to know what each one is
+for.
+
+- **Studio** is the web dashboard. You use it to configure products and perks, design paywalls,
+  and review customers and revenue.
+- The **mobile SDKs** run inside your app. They display paywalls, make and restore purchases, and
+  read access state.
+- The **Voidhash backend** validates store transactions and keeps subscriptions and entitlements
+  current.
+- The **CLI** connects a local project, generates typed slugs, and deploys code-authored paywalls.
 
 Your app ships only a **publishable key** (`vh_pk_...`). Store credentials and secret keys stay on
-the server. To get started, you need:
+the server. To get started, you need two things:
 
 1. [A Voidhash project](/setup/create-a-project) with its publishable key
 2. [An SDK installed in your app](/quickstart)
 
 ## Quickstart
 
-Pick your platform and show your first paywall:
+Pick your platform and show your first paywall.
 
 <Cards>
   <Card
@@ -47,7 +51,7 @@ Pick your platform and show your first paywall:
 
 ## Explore
 
-Discover the full range of features and capabilities.
+Once your first paywall is on screen, these sections cover the rest of the product.
 
 <Cards>
   <Card title="Setup" href="/docs/setup">

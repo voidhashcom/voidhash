@@ -1,37 +1,42 @@
 ---
 title: Go library
-description: Server-side client for the Voidhash REST API.
+description: A server-side client for the Voidhash REST API.
 icon: svgl:golang
 ---
 
-Client-side checks decide what to render. Anything a customer could get by calling your API
-directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
-the server as well.
+The mobile SDKs decide what to show on the device. They cannot protect anything a customer can
+reach by calling your API directly, such as an export endpoint or a paid model. Those checks belong
+on your server, and this library is how you make them.
 
-`voidhash-go` wraps the Voidhash REST API and authenticates with a project secret key.
+`voidhash-go` is a client for the Voidhash REST API. It authenticates every request with a project
+secret key.
 
 ## Install the module
+
+Add the module to your project with `go get`.
 
 ```sh
 go get github.com/voidhash/voidhash-go
 ```
 
-Requires Go 1.22 or newer. The client uses only the standard library `net/http` — no cgo, no extra
-dependencies.
+The module needs Go 1.22 or newer. The client uses only the standard library `net/http`, so there is
+no cgo and no extra dependencies.
 
 <Steps>
 
 <Step>
 ### Create a secret key
 
-In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown only once.
 
-Store it in an environment variable or your secret manager. A secret key grants full project access:
-never put it in a mobile app, a web bundle, or a repository.
+Store the key in an environment variable or your secret manager. A secret key grants full access to
+the project. Never put it in a mobile app, a web bundle, or a repository.
 </Step>
 
 <Step>
 ### Create the client
+
+Create one client with your secret key at startup.
 
 ```go title="server/voidhash.go"
 import "github.com/voidhash/voidhash-go"
@@ -42,16 +47,19 @@ if err != nil {
 }
 ```
 
-| Option                  | Default                    | Use                                                    |
-| ----------------------- | -------------------------- | ------------------------------------------------------ |
-| `New(secretKey)`        | —                          | Required. Sent as the `x-secret-key` header.           |
-| `WithBaseURL(url)`      | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
-| `WithHeader(key, value)`| none                       | Extra headers added to every request from this client. |
+The client is configured through `New` and two functional options.
 
-`New` validates eagerly and returns `ErrConfiguration` on a blank secret key, an invalid base URL,
-or an `x-secret-key` passed through `WithHeader` in any casing.
+| Option                   | Default                    | Description                                                       |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------- |
+| `New(secretKey)`         | none                       | Required. The client sends it as the `x-secret-key` header.       |
+| `WithBaseURL(url)`       | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`. |
+| `WithHeader(key, value)` | none                       | Adds an extra header to every request from this client.           |
 
-The client is safe for concurrent use — create one at startup and share it across handlers.
+`New` validates its input right away rather than on the first request. It returns
+`ErrConfiguration` when the secret key is blank, the base URL is invalid, or `WithHeader` was given
+`x-secret-key` in any casing.
+
+The client is safe for concurrent use. Create one at startup and share it across your handlers.
 </Step>
 
 </Steps>
@@ -61,8 +69,9 @@ With the client configured, continue with [checking access](/libraries/go/check-
 
 ## Resource methods
 
-Resources are exposed as services on the client, mirroring the API reference. Every method takes a
-`context.Context` first:
+Each API resource is a service on the client, and the services mirror the API reference. Every
+method takes a `context.Context` as its first argument. The example below checks a perk through the
+`Entitlements` service.
 
 ```go
 hasPremium, err := voidhash.Entitlements.HasActivePerk(ctx, &voidhash.HasActivePerkParams{
@@ -71,5 +80,5 @@ hasPremium, err := voidhash.Entitlements.HasActivePerk(ctx, &voidhash.HasActiveP
 })
 ```
 
-Responses are typed structs generated from the API schemas; optional inputs are pointers with
-`voidhash.String`, `voidhash.Bool`, and friends.
+Responses are typed structs generated from the API schemas. Optional inputs are pointers, and the
+helpers `voidhash.String`, `voidhash.Bool`, and friends build them for you.

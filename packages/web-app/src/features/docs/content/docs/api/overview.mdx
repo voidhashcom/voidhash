@@ -1,22 +1,28 @@
 ---
 title: API overview
-description: Base URL, conventions, and endpoint groups for the Voidhash HTTP API.
+description: The base URL, request conventions, and endpoint groups of the Voidhash HTTP API.
 ---
 
-Use the HTTP API for server integrations and custom tooling. Mobile apps should use one of the
-[mobile SDKs](/sdks), which handle device headers, identity, caching, and store transactions.
+The Voidhash HTTP API is for server integrations and custom tooling. Use it when you need to read
+or change project data from your own backend or scripts. Mobile apps should use one of the
+[mobile SDKs](/sdks) instead. The SDKs handle device headers, identity, caching, and store
+transactions for you.
 
 ## Base URL
+
+All requests go to the same host:
 
 ```text
 https://api.voidhash.com
 ```
 
-Management endpoints live under `/api/v1`. Analytics ingestion uses the separate `/i/v1` surface.
+Management endpoints live under `/api/v1`. Analytics ingestion uses a separate surface under
+`/i/v1`.
 
 ## First request
 
-Create a project secret key in Studio and inspect its session:
+Create a project secret key in Studio. Then call the session endpoint to confirm the key works and
+see what it resolves to:
 
 ```bash
 curl https://api.voidhash.com/api/v1/auth/session \
@@ -24,9 +30,11 @@ curl https://api.voidhash.com/api/v1/auth/session \
 ```
 
 Keep secret keys on the server. See [Authentication](/api/authentication) for every credential
-type.
+type and where each one belongs.
 
 ## Endpoint groups
+
+The API is organized into the following groups.
 
 | Group              | Use                                                                     |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -39,11 +47,12 @@ type.
 | Paywall deploys    | Upload and finalize code-authored paywalls.                             |
 | SDK                | Device-facing endpoints used by official SDKs.                          |
 
-The generated endpoint pages contain request schemas, response schemas, and an interactive client.
+The generated endpoint pages contain request schemas, response schemas, and an interactive client
+for each group.
 
 ## Errors
 
-Management API errors are JSON objects with a stable `_tag`:
+Management API errors are JSON objects with a stable `_tag` field that identifies the error type:
 
 ```json
 {
@@ -53,7 +62,7 @@ Management API errors are JSON objects with a stable `_tag`:
 ```
 
 Use the HTTP status for the broad outcome and `_tag` for application behavior. Do not parse the
-human-readable message.
+human-readable `message`. It can change without notice.
 
 | Status | Meaning                                           |
 | ------ | ------------------------------------------------- |
@@ -67,7 +76,6 @@ human-readable message.
 
 ## OpenAPI
 
-Machine-readable specifications are available at:
-
-- `GET /api/docs/openapi.json` for the management and SDK API;
-- `GET /i/docs/openapi.json` for event capture.
+Machine-readable specifications are available for both API surfaces. Fetch
+`GET /api/docs/openapi.json` for the management and SDK API, and `GET /i/docs/openapi.json` for
+event capture.

@@ -1,18 +1,19 @@
 ---
 title: Find your StoreKit subscription offer key
-description: Export the private key used to sign subscription offers in your StoreKit test setup.
+description: Export the private key that signs subscription offers in your StoreKit test setup.
 ---
 
-This optional field is for apps that test subscription offers with an Xcode StoreKit configuration.
-It is not required for a basic subscription purchase flow.
+The **StoreKit Subscription Offer key** is an optional field for apps that test subscription offers
+with an Xcode StoreKit configuration. You do not need it for a basic subscription purchase flow.
+If that describes your app, skip this guide.
 
 <Steps>
 
 <Step>
 ### Open the StoreKit configuration
 
-In Xcode, select the `.storekit` configuration used by the current scheme. Create one from
-**File → New → File → StoreKit Configuration File** if the project does not have one.
+In Xcode, select the `.storekit` configuration file used by the current scheme. If the project does
+not have one, create it from **File → New → File → StoreKit Configuration File**.
 
 </Step>
 
@@ -22,15 +23,16 @@ In Xcode, select the `.storekit` configuration used by the current scheme. Creat
 With the StoreKit file selected, use Xcode's **Editor → Subscription Offers Key** action. Export or
 save the private key as a `.p8` file.
 
-Xcode labels can change between releases; use the subscription-offer key attached to this StoreKit
-configuration, not a production key copied from another app.
+Xcode labels can change between releases. Whatever the menu is called, use the subscription-offer
+key attached to this StoreKit configuration. Do not use a production key copied from another app.
 
 </Step>
 
 <Step>
 ### Upload the file
 
-Upload the `.p8` file to **StoreKit Subscription Offer key** in Voidhash and save the provider.
+Upload the `.p8` file to the **StoreKit Subscription Offer key** field in Voidhash and save the
+provider.
 
 </Step>
 

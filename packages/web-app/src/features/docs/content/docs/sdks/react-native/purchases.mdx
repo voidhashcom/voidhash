@@ -1,16 +1,16 @@
 ---
 title: Make and restore purchases
-description: Build a custom purchase UI with store-backed products.
+description: Build your own purchase screen on top of store-backed products.
 icon: ShoppingBag
 ---
 
-Hosted paywalls already handle purchase and restore actions. Use the APIs on this page when you
-build your own purchase screen.
+Hosted paywalls handle purchases and restores for you. Use the APIs on this page when you build
+your own purchase screen and need to load products, start a purchase, or restore earlier ones.
 
 ## Load products
 
-The SDK returns the store-backed products configured in your project, with prices already formatted
-for the customer's storefront:
+`useProducts()` returns the store-backed products configured in your project. Prices come already
+formatted for the customer's storefront, so you can render them directly.
 
 ```tsx
 const { data: products, error, isLoading } = voidhash.useProducts();
@@ -18,10 +18,10 @@ const monthly = products.get("monthly");
 ```
 
 `data` is a `Map` keyed by the project's product slugs. `monthly` is `null` when the store does not
-return that product. This commonly means the product is not available in the current sandbox
+return that product. That usually means the product is not available in the current sandbox
 account, country, app version, or provider configuration.
 
-Render the store-provided `displayPrice`:
+Once you have a product, render its store-provided `displayPrice`.
 
 ```tsx
 if (!monthly) return null;
@@ -31,11 +31,11 @@ return <Text>{monthly.displayPrice}</Text>;
 
 ## Start a purchase
 
-The SDK opens the native store flow, sends the transaction to Voidhash for server validation, and
-refreshes the current person after success — so entitlement grants update without extra work.
+The SDK opens the native store flow and sends the transaction to Voidhash for server validation. On
+success it refreshes the current person, so entitlement grants update without extra work.
 
-`purchase()` resolves to a better-result `Result` and never rejects — cancellation is an `Ok`
-outcome, not an error:
+`purchase()` resolves to a `Result` from the better-result library and never rejects. Cancellation
+is an `Ok` outcome, not an error.
 
 ```tsx
 const { purchase, error, isLoading } = voidhash.usePurchase({
@@ -55,23 +55,23 @@ const { purchase, error, isLoading } = voidhash.usePurchase({
 
     const result = await purchase(monthly);
     if (result.isOk() && result.value.status === "cancelled") {
-      // The customer dismissed the store sheet. Expected — no error.
+      // The customer dismissed the store sheet. This is expected, not an error.
     }
   }}
 />
 ```
 
-The `Ok` outcome is one of:
+The `Ok` outcome carries one of these status values:
 
 | Status        | Meaning                                                                        |
 | ------------- | ------------------------------------------------------------------------------ |
-| `completed`   | Validated by Voidhash; the person snapshot has been refreshed.                 |
+| `completed`   | Voidhash validated the purchase and refreshed the person snapshot.             |
 | `cancelled`   | The customer dismissed the native store sheet.                                 |
-| `pending`     | The purchase needs external action; access arrives once it reconciles.         |
+| `pending`     | The purchase needs external action. Access arrives once it reconciles.         |
 | `disabled`    | The client was created with `enabled: false`.                                  |
 
-The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors) — typically
-`FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` in observer mode.
+The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors). You will typically
+see `FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` when the SDK runs in observer mode.
 
 <Callout type="warn" title="Grant access from Voidhash state">
   A successful store dialog is not the entitlement check. Unlock the feature only after the
@@ -80,8 +80,8 @@ The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors) �
 
 ## Restore purchases
 
-Apps should expose a visible restore action. Restore reconciles store transactions with Voidhash and
-refreshes the current person. It does not create a second purchase:
+Give customers a visible restore action. Restore reconciles store transactions with Voidhash and
+refreshes the current person. It never creates a second purchase.
 
 ```tsx
 await voidhash.client.restorePurchases();
@@ -89,12 +89,12 @@ await voidhash.client.restorePurchases();
 
 ## Common failure cases
 
-- **Product is missing** — verify the store product mapping and the current sandbox environment.
-- **Purchase already in progress** — disable repeated taps while a purchase is running.
-- **Customer cancels** — handle the `cancelled` outcome as an expected result, not an app crash.
-- **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
-  the expected perk in Studio.
-- **Restore finds nothing** — confirm the device uses the same App Store or Google Play account as
+- **Product is missing.** Verify the store product mapping and the current sandbox environment.
+- **Purchase already in progress.** Disable repeated taps while a purchase is running.
+- **Customer cancels.** Handle the `cancelled` outcome as an expected result, not an app crash.
+- **Purchase succeeds but access is absent.** Retry the person fetch, and verify in Studio that the
+  product grants the expected perk.
+- **Restore finds nothing.** Confirm the device uses the same App Store or Google Play account as
   the original purchase.
 
 ## Next steps

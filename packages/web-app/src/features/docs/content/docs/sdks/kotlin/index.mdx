@@ -1,13 +1,14 @@
 ---
 title: Kotlin SDK
-description: Client configuration and API reference for the Voidhash Android SDK.
+description: Configure the Voidhash Android SDK and look up its client options and methods.
 icon: svgl:kotlin
 ---
 
-The Voidhash Android SDK adds entitlements, feature flags, analytics, and observer-mode transaction
-reporting to native Android apps.
+The Kotlin SDK adds entitlements, feature flags, analytics, and observer-mode transaction reporting
+to native Android apps. Use this page to create the client, set its options, and find the methods
+you need. Each feature also has its own guide, linked from the section that introduces it.
 
-<Callout type="warn" title="Initial release is observer-only">
+<Callout type="warn" title="The initial release is observer-only">
   SDK-started purchases and hosted paywalls are temporarily unavailable. Google Play transactions
   are still observed and submitted to Voidhash for revenue analytics, but the SDK never acknowledges
   or consumes them.
@@ -15,19 +16,19 @@ reporting to native Android apps.
 
 ## Compatibility
 
-| Requirement  | Version                                   |
-| ------------ | ----------------------------------------- |
-| `minSdk`     | 23                                        |
-| `compileSdk` | 34                                        |
-| Build        | AGP 8.9.0, Kotlin 2.0.21, Java 8 bytecode |
-| Billing      | Play Billing 8.0.0                        |
+The SDK has the following requirements.
 
-Two Gradle modules ship in `@voidhash/android`: **`:sdk`** (`com.voidhash.sdk`), the public SDK you
-integrate against, and **`:core`** (`com.voidhash.core`), the shared engine it depends on.
+- `minSdk` 23.
+- `compileSdk` 34.
+- AGP 8.9.0, Kotlin 2.0.21, and Java 8 bytecode.
+- Play Billing 8.0.0.
+
+Two Gradle modules ship in `@voidhash/android`. `:sdk` (`com.voidhash.sdk`) is the public SDK you
+integrate against. `:core` (`com.voidhash.core`) is the shared engine it depends on.
 
 ## Create the client
 
-Create one client for the lifetime of the app:
+Create one client and keep it for the lifetime of the app.
 
 ```kotlin
 import com.voidhash.sdk.Voidhash
@@ -41,11 +42,9 @@ val voidhash = Voidhash.configure(
 
 The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
 
-There is no schema argument: the schema lives on the server and is fetched by `initialize()`, which
-connects to Google Play, resolves the schema, reconciles unfinished store transactions, and starts
-the analytics queue. It is safe to call repeatedly — only the first _successful_ call does work,
-concurrent callers wait for it, and a failed call leaves the client uninitialized so it can be
-retried:
+There is no schema argument, because the schema lives on the server and `initialize()` fetches it.
+`initialize()` connects to Google Play, resolves the schema, reconciles unfinished store
+transactions, and starts the analytics queue. Call it once the client exists.
 
 ```kotlin
 lifecycleScope.launch {
@@ -53,10 +52,15 @@ lifecycleScope.launch {
 }
 ```
 
-Every method that needs the schema throws `VoidhashException` with code
-`CONFIGURATION_MISSING` until initialization has succeeded.
+It is safe to call `initialize()` repeatedly. Only the first successful call does work, and
+concurrent callers wait for it. A failed call leaves the client uninitialized so you can retry.
+
+Until initialization has succeeded, every method that needs the schema throws `VoidhashException`
+with the code `CONFIGURATION_MISSING`.
 
 ## Client options
+
+Pass a `VoidhashOptions` value to `configure` to change the defaults.
 
 ```kotlin
 val voidhash = Voidhash.configure(
@@ -66,23 +70,25 @@ val voidhash = Voidhash.configure(
 )
 ```
 
-| Option       | Default                    | Use                                                                        |
-| ------------ | -------------------------- | -------------------------------------------------------------------------- |
-| `baseUrl`    | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
-| `ingestUrl`  | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
-| `debug`      | `false`                    | Enable verbose logging and mark requests as debug-build traffic.           |
-| `distinctId` | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
-| `enabled`    | `true`                     | Set `false` to ship the SDK fully inert.                                   |
-| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                         |
+Each option is described below.
 
-Every method on `VoidhashClient` other than `capture`, `getDistinctId`, and `setReadOnly` is a
-suspending function: the SDK never blocks the caller's thread and never posts work back to the main
+| Option       | Default                    | Description                                                                 |
+| ------------ | -------------------------- | --------------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.voidhash.com` | Overrides the API origin for self-hosted deployments.                       |
+| `ingestUrl`  | Same origin as `baseUrl`   | Overrides only the analytics origin.                                        |
+| `debug`      | `false`                    | Enables verbose logging and marks requests as debug-build traffic.          |
+| `distinctId` | Generated anonymous ID     | Seeds the initial customer identity. Usually omit it and call `identify()`. |
+| `enabled`    | `true`                     | Set it to `false` to ship the SDK fully inert.                              |
+| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                          |
+
+Every method on `VoidhashClient` is a suspending function, except `capture`, `getDistinctId`, and
+`setReadOnly`. The SDK never blocks the caller's thread, and it never posts work back to the main
 thread on its own.
 
 ### Disabled clients
 
-With `enabled: false`, every method is inert: no requests are made, no billing connection opens,
-`getProducts()` returns an empty list, and `getCurrentPerson()` returns `null`.
+With `enabled: false`, every method is inert. The SDK makes no requests and opens no billing
+connection. `getProducts()` returns an empty list, and `getCurrentPerson()` returns `null`.
 
 ### Observer mode
 
@@ -91,16 +97,20 @@ The initial release always uses observer mode. Passing `readOnly = false` or cal
 
 ## Products and transaction reporting
 
+Load the product catalog and restore the customer's existing purchases.
+
 ```kotlin
 val products = voidhash.getProducts()
 voidhash.restorePurchases()
 ```
 
 Initialization and restore submit observed Google Play transactions to Voidhash without
-acknowledging or consuming them. `purchase(...)` is retained for a later commerce launch but
-currently raises `READ_ONLY_PURCHASE_NOT_ALLOWED` before Play Billing is touched.
+acknowledging or consuming them. `purchase(...)` remains in the SDK for a later commerce launch, but
+it currently raises `READ_ONLY_PURCHASE_NOT_ALLOWED` before it touches Play Billing.
 
 ## People and entitlements
+
+Read the current person, identify them when they sign in, and reset the client when they sign out.
 
 ```kotlin
 voidhash.getDistinctId()
@@ -113,14 +123,16 @@ person?.activePerkIds
 voidhash.reset() // Sign out: clears the local identity and cache
 ```
 
-The person snapshot is cached for two days and served stale after five minutes; pass
-`getCurrentPerson(forceFetch = true)` to bypass the cache. The SDK refreshes it after purchases,
-restores, and identity changes.
+The SDK caches the person snapshot for two days. After five minutes it treats the snapshot as stale
+but still serves it from the cache. Pass `getCurrentPerson(forceFetch = true)` to bypass the cache.
+The SDK refreshes the snapshot on its own after purchases, restores, and identity changes.
 
 See [Check access](/sdks/kotlin/entitlements) and [Identify customers](/sdks/kotlin/identify-users) for the underlying
 concepts.
 
 ## Feature flags
+
+Evaluate the flags you need by key.
 
 ```kotlin
 val flags = voidhash.getFeatureFlags(listOf("new_onboarding"))
@@ -132,25 +144,30 @@ variants and identity behavior.
 
 ## Analytics
 
+Capture an event, and call `flush()` when you need the queue sent right away.
+
 ```kotlin
 voidhash.capture("checkout_started", mapOf("source" to "paywall"))
 voidhash.flush()
 ```
 
-Events are batched (20 events or every 5 seconds) and retried with exponential backoff, honoring
-`Retry-After`. Names beginning with `$` are reserved for Voidhash events. See
+The SDK batches events, sending a request after 20 events or every 5 seconds. Failed requests are
+retried with exponential backoff, so the wait grows after each failure, and the SDK honors the
+`Retry-After` header. Event names beginning with `$` are reserved for Voidhash events. See
 [Capture analytics](/sdks/kotlin/analytics).
 
 ## Paywalls
 
 Hosted paywalls are temporarily unavailable. `presentPaywall(...)` returns `false`, paywall
-resolution returns `null`, and no network or presentation work is performed.
+resolution returns `null`, and the SDK performs no network or presentation work.
 
 ## Shutdown
+
+Call `shutdown()` when the process is going away for good.
 
 ```kotlin
 voidhash.shutdown()
 ```
 
-Flushes analytics and ends the Play Billing connection. Call it when the process is going away for
-good, not on every background event.
+It flushes analytics and ends the Play Billing connection. Do not call it on every background
+event.

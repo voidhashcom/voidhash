@@ -1,11 +1,12 @@
 ---
 title: Find your App Bundle ID
-description: Locate the Bundle ID for your app in App Store Connect or Xcode so it matches your Voidhash configuration.
+description: Find your app's Bundle ID in App Store Connect or Xcode so it matches your Voidhash configuration.
 ---
 
 Your **App Bundle ID** is the reverse-domain identifier for your app, for example
-`com.yourcompany.yourapp`. It must match the bundle identifier in your Xcode project and the
-App ID registered in your Apple Developer account.
+`com.yourcompany.yourapp`. Voidhash needs it to match transactions to your app. It must be the same
+value as the bundle identifier in your Xcode project and the App ID registered in your Apple
+Developer account.
 
 <Steps>
 
@@ -19,21 +20,19 @@ select your app.
 <Step>
 ### Open App Information
 
-In the sidebar choose **General → App Information**, then locate the **Bundle ID** field. It
-shows the reverse-domain value, not the numeric **Apple ID** listed on the same page.
+In the sidebar, choose **General → App Information** and find the **Bundle ID** field. It shows
+the reverse-domain value. Do not confuse it with the numeric **Apple ID** listed on the same page.
 </Step>
 
 <Step>
 ### Copy the identifier
 
-Copy the value (e.g. `com.yourcompany.yourapp`) and paste it into the **App Bundle ID** field
-in Voidhash.
+Copy the value (for example `com.yourcompany.yourapp`) and paste it into the **App Bundle ID**
+field in Voidhash.
 
-<Callout type="info" title="Prefer Xcode?">
-You can also find it in Xcode: select your app under **TARGETS**, then read the **Bundle
-Identifier** in the **General** tab under **Identity** (it also appears in **Signing &
-Capabilities**). The two must be identical.
-</Callout>
+You can also read the value in Xcode. Select your app under **TARGETS**, then look for **Bundle
+Identifier** in the **General** tab under **Identity**. It also appears in **Signing &
+Capabilities**. The value in Xcode and the value in App Store Connect must be identical.
 </Step>
 
 </Steps>

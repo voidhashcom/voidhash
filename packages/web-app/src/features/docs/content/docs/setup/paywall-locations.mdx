@@ -5,8 +5,9 @@ icon: PanelsTopLeft
 ---
 
 A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
-such as `onboarding` or `settings-upsell`. Keeping those separate lets you replace a paywall without
-shipping a new app version.
+such as `onboarding` or `settings-upsell`. Keeping the two separate lets you replace a paywall
+without shipping a new app version. This page shows how to publish a paywall, assign it to a
+location, and change it later.
 
 ## Publish a paywall
 
@@ -18,23 +19,23 @@ In Studio:
 4. Open **Settings → Paywall locations**.
 5. Create a location and assign the published paywall to it.
 
-The location slug is immutable because it becomes part of your app code. Use a name that describes
-where the paywall appears, not what the current design looks like.
+The location slug is immutable, because it becomes part of your app code. Name it after where the
+paywall appears, not after what the current design looks like.
 
 ## Change a paywall safely
 
-To update what customers see, publish the new paywall and assign it to the existing location. The
+To change what customers see, publish the new paywall and assign it to the existing location. The
 app keeps asking for the same slug and receives the new release.
 
-Clearing or archiving a location makes future presentations return the "not assigned" outcome on
-every platform. Keep a fallback in the app for important entry points — each SDK page shows how:
-[React Native](/sdks/react-native/paywalls), [Swift](/sdks/swift/paywalls),
+If you clear or archive a location, every future presentation returns the "not assigned" outcome on
+every platform. For important entry points, keep a fallback in the app. Each SDK page shows how:
+[React Native](/sdks/react-native/paywalls), [Swift](/sdks/swift/paywalls), and
 [Kotlin](/sdks/kotlin/paywalls).
 
 ## Location slugs
 
-Location slugs are plain strings in every SDK. React Native projects can additionally generate typed
-slugs so typos become compile errors — see
+Location slugs are plain strings in every SDK. React Native projects can also generate typed slugs,
+so a typo becomes a compile error. See
 [Generated slug types](/sdks/react-native#generated-slug-types).
 
 ## Next steps

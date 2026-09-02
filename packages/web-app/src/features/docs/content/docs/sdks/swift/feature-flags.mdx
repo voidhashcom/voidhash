@@ -4,12 +4,13 @@ description: Gate features with remotely evaluated flags and variants.
 icon: Flag
 ---
 
-Feature flags are evaluated for the current person. Use them for staged rollouts, experiments, and
-remote configuration.
+Feature flags let you turn features on or off, and pick variants, without shipping a new build.
+Voidhash evaluates every flag for the current person, so the same flag can resolve differently for
+different customers. Use flags for staged rollouts, experiments, and remote configuration.
 
 ## Evaluate flags
 
-Pass the keys you need; pass `nil` to evaluate every flag:
+Pass the keys you need. Pass `nil` instead to evaluate every flag in the project:
 
 ```swift
 let flags = try await voidhash.getFeatureFlags(["new-onboarding", "pricing-test"])
@@ -18,12 +19,13 @@ let newOnboarding = flags.first { $0.key == "new-onboarding" }?.enabled == true
 let pricing = flags.first { $0.key == "pricing-test" }
 ```
 
-Validate a variant payload before using it; payloads are untyped JSON.
+Each result carries the flag's key and its enabled state. A variant may also carry a payload.
+Payloads are untyped JSON, so validate a payload before you use it.
 
 ## Identity behavior
 
-Flag results are scoped to the current person. The SDK clears them after `identify()` or a
-reset so one customer never sees another customer's assignment.
+Flag results are scoped to the current person. The SDK clears them after `identify()` or a reset,
+so one customer never sees another customer's assignment.
 
-Choose a safe default while flags are loading or unavailable. For paid access, use
-[entitlement grants](/sdks/swift/entitlements) rather than a feature flag.
+Choose a safe default to use while flags are loading or unavailable. Do not use a feature flag to
+gate paid access. Use [entitlement grants](/sdks/swift/entitlements) for that instead.

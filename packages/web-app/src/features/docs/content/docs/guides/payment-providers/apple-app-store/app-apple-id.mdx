@@ -1,12 +1,11 @@
 ---
 title: Find your App Apple ID
-description: Locate the numeric Apple ID that identifies your app in App Store Connect.
+description: Find the numeric Apple ID that identifies your app in App Store Connect.
 ---
 
-Your **App Apple ID** is the numeric identifier Apple automatically generates for your app
-(commonly around 10 digits, for example `1234567890`). It is different from your Bundle ID and
-from your personal Apple Account login, and is used by Voidhash to reference your app in
-Apple's APIs.
+Your **App Apple ID** is the numeric identifier Apple generates for your app. It is usually around
+10 digits, for example `1234567890`. Voidhash uses it to reference your app in Apple's APIs. It is
+not the same as your Bundle ID, and it is not your personal Apple Account login.
 
 <Steps>
 
@@ -20,24 +19,20 @@ app.
 <Step>
 ### Open App Information
 
-In the sidebar choose **General → App Information**. On this page the read-only **Apple ID** is
-listed among your app's properties, alongside your Bundle ID.
-
-<Callout type="info" title="Which Apple ID?">
-Here **Apple ID** means your app's numeric identifier — not your personal Apple Account login.
-Apple auto-generates it, and you can't edit it.
-</Callout>
+In the sidebar, choose **General → App Information**. The read-only **Apple ID** is listed among
+your app's properties, next to your Bundle ID. Apple generates this number automatically and you
+cannot edit it.
 </Step>
 
 <Step>
 ### Copy the number
 
-Copy the digits exactly (no spaces) and paste them into the **App Apple ID** field in Voidhash.
+Copy the digits exactly, with no spaces, and paste them into the **App Apple ID** field in
+Voidhash.
 
-<Callout type="info" title="Shortcut">
-If your app is already live, the App Apple ID also appears in its App Store URL:
-`https://apps.apple.com/app/id1234567890` — the number after `id` is your App Apple ID.
-</Callout>
+If your app is already live, there is a shortcut. The App Apple ID also appears in the app's App
+Store URL, for example `https://apps.apple.com/app/id1234567890`. The number after `id` is your
+App Apple ID.
 </Step>
 
 </Steps>

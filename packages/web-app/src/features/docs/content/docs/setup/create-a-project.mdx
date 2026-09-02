@@ -5,8 +5,9 @@ icon: FolderPlus
 ---
 
 Everything in Voidhash lives inside a **project**: products, perks, paywalls, customers, and
-revenue. Projects belong to an organization, so you can separate apps, environments, or clients
-under one login.
+revenue. Projects belong to an organization, so you can keep separate apps, environments, or
+clients under one login. This page walks you through creating a project and collecting the keys
+your app and backend need.
 
 ## Create the project
 
@@ -14,26 +15,26 @@ under one login.
 2. Create or open an organization.
 3. Choose **Add project** and give it the name of your app.
 
-The project slug identifies the project everywhere — in Studio, in CLI configuration, and in API
-requests.
+The project gets a slug. That slug identifies the project everywhere: in Studio, in CLI
+configuration, and in API requests.
 
 ## Copy the publishable key
 
 Open the project's settings and copy the **publishable key**. It starts with `vh_pk_`.
 
-Publishable keys are safe to embed in mobile apps: they identify the project but cannot read
+Publishable keys are safe to embed in mobile apps. They identify the project, but they cannot read
 customer data, read revenue, or modify configuration. This is the only key that ever ships inside
 your app.
 
 ## Keep secret keys off the device
 
-Secret keys start with `vh_sk_` and grant full access to the project. You need one only when your
-backend talks to the Voidhash API — for example for [server-side entitlement
+Secret keys start with `vh_sk_` and grant full access to the project. You only need one when your
+backend talks to the Voidhash API, for example for [server-side entitlement
 checks](/libraries/node/check-access) or [webhooks](/libraries/node/webhooks).
 
-In Studio, open **Settings → API Keys** to create a secret key. The raw value is shown once; store
-it in an environment variable or your secret manager. Never put a secret key in a mobile app, a web
-bundle, or a repository.
+To create a secret key, open **Settings → API Keys** in Studio. The raw value is shown once, so
+store it in an environment variable or your secret manager right away. Never put a secret key in a
+mobile app, a web bundle, or a repository.
 
 ## Next steps
 

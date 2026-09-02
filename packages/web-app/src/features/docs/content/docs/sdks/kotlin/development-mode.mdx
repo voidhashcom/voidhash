@@ -1,21 +1,24 @@
 ---
 title: Development purchase mode
-description: Test purchases and lifecycle changes without Google Play setup.
+description: Test purchases and subscription lifecycle changes without Google Play setup.
 icon: FlaskConical
 ---
 
-Development purchase mode gives debug builds a complete fake-store flow backed by real Voidhash
-purchase processing. Purchases, subscriptions, grants, and revenue events are tagged as
-`development`, so they never appear in production customer state or revenue unless you explicitly
-include test data.
+Development purchase mode lets a debug build buy from a fake store while Voidhash processes the
+purchases for real. Use it to test your purchase flow, entitlement checks, and subscription
+lifecycle handling before you connect Google Play Console.
+
+Everything the fake store creates is tagged as `development`: purchases, subscriptions, grants, and
+revenue events. Tagged records never appear in production customer state or revenue unless you
+explicitly include test data.
 
 ## Enable it
 
-Create a product and attach its perks in Studio. Subscription products require a billing duration,
-which controls their simulated renewal and expiry dates. You do not need to connect Google Play
-Console.
+Start in Studio. Create a product and attach its perks. Subscription products need a billing
+duration, because the duration controls their simulated renewal and expiry dates. You do not need
+to connect Google Play Console.
 
-Enable the SDK option:
+Then set the `dev` option when you configure the SDK.
 
 ```kotlin title="App.kt"
 val voidhash = Voidhash.configure(
@@ -25,12 +28,16 @@ val voidhash = Voidhash.configure(
 )
 ```
 
-The SDK displays a confirmation sheet, waits briefly to simulate processing, and refreshes the
-person snapshot after the backend accepts the purchase. The option is only honored in a debug
-build — release builds always use the real Play Billing adapter. Set `dev = false` to exercise the
-real store from a debug build.
+With the option on, a purchase shows a confirmation sheet instead of the Google Play sheet. The SDK
+waits briefly to simulate processing. Once the backend accepts the purchase, the SDK refreshes the
+person snapshot, so your entitlement checks see the new grant.
+
+The option is only honored in a debug build. Release builds always use the real Play Billing
+adapter. Set `dev = false` if you want a debug build to use the real store.
 
 ## Fixed test prices
+
+Development purchases use fixed USD prices, so you do not need store pricing to test.
 
 | Product                | USD price |
 | ---------------------- | --------: |
@@ -46,10 +53,13 @@ Legacy subscriptions without a duration are simulated as monthly and return a wa
 
 ## Simulate lifecycle events
 
-Open a person in Studio to renew, expire, revoke, refund, or place a development subscription into
-a three-day grace period. Each action is idempotent. Development badges distinguish every test row,
-and the analytics revenue pages have an **Include test data** switch.
+Open a person in Studio to move a development subscription through its lifecycle. You can renew,
+expire, revoke, or refund it, or place it into a three-day grace period. Each action is idempotent:
+applying it twice has the same effect as applying it once.
 
-Project settings can disable new development purchases or reset all development purchases,
-subscriptions, grants, transactions, and purchase-ledger records. Reset never touches production
-or sandbox data.
+Test data stays easy to tell apart. Development badges mark every test row, and the analytics
+revenue pages have an **Include test data** switch.
+
+Project settings let you disable new development purchases. They also let you reset all
+development purchases, subscriptions, grants, transactions, and purchase-ledger records. A reset
+never touches production or sandbox data.

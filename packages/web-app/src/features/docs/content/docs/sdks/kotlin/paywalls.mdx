@@ -1,15 +1,18 @@
 ---
 title: Display a paywall
-description: Resolve a paywall by location and present it from your app.
+description: Resolve the paywall assigned to a location and present it from your app.
 icon: PanelsTopLeft
 ---
 
-A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
-such as `onboarding` or `settings-upsell`. You publish and assign paywalls to locations in Studio —
-see [Paywall locations](/setup/paywall-locations). This page covers presenting them with the Kotlin
-SDK.
+Use this page to show a hosted paywall from the Kotlin SDK. A **paywall** is the screen a customer
+sees. A **location** is the stable slug your app asks for, such as `onboarding` or
+`settings-upsell`. You publish paywalls and assign them to locations in Studio, as described in
+[Paywall locations](/setup/paywall-locations).
 
 ## Present it
+
+Ask for a location, and the SDK presents whichever paywall is assigned to it. Pass a listener to be
+told about purchases, custom events, and dismissal.
 
 ```kotlin
 val shown = voidhash.presentPaywall(activity, location = "settings-upsell", listener = object : PaywallListener {
@@ -19,19 +22,21 @@ val shown = voidhash.presentPaywall(activity, location = "settings-upsell", list
 })
 ```
 
-`presentPaywall` resolves the paywall configured for the location, presents it fullscreen, and
-speaks the paywall bridge protocol natively: purchases, restores, close, and external links are
-handled for you; custom events and logs are forwarded to the listener.
+`presentPaywall` resolves the paywall configured for the location and presents it fullscreen. It
+speaks the paywall bridge protocol natively, so purchases, restores, close, and external links are
+handled for you. Custom events and logs are forwarded to the listener.
 
-It returns `false` when no published paywall is assigned to the location or the client is disabled.
+The return value tells you what happened. It is `false` when no published paywall is assigned to
+the location, or when the client is disabled.
 
-Hosted paywalls send purchase and restore actions through the same purchase pipeline. After a
-successful transaction, Voidhash refreshes the person snapshot and dismisses the paywall.
+Purchases and restores started from a hosted paywall go through the same purchase pipeline as any
+other purchase. After a successful transaction, Voidhash refreshes the person snapshot and dismisses
+the paywall.
 
 ## Fall back when nothing was shown
 
-Clearing or archiving a location in Studio makes future presentations return `false`. Keep a
-fallback for important entry points:
+When you clear or archive a location in Studio, later presentations return `false`. Keep a fallback
+for important entry points so the customer still has a way to upgrade.
 
 ```kotlin
 val shown = voidhash.presentPaywall(activity, location = "settings-upsell")

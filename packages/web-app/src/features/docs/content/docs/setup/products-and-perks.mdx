@@ -4,46 +4,47 @@ description: Model what customers buy and what each purchase unlocks.
 icon: PackageOpen
 ---
 
-Voidhash separates the item sold by a store from the access it grants:
+Voidhash separates the item a store sells from the access it grants. The two concepts have
+different names:
 
 - A **product** is something a customer buys, such as a monthly subscription.
 - A **perk** is a capability your app can unlock, such as `premium` or `remove-ads`.
 
-Products can grant multiple perks, and the same perk can be attached to multiple products. Your app
-checks perks instead of hard-coding product IDs, so access logic stays stable when pricing changes.
+A product can grant several perks, and the same perk can be attached to several products. Your app
+checks perks instead of hard-coding product IDs, so your access logic stays stable when pricing
+changes.
 
 ## Create a perk
 
-In Studio, open **Perks** and choose **Add perk**. Give it a readable name and a stable slug:
+In Studio, open **Perks** and choose **Add perk**. Give it a readable name and a stable slug. The
+name is for people, and the slug is what you use in code. For example, a perk named "Premium
+access" might use the slug `premium`, and "Remove ads" might use `remove-ads`.
 
-| Name           | Slug used in code |
-| -------------- | ----------------- |
-| Premium access | `premium`         |
-| Remove ads     | `remove-ads`      |
-
-Use lowercase letters, numbers, underscores, and hyphens. Treat a slug as permanent after it ships.
+A slug can contain lowercase letters, numbers, underscores, and hyphens. Treat a slug as permanent
+once it ships.
 
 ## Create a product
 
 Open **Products** and choose **Add product**. Voidhash currently supports subscription products.
-After creating one:
+After you create one, finish it in three steps:
 
-1. attach every perk the product should unlock;
-2. connect the matching product from each enabled payment provider; and
-3. add the product to a paywall.
+1. Attach every perk the product should unlock.
+2. Connect the matching product from each enabled payment provider.
+3. Add the product to a paywall.
 
 The Voidhash slug is your cross-platform identifier. The App Store and Google Play product IDs may
-be different; the provider mappings connect both to the same Voidhash product.
+be different from it. The provider mappings connect both store products to the same Voidhash
+product.
 
 <Callout type="warn" title="Pricing comes from the store">
-  Every SDK renders `displayPrice` resolved against the customer's storefront. Do not hard-code a
-  price or currency in the app or paywall.
+  Every SDK renders `displayPrice`, which is resolved against the customer's storefront. Do not
+  hard-code a price or currency in the app or in the paywall.
 </Callout>
 
 ## Keep generated types current
 
-The dashboard is the schema source of truth. React Native projects can pull its slugs into
-TypeScript after catalog changes — see [Keep types in sync](/setup/cli#keep-types-in-sync).
+Studio is the source of truth for the schema. React Native projects can pull its slugs into
+TypeScript after each catalog change. See [Keep types in sync](/setup/cli#keep-types-in-sync).
 
 ## Next steps
 

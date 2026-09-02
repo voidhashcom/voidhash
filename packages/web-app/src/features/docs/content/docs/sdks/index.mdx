@@ -1,24 +1,24 @@
 ---
 title: Mobile SDKs
-description: Voidhash client SDKs for React Native, Swift, and Kotlin.
+description: Choose the Voidhash client SDK for React Native, Swift, or Kotlin.
 icon: Package
 ---
 
-Voidhash ships three client SDKs for entitlements, feature flags, analytics, and observer-mode
-transaction reporting. Every SDK talks to the same project schema and submits observed store
-transactions for revenue analytics without taking ownership from the host billing integration.
+Voidhash ships three client SDKs: one for React Native, one for Swift, and one for Kotlin. Each SDK
+adds entitlements, feature flags, analytics, and observer-mode transaction reporting to your app.
+In observer mode, the SDK watches the store transactions your existing billing integration makes
+and submits them to Voidhash for revenue analytics. It never takes ownership of billing away from
+your code. All three SDKs talk to the same project schema.
 
-<Callout type="warn" title="Initial release is observer-only">
+<Callout type="warn" title="The initial release is observer-only">
   SDK-started purchases and hosted paywalls are temporarily unavailable. The commerce
   implementations remain in the packages for a later launch, but the public clients cannot enable or
   invoke them yet.
 </Callout>
 
-| SDK          | Platforms    | Store integration                                         |
-| ------------ | ------------ | --------------------------------------------------------- |
-| React Native | iOS, Android | StoreKit 2 and Google Play Billing through native modules |
-| Swift        | iOS          | StoreKit 2                                                |
-| Kotlin       | Android      | Google Play Billing                                       |
+Each SDK integrates with the store for its platform. The React Native SDK runs on iOS and Android
+and reaches StoreKit 2 and Google Play Billing through native modules. The Swift SDK runs on iOS and
+uses StoreKit 2. The Kotlin SDK runs on Android and uses Google Play Billing.
 
 ## Pick your platform
 
@@ -40,5 +40,5 @@ transactions for revenue analytics without taking ownership from the host billin
   />
 </Cards>
 
-Choose your platform above, then connect a store in [Store setup](/store-setup/apple-app-store) or
+Choose your platform above. Then connect a store in [Store setup](/store-setup/apple-app-store) or
 [Connect Google Play](/store-setup/google-play).

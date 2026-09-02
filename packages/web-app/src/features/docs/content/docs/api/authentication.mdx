@@ -1,9 +1,10 @@
 ---
 title: Authentication
-description: Choose the correct credential for server, tool, or device requests.
+description: Choose the right credential for server, tool, or device requests.
 ---
 
-Voidhash has three programmatic credential types. Use the narrowest one that fits the caller.
+Every request to the Voidhash API carries a credential. Voidhash has three programmatic credential
+types, each meant for a different kind of caller. Use the narrowest one that fits.
 
 | Credential         | Header                                | Use                                                                 |
 | ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
@@ -13,7 +14,8 @@ Voidhash has three programmatic credential types. Use the narrowest one that fit
 
 ## Project secret keys
 
-Use a secret key from your backend:
+A project secret key authorizes your backend to act on one project. Send it in the `x-secret-key`
+header:
 
 ```bash
 curl https://api.voidhash.com/api/v1/persons \
@@ -27,19 +29,20 @@ curl https://api.voidhash.com/api/v1/persons \
 
 ## User API keys
 
-User keys are useful for local tools and automation that must access more than one project:
+A user API key acts as a signed-in user. It is useful for local tools and automation that need
+access to more than one project. Send it in the `x-api-key` header:
 
 ```bash
 curl https://api.voidhash.com/api/v1/auth/session \
   -H "x-api-key: $VOIDHASH_API_KEY"
 ```
 
-The CLI obtains and stores this credential through `voidhash-cli auth login`.
+The CLI obtains and stores this credential for you when you run `voidhash-cli auth login`.
 
 ## Publishable keys
 
-Publishable keys are safe to distribute, but they only authorize the device-facing SDK surface and
-must be paired with a customer identity:
+A publishable key is safe to ship inside an app. It only authorizes the device-facing SDK surface,
+and it must be paired with a customer identity in the `x-distinct-id` header:
 
 ```bash
 curl https://api.voidhash.com/api/v1/sdk/person \
@@ -47,22 +50,26 @@ curl https://api.voidhash.com/api/v1/sdk/person \
   -H "x-distinct-id: user_123"
 ```
 
-Official SDKs also send platform and client metadata required by these endpoints. Prefer the SDK
-over calling them directly.
+The official SDKs also send platform and client metadata that these endpoints require. Prefer the
+SDK over calling them directly.
 
 ## Verify a credential
 
-Call `GET /api/v1/auth/session`. The response shows how the key was resolved and which project it
-can access. A valid key can still receive `403` when it lacks permission for an operation.
+Call `GET /api/v1/auth/session` with any credential. The response shows how the key was resolved
+and which project it can access.
+
+A valid key can still receive a `403` when it lacks permission for a specific operation.
 
 ## Event capture
 
-`/i/v1/capture` and `/i/v1/batch` accept either credential:
+The event capture endpoints, `/i/v1/capture` and `/i/v1/batch`, accept either a secret key or a
+publishable key. Which one you send depends on where the request comes from.
 
-- from a backend, send the project secret key as `x-secret-key`. No `x-distinct-id` is needed —
-  each event carries its own `distinct_id`;
-- from a distributed client that cannot hold a secret, send the publishable key as a `token` field
-  in the JSON body instead.
+From a backend, send the project secret key as `x-secret-key`. No `x-distinct-id` header is
+needed, because each event carries its own `distinct_id`.
 
-Send one or the other. When both are present the body `token` wins. See
-[Event Capture](/api/event-capture).
+From a distributed client that cannot hold a secret, send the publishable key as a `token` field in
+the JSON body instead.
+
+Send one or the other. When both are present, the body `token` wins. See
+[Event Capture](/api/event-capture) for request examples.

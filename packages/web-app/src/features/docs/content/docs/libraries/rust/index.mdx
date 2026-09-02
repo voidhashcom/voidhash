@@ -1,37 +1,42 @@
 ---
 title: Rust library
-description: Server-side client for the Voidhash REST API.
+description: A server-side client for the Voidhash REST API.
 icon: svgl:rust
 ---
 
-Client-side checks decide what to render. Anything a customer could get by calling your API
-directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
-the server as well.
+The mobile SDKs decide what to show on the device. They cannot protect anything a customer can
+reach by calling your API directly, such as an export endpoint or a paid model. Those checks belong
+on your server, and this library is how you make them.
 
-The `voidhash` crate wraps the Voidhash REST API and authenticates with a project secret key.
+The `voidhash` crate is a client for the Voidhash REST API. It authenticates every request with a
+project secret key.
 
 ## Install the crate
+
+Add the crate to your project with Cargo.
 
 ```sh
 cargo add voidhash
 ```
 
-Requires Rust 1.75 or newer. The client is async-first and runs on any executor; the examples below
-use tokio.
+The crate needs Rust 1.75 or newer. The client is async-first and runs on any executor. The examples
+below use tokio.
 
 <Steps>
 
 <Step>
 ### Create a secret key
 
-In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown only once.
 
-Store it in an environment variable or your secret manager. A secret key grants full project access:
-never put it in a mobile app, a web bundle, or a repository.
+Store the key in an environment variable or your secret manager. A secret key grants full access to
+the project. Never put it in a mobile app, a web bundle, or a repository.
 </Step>
 
 <Step>
 ### Create the client
+
+Create one client with your secret key.
 
 ```rust title="src/voidhash.rs"
 use voidhash::VoidhashClient;
@@ -39,16 +44,20 @@ use voidhash::VoidhashClient;
 let voidhash = VoidhashClient::new(std::env::var("VOIDHASH_SECRET_KEY")?)?;
 ```
 
-| Builder method | Default                    | Use                                                    |
-| -------------- | -------------------------- | ------------------------------------------------------ |
-| `new`          | —                          | Required secret key. Sent as the `x-secret-key` header.|
-| `.base_url`    | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
-| `.header`      | none                       | Extra headers added to every request from this client. |
+The client is configured through `new` and two builder methods.
 
-`VoidhashClient::new` validates eagerly and returns `VoidhashError::Configuration` on a blank secret
-key, an invalid base URL, or an `x-secret-key` passed through `.header` in any casing.
+| Builder method | Default                    | Description                                                              |
+| -------------- | -------------------------- | ------------------------------------------------------------------------ |
+| `new`          | none                       | Takes the required secret key. The client sends it as `x-secret-key`.    |
+| `.base_url`    | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`.        |
+| `.header`      | none                       | Adds an extra header to every request from this client.                  |
 
-The client is cheap to clone (`Arc` internally) — create one and share it across handlers.
+`VoidhashClient::new` validates its input right away rather than on the first request. It returns
+`VoidhashError::Configuration` when the secret key is blank, the base URL is invalid, or `.header`
+was given `x-secret-key` in any casing.
+
+The client is cheap to clone because it holds an `Arc` internally. Create one and share it across
+your handlers.
 </Step>
 
 </Steps>
@@ -58,7 +67,8 @@ With the client configured, continue with [checking access](/libraries/rust/chec
 
 ## Resource methods
 
-Resources are exposed as fields on the client, mirroring the API reference:
+Each API resource is a field on the client, and the fields mirror the API reference. The example
+below checks a perk through the `entitlements` resource.
 
 ```rust
 use serde_json::json;
@@ -72,5 +82,5 @@ let has_premium = voidhash
     .await?;
 ```
 
-Every method is an `async fn` returning `Result<T, VoidhashError>` with `T` deserialized into typed
-structs — no manual JSON unwrapping.
+Every method is an `async fn` that returns `Result<T, VoidhashError>`. The `T` is deserialized into
+a typed struct, so there is no manual JSON unwrapping.

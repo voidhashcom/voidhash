@@ -4,20 +4,28 @@ description: Add Voidhash to a native Android app and show your first paywall.
 icon: Rocket
 ---
 
-This guide takes an existing Android app from installation to a paywall and access check.
-Requires `minSdk` 23, AGP 8.9.0, and Kotlin 2.0.21.
+This guide adds Voidhash to an existing Android app. By the end you will have the SDK installed, a
+paywall on screen, and an access check that gates a premium feature.
+
+## Before you start
+
+- Your app sets `minSdk` 23.
+- You build with AGP 8.9.0.
+- You build with Kotlin 2.0.21.
 
 <Steps>
 
 <Step>
 ### Install the SDK
 
-The SDK ships as a Gradle module inside the npm package `@voidhash/android`. Add it to your build
-by pointing at the installed package directory:
+Add the SDK to your Gradle build. The SDK ships as a Gradle module inside the npm package
+`@voidhash/android`, so point your build at the installed package directory.
 
 ```kotlin title="settings.gradle.kts"
 includeBuild("node_modules/@voidhash/android")
 ```
+
+Then depend on the module from your app.
 
 ```kotlin title="app/build.gradle.kts"
 dependencies {
@@ -25,7 +33,7 @@ dependencies {
 }
 ```
 
-Or vendor the sources and include them directly:
+If you prefer to vendor the sources, include them directly instead.
 
 ```kotlin title="settings.gradle.kts"
 include(":voidhash-core", ":voidhash-sdk")
@@ -33,21 +41,22 @@ project(":voidhash-core").projectDir = file("third_party/voidhash/core")
 project(":voidhash-sdk").projectDir = file("third_party/voidhash/sdk")
 ```
 
-Add the billing permission — the SDK contributes `INTERNET` through its own manifest:
+Add the billing permission to your manifest. The SDK contributes `INTERNET` through its own
+manifest, so you do not need to add that one.
 
 ```xml
 <uses-permission android:name="com.android.vending.BILLING" />
 ```
 
-Play Billing 8.0.0, Play Services Base, OkHttp 4.x, and kotlinx-coroutines must be on the runtime
-classpath.
+Make sure Play Billing 8.0.0, Play Services Base, OkHttp 4.x, and kotlinx-coroutines are on the
+runtime classpath.
 
 </Step>
 
 <Step>
 ### Configure the client
 
-Configure in your `Application` class with the project's publishable key:
+Create the client in your `Application` class with your project's publishable key.
 
 ```kotlin title="App.kt"
 import com.voidhash.sdk.Voidhash
@@ -74,33 +83,33 @@ class App : Application() {
 
 The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
 
-`configure` is synchronous and cheap; `initialize()` connects to Google Play, resolves the project
-schema, and reconciles anything the store still reports as unfinished. It is safe to call
-repeatedly — only the first successful call does work, and a failed call can be retried. The client
-is also reachable as `Voidhash.shared`.
+`configure` is synchronous and cheap. `initialize()` does the real work: it connects to Google
+Play, resolves the project schema, and reconciles anything the store still reports as unfinished.
+You can call `initialize()` repeatedly. Only the first successful call does work, and a failed call
+can be retried. The client is also reachable as `Voidhash.shared`.
 
 </Step>
 
 <Step>
 ### Configure one test offer in Studio
 
-Create the smallest complete catalog:
+Set up the smallest catalog that can show a paywall and grant access.
 
 1. Create a perk such as `premium`.
 2. Create a product, choose its billing duration, and attach the perk.
 3. Create a paywall that includes the product, then publish it.
 4. Create a paywall location such as `onboarding` and assign the published paywall.
 
-Connect Google Play Console before testing a release build — see [Store setup](/store-setup/google-play). See
-[Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/kotlin/paywalls) for the model behind these
-steps.
+Connect Google Play Console before you test a release build. See
+[Store setup](/store-setup/google-play) for the steps. For the model behind the catalog, see
+[Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/kotlin/paywalls).
 
 </Step>
 
 <Step>
 ### Present the paywall
 
-Resolve the paywall by location and present it from an activity:
+Resolve the paywall assigned to a location and present it from an activity.
 
 ```kotlin
 voidhash.presentPaywall(activity, location = "onboarding", listener = object : PaywallListener {
@@ -110,19 +119,19 @@ voidhash.presentPaywall(activity, location = "onboarding", listener = object : P
 })
 ```
 
-It returns `false` when the backend has no published paywall for the location — fall back to your
-own screen instead of leaving the customer with nothing.
+`presentPaywall` returns `false` when the backend has no published paywall for the location. Fall
+back to your own screen instead of leaving the customer with nothing.
 
-The SDK presents the paywall fullscreen and speaks the paywall bridge protocol natively: purchases,
-restores, close, and external links are handled for you; custom events and logs are forwarded to
-the listener.
+The SDK presents the paywall fullscreen and speaks the paywall bridge protocol natively, so the
+paywall's actions work without extra code. Purchases, restores, close, and external links are
+handled for you. Custom events and logs are forwarded to the listener.
 
 </Step>
 
 <Step>
 ### Check access
 
-Gate features on an active perk grant from the person snapshot:
+Gate a feature on an active perk grant from the person snapshot.
 
 ```kotlin
 val person = voidhash.getCurrentPerson()
@@ -130,17 +139,19 @@ val person = voidhash.getCurrentPerson()
 val hasPremium = person?.activePerkIds?.contains("premium") == true
 ```
 
-The snapshot refreshes after a successful purchase or restore. See [Check access](/sdks/kotlin/entitlements)
-for caching behavior and failure handling.
+The snapshot refreshes after a successful purchase or restore. See
+[Check access](/sdks/kotlin/entitlements) for caching behavior and failure handling.
 
 </Step>
 
 <Step>
 ### Run a test purchase
 
-Build and run on a device signed into an account in a Play testing track, then buy through the
-presented paywall. Purchases sync server-side and are acknowledged only after validation succeeds;
-consumables are consumed instead.
+Build and run the app, then buy through the presented paywall. Use a device signed into an account
+in a Play testing track.
+
+Purchases sync to the server first. The SDK acknowledges the purchase only after validation
+succeeds. Consumables are consumed instead of acknowledged.
 
 </Step>
 

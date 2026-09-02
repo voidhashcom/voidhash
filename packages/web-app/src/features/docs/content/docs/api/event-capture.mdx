@@ -1,26 +1,27 @@
 ---
 title: Event Capture
-description: Send analytics events with a project secret key or a publishable token.
+description: Send analytics events to Voidhash with a project secret key or a publishable token.
 ---
 
-Use event capture from your backend, or from custom clients that do not use a mobile SDK.
+Event capture is how you send analytics events to Voidhash without a mobile SDK. Use it from your
+backend, or from custom clients that do not run one of the SDKs.
 
-| Endpoint             | Use                                 |
-| -------------------- | ----------------------------------- |
-| `POST /i/v1/capture` | Send one event.                     |
-| `POST /i/v1/batch`   | Send one or more events in a batch. |
+There are two endpoints. `POST /i/v1/capture` sends one event, and `POST /i/v1/batch` sends one
+or more events in a single request.
 
 ## Choose a credential
 
-| Caller                                   | Credential                                |
-| ---------------------------------------- | ----------------------------------------- |
-| Your backend                             | `x-secret-key: vh_sk_...` request header. |
-| A distributed client, app, or web bundle | `token: "vh_pk_..."` in the JSON body.    |
+Which credential you send depends on where the request comes from. A backend you control sends its
+secret key in the `x-secret-key` request header, as `x-secret-key: vh_sk_...`. A distributed
+client, such as an app or web bundle, cannot hold a secret, so it sends the publishable key as a
+`token` field in the JSON body, as `"token": "vh_pk_..."`.
 
-Send one or the other. A secret key in the body `token` field is rejected with `401 unauthorized` —
-only the `x-secret-key` header may carry it — and a distributed client must not hold a secret key at
-all. Voidhash SDKs may also present the publishable key through their usual `x-publishable-key`
-header instead of the body; the body `token` wins when both are present.
+Send one or the other. Only the `x-secret-key` header may carry a secret key. A secret key in the
+body `token` field is rejected with `401 unauthorized`, and a distributed client must not hold a
+secret key at all.
+
+Voidhash SDKs may also present the publishable key through their usual `x-publishable-key` header
+instead of the body. When both the header and the body `token` are present, the body `token` wins.
 
 <Callout type="warn" title="Never expose a secret key">
   `x-secret-key` grants broad access to the project. Only send it from a server you control.
@@ -28,7 +29,7 @@ header instead of the body; the body `token` wins when both are present.
 
 ## Capture one event
 
-From a backend, authorize with the header:
+From a backend, authorize with the `x-secret-key` header and send the event in the body:
 
 ```bash
 curl https://api.voidhash.com/i/v1/capture \
@@ -61,15 +62,16 @@ curl https://api.voidhash.com/i/v1/capture \
   }'
 ```
 
-Required event fields are `uuid`, `event`, `distinct_id`, `properties`, and `context`. The request
-also requires `sent_at` and exactly one credential.
+Every event must include `uuid`, `event`, `distinct_id`, `properties`, and `context`. The request
+itself must include `sent_at` and exactly one credential.
 
-Generate `uuid` once per event and reuse it for retries. It is the deduplication key.
+The `uuid` is the deduplication key. Generate it once per event and reuse the same value if you
+retry, so a retried event is not counted twice.
 
 ## Batch events
 
-`POST /i/v1/batch` accepts the same event objects under `events`, with one request-level `sent_at`
-and the same credential choice:
+`POST /i/v1/batch` accepts the same event objects under an `events` array. The request has one
+request-level `sent_at` and the same credential choice as a single capture:
 
 ```json
 {
@@ -86,14 +88,17 @@ and the same credential choice:
 }
 ```
 
-Clients using a publishable token add `"token": "vh_pk_..."` alongside `sent_at`.
+Clients using a publishable token add `"token": "vh_pk_..."` next to `sent_at`.
 
 A successful request returns `202` with `accepted` and `rejected` counts. Log the `x-request-id`
-response header when diagnosing ingestion.
+response header so you can reference it when diagnosing ingestion.
 
 ## Retries
 
-Retry network failures, `429`, `500`, and `503` with exponential backoff. Honor `retry-after` when
-present and resend the same UUIDs. Fix rather than retry `400`, `401`, and `413` responses.
+Retry network failures, `429`, `500`, and `503` responses with exponential backoff. Honor the
+`retry-after` header when it is present, and resend the same UUIDs so retries deduplicate.
+
+Do not retry `400`, `401`, or `413` responses. Those indicate a problem with the request itself,
+so fix it and send again.
 
 See the generated **Event Capture** endpoint pages for complete schemas and error bodies.

@@ -4,23 +4,26 @@ description: Run Voidhash alongside an existing billing SDK and move purchase ow
 icon: ScanEye
 ---
 
-Observer mode lets your existing billing SDK keep control of purchases while Voidhash observes
-store transactions and builds customer and entitlement state. It is the supported way to migrate an
-app that already ships in-app purchases.
+Observer mode lets your existing billing SDK keep control of purchases while Voidhash watches store
+transactions and builds customer and entitlement state from them. It is the supported way to
+migrate an app that already ships in-app purchases. This page explains the one rule that keeps the
+migration safe, how to turn observer mode on, and how to hand ownership to Voidhash step by step.
 
 ## The one invariant
 
-Both SDKs may stay initialized in the same build. What must never be true is two SDKs *completing*
-the same store transaction.
+Both SDKs can stay initialized in the same build. The one thing that must never happen is two SDKs
+*completing* the same store transaction.
 
-Exactly one integration may finish (StoreKit) or acknowledge (Google Play) a transaction. The other
-one may read it, report it, and render UI from it. When Voidhash runs in observer mode, it never
-finishes or acknowledges anything, so your existing SDK stays the sole owner.
+Exactly one integration may finish a transaction (StoreKit) or acknowledge it (Google Play). The
+other one may read it, report it, and render UI from it. When Voidhash runs in observer mode, it
+never finishes or acknowledges anything, so your existing SDK stays the sole owner.
 
 Everything else on this page follows from keeping that invariant true at every moment, including
-during the release where ownership changes.
+during the release where ownership changes hands.
 
 ## Enable observer mode
+
+Observer mode is a client option. Set `readOnly` to `true` when you create the client:
 
 <Tabs items={["React Native", "Swift", "Kotlin"]}>
 
@@ -61,6 +64,9 @@ val voidhash = Voidhash.configure(
 
 </Tabs>
 
+With the option on, the SDK still observes and syncs transactions, but it never starts or completes
+a purchase. This table compares the two modes.
+
 | Behavior                                   | Observer mode | Owner mode (default)        |
 | ------------------------------------------ | ------------- | --------------------------- |
 | Starts purchases                           | No            | Yes                         |
@@ -69,20 +75,22 @@ val voidhash = Voidhash.configure(
 | Finishes / acknowledges store transactions | No            | Yes, after a successful sync |
 | Reads products, persons, entitlements      | Yes           | Yes                         |
 
-Voidhash also sends `x-observer-mode: true` on SDK requests while the mode is active, so the server
-records that this client is observing rather than owning purchases.
+While observer mode is active, the SDK also sends an `x-observer-mode: true` header on its
+requests. The server uses it to record that this client is observing purchases rather than owning
+them.
 
 ### APIs blocked in observer mode
 
-Starting a purchase is blocked, as are write flows that depend on owning the transaction — hosted
-paywall purchase actions fail the same way and report an error through their callback or delegate.
+Starting a purchase is blocked. So is every write flow that depends on owning the transaction.
+Hosted paywall purchase actions fail the same way and report an error through their callback or
+delegate.
 
-Reading products, persons, entitlements, feature flags, and paywall assignments remains available,
-as do restores, queued analytics, and person attribute updates.
+Reads stay available: products, persons, entitlements, feature flags, and paywall assignments.
+Restores, queued analytics, and person attribute updates keep working too.
 
 ## Switch ownership at runtime
 
-Observer mode is not fixed at construction. Flip it on the live client:
+Observer mode is not fixed when you construct the client. You can flip it on the live client:
 
 <Tabs items={["React Native", "Swift", "Kotlin"]}>
 
@@ -120,22 +128,23 @@ voidhash.setReadOnly(true)  // back to observing
 </Tabs>
 
 The switch takes effect at the next decision point of each consumer: purchase gating, the
-transaction observer's finish/acknowledge decision, and the `x-observer-mode` header on later
+transaction observer's finish or acknowledge decision, and the `x-observer-mode` header on later
 requests.
 
 <Callout type="info" title="In-flight purchases keep the mode they started with">
-  A purchase that has already begun completes under the mode that was active when it started, so a
-  mid-purchase flip can never strand that transaction unfinished with the store. Transactions
-  already being processed when the call lands may also complete under the previous mode.
+  A purchase that has already begun completes under the mode that was active when it started. A
+  mid-purchase flip can therefore never leave that transaction unfinished with the store.
+  Transactions that are already being processed when the call lands may also complete under the
+  previous mode.
 </Callout>
 
-Switching at runtime avoids recreating the client, which would drop the native store connection,
-the caches, and the analytics queue.
+Switching at runtime means you never recreate the client. Recreating it would drop the native store
+connection, the caches, and the analytics queue.
 
 ## Roll out behind a feature flag
 
-Use one flag to decide both halves of ownership at once — which SDK's UI starts a purchase, and
-which SDK finishes the resulting transaction. Reading them from a single value is what keeps the
+Ownership has two halves: which SDK's UI starts a purchase, and which SDK finishes the resulting
+transaction. Decide both from one flag. Reading both halves from a single value is what keeps the
 invariant true:
 
 ```tsx title="app/paywall-entry.tsx"
@@ -149,18 +158,19 @@ useEffect(() => {
 return voidhashOwnsPurchases ? <VoidhashUpgradeScreen /> : <LegacyUpgradeScreen />;
 ```
 
-Apply the mode before presenting purchase UI, not after a customer taps buy. Roll the flag out to a
-small percentage first, compare both platforms in the sandbox, then widen it.
+Apply the mode before you present purchase UI, not after a customer taps buy. Roll the flag out to
+a small percentage first, compare both platforms in the sandbox, then widen it.
 
-To ship the SDK completely inert — no store connection, no network, no listeners — construct it
-with `enabled: false`. The flag is fixed at construction; enabling later means creating a new
-client, which is cheap because a disabled one never built its runtime. On React Native, mount
-`<voidhash.Provider>` unconditionally either way so hook order never changes between builds.
+To ship the SDK completely inert (no store connection, no network, no listeners), construct it with
+`enabled: false`. Unlike observer mode, this flag is fixed at construction. To enable the SDK later,
+create a new client. That is cheap, because a disabled client never built its runtime. On React
+Native, mount `<voidhash.Provider>` unconditionally either way, so hook order never changes between
+builds.
 
 ## Fall back when Voidhash cannot present
 
 Every SDK reports why a paywall was not presented. Branch on that outcome to decide whether to fall
-back to the existing SDK's paywall or an app-owned screen:
+back to the existing SDK's paywall or to an app-owned screen:
 
 <Tabs items={["React Native", "Swift", "Kotlin"]}>
 
@@ -186,8 +196,8 @@ switch (result.status) {
 }
 ```
 
-Purchase and restore failures inside an already-visible paywall arrive on the hook's callbacks
-(`onError`, `onPreloadError`) instead of through `show()`.
+Purchase and restore failures inside a paywall that is already visible arrive on the hook's
+callbacks (`onError`, `onPreloadError`), not through `show()`.
 
 </Tab>
 
@@ -222,14 +232,14 @@ if (!shown) {
 
 </Tabs>
 
-Keep two categories apart:
+Keep two categories of failure apart:
 
-- **Fallback-safe** — nothing was presented and no money moved, so showing the other paywall is
-  always correct: not assigned, not initialized, presenter unavailable, disabled, or a resolve or
-  presentation failure.
-- **Purchase and restore failures** — delivered through the SDK's error callbacks while the paywall
-  is already on screen and a store flow may have started. Do not respond by opening a second
-  paywall; surface the error and let the customer retry.
+- **Fallback-safe outcomes.** Nothing was presented and no money moved, so showing the other
+  paywall is always correct. These are not assigned, not initialized, presenter unavailable,
+  disabled, and a resolve or presentation failure.
+- **Purchase and restore failures.** These arrive through the SDK's error callbacks while the
+  paywall is already on screen, and a store flow may have started. Do not respond by opening a
+  second paywall. Surface the error and let the customer retry.
 
 ## Migration sequence
 
@@ -246,22 +256,23 @@ purchase flow changes in this release.
 ### Verify in the sandbox
 
 On both iOS and Android, run a new purchase, a renewal, a cancellation, an expiry, a refund, and a
-restore. Confirm each one appears on the person in Studio and produces the perk grants you expect.
+restore. Confirm that each one appears on the person in Studio and produces the perk grants you
+expect.
 </Step>
 
 <Step>
 ### Compare against your current source of truth
 
-For a sample of real customers, compare Voidhash entitlement grants with the access your existing
-system grants. Investigate every mismatch before continuing — this step is what makes the switch
-safe.
+For a sample of real customers, compare the entitlement grants in Voidhash with the access your
+existing system grants. Investigate every mismatch before you continue. This step is what makes
+the switch safe.
 </Step>
 
 <Step>
 ### Move purchase UI and ownership together
 
-Put both behind one flag, as above. When the flag is on, Voidhash presents the paywall *and* takes
-over purchase ownership. When it is off, both revert. Never split them across two releases.
+Put both behind one flag, as shown above. When the flag is on, Voidhash presents the paywall *and*
+takes over purchase ownership. When it is off, both revert. Never split them across two releases.
 </Step>
 
 <Step>
@@ -273,9 +284,9 @@ drop the observer-mode option from the client configuration.
 
 </Steps>
 
-Retest new purchases, renewals, cancellations, and restores on both platforms after each step. A
-transaction left unacknowledged on Google Play is refunded automatically after three days, so
-ownership gaps show up as revenue loss rather than as errors.
+Retest new purchases, renewals, cancellations, and restores on both platforms after each step.
+Google Play refunds a transaction that is left unacknowledged after three days, so an ownership gap
+shows up as lost revenue rather than as an error.
 
 ## Next steps
 

@@ -1,37 +1,42 @@
 ---
 title: PHP library
-description: Server-side client for the Voidhash REST API.
+description: A server-side client for the Voidhash REST API.
 icon: svgl:php
 ---
 
-Client-side checks decide what to render. Anything a customer could get by calling your API
-directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
-the server as well.
+The mobile SDKs decide what to show on the device. They cannot protect anything a customer can
+reach by calling your API directly, such as an export endpoint or a paid model. Those checks belong
+on your server, and this library is how you make them.
 
-`voidhash/voidhash-php` wraps the Voidhash REST API and authenticates with a project secret key.
+`voidhash/voidhash-php` is a client for the Voidhash REST API. It authenticates every request with a
+project secret key.
 
 ## Install the library
+
+Install the package with Composer.
 
 ```sh
 composer require voidhash/voidhash-php
 ```
 
-Requires PHP 8.1+ with the `curl`, `json`, and `mbstring` extensions — present in every common
-PHP build.
+The library needs PHP 8.1 or newer with the `curl`, `json`, and `mbstring` extensions. Every common
+PHP build already includes them.
 
 <Steps>
 
 <Step>
 ### Create a secret key
 
-In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown only once.
 
-Store it in an environment variable or your secret manager. A secret key grants full project access:
-never put it in a mobile app, a web bundle, or a repository.
+Store the key in an environment variable or your secret manager. A secret key grants full access to
+the project. Never put it in a mobile app, a web bundle, or a repository.
 </Step>
 
 <Step>
 ### Create the client
+
+Create one client with your secret key and share it across your application.
 
 ```php title="src/Voidhash.php"
 use Voidhash\Client;
@@ -39,14 +44,17 @@ use Voidhash\Client;
 $voidhash = new Client(getenv("VOIDHASH_SECRET_KEY"));
 ```
 
-| Constructor argument | Default                    | Use                                                    |
-| -------------------- | -------------------------- | ------------------------------------------------------ |
-| `$secretKey`         | —                          | Required. Sent as the `x-secret-key` header.           |
-| `$baseUrl`           | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
-| `$headers`           | `[]`                       | Extra headers added to every request from this client. |
+The constructor accepts these arguments.
 
-The constructor validates eagerly and throws `Voidhash\ConfigurationException` on a blank
-`$secretKey`, an invalid `$baseUrl`, or an `x-secret-key` passed through `$headers` in any casing.
+| Constructor argument | Default                    | Description                                                       |
+| -------------------- | -------------------------- | ----------------------------------------------------------------- |
+| `$secretKey`         | none                       | Required. The library sends it as the `x-secret-key` header.      |
+| `$baseUrl`           | `https://api.voidhash.com` | Overrides the API origin. The scheme must be `http:` or `https:`. |
+| `$headers`           | `[]`                       | Extra headers the library adds to every request from this client. |
+
+The constructor validates its arguments right away rather than on the first request. It throws
+`Voidhash\ConfigurationException` when `$secretKey` is blank, `$baseUrl` is invalid, or `$headers`
+contains `x-secret-key` in any casing.
 </Step>
 
 </Steps>
@@ -56,7 +64,9 @@ With the client configured, continue with [checking access](/libraries/php/check
 
 ## Resource methods
 
-Resources are exposed as objects with fluent accessors:
+Each API resource is an object on the client, reached through a fluent accessor such as
+`entitlements()` or `webhooks()`. The example below checks a perk and then registers a webhook
+endpoint.
 
 ```php
 $hasPremium = $voidhash->entitlements()->hasActivePerk(
@@ -71,5 +81,5 @@ $endpoint = $voidhash->webhooks()->createWebhookEndpoint(
 );
 ```
 
-Every method returns a decoded associative array shaped exactly like the JSON response documented
-in the API reference — there is no response wrapper to unwrap.
+Every method returns a decoded associative array. Its shape matches the JSON response documented in
+the API reference exactly, so there is no response wrapper to unwrap.

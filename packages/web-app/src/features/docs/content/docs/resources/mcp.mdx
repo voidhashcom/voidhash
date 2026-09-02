@@ -4,33 +4,40 @@ description: Connect an AI coding agent to your Voidhash paywall workspace.
 icon: Bot
 ---
 
-The Voidhash MCP server lets compatible coding agents inspect and edit paywalls, write components,
-and render previews.
+The Voidhash MCP server connects an AI coding agent to your paywall workspace. A compatible agent
+can inspect and edit paywalls, write components, and render previews. This page shows how to create
+credentials, point your client at the server, and confirm that it works.
 
 ## Server
+
+The server runs at one URL:
 
 ```text
 https://api.voidhash.com/api/mcp
 ```
 
-The server uses streamable HTTP and bearer authentication.
+It uses streamable HTTP as its transport and bearer authentication, so the client sends a key in
+the `Authorization` header on every request.
 
 ## Create credentials
 
-For a single project, use a project secret key and keep it out of source control:
+For a single project, use the project's secret key and keep it out of source control. Send it as a
+bearer token:
 
 ```http
 Authorization: Bearer vh_sk_...
 ```
 
-For a user key that can access multiple projects, also send the project ID or slug:
+A user key can access several projects, so the server also needs to know which one you mean. Send
+the project ID or slug in a second header:
 
 ```http
 Authorization: Bearer vh_...
 X-Voidhash-Project: my-project
 ```
 
-The CLI prints the headers for the current login without putting the key in a command argument:
+The CLI can print these headers for the current login. This keeps the key out of a command
+argument:
 
 ```bash
 npx voidhash-cli auth token --project my-project
@@ -38,8 +45,8 @@ npx voidhash-cli auth token --project my-project
 
 ## Configure your client
 
-Add a remote or streamable HTTP MCP server named `voidhash`, then set the URL and headers above.
-Clients that use JSON configuration commonly accept this shape:
+In your MCP client, add a remote or streamable HTTP server named `voidhash`, then set the URL and
+headers from above. Clients that use JSON configuration commonly accept this shape:
 
 ```json
 {
@@ -55,20 +62,20 @@ Clients that use JSON configuration commonly accept this shape:
 }
 ```
 
-Configuration keys differ between clients. Use your client's remote MCP instructions when it
-expects `servers` instead of `mcpServers`, or `serverUrl` instead of `url`.
+Configuration keys differ between clients. Some expect `servers` instead of `mcpServers`, or
+`serverUrl` instead of `url`. In those cases, follow your client's own remote MCP instructions.
 
 ## Verify the connection
 
-Ask the agent:
+Ask the agent a question that needs the server:
 
 > What paywalls do I have in Voidhash?
 
-It should call `list_paywalls` and return the current project's paywalls. If it receives `401`,
-replace the key. If a user key can authenticate but no project is selected, add
-`X-Voidhash-Project`.
+The agent should call `list_paywalls` and return the current project's paywalls. If it receives a
+`401`, replace the key. If a user key authenticates but no project is selected, add the
+`X-Voidhash-Project` header.
 
 <Callout type="warn" title="Treat MCP credentials as secrets">
   The MCP server can modify project content. Prefer a project-scoped key, store it in your client's
-  secret storage, and rotate it when a device or configuration is shared.
+  secret storage, and rotate it whenever a device or configuration is shared.
 </Callout>

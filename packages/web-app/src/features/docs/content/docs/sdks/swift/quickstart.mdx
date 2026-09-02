@@ -4,18 +4,23 @@ description: Add Voidhash to a native iOS app and show your first paywall.
 icon: Rocket
 ---
 
-This guide takes an existing iOS app from installation to a paywall and access check. Requires
-iOS 15+ and a Swift 6 toolchain (the sources build with the Swift 5.9 language mode too).
+This guide adds Voidhash to an existing iOS app. By the end you will have the SDK installed, a
+paywall on screen, and an access check that gates a premium feature.
+
+## Before you start
+
+- Your app targets iOS 15 or later.
+- You build with a Swift 6 toolchain. The sources also build in the Swift 5.9 language mode.
 
 <Steps>
 
 <Step>
 ### Install the SDK
 
-In Xcode, open *File → Add Package Dependencies…*, enter
+Add the SDK package to your app target. In Xcode, open *File → Add Package Dependencies…*, enter
 `https://github.com/voidhashcom/voidhash`, and add the **Voidhash** library to your app target.
 
-Or in a `Package.swift`:
+If you manage dependencies in a `Package.swift`, add the package there instead:
 
 ```swift
 dependencies: [
@@ -26,16 +31,16 @@ targets: [
 ]
 ```
 
-The package ships two products: **`Voidhash`**, the SDK you integrate against, and
-**`VoidhashCore`**, the shared native core it depends on. You only touch `VoidhashCore` directly if
-you build on top of the engine yourself.
+The package ships two products. **`Voidhash`** is the SDK you integrate against. **`VoidhashCore`**
+is the shared native core it depends on. You only touch `VoidhashCore` directly if you build on top
+of the engine yourself.
 
 </Step>
 
 <Step>
 ### Configure the client
 
-Configure once at app start with your project's publishable key:
+Create the client once at app start with your project's publishable key.
 
 ```swift title="App.swift"
 import Voidhash
@@ -45,33 +50,33 @@ let voidhash = Voidhash.configure(publishableKey: "vh_pk_...")
 
 The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
 
-`configure` kicks off initialization in the background — store connection, schema fetch, and
-reconciliation of transactions observed while the app was away. The first call that needs
-initialization awaits it implicitly; use `await voidhash.waitForInitialization()` to wait
-explicitly, for example on a loading screen.
+`configure` starts initialization in the background. Initialization connects to the store, fetches
+the project schema, and reconciles any transactions that happened while the app was away. The
+first call that needs initialization waits for it implicitly. To wait explicitly, for example on a
+loading screen, call `await voidhash.waitForInitialization()`.
 
 </Step>
 
 <Step>
 ### Configure one test offer in Studio
 
-Create the smallest complete catalog:
+Set up the smallest catalog that can show a paywall and grant access.
 
 1. Create a perk such as `premium`.
 2. Create a product, choose its billing duration, and attach the perk.
 3. Create a paywall that includes the product, then publish it.
 4. Create a paywall location such as `onboarding` and assign the published paywall.
 
-Connect App Store Connect before testing a release build — see [Store setup](/store-setup/apple-app-store).
-See [Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/swift/paywalls) for the model behind these
-steps.
+Connect App Store Connect before you test a release build. See
+[Store setup](/store-setup/apple-app-store) for the steps. For the model behind the catalog, see
+[Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/swift/paywalls).
 
 </Step>
 
 <Step>
 ### Present the paywall
 
-Resolve the paywall by location and present it:
+Resolve the paywall assigned to a location and present it.
 
 ```swift
 final class Paywalls: VoidhashPaywallDelegate {
@@ -86,25 +91,26 @@ let result = try await voidhash.presentPaywall(location: "onboarding", delegate:
 
 if result != .shown {
     // `notAssigned` is the expected case when the location has no published
-    // paywall — fall back to your own screen instead of leaving the customer
+    // paywall. Fall back to your own screen instead of leaving the customer
     // with nothing.
     showFallbackUpgradeScreen()
 }
 ```
 
-The SDK resolves the paywall assigned to the location, presents it in a full-screen WebView, and
-speaks the paywall bridge protocol natively: purchases and restores started inside the paywall run
-through the same purchase pipeline, close dismisses it, external links open in the browser, and
-custom events are captured into analytics.
+The SDK looks up the paywall assigned to the location and presents it in a full-screen WebView. It
+speaks the paywall bridge protocol natively, so the paywall's actions work without extra code.
+Purchases and restores started inside the paywall run through the same purchase pipeline. Close
+dismisses the paywall. External links open in the browser. Custom events are captured into
+analytics.
 
-Keep a strong reference to the delegate while the paywall is presented — it is held weakly.
+The SDK holds the delegate weakly. Keep a strong reference to it while the paywall is presented.
 
 </Step>
 
 <Step>
 ### Check access
 
-Gate features on an active perk grant from the person snapshot:
+Gate a feature on an active perk grant from the person snapshot.
 
 ```swift
 let person = try await voidhash.getCurrentPerson()
@@ -122,9 +128,11 @@ The snapshot refreshes after a successful purchase or restore. See
 <Step>
 ### Run a test purchase
 
-Build and run on a device or simulator signed into a Sandbox Apple account, then buy through the
-presented paywall. Purchases sync server-side, finish with StoreKit only after validation succeeds,
-and refresh the person snapshot.
+Build and run the app, then buy through the presented paywall. Use a device or simulator signed
+into a Sandbox Apple account.
+
+Purchases sync to the server first. The SDK finishes the transaction with StoreKit only after
+validation succeeds, then refreshes the person snapshot.
 
 </Step>
 

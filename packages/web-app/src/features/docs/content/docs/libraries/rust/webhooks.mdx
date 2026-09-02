@@ -5,20 +5,21 @@ icon: Webhook
 ---
 
 Webhooks tell your server when a subscription or purchase changes, without waiting for the customer
-to open the app. Renewals, cancellations, expiries, and refunds all originate at the store, so a
-customer who never launches the app again still produces events your backend needs.
+to open the app. Renewals, cancellations, expiries, and refunds all originate at the store. A
+customer who never launches the app again still produces events your backend needs to know about.
 
-Use webhooks to keep your own database in sync. Keep
-[server-side entitlement checks](/libraries/rust/check-access) as the authority for an access decision:
-webhooks are a push channel, not a lock.
+Use webhooks to keep your own database in sync. For an access decision, keep
+[server-side entitlement checks](/libraries/rust/check-access) as the authority. Webhooks are a
+push channel, not a lock: they tell you that something changed, but they do not decide access.
 
 ## Create an endpoint
 
 In Studio, open **Settings → Webhooks**, add an endpoint URL, and select the events to subscribe to.
-Copy the signing secret — it looks like `whsec_` followed by 64 hex characters — and store it next
-to your secret key.
+Copy the signing secret and store it next to your secret key. The secret looks like `whsec_`
+followed by 64 hex characters.
 
-The same endpoint can be created from a backend:
+You can also create the same endpoint from your backend. This program creates an endpoint that
+subscribes to three events and prints its signing secret:
 
 ```rust title="src/bin/create-webhook.rs"
 let endpoint = voidhash
@@ -37,63 +38,65 @@ let endpoint = voidhash
 println!("{}", endpoint.secret); // whsec_...
 ```
 
-The URL must be `http:` or `https:` and at least one event is required. Unknown event names are
-rejected.
+The URL must use `http:` or `https:`, and you must subscribe to at least one event. Unknown event
+names are rejected.
 
 ## Event catalog
 
-| Event                     | Fires when                                                        | Payload highlights                                                              |
-| ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `subscription.created`    | A subscription becomes known to Voidhash for a person.            | `subscriptionId`, `startsAt`, `expiresAt`, `purchasedAt`, `isTrial`, `amount`   |
-| `subscription.renewed`    | A renewal advances the subscription's period.                     | `subscriptionId`, `renewedAt`, `startsAt`, `expiresAt`, `isTrial`, `amount`     |
-| `subscription.cancelled`  | Auto-renew is turned off, or access is revoked immediately.       | `canceledAt`, `cancelAtPeriodEnd`, `cancellationReason`, `expiresAt`            |
-| `subscription.expired`    | A subscription's access period ends.                              | `expiredAt`                                                                     |
-| `purchase.completed`      | A non-subscription purchase is recorded.                          | `purchaseId`, `purchaseKind`, `purchasedAt`, `providerKey`, `amount`            |
-| `purchase.refunded`       | A purchase or transaction is refunded.                            | `purchaseId`, `refundedAt`, `refundReason`, `amount`                            |
-| `test.ping`               | You send a test from Studio or call `test_webhook_endpoint`.      | `message`, `timestamp`                                                          |
+| Event                    | Fires when                                                     | Payload highlights                                                            |
+| ------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `subscription.created`   | A subscription becomes known to Voidhash for a person.         | `subscriptionId`, `startsAt`, `expiresAt`, `purchasedAt`, `isTrial`, `amount` |
+| `subscription.renewed`   | A renewal advances the subscription's period.                  | `subscriptionId`, `renewedAt`, `startsAt`, `expiresAt`, `isTrial`, `amount`   |
+| `subscription.cancelled` | Auto-renew is turned off, or access is revoked immediately.    | `canceledAt`, `cancelAtPeriodEnd`, `cancellationReason`, `expiresAt`          |
+| `subscription.expired`   | A subscription's access period ends.                           | `expiredAt`                                                                   |
+| `purchase.completed`     | A non-subscription purchase is recorded.                       | `purchaseId`, `purchaseKind`, `purchasedAt`, `providerKey`, `amount`          |
+| `purchase.refunded`      | A purchase or transaction is refunded.                         | `purchaseId`, `refundedAt`, `refundReason`, `amount`                          |
+| `test.ping`              | You send a test from Studio or call `test_webhook_endpoint`.   | `message`, `timestamp`                                                        |
 
-<Callout type="info" title="subscription.created is not always a fresh purchase">
-  A subscription becomes known to Voidhash the first time we see it, which is usually its start but
-  can also be a renewal — a start notification we never received, or an app that migrated onto
-  Voidhash mid-subscription. In that case `subscription.created` is delivered first, immediately
-  followed by `subscription.renewed` for the same `subscriptionId`, so every renewal you receive
-  refers to a subscription you have already been told about.
-</Callout>
+`subscription.created` does not always mean a fresh purchase. Voidhash emits it the first time it
+sees a subscription. That is usually the subscription's start, but it can also be a renewal, for
+example when the start notification never reached Voidhash, or when an app migrated onto Voidhash
+in the middle of a subscription. In that case Voidhash delivers `subscription.created` first and
+`subscription.renewed` immediately after, both for the same `subscriptionId`. As a result, every
+renewal you receive refers to a subscription you have already been told about.
 
 <Callout type="info" title="person.* events are reserved">
-  `person.created`, `person.updated`, and `person.deleted` can be selected on an endpoint, but
+  You can select `person.created`, `person.updated`, and `person.deleted` on an endpoint, but
   nothing emits them yet. Do not build on them until they are announced as delivered.
 </Callout>
 
 ### Payload shape
 
-The HTTP body is the bare JSON payload — there is no envelope. The event name is repeated in the
-`X-Webhook-Event` header and in the payload's `type` field.
+The HTTP body is the bare JSON payload, with no envelope around it. The event name appears twice:
+in the `X-Webhook-Event` header and in the payload's `type` field.
 
 Every lifecycle payload carries these fields:
 
-| Field               | Type                                                              | Notes                                                       |
-| ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| `type`              | The event name                                                    | Discriminator for the payload union.                        |
-| `projectId`         | `string`                                                          | Voidhash project the event belongs to.                      |
-| `personId`          | `string`                                                          | Voidhash person id.                                         |
-| `distinctId`        | `string`                                                          | The identifier your app passed to `identify()`.             |
-| `productId`         | `string`                                                          | Voidhash product id.                                        |
-| `productSlug`       | `string \| null`                                                  | The slug configured in Studio, when the product has one.    |
-| `providerProductId` | `string`                                                          | The store's product identifier.                             |
-| `provider`          | `apple-app-store` \| `google-play` \| `stripe` \| `development`   | Which provider drove the transition.                        |
-| `environment`       | `production` \| `sandbox` \| `development`                        | Live, store sandbox, or simulated development purchase.     |
-| `occurredAt`        | ISO-8601 UTC string                                               | When the transition happened.                               |
+| Field               | Type                                                            | Notes                                                                                  |
+| ------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `type`              | The event name                                                  | Tells the payload types apart.                                                         |
+| `projectId`         | `string`                                                        | The Voidhash project the event belongs to.                                             |
+| `personId`          | `string`                                                        | The Voidhash person id.                                                                |
+| `distinctId`        | `string`                                                        | The identifier your app passed to `identify()`.                                        |
+| `productId`         | `string`                                                        | The Voidhash product id.                                                               |
+| `productSlug`       | `string \| null`                                                | The slug configured in Studio, when the product has one.                               |
+| `providerProductId` | `string`                                                        | The store's product identifier.                                                        |
+| `provider`          | `apple-app-store` \| `google-play` \| `stripe` \| `development` | The provider that drove the transition.                                                |
+| `environment`       | `production` \| `sandbox` \| `development`                      | Whether the purchase was live, made in the store sandbox, or simulated in development. |
+| `occurredAt`        | ISO-8601 UTC string                                             | When the transition happened.                                                          |
 
-Subscription events add `subscriptionId`, `status` (`active` or `canceled`),
-`providerSubscriptionId`, and `providerTransactionId` — the two provider ids may be `null`.
+Subscription events add four more fields: `subscriptionId`, `status` (`active` or `canceled`),
+`providerSubscriptionId`, and `providerTransactionId`. The two provider ids may be `null`.
 
 Purchase events add `purchaseId` and `providerTransactionId`. On `purchase.refunded`, `purchaseId`
-is `null` when the refund could not be anchored to a stored purchase.
+is `null` when the refund could not be matched to a stored purchase.
 
-Monetary fields are `{ currency, grossAmount }` with `grossAmount` in minor units, or `null` when
-the provider event reported no amount. `null` means "not reported" and is deliberately not
-zero-filled.
+Monetary fields such as `amount` have the shape `{ currency, grossAmount }`, with `grossAmount` in
+minor units (cents rather than dollars, for example). When the provider event reported no amount,
+the field is `null`. `null` means the amount was not reported. Voidhash deliberately does not
+replace it with zero.
+
+Here is a complete `subscription.renewed` payload:
 
 ```json title="subscription.renewed"
 {
@@ -123,14 +126,17 @@ zero-filled.
 
 Voidhash signs every request and sends three headers:
 
-| Header                | Value                                                                 |
-| --------------------- | --------------------------------------------------------------------- |
-| `X-Webhook-Event`     | Event name, for example `purchase.completed`.                         |
-| `X-Webhook-Timestamp` | Unix seconds at signing time.                                         |
-| `X-Webhook-Signature` | `v1=` followed by the hex HMAC-SHA256 of `${timestamp}.${rawBody}`.   |
+| Header                | Value                                                                    |
+| --------------------- | ------------------------------------------------------------------------ |
+| `X-Webhook-Event`     | The event name, for example `purchase.completed`.                        |
+| `X-Webhook-Timestamp` | The Unix time in seconds when the request was signed.                    |
+| `X-Webhook-Signature` | `v1=` followed by the hex-encoded HMAC-SHA256 of `${timestamp}.${rawBody}`. |
 
-The HMAC key is the raw UTF-8 endpoint secret. The signature covers the exact bytes that were sent,
-so verify against the raw body bytes before any deserialization.
+The HMAC key is the raw UTF-8 endpoint secret. The signature covers the exact bytes Voidhash sent,
+so you must verify the raw body bytes before anything deserializes them.
+
+This axum handler takes the raw body bytes, verifies the signature, and acknowledges the delivery
+before doing any work:
 
 ```rust title="src/routes/webhooks.rs"
 use axum::{http::HeaderMap, response::IntoResponse};
@@ -161,19 +167,22 @@ async fn voidhash_webhook(
 
 `construct_event` returns a `WebhookEvent` with `event_type: String`, `payload: serde_json::Value`,
 and `timestamp: i64`. Event names added after your library release pass through as plain strings in
-`event_type`, so always give your match on the type a default arm. Typed payloads can be decoded on
-demand with `serde_json::from_value::<SubscriptionRenewed>(event.payload)`.
+`event_type`, so always give your match on the type a default arm. When you need a typed payload,
+decode it on demand with `serde_json::from_value::<SubscriptionRenewed>(event.payload)`.
 
-<Callout type="warn" title="Reject, do not retry, a bad signature">
-  Respond `4xx` when verification fails. Voidhash never signs its way out of a rejected request, and
-  retrying a forged one costs you five more deliveries.
+<Callout type="warn" title="Respond 4xx when verification fails">
+  Respond with a `4xx` status when verification fails. Voidhash cannot make a rejected request valid
+  by signing it again, and retrying a forged request costs you five more deliveries.
 </Callout>
 
 ### Replay protection
 
-The helper rejects a timestamp more than 300 seconds away from the current time, in either
-direction. Pass `tolerance_seconds` if your infrastructure adds delay, and pass `now` to make tests
-deterministic:
+Replay protection stops an attacker from re-sending a captured request later. The helper rejects a
+timestamp more than 300 seconds away from the current time, in either direction. If your
+infrastructure adds delay, raise the limit with `tolerance_seconds`. Pass `now` to make tests
+deterministic.
+
+This call allows a 600 second window and pins the current time:
 
 ```rust
 let event = webhook::construct_event_with_options(
@@ -188,40 +197,45 @@ let event = webhook::construct_event_with_options(
 )?;
 ```
 
-Keep server clocks synchronized. Clock drift is the most common cause of `TimestampOutOfRange` on
-an otherwise correct integration.
+Keep your server clocks synchronized. Clock drift is the most common cause of `TimestampOutOfRange`
+on an integration that is otherwise correct.
 
 ## Delivery semantics
 
-Lifecycle events are emitted only when a state transition actually happened, after the database
-transaction that produced it has committed. A redelivered store notification collapses on the
-purchase ledger's idempotency key before any event is built, so one real transition produces one
+Voidhash emits a lifecycle event only when a state transition actually happened, and only after the
+database transaction that produced it has committed. If a store sends the same notification twice,
+the purchase ledger recognizes the duplicate by its idempotency key (a stable identifier for the
+notification) and drops it before any event is built. One real transition therefore produces one
 event per subscribed endpoint.
 
-Delivery itself is **at-least-once**. A handler that is slow, or that succeeds but fails to respond
-in time, is delivered again:
+Delivery itself is **at-least-once**. Voidhash delivers a webhook again when your handler is slow,
+or when it succeeds but fails to respond in time. The retry schedule is:
 
 - A delivery is attempted up to **5 times**.
-- After a failed attempt the next one is scheduled **5 minutes**, then **30 minutes**, then
-  **2 hours**, then **24 hours** later.
+- After a failed attempt, the next attempt is scheduled **5 minutes** later, then **30 minutes**,
+  then **2 hours**, then **24 hours**.
 - Any response outside `2xx`, or a response slower than **30 seconds**, counts as a failed attempt.
 - After the fifth failed attempt the delivery is marked `exhausted` and is not retried again.
 
-Make your handler idempotent. The payloads carry stable identifiers — key on `type` plus
-`subscriptionId` or `purchaseId` plus `occurredAt`, record what you have processed, and ignore
-repeats.
+Because of this, your handler must do two things.
 
-Return `200` as soon as the signature verifies, then process asynchronously — spawn onto the tokio
-runtime or push into a queue. A handler that does real work inline is the usual reason a delivery
-times out and is duplicated.
+First, make it idempotent, so that processing the same event twice has no extra effect. Every
+payload carries stable identifiers. Build a key from `type`, `subscriptionId` or `purchaseId`, and
+`occurredAt`. Record each key you have processed, and ignore any event whose key you have already
+seen.
 
-Deliveries and their per-attempt history are visible in Studio, and readable through
+Second, acknowledge quickly. Return `200` as soon as the signature verifies, then process the event
+asynchronously. Spawn the work onto the tokio runtime or push it into a queue. A handler that does
+real work before responding is the usual reason a delivery times out and arrives a second time.
+
+You can see each delivery and its per-attempt history in Studio. The same data is readable through
 `list_webhook_deliveries`, `get_webhook_delivery`, and `retry_webhook_delivery` on the webhooks
 resource.
 
 ## Test an endpoint
 
-Choose **Send Test** from an endpoint's actions menu in Studio, or call the API:
+To send a test delivery, choose **Send Test** from an endpoint's actions menu in Studio, or call the
+API:
 
 ```rust
 voidhash
@@ -230,14 +244,15 @@ voidhash
     .await?;
 ```
 
-This sends a `test.ping` delivery with the body
+Either way, Voidhash sends a `test.ping` delivery with the body
 `{ "message": "This is a test webhook delivery", "timestamp": "..." }`. It is signed exactly like a
 real event, so it is the fastest way to confirm that your signature verification, routing, and
 response time are correct before any money is involved.
 
 ## Rotate a secret
 
-Rotate immediately if a secret is exposed:
+If a secret is exposed, rotate it immediately. This call generates a new secret for the endpoint and
+returns it:
 
 ```rust
 let endpoint = voidhash
@@ -249,8 +264,8 @@ println!("{}", endpoint.secret); // new whsec_...
 ```
 
 Rotation applies to deliveries created after it. A delivery that was already queued keeps the secret
-it was signed with, so its retries still arrive under the old one. Have the handler accept both
-secrets across the rotation window, then drop the old secret once pending retries have drained.
+it was signed with, so its retries still arrive under the old one. Have your handler accept both
+secrets during the rotation window, then drop the old secret once pending retries have drained.
 
 ## Next steps
 
