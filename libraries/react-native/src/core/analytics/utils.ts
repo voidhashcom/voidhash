@@ -8,6 +8,7 @@ import { PlatformProvider } from "../platform/platform-provider";
 export const createQueuedAnalyticsEvent = (
   eventName: string,
   properties: Record<string, unknown>,
+  sessionId: string,
 ): Effect.Effect<QueuedAnalyticsEvent> =>
   Effect.gen(function* () {
     const now = yield* DateTime.now;
@@ -18,6 +19,7 @@ export const createQueuedAnalyticsEvent = (
       eventTimestamp: DateTime.formatIso(now),
       id: getNonce(),
       properties,
+      sessionId,
     };
   });
 
@@ -55,7 +57,6 @@ export const getAnalyticsStandardizedProperties = Effect.gen(function* () {
 export const mapQueuedAnalyticsEventToIngestEvent = (
   event: QueuedAnalyticsEvent,
   standardizedProperties: Record<string, unknown>,
-  sessionId: string,
 ) => ({
   context: {},
   event_id: event.id,
@@ -65,5 +66,5 @@ export const mapQueuedAnalyticsEventToIngestEvent = (
     ...event.properties,
     ...standardizedProperties,
   },
-  session_id: sessionId,
+  session_id: event.sessionId,
 });

@@ -28,6 +28,12 @@ public struct VoidhashOptions: Sendable {
     /// an unparseable paywall bridge message, a dropped analytics batch). Defaults to
     /// ``VoidhashWarnings/standard``.
     public var onWarning: VoidhashWarningHandler?
+    /// Configuration of the built-in `$screen` event.
+    public var screenTracking: ScreenTrackingOptions
+    /// Captures `$app_installed`, `$app_updated`, `$app_opened`, `$app_backgrounded`,
+    /// `$app_became_active` and `$sign_out` on the app's behalf. Hosts that emit these
+    /// themselves (the React Native SDK) turn it off.
+    public var automaticLifecycleEvents: Bool
 
     public init(
         baseUrl: URL = VoidhashApiClient.defaultBaseUrl,
@@ -37,7 +43,9 @@ public struct VoidhashOptions: Sendable {
         enabled: Bool = true,
         readOnly: Bool = true,
         dev: Bool = false,
-        onWarning: VoidhashWarningHandler? = nil
+        onWarning: VoidhashWarningHandler? = nil,
+        screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
+        automaticLifecycleEvents: Bool = true
     ) {
         self.baseUrl = baseUrl
         self.ingestUrl = ingestUrl
@@ -47,6 +55,8 @@ public struct VoidhashOptions: Sendable {
         self.readOnly = readOnly || !commerceFeaturesEnabled
         self.dev = dev
         self.onWarning = onWarning
+        self.screenTracking = screenTracking
+        self.automaticLifecycleEvents = automaticLifecycleEvents
     }
 }
 
@@ -73,9 +83,32 @@ public enum Voidhash {
     public static func configure(
         publishableKey: String, options: VoidhashOptions = VoidhashOptions()
     ) -> VoidhashClient {
-        let client = VoidhashClient(publishableKey: publishableKey, options: options)
-        lock.withLock { sharedClient = client }
-        Task { await client.start() }
+        return configure(
+            publishableKey: publishableKey, options: options,
+            dependencies: VoidhashClient.Dependencies())
+    }
+
+    /// ``configure(publishableKey:options:)`` with injected dependencies, so tests can install
+    /// a network-free client as ``shared`` for the UIKit and SwiftUI integrations to find.
+    @discardableResult
+    static func configure(
+        publishableKey: String, options: VoidhashOptions, dependencies: VoidhashClient.Dependencies
+    ) -> VoidhashClient {
+        let client = VoidhashClient(
+            publishableKey: publishableKey, options: options, dependencies: dependencies)
+        let previous = lock.withLock { () -> VoidhashClient? in
+            defer { sharedClient = client }
+            return sharedClient
+        }
+        #if canImport(UIKit)
+            if options.screenTracking.automatic {
+                UIKitScreenTracking.install()
+            }
+        #endif
+        Task {
+            await previous?.shutdown()
+            await client.start()
+        }
         return client
     }
 

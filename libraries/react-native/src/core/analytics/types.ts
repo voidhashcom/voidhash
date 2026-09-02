@@ -7,6 +7,8 @@ export interface QueuedAnalyticsEvent {
   readonly eventTimestamp: string;
   readonly id: string;
   readonly properties: Record<string, unknown>;
+  /** Session the event was captured in, assigned when it entered the queue. */
+  readonly sessionId: string;
 }
 
 export interface AnalyticsIngestEvent {

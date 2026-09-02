@@ -74,6 +74,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     options.unstable_nativeEngine === true
       ? Option.getOrUndefined(getVoidhashEngine())
       : undefined,
+    options.screenTracking,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

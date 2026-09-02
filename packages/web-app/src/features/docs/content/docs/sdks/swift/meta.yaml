@@ -7,4 +7,5 @@ pages:
   - identify-users
   - feature-flags
   - analytics
+  - screen-tracking
   - errors

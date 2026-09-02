@@ -19,6 +19,11 @@ final class VoidhashEngineCore: @unchecked Sendable {
         var enabled: Bool?
         var readOnly: Bool?
         var dev: Bool?
+        var screenTracking: ScreenTrackingJson?
+    }
+
+    struct ScreenTrackingJson: Decodable {
+        var automatic: Bool?
     }
 
     private struct IdentifyBody: Decodable {
@@ -60,9 +65,15 @@ final class VoidhashEngineCore: @unchecked Sendable {
 
     /// Maps the JSON the TypeScript client sends onto ``VoidhashOptions``. Absent keys keep the
     /// bare SDK's defaults, so a missing `readOnly` means observer mode.
+    ///
+    /// Automatic events are the exception: the JavaScript SDK owns lifecycle and screen
+    /// tracking, so native lifecycle events are always off and automatic screen capture is off
+    /// unless `screenTracking.automatic` asks for it.
     static func decodeOptions(_ optionsJson: String) throws -> VoidhashOptions {
         let options = try JSONDecoder().decode(EngineOptions.self, from: Data(optionsJson.utf8))
         var voidhashOptions = VoidhashOptions()
+        voidhashOptions.automaticLifecycleEvents = false
+        voidhashOptions.screenTracking.automatic = options.screenTracking?.automatic ?? false
         if let baseUrl = options.baseUrl, let url = URL(string: baseUrl) {
             voidhashOptions.baseUrl = url
         }

@@ -79,6 +79,7 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 | `readOnly`               | `true`                     | Forced on while commerce features are unavailable.          |
 | `baseUrl`                | `https://api.voidhash.com` | API origin.                                                 |
 | `ingestUrl`              | Same origin as `baseUrl`   | Analytics origin override.                                  |
+| `screenTracking`         | `{ enabled: true }`        | Automatic `$screen` events; see "Screen tracking".          |
 | `unstable_swallowErrors` | `false`                    | See below.                                                  |
 
 ## Provider and initialization
@@ -217,6 +218,63 @@ Events are batched with these defaults:
 
 Force delivery with `await voidhash.client.flush()`. `client.end()` performs a final awaited
 `flush()` before shutdown.
+
+### Sessions
+
+Every event carries a `session_id`. A session is a run of events with no gap longer than 30
+minutes between them: the first capture after a longer gap, including `$app_opened` on a launch
+after a long absence, starts a new session. The session is persisted, so it survives restarts and
+resumes on the next launch when the timeout has not passed. `signOut()` records `$sign_out` in the
+old session and then starts a new one. `voidhash.client.getSessionId()` returns the active session
+id synchronously, or `undefined` before `init()` and once the session has timed out.
+
+### Screen tracking
+
+The SDK captures a built-in `$screen` event for every screen the user lands on. Each event carries
+`$screen_name`, `$screen_path`, `$screen_source`, the previous screen (`$previous_screen_name`,
+`$previous_screen_path`, `$previous_screen_duration_ms`) and, when the platform exposes one,
+`$screen_title`. Route params are off by default; opt in with `screenTracking.includeParams` to add
+`$screen_params` (string-coerced, at most 20 keys).
+
+Expo Router: mount `ScreenTracking` once, below the provider in the root layout.
+
+```tsx
+import { ScreenTracking } from "@voidhash/react-native/expo-router";
+
+export default function RootLayout() {
+  return (
+    <voidhash.Provider>
+      <ScreenTracking />
+      <Stack />
+    </voidhash.Provider>
+  );
+}
+```
+
+React Navigation: pass the returned ref and callbacks to `NavigationContainer`. An existing ref can
+be reused with `useScreenTracking({ ref })`.
+
+```tsx
+import { useScreenTracking } from "@voidhash/react-native/react-navigation";
+
+function App() {
+  const screenTracking = useScreenTracking();
+  return (
+    <NavigationContainer
+      ref={screenTracking.ref}
+      onReady={screenTracking.onReady}
+      onStateChange={screenTracking.onStateChange}
+    >
+      <RootNavigator />
+    </NavigationContainer>
+  );
+}
+```
+
+Both subpaths keep `expo-router` and `@react-navigation/native` as optional peer dependencies.
+Custom navigation reports screens by hand with `voidhash.client.screen("Onboarding/Step 2")`; every
+call counts as a new screen. Rewrite or drop screens with `screenTracking.mapScreen` (return `null`
+to skip) and turn the feature off with `screenTracking: { enabled: false }`.
 
 ### Ingest URL configuration
 

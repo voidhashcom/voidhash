@@ -29,9 +29,30 @@ export interface VoidhashContext {
   status: VoidhashInitStatus;
 }
 
+/**
+ * Shared across every client's provider so integrations shipped as separate
+ * subpaths (`./expo-router`, `./react-navigation`) can reach the client that
+ * is mounted above them without knowing which `createVoidhashClient` result
+ * produced it.
+ */
+const ActiveVoidhashClientContext = createContext<Option.Option<VoidhashClient>>(Option.none());
+
+/**
+ * Returns the client of the nearest `VoidhashProvider`.
+ * @internal
+ */
+export function useVoidhashClient(): VoidhashClient {
+  const client = React.useContext(ActiveVoidhashClientContext);
+  if (Option.isNone(client)) {
+    throw new TypeError("useVoidhashClient must be used within a VoidhashProvider");
+  }
+  return client.value;
+}
+
 export function voidhashProviderFactory(initialClient: VoidhashClient) {
   const VoidhashContext = createContext<Option.Option<VoidhashContext>>(Option.none());
   const lifecycle = createVoidhashClientLifecycle(initialClient);
+  const activeClient = Option.some(initialClient);
 
   function VoidhashProvider({ children }: VoidhashProviderBaseProps) {
     const state = React.useSyncExternalStore(
@@ -53,7 +74,11 @@ export function voidhashProviderFactory(initialClient: VoidhashClient) {
       [state.initError, state.status],
     );
 
-    return <VoidhashContext.Provider value={Option.some(value)}>{children}</VoidhashContext.Provider>;
+    return (
+      <ActiveVoidhashClientContext.Provider value={activeClient}>
+        <VoidhashContext.Provider value={Option.some(value)}>{children}</VoidhashContext.Provider>
+      </ActiveVoidhashClientContext.Provider>
+    );
   }
 
   function useVoidhash() {

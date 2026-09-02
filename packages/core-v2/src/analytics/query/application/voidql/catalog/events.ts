@@ -38,14 +38,14 @@ const col = (
 
 /** Columns the inner dedup scan reads from the event compatibility view. */
 const EVENT_INNER_COLUMNS =
-  "event_id, event_name, event_ts, project_id, distinct_id, person_id, event_properties, context";
+  "event_id, event_name, event_ts, project_id, distinct_id, person_id, session_id, event_properties, context";
 
 /** Outer projection re-aliasing physical → logical names, with identity resolution. */
 const eventOuterProjection = (extra: string) =>
   `events.event_id AS event_id, events.event_name AS event_name, events.event_ts AS event_ts, ` +
   `events.project_id AS project_id, ${effectivePersonIdExpression} AS person_id, ` +
-  `${effectiveDistinctIdExpression} AS distinct_id, events.event_properties AS event_properties, ` +
-  `events.context AS context${extra}`;
+  `${effectiveDistinctIdExpression} AS distinct_id, events.session_id AS session_id, ` +
+  `events.event_properties AS event_properties, events.context AS context${extra}`;
 
 /**
  * The identity-resolution LEFT JOIN, **scoped inline**. We inline
@@ -133,6 +133,11 @@ export const eventsTable: CatalogTable = {
     project_id: col("project_id", "String", "The project the event belongs to."),
     person_id: col("person_id", "String", "Identity-resolved person id."),
     distinct_id: col("distinct_id", "String", "Identity-resolved distinct id."),
+    session_id: col(
+      "session_id",
+      "String",
+      "SDK session the event belongs to; null for server-side capture.",
+    ),
   },
   namespaces,
   lower: (scope, alias) => buildEventsLower("events", scope, alias),

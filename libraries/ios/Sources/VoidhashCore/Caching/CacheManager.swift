@@ -192,8 +192,13 @@ public actor CacheManager {
         return deadline < timestamp
     }
 
+    // Deduped like the React Native `HashSet` index: keys rewritten on every capture (the
+    // analytics session) must not grow the index with each write.
     private func storeCacheKey(_ key: String) async {
         var keys = await getCacheKeys()
+        guard !keys.contains(key) else {
+            return
+        }
         keys.append(key)
         guard let data = try? JSONEncoder().encode(keys),
             let json = String(data: data, encoding: .utf8)

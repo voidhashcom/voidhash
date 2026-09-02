@@ -8,7 +8,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Order from "effect/Order";
-import type { AuthSession } from "@voidhash/rpc";
+import type { AuthSession, CustomAnalyticsInsightQueryType } from "@voidhash/rpc";
 
 import {
   AnalyticsAuthorizationDeniedError,
@@ -38,6 +38,8 @@ import {
   sumDataPoints,
 } from "../domain/Analytics.ts";
 import { resolvePortableAnalyticsSeries } from "./portable-series-resolver.ts";
+import { buildPathsLinkResults, validateExecutablePathsDefinition } from "./CustomAnalytics.ts";
+import { SCREEN_PATH_EVENT_NAME, resolvePathsInsight } from "./paths-resolver.ts";
 import { isRevenueMoneyEventName } from "../../domain/InternalAnalyticsEvents.ts";
 
 const DEFAULT_LIMIT = 100;
@@ -175,6 +177,30 @@ export interface AnalyticsQueryShape {
     AnalyticsQueryFailure,
     AuthSession
   >;
+  /**
+   * Executes a paths insight over the project's stored events. `pathItem:
+   * "screen_name"` walks `$screen` events by their `$screen_name`;
+   * `event_name` (the default) walks event names.
+   */
+  readonly queryPaths: (input: {
+    readonly definition: CustomAnalyticsInsightQueryType;
+    readonly projectId: string;
+  }) => Effect.Effect<PathsInsightQueryResult, AnalyticsQueryFailure, AuthSession>;
+}
+
+export interface PathsInsightQueryResult {
+  readonly kind: "paths";
+  readonly links: ReadonlyArray<{
+    readonly averageTransitionSeconds: number;
+    readonly count: number;
+    readonly source: string;
+    readonly sourceStep: number;
+    readonly target: string;
+    readonly targetStep: number;
+  }>;
+  readonly maxDepth: number;
+  readonly resolvedTimeRange: { readonly end: Date; readonly start: Date };
+  readonly sessionGapSeconds: number;
 }
 
 export type AnalyticsQueryFailure =
@@ -424,6 +450,60 @@ const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
         Effect.catchTag("AnalyticsPortError", portError),
         Effect.flatMap((projectIds) => runMany(projectIds, request.queries)),
       ),
+    queryPaths: (request) =>
+      Effect.gen(function* () {
+        yield* authorizer
+          .requireProject(request.projectId)
+          .pipe(Effect.catchTag("AnalyticsPortError", portError));
+        const definition = yield* validateExecutablePathsDefinition(request.definition);
+        if (Arr.isReadonlyArrayNonEmpty(definition.cohortIds ?? [])) {
+          return yield* new InvalidAnalyticsQueryError({
+            message: "Cohort filters are not supported for paths yet",
+          });
+        }
+        const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
+        const sessionGapSeconds = definition.sessionGapSeconds ?? 1_800;
+        // Screen paths only ever read `$screen`; event paths narrow the scan
+        // to the requested names when an allow-list is given. Start and end
+        // markers ride along so they are not silently missing from the scan.
+        const eventNames: Option.Option<ReadonlyArray<string>> =
+          definition.pathItem === "screen_name"
+            ? Option.some([SCREEN_PATH_EVENT_NAME])
+            : Arr.match(definition.eventNames, {
+                onEmpty: () => Option.none(),
+                onNonEmpty: (names) =>
+                  Option.some(
+                    Arr.dedupe([
+                      ...names,
+                      ...Arr.fromNullishOr(definition.startEventName),
+                      ...Arr.fromNullishOr(definition.endEventName),
+                    ]),
+                  ),
+              });
+        const events = yield* store
+          .list({
+            end: resolvedTimeRange.end,
+            ...(Option.isSome(eventNames) && { eventNames: eventNames.value }),
+            limit: QUERY_EVENT_LIMIT + 1,
+            order: "asc",
+            projectIds: [request.projectId],
+            start: resolvedTimeRange.start,
+          })
+          .pipe(Effect.mapError(portError));
+        if (events.length > QUERY_EVENT_LIMIT) {
+          return yield* new AnalyticsQueryError({
+            cause: "query_event_limit_exceeded",
+            message: `The selected time range contains more than ${QUERY_EVENT_LIMIT} events; narrow the range instead of relying on partial results`,
+          });
+        }
+        return {
+          kind: "paths",
+          links: buildPathsLinkResults(resolvePathsInsight({ definition, events })),
+          maxDepth: definition.maxDepth,
+          resolvedTimeRange,
+          sessionGapSeconds,
+        } satisfies PathsInsightQueryResult;
+      }),
     queryProject: (request) =>
       authorizer.requireProject(request.projectId).pipe(
         Effect.catchTag("AnalyticsPortError", portError),

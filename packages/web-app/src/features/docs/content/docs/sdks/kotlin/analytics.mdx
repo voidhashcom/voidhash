@@ -31,6 +31,19 @@ The SDK records common lifecycle events for you, so you do not need to capture t
 - `$app_backgrounded`
 - `$app_became_active`
 - `$sign_out`
+- `$screen`, see [Track screens](/sdks/kotlin/screen-tracking)
+
+## Sessions
+
+Every event carries a session id, so screen paths and funnels can tell one visit from the next.
+A session starts with the first event and ends after 30 minutes without any event, including
+time spent in the background. The next event then opens a new session. Signing out also starts
+a new session, and the session survives app restarts within the same 30 minutes. Read the current
+id when you need to correlate your own data with it:
+
+```kotlin
+val sessionId = voidhash.sessionId
+```
 
 ## Flush before a boundary
 

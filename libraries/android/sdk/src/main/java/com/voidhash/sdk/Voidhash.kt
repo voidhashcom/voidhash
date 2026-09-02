@@ -1,6 +1,7 @@
 package com.voidhash.sdk
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -10,6 +11,7 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.voidhash.core.billing.BillingEngine
 import com.voidhash.core.paywall.PaywallPresenterCore
 import com.voidhash.sdk.analytics.AnalyticsClient
+import com.voidhash.sdk.analytics.AnalyticsSessionManager
 import com.voidhash.sdk.analytics.analyticsStandardProperties
 import com.voidhash.sdk.api.SdkHeaders
 import com.voidhash.sdk.api.VoidhashApiClient
@@ -19,6 +21,7 @@ import com.voidhash.sdk.billing.BillingEnginePort
 import com.voidhash.sdk.cache.CacheManager
 import com.voidhash.sdk.cache.SharedPreferencesCacheAdapter
 import com.voidhash.sdk.identity.IdentityStore
+import com.voidhash.sdk.lifecycle.VoidhashActivityLifecycleCallbacks
 import com.voidhash.sdk.paywall.DefaultPaywallPresenterPort
 import com.voidhash.sdk.paywall.PaywallCoordinator
 import com.voidhash.sdk.platform.PlatformInfo
@@ -50,6 +53,9 @@ object Voidhash {
     @Volatile
     private var activeScope: CoroutineScope? = null
 
+    @Volatile
+    private var activeLifecycleCallbacks: Pair<Application, Application.ActivityLifecycleCallbacks>? = null
+
     /** The client created by the most recent [configure] call. */
     @JvmStatic
     val shared: VoidhashClient?
@@ -73,6 +79,10 @@ object Voidhash {
         // The previous client owns a scope running the analytics daemon and the
         // schema refresh; replacing the client has to stop them.
         activeScope?.cancel()
+        activeLifecycleCallbacks?.let { (application, callbacks) ->
+            application.unregisterActivityLifecycleCallbacks(callbacks)
+        }
+        activeLifecycleCallbacks = null
 
         val applicationContext = context.applicationContext
         val platform = PlatformInfo.fromContext(applicationContext)
@@ -142,14 +152,28 @@ object Voidhash {
             onWarning = ::warn,
         )
 
+        val sessionManager = AnalyticsSessionManager(cacheManager, onWarning = ::warn)
         val analyticsClient = AnalyticsClient(
             ingestUrl = options.ingestUrl ?: options.baseUrl,
             publishableKey = publishableKey,
             distinctIdProvider = identityStore::getDistinctId,
+            sessionIdProvider = sessionManager::current,
             httpClient = httpClient,
             standardProperties = { analyticsStandardProperties(platform) },
             onWarning = ::warn,
         )
+
+        val application = applicationContext as? Application
+        val lifecycleCallbacks = VoidhashActivityLifecycleCallbacks(
+            clientProvider = { clientRef.get() },
+            screenTracking = options.screenTracking,
+        )
+        val detachLifecycleCallbacks = {
+            if (activeLifecycleCallbacks?.second === lifecycleCallbacks) {
+                application?.unregisterActivityLifecycleCallbacks(lifecycleCallbacks)
+                activeLifecycleCallbacks = null
+            }
+        }
 
         val presenter = PaywallPresenterCore(
             contextProvider = { applicationContext },
@@ -173,6 +197,7 @@ object Voidhash {
             ),
             orchestrator = orchestrator,
             analyticsClient = analyticsClient,
+            sessionManager = sessionManager,
             billing = billing,
             scope = scope,
             paywallCoordinatorFactory = { purchaseHandler ->
@@ -194,10 +219,20 @@ object Voidhash {
             enabled = options.enabled,
             readOnly = options.readOnly || !COMMERCE_FEATURES_ENABLED,
             onWarning = ::warn,
+            platform = platform,
+            screenTracking = options.screenTracking,
+            automaticLifecycleEvents = options.automaticLifecycleEvents,
+            onShutdown = detachLifecycleCallbacks,
         )
 
         clientRef.set(client)
         instance = client
+
+        val observesActivities = options.automaticLifecycleEvents || options.screenTracking.automatic
+        if (application != null && options.enabled && observesActivities) {
+            application.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+            activeLifecycleCallbacks = application to lifecycleCallbacks
+        }
         return client
     }
 

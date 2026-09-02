@@ -108,6 +108,12 @@ export const BUILTIN_EVENT_ADMISSION_LIST: readonly BuiltinEventAdmissionEntry[]
     cloud: true,
     oss: false,
   }),
+  lifecycleEntry(
+    "$screen",
+    "Screen views",
+    "Every screen the user lands on, with the previous screen and time spent there. The highest-volume built-in event.",
+    { cloud: true, oss: false },
+  ),
   {
     key: REVENUE_EVENT_ADMISSION_KEY,
     name: "Revenue",

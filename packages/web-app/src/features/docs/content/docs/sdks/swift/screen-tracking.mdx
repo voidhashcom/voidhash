@@ -1,0 +1,74 @@
+---
+title: Track screens
+description: Record every screen your users visit, automatically for UIKit and with one modifier for SwiftUI.
+icon: Route
+---
+
+The SDK records a built-in `$screen` event each time the user lands on a new screen. Each event
+carries the screen the user came from and how long they stayed there, so one event describes a
+whole transition. Screen tracking is on by default.
+
+## UIKit
+
+Nothing to add. When a view controller from your app appears, the SDK records it. Framework
+containers such as navigation and tab bar controllers are skipped, and so are child controllers
+embedded inside a screen. The screen name is the class name, and the path is the chain of parent
+controllers, such as `/MainTabBarController/HomeViewController`.
+
+## SwiftUI
+
+SwiftUI navigation does not expose view controllers, so mark each screen with a modifier:
+
+```swift
+struct CheckoutView: View {
+    var body: some View {
+        content
+            .voidhashScreen("Checkout")
+    }
+}
+```
+
+The screen is recorded when the view appears. Once a SwiftUI screen has been recorded, the hosting
+controller is no longer reported by the automatic UIKit tracking.
+
+## Custom navigation
+
+Call `screen()` yourself when your app drives navigation another way:
+
+```swift
+await voidhash.screen("Onboarding step 2", properties: ["step": .number(2)])
+```
+
+## Event properties
+
+| Property | Meaning |
+| --- | --- |
+| `$screen_name` | Stable identity of the screen. Never contains ids. |
+| `$screen_path` | Concrete location. |
+| `$screen_title` | The navigation item title when one is set. |
+| `$previous_screen_name` | Screen the user came from. `null` on the first screen. |
+| `$previous_screen_path` | Path of the previous screen. |
+| `$previous_screen_duration_ms` | Milliseconds spent on the previous screen, including time in the background. |
+| `$screen_source` | `uikit`, `swiftui` or `manual`. |
+
+A screen is recorded once when it becomes visible. Returning from the background does not record it
+again. Navigating back to an earlier screen does.
+
+## Options
+
+Configure tracking when you configure the SDK:
+
+```swift
+var options = VoidhashOptions()
+options.screenTracking.automatic = false
+options.screenTracking.mapScreen = { view in
+    view.name.hasPrefix("Debug") ? nil : view
+}
+Voidhash.configure(publishableKey: "vh_pk_...", options: options)
+```
+
+Set `automatic` to `false` to stop the SDK from observing view controllers. `mapScreen` lets you
+rename a screen or drop it by returning `nil`.
+
+Screen views can also be switched off per project without an app release from the events settings
+page in the dashboard.

@@ -49,9 +49,19 @@
   "exports": {
     "./app.plugin.js": "./app.plugin.js",
     "./package.json": "./package.json",
+    "./expo-router": {
+      "types": "./build/expo-router.d.ts",
+      "react-native": "./src/expo-router.tsx",
+      "default": "./build/expo-router.js"
+    },
     "./metro": {
       "types": "./build/metro/index.d.ts",
       "node": "./build/metro/index.js"
+    },
+    "./react-navigation": {
+      "types": "./build/react-navigation.d.ts",
+      "react-native": "./src/react-navigation.tsx",
+      "default": "./build/react-navigation.js"
     },
     ".": {
       "types": "./build/index.d.ts",
@@ -90,6 +100,7 @@
   "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "4.0.0-beta.100",
+    "@react-navigation/native": "^7.3.17",
     "@srsholmes/vitest-react-native": "^0.1.5",
     "@types/react": "~19.1.10",
     "@vitejs/plugin-react": "catalog:",
@@ -98,6 +109,7 @@
     "expo-constants": "~18.0.13",
     "expo-linking": "~8.0.9",
     "expo-module-scripts": "^5.0.8",
+    "expo-router": "~55.0.18",
     "nitrogen": "0.35.5",
     "react": "19.1.0",
     "react-native": "0.81.5",
@@ -108,13 +120,23 @@
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0 || ^2.0.0",
+    "@react-navigation/native": "*",
     "effect": "catalog:",
     "expo": "*",
     "expo-constants": "*",
     "expo-linking": "*",
+    "expo-router": "*",
     "react": "*",
     "react-native": "*",
     "react-native-nitro-modules": "^0.35.5"
+  },
+  "peerDependenciesMeta": {
+    "@react-navigation/native": {
+      "optional": true
+    },
+    "expo-router": {
+      "optional": true
+    }
   },
   "packageManager": "pnpm@10.19.0"
 }

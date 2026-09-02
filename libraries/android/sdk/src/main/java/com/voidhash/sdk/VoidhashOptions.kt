@@ -1,5 +1,7 @@
 package com.voidhash.sdk
 
+import com.voidhash.sdk.analytics.ScreenView
+
 /** SDK version reported through `x-sdk-version`; matches the npm package version. */
 const val VOIDHASH_SDK_VERSION: String = "0.0.1-alpha.1"
 
@@ -26,6 +28,10 @@ internal const val COMMERCE_FEATURES_ENABLED: Boolean = false
  * @property dev requests development mode. Honored only in debug builds: there purchases run
  *   against a mock store and are recorded under the development environment, never charged.
  *   In a release build (or with `dev = false`) the real Play Billing store is used.
+ * @property screenTracking configures the automatic `$screen` event.
+ * @property automaticLifecycleEvents captures `$app_installed`, `$app_updated`, `$app_opened`,
+ *   `$app_backgrounded`, `$app_became_active` and `$sign_out`. Hosts that emit these events
+ *   themselves (the React Native SDK) turn it off.
  */
 data class VoidhashOptions(
     val baseUrl: String = VOIDHASH_DEFAULT_BASE_URL,
@@ -35,4 +41,24 @@ data class VoidhashOptions(
     val enabled: Boolean = true,
     val readOnly: Boolean = true,
     val dev: Boolean = false,
+    val screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
+    val automaticLifecycleEvents: Boolean = true,
+)
+
+/**
+ * Configuration of the automatic `$screen` event.
+ *
+ * @property automatic captures a screen for every resumed activity. Off, only
+ *   [VoidhashClient.screen] and [VoidhashScreenTracking] produce screens.
+ * @property fragments also captures resumed AndroidX fragments and suppresses the
+ *   screen of the activities hosting them. Requires `androidx.fragment` on the classpath.
+ * @property includeParams adds `$screen_params` (route arguments, string-coerced, at most
+ *   20 keys). Off by default because arguments routinely carry ids and tokens.
+ * @property mapScreen rewrites a screen before capture; returning `null` drops it.
+ */
+data class ScreenTrackingOptions(
+    val automatic: Boolean = true,
+    val fragments: Boolean = false,
+    val includeParams: Boolean = false,
+    val mapScreen: ((ScreenView) -> ScreenView?)? = null,
 )

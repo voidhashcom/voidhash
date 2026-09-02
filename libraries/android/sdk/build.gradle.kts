@@ -34,6 +34,13 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
+    // Optional screen-tracking integrations: the SDK compiles against them but only
+    // reaches them when the host app ships them (see `lifecycle/FragmentScreenTracking`
+    // and `VoidhashScreenTracking`). The fragment version is the one play-services
+    // already resolves at runtime; AGP's consistent resolution rejects any other.
+    compileOnly("androidx.fragment:fragment:1.1.0")
+    compileOnly("androidx.navigation:navigation-runtime:2.8.9")
+
     // `org.json` ships with the platform at runtime; the unit-test JVM only has
     // the stubbed `android.jar` implementation, so the real one is added for
     // tests. AGP appends the mockable android.jar last on the test classpath,

@@ -5,6 +5,7 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
 import { AnalyticsService } from "./core/analytics/service";
+import { AnalyticsSessionManager } from "./core/analytics/session-manager";
 import type { AnalyticsIngestEvent } from "./core/analytics/types";
 import type { Product } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
@@ -117,6 +118,7 @@ const makeUnitializedClient = () => ({
 const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
   Effect.gen(function* () {
     const analyticsService = yield* AnalyticsService;
+    const sessionManager = yield* AnalyticsSessionManager;
 
     return {
       end: () =>
@@ -334,6 +336,13 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
 
       flush: () => analyticsService.flush(),
 
+      /**
+       * Returns the active analytics session id, starting a new session when
+       * none is active. Counts as activity: the session's inactivity window
+       * restarts from this call.
+       */
+      getSessionId: () => sessionManager.current(),
+
       transferAnalyticsEvents: (
         events: ReadonlyArray<{
           eventName: string;
@@ -355,6 +364,12 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       // --- Analytics: sync accessors read directly from the service ---
 
       getAnalyticsQueueLength: () => analyticsService.getQueueLength(),
+
+      /**
+       * Synchronous, non-touching read of the active session id; `undefined`
+       * when no session has started or the last one timed out.
+       */
+      getCurrentSessionId: () => sessionManager.getCurrentIdUnsafe(),
 
       setAnalyticsFlushCallback: (callback: () => void) => {
         analyticsService.setFlushCallback(callback);
@@ -383,7 +398,11 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           // signing-out distinct id rather than the post-reset anonymous one.
           yield* analyticsService.capture(AUTOMATIC_EVENTS.SIGN_OUT);
           yield* analyticsService.flush();
-          return yield* identityManager.reset();
+          const person = yield* identityManager.reset();
+          // Rotated after `reset()`, which clears the cache: the next event
+          // starts a fresh session and the new id is what ends up persisted.
+          yield* sessionManager.rotate();
+          return person;
         }),
 
       startTransactionObserver: (onPurchase?: (transaction: Transaction) => void) =>

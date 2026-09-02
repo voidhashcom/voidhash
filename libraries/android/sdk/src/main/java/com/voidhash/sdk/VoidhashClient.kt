@@ -2,6 +2,11 @@ package com.voidhash.sdk
 
 import android.app.Activity
 import com.voidhash.sdk.analytics.AnalyticsClient
+import com.voidhash.sdk.analytics.AnalyticsSessionManager
+import com.voidhash.sdk.analytics.AutomaticEvents
+import com.voidhash.sdk.analytics.ScreenSources
+import com.voidhash.sdk.analytics.ScreenTracker
+import com.voidhash.sdk.analytics.ScreenView
 import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.FeatureFlag
 import com.voidhash.sdk.api.SyncTransactionRequest
@@ -17,6 +22,7 @@ import com.voidhash.sdk.identity.IdentityStore
 import com.voidhash.sdk.paywall.PaywallCoordinator
 import com.voidhash.sdk.paywall.PaywallListener
 import com.voidhash.sdk.paywall.PaywallPurchaseHandler
+import com.voidhash.sdk.platform.PlatformInfo
 import com.voidhash.sdk.schema.RuntimeSchema
 import com.voidhash.sdk.schema.SchemaManager
 import kotlinx.coroutines.CancellationException
@@ -25,7 +31,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /** 2 days — the shared person-cache lifetime across the Voidhash SDKs. */
@@ -33,6 +41,9 @@ private const val PERSON_CACHE_TTL_MS = 1000L * 60 * 60 * 24 * 2
 
 /** 5 minutes — after this a cached person is served but considered stale. */
 private const val PERSON_CACHE_STALE_TIME_MS = 1000L * 60 * 5
+
+/** Cache key of the last app release seen, shared with the other Voidhash SDKs. */
+internal const val LAST_SEEN_APP_RELEASE_CACHE_KEY = "voidhash:analytics:last-seen-app-release"
 
 /**
  * The Voidhash SDK surface. Obtained from [Voidhash.configure].
@@ -47,6 +58,7 @@ class VoidhashClient internal constructor(
     private val schemaManager: SchemaManager,
     private val orchestrator: PurchaseOrchestrator,
     private val analyticsClient: AnalyticsClient,
+    private val sessionManager: AnalyticsSessionManager,
     private val billing: BillingEnginePort,
     private val scope: CoroutineScope,
     private val paywallCoordinatorFactory: (PaywallPurchaseHandler) -> PaywallCoordinator,
@@ -56,11 +68,19 @@ class VoidhashClient internal constructor(
     private val onWarning: (String) -> Unit = {},
     /** The commerce release gate; tests flip it to exercise owner-mode behaviour. */
     private val commerceFeaturesEnabled: Boolean = COMMERCE_FEATURES_ENABLED,
+    private val platform: PlatformInfo? = null,
+    screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
+    private val automaticLifecycleEvents: Boolean = true,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val onShutdown: () -> Unit = {},
 ) {
     private val readOnlyFlag = AtomicBoolean(readOnly || !commerceFeaturesEnabled)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
     private val initMutex = Mutex()
     private var initialized = false
+    private val screenTracker = ScreenTracker(screenTracking, clock)
+    private val manualScreenCounter = AtomicInteger(0)
+    private val activityScreensSuppressedFlag = AtomicBoolean(false)
 
     private val paywallPurchaseHandler = object : PaywallPurchaseHandler {
         override suspend fun products(): List<VoidhashProduct> = getProducts()
@@ -75,6 +95,13 @@ class VoidhashClient internal constructor(
 
     /** Whether the SDK currently runs in observer mode. */
     val isReadOnly: Boolean get() = readOnlyFlag.get()
+
+    /**
+     * The analytics session id the next captured event will carry. Reading it
+     * starts a session when none is live but never extends one: only captures
+     * and [reset] move the session along.
+     */
+    val sessionId: String get() = sessionManager.peek()
 
     internal val currentReadOnly: Boolean get() = isReadOnly
 
@@ -122,6 +149,7 @@ class VoidhashClient internal constructor(
                 }
 
                 analyticsClient.start(scope)
+                captureStartupEvents()
                 initialized = true
             } catch (error: Throwable) {
                 schemaRef.set(null)
@@ -216,10 +244,16 @@ class VoidhashClient internal constructor(
         apiClient.setPersonAttributes(identityStore.getDistinctId(), attributes)
     }
 
-    /** Clears the local identity and cache; the next call generates a new anonymous id. */
+    /**
+     * Clears the local identity; the next call generates a new anonymous id.
+     * Captures `$sign_out` for the identity and session being cleared first,
+     * then starts a new analytics session.
+     */
     suspend fun reset() {
         if (!enabled) return
+        captureAutomaticEvent(AutomaticEvents.SIGN_OUT)
         identityStore.reset()
+        sessionManager.rotate()
     }
 
     /** Evaluates feature flags; an empty [keys] list evaluates every flag. */
@@ -232,6 +266,24 @@ class VoidhashClient internal constructor(
     fun capture(name: String, properties: Map<String, Any?> = emptyMap()) {
         if (!enabled) return
         analyticsClient.capture(name, properties, scope)
+    }
+
+    /**
+     * Captures a `$screen` for a screen the SDK cannot see on its own (custom
+     * navigation, onboarding steps, pager pages). Every call is a new arrival,
+     * so calling it twice with the same [name] emits twice.
+     */
+    fun screen(name: String, properties: Map<String, Any?> = emptyMap()) {
+        if (!enabled) return
+        trackScreen(
+            ScreenView(
+                identity = "manual:$name#${manualScreenCounter.incrementAndGet()}",
+                name = name,
+                path = name,
+                source = ScreenSources.MANUAL,
+            ),
+            properties,
+        )
     }
 
     /** Sends every queued analytics event. */
@@ -284,6 +336,7 @@ class VoidhashClient internal constructor(
 
     /** Ends the store connection, stops the analytics daemon and cancels the SDK scope. */
     suspend fun shutdown() {
+        onShutdown()
         analyticsClient.stop()
         runQuietly("flush the analytics queue") { analyticsClient.flush() }
         runQuietly("end the billing connection") { billing.endConnection() }
@@ -367,6 +420,62 @@ class VoidhashClient internal constructor(
         request: DevelopmentPurchaseRequest,
     ) {
         apiClient.developmentPurchase(distinctId, request)
+    }
+
+    /** Captures one of the [AutomaticEvents]; a no-op when the host emits them itself. */
+    internal fun captureAutomaticEvent(name: String) {
+        if (!enabled || !automaticLifecycleEvents) return
+        analyticsClient.capture(name, emptyMap(), scope)
+    }
+
+    /** Feeds a screen arrival through the tracker and captures `$screen` when it is new. */
+    internal fun trackScreen(view: ScreenView, properties: Map<String, Any?> = emptyMap()) {
+        if (!enabled) return
+        val screenProperties = screenTracker.transition(view) ?: return
+        analyticsClient.capture(AutomaticEvents.SCREEN, properties + screenProperties, scope)
+    }
+
+    /** Whether activity resumes are ignored because a finer-grained integration is active. */
+    internal val activityScreensSuppressed: Boolean get() = activityScreensSuppressedFlag.get()
+
+    /** Stops activity resumes from producing screens; used by the fragment and Compose integrations. */
+    internal fun suppressActivityScreens() {
+        activityScreensSuppressedFlag.set(true)
+    }
+
+    /**
+     * Captures `$app_installed` / `$app_updated` and `$app_opened` from the last
+     * app release the cache remembers, then records the current one. A cache
+     * failure loses the install/update event, never the session start.
+     */
+    private fun captureStartupEvents() {
+        if (!automaticLifecycleEvents) return
+        val currentRelease = JSONObject()
+            .put("appBuild", platform?.appBuild ?: "")
+            .put("appVersion", platform?.appVersion ?: "")
+
+        val releaseEvent = try {
+            val previous = cacheManager.getObject(LAST_SEEN_APP_RELEASE_CACHE_KEY)?.value
+            when {
+                previous == null -> AutomaticEvents.APP_INSTALLED
+                previous.optString("appBuild") != currentRelease.getString("appBuild") ||
+                    previous.optString("appVersion") != currentRelease.getString("appVersion") ->
+                    AutomaticEvents.APP_UPDATED
+                else -> null
+            }
+        } catch (error: Throwable) {
+            onWarning("Failed to read the last seen app release: ${error.message}")
+            null
+        }
+
+        releaseEvent?.let(::captureAutomaticEvent)
+        captureAutomaticEvent(AutomaticEvents.APP_OPENED)
+
+        try {
+            cacheManager.set(LAST_SEEN_APP_RELEASE_CACHE_KEY, currentRelease)
+        } catch (error: Throwable) {
+            onWarning("Failed to store the last seen app release: ${error.message}")
+        }
     }
 
     private fun personCacheKey(distinctId: String): String = "person:$distinctId"

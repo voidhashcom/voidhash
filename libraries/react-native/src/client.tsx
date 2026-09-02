@@ -14,7 +14,9 @@ import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { VoidhashEffectClient } from "./client-effect";
+import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
 import { AnalyticsService } from "./core/analytics/service";
+import { AnalyticsSessionManager } from "./core/analytics/session-manager";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
@@ -46,6 +48,11 @@ import type { LocationSlug, PerkSlug, ProductSlug } from "./core/schema/registry
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
 import {
+  type ScreenTracker,
+  type ScreenView,
+  createScreenTracker,
+} from "./core/screens/screen-tracker";
+import {
   type SdkConfigurationHandle,
   SdkConfiguration,
   makeSdkConfiguration,
@@ -63,6 +70,17 @@ import type { VoidhashEngine as VoidhashEngineSpec } from "./specs/VoidhashEngin
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
+
+/** Controls the built-in `$screen` event. */
+export interface ScreenTrackingOptions {
+  /** Default `true`. `false` makes every integration and `screen()` a no-op. */
+  enabled?: boolean;
+  /** Default `false`. Adds `$screen_params` (route params, string-coerced, max 20 keys). */
+  includeParams?: boolean;
+  /** Rewrites or drops a screen before capture. Return `null` to skip it. */
+  // oxlint-disable-next-line effect/prefer-option-over-null -- public SDK option consumed by non-Effect app code; `null` is the documented "drop this screen" answer and mirrors the iOS and Android SDKs.
+  mapScreen?: (view: ScreenView) => ScreenView | null;
+}
 
 export interface VoidhashClientOptions {
   baseUrl?: string;
@@ -92,6 +110,13 @@ export interface VoidhashClientOptions {
    */
   readOnly?: boolean;
   scheme?: string;
+  /**
+   * Automatic screen tracking (`$screen`). On by default; the Expo Router and
+   * React Navigation integrations under `@voidhash/react-native/expo-router`
+   * and `@voidhash/react-native/react-navigation` feed it, as does
+   * `client.screen()`.
+   */
+  screenTracking?: ScreenTrackingOptions;
   unstable_swallowErrors?: boolean;
   /**
    * Test/internal escape hatch — inject a known runtime schema instead of
@@ -133,6 +158,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(PaywallService.layer),
       Layer.provideMerge(TransactionService.layer),
       Layer.provideMerge(AnalyticsService.layer),
+      Layer.provideMerge(AnalyticsSessionManager.layer),
       Layer.provideMerge(LifecycleService.layer),
       Layer.provideMerge(ReactNativeLifecycleAdapter),
       Layer.provideMerge(PersonInfoManager.Default),
@@ -226,6 +252,8 @@ export class VoidhashClient {
   private developmentMode: boolean;
   /** The configured embedded engine, when this client routes through one. */
   private nativeEngine?: VoidhashEngineSpec;
+  private screenTracker: ScreenTracker;
+  private manualScreenCounter = 0;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
@@ -247,6 +275,7 @@ export class VoidhashClient {
     dev = false,
     enabled = true,
     nativeEngine?: VoidhashEngineSpec,
+    screenTracking: ScreenTrackingOptions = {},
   ) {
     this.initialDistinctId = Option.isOption(initialDistinctId)
       ? Option.filter(initialDistinctId, P.isString)
@@ -257,6 +286,12 @@ export class VoidhashClient {
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.atomRegistry = atomRegistry;
+    const mapScreen = screenTracking.mapScreen;
+    this.screenTracker = createScreenTracker({
+      enabled: enabled && (screenTracking.enabled ?? true),
+      includeParams: screenTracking.includeParams ?? false,
+      mapScreen: mapScreen ? (view) => Option.fromNullOr(mapScreen(view)) : undefined,
+    });
     const normalizedIngestUrl = Option.isOption(ingestUrl)
       ? Option.filter(ingestUrl, P.isString)
       : Option.liftPredicate(ingestUrl, P.isString);
@@ -278,6 +313,7 @@ export class VoidhashClient {
           enabled,
           ingestUrl: normalizedIngestUrl.valueOrUndefined,
           readOnly: this.sdkConfiguration.isReadOnly(),
+          screenTracking: { automatic: false },
         }),
       );
       this.nativeEngine = nativeEngine;
@@ -361,9 +397,20 @@ export class VoidhashClient {
       });
 
       if (Arr.isReadonlyArrayNonEmpty(this.preInitAnalyticsBuffer)) {
-        this.effectRuntime.runSync(
+        // Awaited: the transfer stamps the buffered events with a session,
+        // which reads and writes the (asynchronous) cache adapter.
+        const transferResult = await this.toResult(
           initializedClient.transferAnalyticsEvents(this.preInitAnalyticsBuffer),
+          "FAILED_TO_TRANSFER_ANALYTICS_EVENTS",
         );
+        if (transferResult.isErr()) {
+          EffectRuntime.runSync(
+            Effect.logWarning(
+              "[voidhash] failed to transfer pre-init analytics events",
+              transferResult.error,
+            ),
+          );
+        }
         this.preInitAnalyticsBuffer = [];
       }
 
@@ -596,6 +643,19 @@ export class VoidhashClient {
     );
   }
 
+  /**
+   * Returns the active analytics session id, or `undefined` before `init()`,
+   * while disabled, or once the session has been idle past the inactivity
+   * timeout. Reading does not extend the session.
+   */
+  // oxlint-disable-next-line effect/prefer-option-over-null -- public SDK method consumed by non-Effect app code; `undefined` is the documented "no active session" answer and mirrors the iOS and Android SDKs.
+  getSessionId(): string | undefined {
+    if (!this.enabled || !this.initializedClient) {
+      return undefined;
+    }
+    return this.initializedClient.getCurrentSessionId();
+  }
+
   /** Returns the current distinct id, or `Ok(null)` while disabled. */
   async getDistinctId() {
     if (!this.enabled) {
@@ -793,6 +853,41 @@ export class VoidhashClient {
     }
 
     this.effectRuntime.runSync(this.initializedClient.capture(eventName, properties));
+  }
+
+  /**
+   * Captures a `$screen` event for a screen the SDK cannot observe itself
+   * (custom navigation, onboarding steps, pager pages). Every call is a new
+   * screen instance, so calling it twice with the same name emits twice.
+   * No-op while disabled or when `screenTracking.enabled` is `false`.
+   */
+  screen(name: string, properties: Record<string, unknown> = {}) {
+    this.manualScreenCounter += 1;
+    this.trackScreenView(
+      {
+        identity: `${name}#${this.manualScreenCounter}`,
+        name,
+        path: name,
+        source: "manual",
+      },
+      properties,
+    );
+  }
+
+  /**
+   * Feeds a screen arrival observed by an integration through the screen
+   * tracker and captures `$screen` when it is a new screen instance.
+   * @internal
+   */
+  trackScreenView(view: ScreenView, properties: Record<string, unknown> = {}) {
+    if (!this.enabled) {
+      return;
+    }
+    const screenProperties = this.screenTracker.transition(view);
+    if (Option.isNone(screenProperties)) {
+      return;
+    }
+    this.capture(AUTOMATIC_EVENTS.SCREEN, { ...properties, ...screenProperties.value });
   }
 
   /**

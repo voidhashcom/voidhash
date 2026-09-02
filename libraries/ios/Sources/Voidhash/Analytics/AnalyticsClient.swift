@@ -26,6 +26,7 @@ public actor AnalyticsClient {
         let name: String
         let properties: [String: JSONValue]
         let timestamp: String
+        let sessionId: String
         var attempts: Int
         var availableAt: Double
     }
@@ -44,6 +45,7 @@ public actor AnalyticsClient {
     private let ingestUrl: URL
     private let session: URLSession
     private let distinctIdProvider: @Sendable () async -> String
+    private let sessionIdProvider: @Sendable () async -> String
     private let standardProperties: [String: JSONValue]
     private let now: @Sendable () -> Double
     private let sleep: @Sendable (Double) async -> Void
@@ -59,6 +61,8 @@ public actor AnalyticsClient {
     ///   - ingestUrl: Origin of the ingest endpoint (`ingestUrl ?? baseUrl`).
     ///   - session: URLSession used for the batch requests.
     ///   - distinctIdProvider: Returns the distinct id stamped on every event.
+    ///   - sessionIdProvider: Returns the session id stamped on an event as it is queued.
+    ///     Defaults to one id per client instance.
     ///   - standardProperties: `$`-prefixed properties merged into every event, see
     ///     ``standardProperties(device:sdkVersion:)``.
     ///   - now: Millisecond epoch clock, injectable for tests.
@@ -71,6 +75,7 @@ public actor AnalyticsClient {
         ingestUrl: URL,
         session: URLSession = .shared,
         distinctIdProvider: @escaping @Sendable () async -> String,
+        sessionIdProvider: (@Sendable () async -> String)? = nil,
         standardProperties: [String: JSONValue] = [:],
         now: @escaping @Sendable () -> Double = { Date().timeIntervalSince1970 * 1000 },
         sleep: @escaping @Sendable (Double) async -> Void = { milliseconds in
@@ -84,6 +89,8 @@ public actor AnalyticsClient {
         self.ingestUrl = ingestUrl
         self.session = session
         self.distinctIdProvider = distinctIdProvider
+        let instanceSessionId = UUID().uuidString.lowercased()
+        self.sessionIdProvider = sessionIdProvider ?? { instanceSessionId }
         self.standardProperties = standardProperties
         self.now = now
         self.sleep = sleep
@@ -123,18 +130,23 @@ public actor AnalyticsClient {
     }
 
     /// Queues an event. Empty names are ignored and a full batch flushes immediately.
+    ///
+    /// The session id is resolved here, when the event enters the queue, so a batch that sits
+    /// in the queue across a session boundary still reports the session it happened in.
     public func capture(_ eventName: String, properties: [String: JSONValue] = [:]) async {
         let normalized = eventName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else {
             return
         }
 
+        let sessionId = await sessionIdProvider()
         queue.append(
             QueuedEvent(
                 id: makeEventId(),
                 name: normalized,
                 properties: properties,
                 timestamp: AnalyticsClient.iso8601(now()),
+                sessionId: sessionId,
                 attempts: 0,
                 availableAt: 0
             ))
@@ -147,6 +159,11 @@ public actor AnalyticsClient {
     /// Number of events waiting in the queue.
     public func queueLength() -> Int {
         return queue.count
+    }
+
+    /// Snapshot of the queue, for tests that assert on what was captured.
+    func queuedEvents() -> [QueuedEvent] {
+        return queue
     }
 
     /// Drains the queue, sending every due batch.
@@ -281,6 +298,7 @@ public actor AnalyticsClient {
                     "distinct_id": distinctId,
                     "event": event.name,
                     "properties": properties(of: event),
+                    "session_id": event.sessionId,
                     "timestamp": event.timestamp,
                     "uuid": event.id,
                 ]

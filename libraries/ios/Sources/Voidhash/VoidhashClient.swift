@@ -27,11 +27,20 @@ public actor VoidhashClient {
         }
         var openExternalUrl: (@Sendable (String) async -> Void)?
         var startAutoFlush = true
+        var lifecycleObserver: any AppLifecycleObserving = VoidhashClient.defaultLifecycleObserver
         /// The commerce release gate; tests flip it to exercise owner-mode behaviour.
         var isCommerceEnabled = commerceFeaturesEnabled
     }
 
     private static let personCacheTtlMilliseconds: Double = 1000 * 60 * 60 * 24 * 2
+    /// Cache key of the `{appBuild, appVersion}` pair seen on the previous launch; shared with
+    /// the React Native SDK so both read the same envelope.
+    static let lastSeenAppReleaseCacheKey = "voidhash:analytics:last-seen-app-release"
+
+    struct AppReleaseInfo: Codable, Sendable, Equatable {
+        let appBuild: String
+        let appVersion: String
+    }
     private static let personCacheStaleTimeMilliseconds: Double = 1000 * 60 * 5
 
     private let options: VoidhashOptions
@@ -48,12 +57,18 @@ public actor VoidhashClient {
     private let engine: any StoreKitEngineProtocol
     private let schemaManager: SchemaManager
     private let headerFactory: SdkHeaderFactory
-    private let analytics: AnalyticsClient
+    let sessionManager: AnalyticsSessionManager
+    let analytics: AnalyticsClient
 
     private var orchestratorStorage: PurchaseOrchestrator?
     private var paywallCoordinatorStorage: PaywallCoordinator?
     private var initializationTask: Task<RuntimeSchema, any Error>?
     private var currentSchema: RuntimeSchema?
+    private var lifecycleTracker = LifecycleTracker()
+    private var lifecycleSubscription: (any AppLifecycleSubscription)?
+    private let lifecycleQueue = SerialTaskQueue()
+    private var screenTracker: ScreenTracker
+    private var manualScreenCounter = 0
 
     #if canImport(UIKit)
         private let presentationTarget = PresentationTargetBox()
@@ -66,6 +81,7 @@ public actor VoidhashClient {
     init(publishableKey: String, options: VoidhashOptions, dependencies: Dependencies) {
         self.options = options
         self.dependencies = dependencies
+        screenTracker = ScreenTracker(options: options.screenTracking)
         warn = options.onWarning ?? VoidhashWarnings.standard
         commerceEnabled = dependencies.isCommerceEnabled
         readOnlyFlag = AtomicBool(options.readOnly || !commerceEnabled)
@@ -102,11 +118,15 @@ public actor VoidhashClient {
             readOnly: readOnlyFlag,
             environmentProvider: { developmentMode ? "development" : "production" }
         )
+        let sessionManager = AnalyticsSessionManager(
+            cacheManager: cacheManager, now: dependencies.analyticsNow)
+        self.sessionManager = sessionManager
         analytics = AnalyticsClient(
             publishableKey: publishableKey,
             ingestUrl: options.ingestUrl ?? options.baseUrl,
             session: dependencies.session,
             distinctIdProvider: { [identityStore] in await identityStore.getDistinctId() },
+            sessionIdProvider: { await sessionManager.current() },
             standardProperties: AnalyticsClient.standardProperties(
                 device: dependencies.device, sdkVersion: Voidhash.sdkVersion),
             now: dependencies.analyticsNow,
@@ -261,19 +281,34 @@ public actor VoidhashClient {
         return person
     }
 
-    /// Clears the persisted identity and every cached response.
+    /// Clears the persisted identity and every cached response, and starts a new analytics
+    /// session.
     ///
-    /// The next ``getDistinctId()`` allocates a fresh anonymous distinct id.
+    /// Captures `$sign_out` under the identity and session being cleared, then the next
+    /// ``getDistinctId()`` allocates a fresh anonymous distinct id.
     public func reset() async {
         guard options.enabled else {
             return
         }
+        if options.automaticLifecycleEvents {
+            await analytics.capture(AutomaticEvents.signOut)
+        }
         await identityStore.reset()
+        // After the cache clear, so the fresh session record is the one that gets persisted.
+        await sessionManager.rotate()
     }
 
     /// Returns the current distinct id, allocating an anonymous one when needed.
     public func getDistinctId() async -> String {
         return await identityStore.getDistinctId()
+    }
+
+    /// Returns the analytics session id the next captured event will carry.
+    ///
+    /// Sessions end after 30 minutes without a capture and on ``reset()``; reading the id does
+    /// not extend the session.
+    public func sessionId() async -> String {
+        return await sessionManager.peek()
     }
 
     /// Toggles observer mode. Purchases already in flight still finish with the store. While
@@ -320,6 +355,55 @@ public actor VoidhashClient {
             return
         }
         await analytics.flush()
+    }
+
+    /// Captures a `$screen` event for a screen the SDK cannot see on its own (custom
+    /// navigation, onboarding steps, pager pages).
+    ///
+    /// Every call is a new screen instance, so calling it twice with the same name emits twice.
+    /// `properties` are merged under the reserved `$screen_*` properties.
+    public func screen(_ name: String, properties: [String: JSONValue] = [:]) async {
+        guard options.enabled else {
+            return
+        }
+        manualScreenCounter += 1
+        let view = ScreenView(
+            identity: "manual:\(name):\(manualScreenCounter)", name: name, source: .manual)
+        await trackScreen(view, properties: properties)
+    }
+
+    /// Stops the lifecycle observation and the background analytics flush. The client stays
+    /// usable; ``Voidhash/configure(publishableKey:options:)`` calls this on the client it
+    /// replaces.
+    public func shutdown() async {
+        lifecycleSubscription?.cancel()
+        lifecycleSubscription = nil
+        await analytics.stopAutoFlush()
+    }
+
+    // MARK: - Screen tracking
+
+    /// Feeds a view through the screen tracker and captures `$screen` when it is a new screen.
+    func trackScreen(_ view: ScreenView, properties: [String: JSONValue] = [:]) async {
+        guard options.enabled,
+            let screenProperties = screenTracker.transition(view, now: dependencies.analyticsNow())
+        else {
+            return
+        }
+        await analytics.capture(
+            AutomaticEvents.screen,
+            properties: properties.merging(screenProperties) { _, reserved in reserved })
+    }
+
+    /// Entry point of the UIKit swizzle; applies the automatic-capture filter first.
+    func trackAutomaticScreen(_ descriptor: ScreenControllerDescriptor) async {
+        guard options.screenTracking.automatic,
+            let view = ScreenControllerDescriptor.screenView(
+                for: descriptor, suppressHostingControllers: screenTracker.hasSwiftUIScreen)
+        else {
+            return
+        }
+        await trackScreen(view)
     }
 
     // MARK: - Store sheets
@@ -541,6 +625,10 @@ public actor VoidhashClient {
         }
         currentSchema = schema
 
+        if options.automaticLifecycleEvents {
+            await captureStartupEvents()
+            observeLifecycle()
+        }
         if dependencies.startAutoFlush {
             await analytics.startAutoFlush()
         }
@@ -554,6 +642,53 @@ public actor VoidhashClient {
         }
 
         return schema
+    }
+
+    // Mirrors `captureAutomaticStartupEvents` in the React Native SDK. The adapter cannot
+    // fail, so a present-but-undecodable entry is the degraded case: it costs the
+    // install/update event, never the `$app_opened` that marks the session.
+    private func captureStartupEvents() async {
+        let current = AppReleaseInfo(
+            appBuild: dependencies.device.appBuild ?? "",
+            appVersion: dependencies.device.appVersion ?? ""
+        )
+        let key = VoidhashClient.lastSeenAppReleaseCacheKey
+        let previous = await cacheManager.get(key, as: AppReleaseInfo.self)?.value
+        let hasEntry = await dependencies.cacheAdapter.get(key) != nil
+
+        var eventNames: [String] = []
+        if let previous {
+            if previous != current {
+                eventNames.append(AutomaticEvents.appUpdated)
+            }
+        } else if !hasEntry {
+            eventNames.append(AutomaticEvents.appInstalled)
+        }
+        eventNames.append(AutomaticEvents.appOpened)
+
+        for eventName in eventNames {
+            await analytics.capture(eventName)
+        }
+        await cacheManager.set(VoidhashClient.lastSeenAppReleaseCacheKey, value: current)
+    }
+
+    private func observeLifecycle() {
+        guard lifecycleSubscription == nil else {
+            return
+        }
+        lifecycleSubscription = dependencies.lifecycleObserver.subscribe { [weak self, lifecycleQueue] state in
+            guard let self else {
+                return
+            }
+            lifecycleQueue.enqueue { await self.handleLifecycleState(state) }
+        }
+    }
+
+    private func handleLifecycleState(_ state: String) async {
+        guard let eventName = lifecycleTracker.transition(to: state) else {
+            return
+        }
+        await analytics.capture(eventName)
     }
 
     private func handleObservedTransaction(_ storeTransaction: StoreKitTransactionInfo) async {
@@ -655,6 +790,14 @@ public actor VoidhashClient {
 
     static func personCacheKey(_ distinctId: String) -> String {
         return "person:\(distinctId)"
+    }
+
+    private static var defaultLifecycleObserver: any AppLifecycleObserving {
+        #if canImport(UIKit)
+            return NotificationCenterLifecycleObserver()
+        #else
+            return NoopAppLifecycleObserver()
+        #endif
     }
 
     private static let defaultOpenExternalUrl: @Sendable (String) async -> Void = { urlString in

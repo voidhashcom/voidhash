@@ -1,0 +1,104 @@
+---
+title: Track screens
+description: Record every screen your users visit with one line in your root layout.
+icon: Route
+---
+
+The SDK records a built-in `$screen` event each time the user lands on a new screen. Each event
+carries the screen the user came from and how long they stayed there, so one event describes a
+whole transition. Screen tracking is on by default. You only need to connect it to your router.
+
+## Expo Router
+
+Render the tracker once inside your root layout, below the Voidhash provider:
+
+```tsx
+import { Stack } from "expo-router";
+import { ScreenTracking } from "@voidhash/react-native/expo-router";
+import { voidhash } from "../utils/voidhash";
+
+export default function RootLayout() {
+  return (
+    <voidhash.Provider>
+      <ScreenTracking />
+      <Stack />
+    </voidhash.Provider>
+  );
+}
+```
+
+The screen name is the file route pattern, such as `/(tabs)/item/[id]`, and the screen path is the
+resolved pathname, such as `/item/42`.
+
+## React Navigation
+
+Attach the tracker to your navigation container:
+
+```tsx
+import { NavigationContainer } from "@react-navigation/native";
+import { useScreenTracking } from "@voidhash/react-native/react-navigation";
+
+export function App() {
+  const screenTracking = useScreenTracking();
+  return (
+    <NavigationContainer
+      ref={screenTracking.ref}
+      onReady={screenTracking.onReady}
+      onStateChange={screenTracking.onStateChange}
+    >
+      <RootNavigator />
+    </NavigationContainer>
+  );
+}
+```
+
+The screen name is the focused route name and the screen path is the chain of navigators leading
+to it, such as `/Tabs/Home/Feed`. If you already own a container ref, pass it in with
+`useScreenTracking({ ref })` and call the returned handlers from your own callbacks.
+
+## Custom navigation
+
+Call `screen()` yourself when your app drives navigation without a router, for example in an
+onboarding pager:
+
+```ts
+voidhash.client.screen("Onboarding step 2", { step: 2 });
+```
+
+## Event properties
+
+| Property | Meaning |
+| --- | --- |
+| `$screen_name` | Stable identity of the screen. Never contains ids. |
+| `$screen_path` | Concrete location, including dynamic segment values. |
+| `$screen_title` | Human title when the router exposes one. |
+| `$previous_screen_name` | Screen the user came from. `null` on the first screen. |
+| `$previous_screen_path` | Path of the previous screen. |
+| `$previous_screen_duration_ms` | Milliseconds spent on the previous screen, including time in the background. |
+| `$screen_source` | Which integration produced the event. |
+| `$screen_params` | Route params. Only sent when you opt in. |
+
+A screen is recorded once when it becomes visible. Returning from the background does not record it
+again. Opening the same route with different params, such as `/item/1` and then `/item/2`, records
+each one.
+
+## Options
+
+Configure tracking when you create the client:
+
+```ts
+const voidhash = createVoidhashClient("vh_pk_...", {
+  screenTracking: {
+    enabled: true,
+    includeParams: false,
+    mapScreen: (view) => (view.name.startsWith("/debug") ? null : view),
+  },
+});
+```
+
+Set `enabled` to `false` to turn screen tracking off entirely. `includeParams` adds route params to
+each event. It is off by default because params often carry ids. `mapScreen` lets you rename a
+screen or drop it by returning `null`.
+
+Screen views can also be switched off per project without an app release from the events settings
+page in the dashboard.

@@ -1,0 +1,85 @@
+---
+title: Track screens
+description: Record every screen your users visit, automatically for activities and with one line for Compose Navigation.
+icon: Route
+---
+
+The SDK records a built-in `$screen` event each time the user lands on a new screen. Each event
+carries the screen the user came from and how long they stayed there, so one event describes a
+whole transition. Screen tracking is on by default.
+
+## Activities
+
+Nothing to add. When an activity resumes, the SDK records it with the class name as the screen
+name. Returning from the background does not record the same activity again.
+
+## Compose Navigation
+
+Single-activity apps navigate inside one activity, so attach the tracker to your `NavController`:
+
+```kotlin
+val navController = rememberNavController()
+DisposableEffect(navController) {
+    val tracking = VoidhashScreenTracking.attach(navController)
+    onDispose { tracking.close() }
+}
+```
+
+The screen name is the destination route pattern, such as `item/{id}`, and the path is the route
+with arguments filled in, such as `item/42`. While a controller is attached, activity resumes are
+not reported.
+
+## Fragments
+
+Turn on fragment tracking to record fragments as screens:
+
+```kotlin
+Voidhash.configure(
+    context,
+    "vh_pk_...",
+    VoidhashOptions(screenTracking = ScreenTrackingOptions(fragments = true)),
+)
+```
+
+Each resumed fragment is recorded with its class name. Activities hosting tracked fragments are
+not reported themselves.
+
+## Custom navigation
+
+Call `screen()` yourself when your app drives navigation another way:
+
+```kotlin
+voidhash.screen("Onboarding step 2", mapOf("step" to 2))
+```
+
+## Event properties
+
+| Property | Meaning |
+| --- | --- |
+| `$screen_name` | Stable identity of the screen. Never contains ids. |
+| `$screen_path` | Concrete location, including route arguments. |
+| `$screen_title` | The activity title when one is set. |
+| `$previous_screen_name` | Screen the user came from. `null` on the first screen. |
+| `$previous_screen_path` | Path of the previous screen. |
+| `$previous_screen_duration_ms` | Milliseconds spent on the previous screen, including time in the background. |
+| `$screen_source` | `android-activity`, `android-fragment`, `compose-navigation` or `manual`. |
+
+## Options
+
+```kotlin
+VoidhashOptions(
+    screenTracking = ScreenTrackingOptions(
+        automatic = true,
+        fragments = false,
+        includeParams = false,
+        mapScreen = { view -> if (view.name.startsWith("Debug")) null else view },
+    ),
+)
+```
+
+Set `automatic` to `false` to stop the SDK from observing activities. `includeParams` adds route
+arguments to each event. It is off by default because arguments often carry ids. `mapScreen` lets
+you rename a screen or drop it by returning `null`.
+
+Screen views can also be switched off per project without an app release from the events settings
+page in the dashboard.

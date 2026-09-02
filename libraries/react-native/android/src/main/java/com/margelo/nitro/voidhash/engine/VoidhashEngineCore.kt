@@ -1,6 +1,7 @@
 package com.margelo.nitro.voidhash.engine
 
 import android.content.Context
+import com.voidhash.sdk.ScreenTrackingOptions
 import com.voidhash.sdk.VOIDHASH_DEFAULT_BASE_URL
 import com.voidhash.sdk.Voidhash
 import com.voidhash.sdk.VoidhashClient
@@ -35,6 +36,10 @@ class VoidhashEngineCore(
     /**
      * The options JSON the TypeScript client sends. Absent keys keep the bare SDK's defaults,
      * so a missing `readOnly` means observer mode.
+     *
+     * Automatic native screens default to off: the JS layer owns screen tracking and passes
+     * `screenTracking.automatic` explicitly. The `$app_*` lifecycle events are always emitted
+     * by JS, so the embedded client never captures them.
      */
     class Options(optionsJson: String) {
         private val json = JSONObject(optionsJson)
@@ -45,6 +50,8 @@ class VoidhashEngineCore(
         val enabled: Boolean = json.optBoolean("enabled", true)
         val readOnly: Boolean = json.optBoolean("readOnly", true)
         val dev: Boolean = json.optBoolean("dev", false)
+        val automaticScreenTracking: Boolean =
+            json.optJSONObject("screenTracking")?.optBoolean("automatic", false) ?: false
 
         fun toVoidhashOptions(): VoidhashOptions = VoidhashOptions(
             baseUrl = baseUrl,
@@ -53,6 +60,8 @@ class VoidhashEngineCore(
             enabled = enabled,
             readOnly = readOnly,
             dev = dev,
+            screenTracking = ScreenTrackingOptions(automatic = automaticScreenTracking),
+            automaticLifecycleEvents = false,
         )
     }
 

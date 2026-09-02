@@ -18,4 +18,30 @@ export const AUTOMATIC_EVENTS = {
   APP_BECAME_ACTIVE: "$app_became_active",
   /** User signed out (identity reset triggered via `signOut`). */
   SIGN_OUT: "$sign_out",
+  /** The user arrived on a screen (route, view controller, activity, …). */
+  SCREEN: "$screen",
+} as const;
+
+/**
+ * Property names stamped on the built-in `$screen` event. The `$` prefix
+ * marks them as reserved, next to the standardized `$app_version`-style
+ * properties every event carries.
+ */
+export const SCREEN_PROPERTIES = {
+  /** Stable, low-cardinality identity of the screen (route pattern, route or class name). */
+  NAME: "$screen_name",
+  /** Concrete location, including dynamic segment values where the router has them. */
+  PATH: "$screen_path",
+  /** Human title when the platform exposes one. */
+  TITLE: "$screen_title",
+  /** `$screen_name` of the screen the user came from; `null` for the first screen. */
+  PREVIOUS_NAME: "$previous_screen_name",
+  /** `$screen_path` of the screen the user came from; `null` for the first screen. */
+  PREVIOUS_PATH: "$previous_screen_path",
+  /** Wall-clock milliseconds spent on the previous screen; `null` for the first screen. */
+  PREVIOUS_DURATION_MS: "$previous_screen_duration_ms",
+  /** Integration that produced the event (`expo-router`, `react-navigation`, `manual`, …). */
+  SOURCE: "$screen_source",
+  /** Route params, string-coerced and capped at 20 keys. Only with `includeParams`. */
+  PARAMS: "$screen_params",
 } as const;

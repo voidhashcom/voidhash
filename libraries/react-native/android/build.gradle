@@ -181,4 +181,9 @@ dependencies {
   implementation 'com.squareup.okhttp3:okhttp:4.12.0'
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
   implementation 'androidx.annotation:annotation:1.8.0'
+  // The shared SDK sources reach AndroidX Fragment and Navigation reflectively
+  // and through optional helpers; they must be on the compile classpath here
+  // exactly as in the bare SDK module, without becoming runtime dependencies.
+  compileOnly 'androidx.fragment:fragment:1.1.0'
+  compileOnly 'androidx.navigation:navigation-runtime:2.8.9'
 }

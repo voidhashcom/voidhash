@@ -60,3 +60,23 @@ struct SdkHeaderFactory: Sendable {
         )
     }
 }
+
+/// Runs async work strictly in submission order.
+///
+/// Lifecycle notifications and view-controller appearances arrive synchronously on the main
+/// thread but are handled on the client actor; spawning one detached `Task` per event would let
+/// them interleave, so each unit waits for the previous one before running.
+final class SerialTaskQueue: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last: Task<Void, Never>?
+
+    func enqueue(_ operation: @escaping @Sendable () async -> Void) {
+        lock.withLock {
+            let previous = last
+            last = Task {
+                await previous?.value
+                await operation()
+            }
+        }
+    }
+}

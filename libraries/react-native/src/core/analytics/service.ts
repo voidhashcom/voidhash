@@ -19,8 +19,8 @@ import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { CacheManager } from "../caching/cache-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { SdkConfiguration } from "../sdk-configuration";
-import { getNonce } from "../utils/crypto";
 import { AUTOMATIC_EVENTS } from "./constants";
+import { AnalyticsSessionManager } from "./session-manager";
 import { AnalyticsIngestEvent, AnalyticsSendFailure, QueuedAnalyticsEvent } from "./types";
 import {
   createQueuedAnalyticsEvent,
@@ -84,7 +84,9 @@ const inlineRetrySchedule = Schedule.exponential(Duration.seconds(1), 2).pipe(
  * Owns the analytics pipeline: an in-memory event queue with batching, a
  * declarative retry schedule, `Retry-After` honouring, automatic startup
  * events (`$app_installed` / `$app_updated` / `$app_opened`), and a periodic
- * flush daemon forked into the service scope. Disposing the runtime closes
+ * flush daemon forked into the service scope. Every event is stamped with the
+ * session id from `AnalyticsSessionManager` as it enters the queue, so a
+ * single batch may span two sessions. Disposing the runtime closes
  * the scope, which interrupts the daemon — no manual timer cleanup required.
  *
  * The synchronous `getQueueLength` and `setFlushCallback` methods exist so the
@@ -100,11 +102,11 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       const identityManager = yield* IdentityManager;
       const cacheManager = yield* CacheManager;
       const sdkConfiguration = yield* SdkConfiguration;
+      const sessionManager = yield* AnalyticsSessionManager;
       const httpClient = yield* HttpClient.HttpClient;
 
       const queueRef = yield* Ref.make<ReadonlyArray<QueuedAnalyticsEvent>>([]);
       const latch = yield* Latch.make(false);
-      const sessionId = getNonce();
       const getStandardizedProperties = yield* Effect.cached(getAnalyticsStandardizedProperties);
       const flushCallbackRef = MutableRef.make(Option.none<() => void>());
 
@@ -272,7 +274,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         standardizedProperties: Record<string, unknown>,
       ) {
         const ingestBatch = queuedBatch.map((event) =>
-          mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, sessionId),
+          mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties),
         );
 
         yield* sendWithInlineRetry(ingestBatch).pipe(
@@ -315,7 +317,8 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       ) {
         const normalized = eventName.trim();
         if (!normalized) return;
-        const queued = yield* createQueuedAnalyticsEvent(normalized, properties);
+        const sessionId = yield* sessionManager.current();
+        const queued = yield* createQueuedAnalyticsEvent(normalized, properties, sessionId);
         const next = yield* Ref.updateAndGet(queueRef, (queue) => [...queue, queued]);
         if (next.length >= ANALYTICS_BATCH_SIZE) {
           // Wake the flush daemon immediately rather than waiting for the tick.
@@ -345,12 +348,17 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           properties: Record<string, unknown>;
         }>,
       ) {
+        const pending = events.filter((event) => Str.isNonEmpty(event.eventName.trim()));
+        if (Arr.isReadonlyArrayEmpty(pending)) return;
+        // Buffered events are stamped at transfer time rather than at their
+        // original capture: the session manager does not exist before init.
+        const sessionId = yield* sessionManager.current();
         const additions = yield* Effect.forEach(
-          events.filter((event) => Str.isNonEmpty(event.eventName.trim())),
-          (event) => createQueuedAnalyticsEvent(event.eventName.trim(), event.properties),
+          pending,
+          (event) =>
+            createQueuedAnalyticsEvent(event.eventName.trim(), event.properties, sessionId),
           { concurrency: 1 },
         );
-        if (Arr.isReadonlyArrayEmpty(additions)) return;
         yield* Ref.update(queueRef, (queue) => [...queue, ...additions]);
       });
 
@@ -363,29 +371,38 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           appVersion: toReleaseString(standardizedProps.$app_version),
         };
 
-        // If reading the cached release fails, fall back to recording the
-        // session as a fresh `$app_opened`. Captures still flow through the
-        // same queue so the failure mode is "lose the install/update event,"
-        // not "drop the session start."
+        // A failed cache read is not the same as an absent entry: treating it
+        // as a fresh install would inflate `$app_installed` on transient
+        // storage errors, so the session degrades to `$app_opened` only and
+        // the install/update event is lost for this launch. The native SDKs
+        // apply the same rule.
         const cachedRelease = yield* cacheManager
           .get<AppReleaseInfo>(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY)
-          .pipe(Effect.orElseSucceed(() => Option.none()));
-        const previousAppRelease = Option.map(cachedRelease, (hit) => hit.value);
-        const releaseEvent = Option.match(previousAppRelease, {
-          onNone: () => Option.some(AUTOMATIC_EVENTS.APP_INSTALLED),
-          onSome: (previous) =>
-            previous.appBuild !== currentAppRelease.appBuild ||
-            previous.appVersion !== currentAppRelease.appVersion
-              ? Option.some(AUTOMATIC_EVENTS.APP_UPDATED)
-              : Option.none(),
-        });
+          .pipe(
+            Effect.map((hit) => Option.some(Option.map(hit, (entry) => entry.value))),
+            // `CacheManager.get` dies on an undecodable envelope, so defects
+            // must degrade the same way as typed failures.
+            // oxlint-disable-next-line effect/effect-catchall-default -- deliberate blanket recovery: any read failure must mean "unknown previous release", never "fresh install" (see the comment above).
+            Effect.catchCause(() => Effect.succeed(Option.none<Option.Option<AppReleaseInfo>>())),
+          );
+        const releaseEvent = Option.flatMap(cachedRelease, (previousAppRelease) =>
+          Option.match(previousAppRelease, {
+            onNone: () => Option.some(AUTOMATIC_EVENTS.APP_INSTALLED),
+            onSome: (previous) =>
+              previous.appBuild !== currentAppRelease.appBuild ||
+              previous.appVersion !== currentAppRelease.appVersion
+                ? Option.some(AUTOMATIC_EVENTS.APP_UPDATED)
+                : Option.none(),
+          }),
+        );
         const eventNames = Option.match(releaseEvent, {
           onNone: () => [AUTOMATIC_EVENTS.APP_OPENED],
           onSome: (eventName) => [eventName, AUTOMATIC_EVENTS.APP_OPENED],
         });
+        const sessionId = yield* sessionManager.current();
         const additions = yield* Effect.forEach(
           eventNames,
-          (eventName) => createQueuedAnalyticsEvent(eventName, {}),
+          (eventName) => createQueuedAnalyticsEvent(eventName, {}, sessionId),
           { concurrency: 1 },
         );
         yield* Ref.update(queueRef, (queue) => [...queue, ...additions]);

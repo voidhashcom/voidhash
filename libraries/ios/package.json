@@ -35,6 +35,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "test:swift": "swift test --package-path Tests"
+    "test:swift": "swift test --package-path Tests",
+    "test:swift-simulator": "bash ios-tests/run-tests.sh"
   }
 }

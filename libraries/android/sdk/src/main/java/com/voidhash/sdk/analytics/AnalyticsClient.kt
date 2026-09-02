@@ -37,6 +37,7 @@ private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 /**
  * One queued analytics event.
  *
+ * @property sessionId the analytics session the event was captured in.
  * @property attempts how often this event's batch has been postponed.
  * @property availableAt epoch millis before which the event is not sent again.
  */
@@ -44,6 +45,7 @@ data class AnalyticsEvent(
     val uuid: String,
     val name: String,
     val distinctId: String,
+    val sessionId: String,
     val timestamp: Long,
     val properties: Map<String, Any?>,
     val attempts: Int = 0,
@@ -81,12 +83,16 @@ fun analyticsStandardProperties(
  * so the cool-down never holds the flush lock. A `413` splits the batch in
  * half; only non-retryable failures drop events, with a warning.
  *
+ * @param sessionIdProvider called at capture time, so every queued event
+ *   carries the session it was captured in even if the session rotates before
+ *   the batch is sent.
  * @param standardProperties resolved once and merged into every event.
  */
 class AnalyticsClient(
     ingestUrl: String,
     private val publishableKey: String,
     private val distinctIdProvider: () -> String,
+    private val sessionIdProvider: () -> String,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -106,6 +112,9 @@ class AnalyticsClient(
 
     /** Number of events waiting to be sent. */
     val queueLength: Int get() = synchronized(queue) { queue.size }
+
+    /** Snapshot of the queue, for tests. */
+    internal val queuedEvents: List<AnalyticsEvent> get() = synchronized(queue) { queue.toList() }
 
     /** Starts the periodic flush daemon in [scope]. */
     fun start(scope: CoroutineScope) {
@@ -138,6 +147,7 @@ class AnalyticsClient(
             uuid = uuidFactory(),
             name = name,
             distinctId = distinctIdProvider(),
+            sessionId = sessionIdProvider(),
             timestamp = now,
             // The standardized properties describe the app and device this
             // event came from, so they win on a key conflict — same merge order
@@ -302,6 +312,7 @@ class AnalyticsClient(
                         put("uuid", event.uuid)
                         put("event", event.name)
                         put("distinct_id", event.distinctId)
+                        put("session_id", event.sessionId)
                         put("timestamp", formatTimestamp(event.timestamp))
                         put("context", JSONObject())
                         put("properties", JSONObject(encodeProperties(event)))
