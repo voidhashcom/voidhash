@@ -13,7 +13,7 @@ often needed while integrating.
 ## Install
 
 ```sh
-npm install @voidhash/react-native react-native-nitro-modules @react-native-async-storage/async-storage effect expo-constants expo-linking
+npm install @voidhash/react-native react-native-nitro-modules effect
 ```
 
 Run `npx pod-install` after installing on iOS. Android needs no extra setup.
@@ -69,18 +69,18 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 });
 ```
 
-| Option                   | Default                    | Notes                                                       |
-| ------------------------ | -------------------------- | ----------------------------------------------------------- |
-| `scheme`                 | Expo app scheme            | Reserved for paywalls; not required in the initial release. |
-| `distinctId`             | Persisted anonymous id     | Seed the initial identity; usually omit and `identify()`.   |
-| `debug`                  | `false`                    | Verbose HTTP logging.                                       |
-| `dev`                    | `false`                    | Reserved for SDK-started test purchases.                    |
-| `enabled`                | `true`                     | `false` ships the SDK fully inert. Fixed at construction.   |
-| `readOnly`               | `true`                     | Forced on while commerce features are unavailable.          |
-| `baseUrl`                | `https://api.voidhash.com` | API origin.                                                 |
-| `ingestUrl`              | Same origin as `baseUrl`   | Analytics origin override.                                  |
-| `screenTracking`         | `{ enabled: true }`        | Automatic `$screen` events; see "Screen tracking".          |
-| `unstable_swallowErrors` | `false`                    | See below.                                                  |
+| Option                   | Default                     | Notes                                                              |
+| ------------------------ | --------------------------- | ------------------------------------------------------------------ |
+| `scheme`                 | First URL scheme of the app | Deep-link scheme for purchase callbacks; read natively if omitted. |
+| `distinctId`             | Persisted anonymous id      | Seed the initial identity; usually omit and `identify()`.          |
+| `debug`                  | `false`                     | Verbose HTTP logging.                                              |
+| `dev`                    | `false`                     | Reserved for SDK-started test purchases.                           |
+| `enabled`                | `true`                      | `false` ships the SDK fully inert. Fixed at construction.          |
+| `readOnly`               | `true`                      | Forced on while commerce features are unavailable.                 |
+| `baseUrl`                | `https://api.voidhash.com`  | API origin.                                                        |
+| `ingestUrl`              | Same origin as `baseUrl`    | Analytics origin override.                                         |
+| `screenTracking`         | `{ enabled: true }`         | Automatic `$screen` events; see "Screen tracking".                 |
+| `unstable_swallowErrors` | `false`                     | See below.                                                         |
 
 ## Provider and initialization
 

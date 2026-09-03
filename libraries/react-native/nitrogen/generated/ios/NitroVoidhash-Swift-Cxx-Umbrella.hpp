@@ -28,8 +28,14 @@ namespace margelo::nitro::voidhash { class HybridStorekitSpec; }
 namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
 // Forward declaration of `HybridVoidhashEngineSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashEngineSpec; }
+// Forward declaration of `HybridVoidhashPlatformSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashPlatformSpec; }
 // Forward declaration of `HybridVoidhashSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashSpec; }
+// Forward declaration of `HybridVoidhashStorageSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashStorageSpec; }
+// Forward declaration of `NativePlatformInfo` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativePlatformInfo; }
 // Forward declaration of `PaywallWebViewAndroidLayerType` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class PaywallWebViewAndroidLayerType; }
 // Forward declaration of `PaywallWebViewBaseEvent` to properly resolve imports.
@@ -84,7 +90,10 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include "HybridStorekitSpec.hpp"
 #include "HybridStorekitTransactionSpec.hpp"
 #include "HybridVoidhashEngineSpec.hpp"
+#include "HybridVoidhashPlatformSpec.hpp"
 #include "HybridVoidhashSpec.hpp"
+#include "HybridVoidhashStorageSpec.hpp"
+#include "NativePlatformInfo.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
 #include "PaywallWebViewBaseEvent.hpp"
 #include "PaywallWebViewCacheMode.hpp"
@@ -147,8 +156,12 @@ namespace NitroVoidhash { class HybridStorekitSpec_cxx; }
 namespace NitroVoidhash { class HybridStorekitTransactionSpec_cxx; }
 // Forward declaration of `HybridVoidhashEngineSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashEngineSpec_cxx; }
+// Forward declaration of `HybridVoidhashPlatformSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashPlatformSpec_cxx; }
 // Forward declaration of `HybridVoidhashSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
+// Forward declaration of `HybridVoidhashStorageSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashStorageSpec_cxx; }
 
 // Include Swift defined types
 #if __has_include("NitroVoidhash-Swift.h")

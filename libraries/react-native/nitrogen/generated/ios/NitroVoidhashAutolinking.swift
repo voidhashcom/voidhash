@@ -24,6 +24,30 @@ public final class NitroVoidhashAutolinking {
     return HybridVoidhash.self is any RecyclableView.Type
   }
   
+  public static func createVoidhashPlatform() -> bridge.std__shared_ptr_HybridVoidhashPlatformSpec_ {
+    let hybridObject = HybridVoidhashPlatform()
+    return { () -> bridge.std__shared_ptr_HybridVoidhashPlatformSpec_ in
+      let __cxxWrapped = hybridObject.getCxxWrapper()
+      return __cxxWrapped.getCxxPart()
+    }()
+  }
+  
+  public static func isVoidhashPlatformRecyclable() -> Bool {
+    return HybridVoidhashPlatform.self is any RecyclableView.Type
+  }
+  
+  public static func createVoidhashStorage() -> bridge.std__shared_ptr_HybridVoidhashStorageSpec_ {
+    let hybridObject = HybridVoidhashStorage()
+    return { () -> bridge.std__shared_ptr_HybridVoidhashStorageSpec_ in
+      let __cxxWrapped = hybridObject.getCxxWrapper()
+      return __cxxWrapped.getCxxPart()
+    }()
+  }
+  
+  public static func isVoidhashStorageRecyclable() -> Bool {
+    return HybridVoidhashStorage.self is any RecyclableView.Type
+  }
+  
   public static func createStorekit() -> bridge.std__shared_ptr_HybridStorekitSpec_ {
     let hybridObject = HybridStorekit()
     return { () -> bridge.std__shared_ptr_HybridStorekitSpec_ in

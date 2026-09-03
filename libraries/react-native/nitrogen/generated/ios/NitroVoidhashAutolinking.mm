@@ -11,6 +11,8 @@
 #import <type_traits>
 
 #include "HybridVoidhashSpecSwift.hpp"
+#include "HybridVoidhashPlatformSpecSwift.hpp"
+#include "HybridVoidhashStorageSpecSwift.hpp"
 #include "HybridStorekitSpecSwift.hpp"
 #include "HybridPaywallWebViewSpecSwift.hpp"
 #include "HybridPaywallPresenterSpecSwift.hpp"
@@ -28,6 +30,20 @@
     "Voidhash",
     []() -> std::shared_ptr<HybridObject> {
       std::shared_ptr<HybridVoidhashSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createVoidhash();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "VoidhashPlatform",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<HybridVoidhashPlatformSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createVoidhashPlatform();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "VoidhashStorage",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<HybridVoidhashStorageSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createVoidhashStorage();
       return hybridObject;
     }
   );

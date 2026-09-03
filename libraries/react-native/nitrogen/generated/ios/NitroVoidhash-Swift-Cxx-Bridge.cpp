@@ -18,7 +18,9 @@
 #include "HybridStorekitSpecSwift.hpp"
 #include "HybridStorekitTransactionSpecSwift.hpp"
 #include "HybridVoidhashEngineSpecSwift.hpp"
+#include "HybridVoidhashPlatformSpecSwift.hpp"
 #include "HybridVoidhashSpecSwift.hpp"
+#include "HybridVoidhashStorageSpecSwift.hpp"
 #include "NitroVoidhash-Swift-Cxx-Umbrella.hpp"
 #include <NitroModules/NitroDefines.hpp>
 
@@ -222,6 +224,46 @@ namespace margelo::nitro::voidhash::bridge::swift {
     }
     #endif
     NitroVoidhash::HybridVoidhashEngineSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
+    return swiftPart.toUnsafe();
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridVoidhashPlatformSpec>
+  std::shared_ptr<HybridVoidhashPlatformSpec> create_std__shared_ptr_HybridVoidhashPlatformSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
+    NitroVoidhash::HybridVoidhashPlatformSpec_cxx swiftPart = NitroVoidhash::HybridVoidhashPlatformSpec_cxx::fromUnsafe(swiftUnsafePointer);
+    return std::make_shared<margelo::nitro::voidhash::HybridVoidhashPlatformSpecSwift>(swiftPart);
+  }
+  void* NON_NULL get_std__shared_ptr_HybridVoidhashPlatformSpec_(std__shared_ptr_HybridVoidhashPlatformSpec_ cppType) {
+    std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashPlatformSpecSwift> swiftWrapper = std::dynamic_pointer_cast<margelo::nitro::voidhash::HybridVoidhashPlatformSpecSwift>(cppType);
+    #ifdef NITRO_DEBUG
+    if (swiftWrapper == nullptr) [[unlikely]] {
+      throw std::runtime_error("Class \"HybridVoidhashPlatformSpec\" is not implemented in Swift!");
+    }
+    #endif
+    NitroVoidhash::HybridVoidhashPlatformSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
+    return swiftPart.toUnsafe();
+  }
+  
+  // pragma MARK: std::function<void(const std::optional<std::string>& /* result */)>
+  Func_void_std__optional_std__string_ create_Func_void_std__optional_std__string_(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroVoidhash::Func_void_std__optional_std__string_::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::optional<std::string>& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridVoidhashStorageSpec>
+  std::shared_ptr<HybridVoidhashStorageSpec> create_std__shared_ptr_HybridVoidhashStorageSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
+    NitroVoidhash::HybridVoidhashStorageSpec_cxx swiftPart = NitroVoidhash::HybridVoidhashStorageSpec_cxx::fromUnsafe(swiftUnsafePointer);
+    return std::make_shared<margelo::nitro::voidhash::HybridVoidhashStorageSpecSwift>(swiftPart);
+  }
+  void* NON_NULL get_std__shared_ptr_HybridVoidhashStorageSpec_(std__shared_ptr_HybridVoidhashStorageSpec_ cppType) {
+    std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashStorageSpecSwift> swiftWrapper = std::dynamic_pointer_cast<margelo::nitro::voidhash::HybridVoidhashStorageSpecSwift>(cppType);
+    #ifdef NITRO_DEBUG
+    if (swiftWrapper == nullptr) [[unlikely]] {
+      throw std::runtime_error("Class \"HybridVoidhashStorageSpec\" is not implemented in Swift!");
+    }
+    #endif
+    NitroVoidhash::HybridVoidhashStorageSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
   

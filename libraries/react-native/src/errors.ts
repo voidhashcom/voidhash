@@ -79,7 +79,10 @@ export class NotInitializedError extends VoidhashError {
 
 export class SchemeNotSetError extends VoidhashError {
   constructor() {
-    super("SCHEME_NOT_SET", "Scheme is not set in expo.config.ts.");
+    super(
+      "SCHEME_NOT_SET",
+      "Scheme is not set. Pass `scheme` to createVoidhashClient or register a URL scheme in the app config.",
+    );
     this.name = "SchemeNotSetError";
   }
 }

@@ -1,6 +1,13 @@
 import { resolveFrom } from "@expo/require-utils";
+import type { ExpoConfig } from "expo/config";
 import type { ConfigPlugin } from "expo/config-plugins";
-import { CodeGenerator, createRunOncePlugin, withPodfile } from "expo/config-plugins";
+import {
+  AndroidConfig,
+  CodeGenerator,
+  createRunOncePlugin,
+  withAndroidManifest,
+  withPodfile,
+} from "expo/config-plugins";
 import { dirname, relative, resolve } from "pathe";
 
 import pkg from "../../package.json";
@@ -85,6 +92,41 @@ const withVoidhashCorePod: ConfigPlugin<void> = (config) =>
     return podfileConfig;
   });
 
-const withVoidhashReactNative: ConfigPlugin<void> = (config) => withVoidhashCorePod(config);
+/** Manifest meta-data key the native `VoidhashPlatform` hybrid reads the URL scheme(s) from. */
+const SCHEME_META_DATA_KEY = "com.voidhash.sdk.scheme";
+
+/**
+ * Mirrors `expo.scheme` into manifest meta-data. Android cannot enumerate its own
+ * intent-filter schemes at runtime, so this is how the SDK learns the deep-link scheme when
+ * `createVoidhashClient` is not given one explicitly.
+ */
+export const addSchemeMetaData = (
+  manifest: AndroidConfig.Manifest.AndroidManifest,
+  scheme: ExpoConfig["scheme"],
+): AndroidConfig.Manifest.AndroidManifest => {
+  const schemes = [scheme].flat().filter(
+    // oxlint-disable-next-line effect/prefer-effect-is -- the plugin is CommonJS and cannot import the ESM-only `effect`
+    (candidate): candidate is string => typeof candidate === "string" && candidate !== "",
+  );
+  const [firstScheme] = schemes;
+  if (firstScheme === undefined) return manifest;
+
+  const application = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
+  AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+    application,
+    SCHEME_META_DATA_KEY,
+    schemes.join(","),
+  );
+  return manifest;
+};
+
+const withVoidhashScheme: ConfigPlugin<void> = (config) =>
+  withAndroidManifest(config, (manifestConfig) => {
+    manifestConfig.modResults = addSchemeMetaData(manifestConfig.modResults, config.scheme);
+    return manifestConfig;
+  });
+
+const withVoidhashReactNative: ConfigPlugin<void> = (config) =>
+  withVoidhashScheme(withVoidhashCorePod(config));
 
 export default createRunOncePlugin(withVoidhashReactNative, pkg.name, pkg.version);

@@ -28,8 +28,14 @@ namespace margelo::nitro::voidhash { class HybridStorekitSpec; }
 namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
 // Forward declaration of `HybridVoidhashEngineSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashEngineSpec; }
+// Forward declaration of `HybridVoidhashPlatformSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashPlatformSpec; }
 // Forward declaration of `HybridVoidhashSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashSpec; }
+// Forward declaration of `HybridVoidhashStorageSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashStorageSpec; }
+// Forward declaration of `NativePlatformInfo` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativePlatformInfo; }
 // Forward declaration of `PaywallWebViewBaseEvent` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct PaywallWebViewBaseEvent; }
 // Forward declaration of `PaywallWebViewDataDetectorType` to properly resolve imports.
@@ -82,8 +88,12 @@ namespace NitroVoidhash { class HybridStorekitSpec_cxx; }
 namespace NitroVoidhash { class HybridStorekitTransactionSpec_cxx; }
 // Forward declaration of `HybridVoidhashEngineSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashEngineSpec_cxx; }
+// Forward declaration of `HybridVoidhashPlatformSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashPlatformSpec_cxx; }
 // Forward declaration of `HybridVoidhashSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
+// Forward declaration of `HybridVoidhashStorageSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashStorageSpec_cxx; }
 
 // Include C++ defined types
 #include "HybridPaywallPresenterSpec.hpp"
@@ -96,7 +106,10 @@ namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
 #include "HybridStorekitSpec.hpp"
 #include "HybridStorekitTransactionSpec.hpp"
 #include "HybridVoidhashEngineSpec.hpp"
+#include "HybridVoidhashPlatformSpec.hpp"
 #include "HybridVoidhashSpec.hpp"
+#include "HybridVoidhashStorageSpec.hpp"
+#include "NativePlatformInfo.hpp"
 #include "PaywallWebViewBaseEvent.hpp"
 #include "PaywallWebViewDataDetectorType.hpp"
 #include "PaywallWebViewErrorEvent.hpp"
@@ -870,6 +883,82 @@ namespace margelo::nitro::voidhash::bridge::swift {
   }
   inline Result_std__shared_ptr_Promise_std__string___ create_Result_std__shared_ptr_Promise_std__string___(const std::exception_ptr& error) noexcept {
     return Result<std::shared_ptr<Promise<std::string>>>::withError(error);
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridVoidhashPlatformSpec>
+  /**
+   * Specialized version of `std::shared_ptr<HybridVoidhashPlatformSpec>`.
+   */
+  using std__shared_ptr_HybridVoidhashPlatformSpec_ = std::shared_ptr<HybridVoidhashPlatformSpec>;
+  std::shared_ptr<HybridVoidhashPlatformSpec> create_std__shared_ptr_HybridVoidhashPlatformSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
+  void* NON_NULL get_std__shared_ptr_HybridVoidhashPlatformSpec_(std__shared_ptr_HybridVoidhashPlatformSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<HybridVoidhashPlatformSpec>
+  using std__weak_ptr_HybridVoidhashPlatformSpec_ = std::weak_ptr<HybridVoidhashPlatformSpec>;
+  inline std__weak_ptr_HybridVoidhashPlatformSpec_ weakify_std__shared_ptr_HybridVoidhashPlatformSpec_(const std::shared_ptr<HybridVoidhashPlatformSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: Result<NativePlatformInfo>
+  using Result_NativePlatformInfo_ = Result<NativePlatformInfo>;
+  inline Result_NativePlatformInfo_ create_Result_NativePlatformInfo_(const NativePlatformInfo& value) noexcept {
+    return Result<NativePlatformInfo>::withValue(value);
+  }
+  inline Result_NativePlatformInfo_ create_Result_NativePlatformInfo_(const std::exception_ptr& error) noexcept {
+    return Result<NativePlatformInfo>::withError(error);
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<std::optional<std::string>>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::optional<std::string>>>`.
+   */
+  using std__shared_ptr_Promise_std__optional_std__string___ = std::shared_ptr<Promise<std::optional<std::string>>>;
+  inline std::shared_ptr<Promise<std::optional<std::string>>> create_std__shared_ptr_Promise_std__optional_std__string___() noexcept {
+    return Promise<std::optional<std::string>>::create();
+  }
+  inline PromiseHolder<std::optional<std::string>> wrap_std__shared_ptr_Promise_std__optional_std__string___(std::shared_ptr<Promise<std::optional<std::string>>> promise) noexcept {
+    return PromiseHolder<std::optional<std::string>>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const std::optional<std::string>& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const std::optional<std::string>&)>`.
+   */
+  using Func_void_std__optional_std__string_ = std::function<void(const std::optional<std::string>& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::optional<std::string>& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__optional_std__string__Wrapper final {
+  public:
+    explicit Func_void_std__optional_std__string__Wrapper(std::function<void(const std::optional<std::string>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::optional<std::string>& /* result */)>>(std::move(func))) {}
+    inline void call(std::optional<std::string> result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::optional<std::string>& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__optional_std__string_ create_Func_void_std__optional_std__string_(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__optional_std__string__Wrapper wrap_Func_void_std__optional_std__string_(Func_void_std__optional_std__string_ value) noexcept {
+    return Func_void_std__optional_std__string__Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridVoidhashStorageSpec>
+  /**
+   * Specialized version of `std::shared_ptr<HybridVoidhashStorageSpec>`.
+   */
+  using std__shared_ptr_HybridVoidhashStorageSpec_ = std::shared_ptr<HybridVoidhashStorageSpec>;
+  std::shared_ptr<HybridVoidhashStorageSpec> create_std__shared_ptr_HybridVoidhashStorageSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
+  void* NON_NULL get_std__shared_ptr_HybridVoidhashStorageSpec_(std__shared_ptr_HybridVoidhashStorageSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<HybridVoidhashStorageSpec>
+  using std__weak_ptr_HybridVoidhashStorageSpec_ = std::weak_ptr<HybridVoidhashStorageSpec>;
+  inline std__weak_ptr_HybridVoidhashStorageSpec_ weakify_std__shared_ptr_HybridVoidhashStorageSpec_(const std::shared_ptr<HybridVoidhashStorageSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<std::optional<std::string>>>>
+  using Result_std__shared_ptr_Promise_std__optional_std__string____ = Result<std::shared_ptr<Promise<std::optional<std::string>>>>;
+  inline Result_std__shared_ptr_Promise_std__optional_std__string____ create_Result_std__shared_ptr_Promise_std__optional_std__string____(const std::shared_ptr<Promise<std::optional<std::string>>>& value) noexcept {
+    return Result<std::shared_ptr<Promise<std::optional<std::string>>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_std__optional_std__string____ create_Result_std__shared_ptr_Promise_std__optional_std__string____(const std::exception_ptr& error) noexcept {
+    return Result<std::shared_ptr<Promise<std::optional<std::string>>>>::withError(error);
   }
   
   // pragma MARK: std::shared_ptr<HybridStorekitTransactionSpec>

@@ -1,4 +1,5 @@
-// JVM harness for the Nitro-free `VoidhashEngineCore` of the React Native Android layer.
+// JVM harness for the Nitro-free cores of the React Native Android layer (engine, platform,
+// storage).
 // Included from `libraries/android/settings.gradle.kts` so it can depend on the bare SDK
 // module; the source is compiled straight from the React Native module, so the class under
 // test is the one shipped.
@@ -23,6 +24,8 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("../src/main/java/com/margelo/nitro/voidhash/engine")
+            java.srcDir("../src/main/java/com/margelo/nitro/voidhash/platform")
+            java.srcDir("../src/main/java/com/margelo/nitro/voidhash/storage")
         }
     }
 

@@ -17,7 +17,7 @@ import { VoidhashEffectClient } from "./client-effect";
 import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
 import { AnalyticsService } from "./core/analytics/service";
 import { AnalyticsSessionManager } from "./core/analytics/session-manager";
-import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
+import { NativeStorageCacheAdapter } from "./core/caching/native-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
 import {
@@ -164,7 +164,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(SchemaManager.layer),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
-      Layer.provideMerge(AsyncStorageCacheAdapter),
+      Layer.provideMerge(NativeStorageCacheAdapter),
       Layer.provideMerge(apiClientLayer),
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provideMerge(paymentAdapterLayer),

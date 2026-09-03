@@ -1,12 +1,11 @@
-import * as P from "effect/Predicate";
 import * as Option from "effect/Option";
-import Constants from "expo-constants";
 import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
 import { COMMERCE_FEATURES_ENABLED } from "./core/constants";
 import { SchemeNotSetError } from "./errors";
+import { getNativePlatformInfo, resolveScheme } from "./core/platform/native-platform";
 import { getVoidhashEngine } from "./nitro";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
@@ -41,11 +40,9 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
   const ingestUrl = Option.fromUndefinedOr(options.ingestUrl);
   const readOnly = !COMMERCE_FEATURES_ENABLED || (options.readOnly ?? false);
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
-  const scheme =
-    options.scheme ??
-    (P.isString(Constants.expoConfig?.scheme)
-      ? Constants.expoConfig?.scheme
-      : Constants.expoConfig?.scheme?.[0]);
+  const scheme = Option.getOrUndefined(
+    resolveScheme(Option.fromUndefinedOr(options.scheme), getNativePlatformInfo()),
+  );
 
   // A disabled client never presents a paywall and so never rides the scheme
   // back into the app: requiring one would force apps that ship the SDK behind

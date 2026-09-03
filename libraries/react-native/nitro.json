@@ -13,6 +13,14 @@
       "ios": { "language": "swift", "implementationClassName": "HybridVoidhash" },
       "android": { "language": "kotlin", "implementationClassName": "HybridVoidhash" }
     },
+    "VoidhashPlatform": {
+      "ios": { "language": "swift", "implementationClassName": "HybridVoidhashPlatform" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridVoidhashPlatform" }
+    },
+    "VoidhashStorage": {
+      "ios": { "language": "swift", "implementationClassName": "HybridVoidhashStorage" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridVoidhashStorage" }
+    },
     "Storekit": {
       "ios": { "language": "swift", "implementationClassName": "HybridStorekit" }
     },

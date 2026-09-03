@@ -33,6 +33,8 @@
 #include "JHybridPurchasedItemSpec.hpp"
 #include "JHybridVoidhashSpec.hpp"
 #include "JHybridVoidhashEngineSpec.hpp"
+#include "JHybridVoidhashPlatformSpec.hpp"
+#include "JHybridVoidhashStorageSpec.hpp"
 #include "JHybridGoogleBillingSpec.hpp"
 #include "JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec_.hpp"
 #include "JHybridGoogleBillingAcknowledgeResultSpec.hpp"
@@ -59,6 +61,22 @@ struct JHybridVoidhashSpecImpl: public jni::JavaClass<JHybridVoidhashSpecImpl, J
     static const auto constructorFn = javaClassStatic()->getConstructor<JHybridVoidhashSpecImpl::javaobject()>();
     jni::local_ref<JHybridVoidhashSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
     return javaPart->getJHybridVoidhashSpec();
+  }
+};
+struct JHybridVoidhashPlatformSpecImpl: public jni::JavaClass<JHybridVoidhashPlatformSpecImpl, JHybridVoidhashPlatformSpec::JavaPart> {
+  static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/voidhash/HybridVoidhashPlatform;";
+  static std::shared_ptr<JHybridVoidhashPlatformSpec> create() {
+    static const auto constructorFn = javaClassStatic()->getConstructor<JHybridVoidhashPlatformSpecImpl::javaobject()>();
+    jni::local_ref<JHybridVoidhashPlatformSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
+    return javaPart->getJHybridVoidhashPlatformSpec();
+  }
+};
+struct JHybridVoidhashStorageSpecImpl: public jni::JavaClass<JHybridVoidhashStorageSpecImpl, JHybridVoidhashStorageSpec::JavaPart> {
+  static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/voidhash/HybridVoidhashStorage;";
+  static std::shared_ptr<JHybridVoidhashStorageSpec> create() {
+    static const auto constructorFn = javaClassStatic()->getConstructor<JHybridVoidhashStorageSpecImpl::javaobject()>();
+    jni::local_ref<JHybridVoidhashStorageSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
+    return javaPart->getJHybridVoidhashStorageSpec();
   }
 };
 struct JHybridGoogleBillingSpecImpl: public jni::JavaClass<JHybridGoogleBillingSpecImpl, JHybridGoogleBillingSpec::JavaPart> {
@@ -109,6 +127,8 @@ void registerAllNatives() {
   margelo::nitro::voidhash::JHybridPurchasedItemSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JHybridVoidhashSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JHybridVoidhashEngineSpec::CxxPart::registerNatives();
+  margelo::nitro::voidhash::JHybridVoidhashPlatformSpec::CxxPart::registerNatives();
+  margelo::nitro::voidhash::JHybridVoidhashStorageSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JHybridGoogleBillingSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec__cxx::registerNatives();
   margelo::nitro::voidhash::JHybridGoogleBillingAcknowledgeResultSpec::CxxPart::registerNatives();
@@ -125,6 +145,18 @@ void registerAllNatives() {
     "Voidhash",
     []() -> std::shared_ptr<HybridObject> {
       return JHybridVoidhashSpecImpl::create();
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "VoidhashPlatform",
+    []() -> std::shared_ptr<HybridObject> {
+      return JHybridVoidhashPlatformSpecImpl::create();
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "VoidhashStorage",
+    []() -> std::shared_ptr<HybridObject> {
+      return JHybridVoidhashStorageSpecImpl::create();
     }
   );
   HybridObjectRegistry::registerHybridObjectConstructor(

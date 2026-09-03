@@ -106,8 +106,6 @@
     "@vitejs/plugin-react": "catalog:",
     "@voidhash/shared": "workspace:*",
     "expo": "54.0.33",
-    "expo-constants": "~18.0.13",
-    "expo-linking": "~8.0.9",
     "expo-module-scripts": "^5.0.8",
     "expo-router": "~55.0.18",
     "nitrogen": "0.35.5",
@@ -119,12 +117,9 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@react-native-async-storage/async-storage": "^1.24.0 || ^2.0.0",
     "@react-navigation/native": "*",
     "effect": "catalog:",
     "expo": "*",
-    "expo-constants": "*",
-    "expo-linking": "*",
     "expo-router": "*",
     "react": "*",
     "react-native": "*",

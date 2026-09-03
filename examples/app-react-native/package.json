@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.12",
-    "@react-native-async-storage/async-storage": "2.2.0",
     "@voidhash/react-native": "workspace:*",
     "effect": "catalog:",
     "expo": "^55.0.29",

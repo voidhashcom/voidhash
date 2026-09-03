@@ -26,9 +26,8 @@ The SDK has the following requirements.
 | Expo SDK                                    | Verified on 55. Developed against 54.     |
 | React Native                                | Verified on 0.83. Developed against 0.81. |
 | `react-native-nitro-modules`                | Peer `^0.35.5`. Use a 0.35.x release.     |
-| `@react-native-async-storage/async-storage` | Peer `^1.24.0 \|\| ^2.0.0`.               |
 
-`effect`, `expo`, `expo-constants`, `expo-linking`, `react`, and `react-native` are also peer
+`effect`, `expo`, `react`, and `react-native` are also peer
 dependencies. Install all of them in the app.
 
 <Callout type="warn" title="Nitro versions must match across modules">
@@ -62,7 +61,7 @@ Each option is described below.
 
 | Option       | Default                       | Description                                                                 |
 | ------------ | ----------------------------- | --------------------------------------------------------------------------- |
-| `scheme`     | Expo app scheme               | Reserved for paywalls. Not required in the initial release.                 |
+| `scheme`     | First URL scheme of the app   | Deep-link scheme for purchase callbacks. Read natively when omitted.        |
 | `distinctId` | Persisted or new anonymous ID | Seeds the initial customer identity. Usually omit it and call `identify()`. |
 | `debug`      | `false`                       | Enables additional SDK diagnostics.                                         |
 | `dev`        | `false`                       | Reserved for SDK-started test purchases.                                    |
@@ -178,8 +177,9 @@ type Person = {
 ```
 
 Reads use a stale-while-revalidate cache: snapshots younger than five minutes are served from the
-cache while a fresh copy loads in the background. The cached copy survives up to two days, which is
-why [access checks fail open offline](/sdks/react-native/entitlements#offline-and-failure-behavior).
+cache while a fresh copy loads in the background. The cache lives in the same native store the
+Swift and Kotlin SDKs use (`UserDefaults` on iOS, `SharedPreferences` on Android), so no extra
+storage package is needed. The cached copy survives up to two days, which is why [access checks fail open offline](/sdks/react-native/entitlements#offline-and-failure-behavior).
 The SDK refreshes the snapshot on its own after purchases, restores, and identity changes.
 
 ## Imperative client
