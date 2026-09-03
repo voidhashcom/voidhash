@@ -182,4 +182,25 @@ export const CLICKHOUSE_ANALYTICS_MIGRATIONS: ReadonlyArray<ClickHouseAnalyticsM
       FROM analytics_records_v1 WHERE record_type = 'pending_identity_override'`,
     ],
   },
+  {
+    id: "0004_capture_transport_context",
+    statements: [
+      `ALTER TABLE events_v2 ADD COLUMN IF NOT EXISTS sent_ts Nullable(DateTime64(3, 'UTC')) AFTER event_ts`,
+      `ALTER TABLE events_v2 ADD COLUMN IF NOT EXISTS trust_class LowCardinality(String) DEFAULT '' AFTER source_topic`,
+      `ALTER TABLE analytics_records_v1 ADD COLUMN IF NOT EXISTS sent_ts Nullable(DateTime64(3, 'UTC')) AFTER event_ts`,
+      `ALTER TABLE analytics_records_v1 ADD COLUMN IF NOT EXISTS trust_class LowCardinality(String) DEFAULT '' AFTER source_topic`,
+      `CREATE OR REPLACE VIEW analytics_events_v2 AS
+      SELECT event_id, capture_id, event_name, event_ts, sent_ts, received_ts, processed_ts, inserted_ts,
+        organization_id, project_id, distinct_id, previous_distinct_id, person_id, identity_mode,
+        event_properties, context, token, request_id, request_path, session_id, schema_version,
+        source_offset, source_partition, source_topic, trust_class
+      FROM events_v2
+      UNION ALL
+      SELECT event_id, capture_id, event_name, event_ts, sent_ts, received_ts, processed_ts, inserted_ts,
+        organization_id, project_id, distinct_id, previous_distinct_id, person_id, identity_mode,
+        event_properties, context, token, request_id, request_path, session_id, schema_version,
+        source_offset, source_partition, source_topic, trust_class
+      FROM analytics_records_v1 WHERE record_type = 'event'`,
+    ],
+  },
 ];

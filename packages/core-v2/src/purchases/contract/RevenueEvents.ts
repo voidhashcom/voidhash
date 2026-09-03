@@ -202,6 +202,8 @@ export const RevenueSubscriptionRenewed = Schema.Struct({
     ...revenuePropertiesBase,
     ...moneyPropertiesFields,
     isTrial: Schema.Boolean,
+    /** True when this renewal is the first paid period after a trial period. */
+    convertedFromTrial: Schema.optional(Schema.Boolean),
   }),
 });
 export type RevenueSubscriptionRenewed = typeof RevenueSubscriptionRenewed.Type;
@@ -328,9 +330,10 @@ export type RevenueSubscriptionAutoRenewResumed = typeof RevenueSubscriptionAuto
  * a downstream consumer can correlate the two; what differs is the per-event
  * identity (`distinctId` / `personId` from {@link baseEventFields}).
  *
- * `subscriptionId` / `storeSubscriptionId` are populated on the
+ * `subscriptionId` / `providerSubscriptionId` are populated on the
  * `$subscription.*` variants; `purchaseId` / `providerKey` on the
- * `$purchase.*` variants.
+ * `$purchase.*` variants. The provider's subscription id uses the same
+ * property name as every other revenue event so readers key on one field.
  */
 const transferPropertiesBase = {
   paymentProviderConfigurationId: Schema.String,
@@ -343,7 +346,7 @@ const transferPropertiesBase = {
   providerEventType: Schema.String,
   subscriptionId: Schema.optional(Schema.String),
   purchaseId: Schema.optional(Schema.String),
-  storeSubscriptionId: Schema.optional(Schema.NullOr(Schema.String)),
+  providerSubscriptionId: Schema.optional(Schema.NullOr(Schema.String)),
   providerKey: Schema.optional(Schema.NullOr(Schema.String)),
   fromDistinctId: Schema.String,
   fromPersonId: Schema.String,

@@ -53,16 +53,25 @@ const stringProperty = (
   return value;
 };
 
+/** Property names exactly as the revenue emitter writes them (see `RevenueEvents.ts`). */
+const REVENUE_PROPERTY = {
+  /** Deprecated mirror of `grossAmountUsd`, still emitted for readers that predate it. */
+  amountUsd: "amountUsd",
+  grossAmountUsd: "grossAmountUsd",
+  isTrial: "isTrial",
+  productId: "productId",
+  providerEnvironment: "providerEnvironment",
+  providerSubscriptionId: "providerSubscriptionId",
+} as const;
+
 const subscriptionId = (event: typeof StoredAnalyticsEvent.Type) =>
-  stringProperty(
-    event,
-    "subscription_id",
-    "subscriptionId",
-    "provider_subscription_id",
-    "providerSubscriptionId",
-    "store_subscription_id",
-    "storeSubscriptionId",
-  ) || event.eventId;
+  stringProperty(event, REVENUE_PROPERTY.providerSubscriptionId) || event.eventId;
+
+const grossAmountUsdCents = (event: typeof StoredAnalyticsEvent.Type) =>
+  numberProperty(event, REVENUE_PROPERTY.grossAmountUsd, REVENUE_PROPERTY.amountUsd);
+
+const isTrial = (event: typeof StoredAnalyticsEvent.Type) =>
+  booleanProperty(event, REVENUE_PROPERTY.isTrial);
 
 const personKey = (event: typeof StoredAnalyticsEvent.Type) => event.personId ?? event.distinctId;
 
@@ -104,11 +113,11 @@ const matchesFilters = (
 ) => {
   if (!filters.projectIds.includes(event.projectId)) return false;
   if (filters.providerEnvironments?.length === 0) return false;
-  const productId = stringProperty(event, "product_id", "productId", "product.id");
+  const productId = stringProperty(event, REVENUE_PROPERTY.productId);
   if (filters.productIds !== undefined && !filters.productIds.includes(productId)) return false;
   // An absent provider_environment is not evidence against the filter; only a
   // present-but-unlisted environment excludes the event.
-  const environment = optionalNumberProperty(event, "provider_environment", "providerEnvironment");
+  const environment = optionalNumberProperty(event, REVENUE_PROPERTY.providerEnvironment);
   if (
     filters.providerEnvironments !== undefined &&
     environment !== undefined &&
@@ -174,16 +183,14 @@ const subscriptionStockByBucket = (input: {
     const previous = HashMap.get(states, id);
     const amount = optionalNumberProperty(
       event,
-      "gross_amount_usd",
-      "grossAmountUsd",
-      "amount_usd",
-      "amountUsd",
+      REVENUE_PROPERTY.grossAmountUsd,
+      REVENUE_PROPERTY.amountUsd,
     );
     let amountUsd = Option.match(previous, { onNone: () => 0, onSome: (value) => value.amountUsd });
     if (amount !== undefined) amountUsd = amount / 100;
     states = HashMap.set(states, id, {
       amountUsd,
-      trial: booleanProperty(event, "is_trial", "isTrial"),
+      trial: isTrial(event),
     });
   };
   let index = 0;
@@ -335,7 +342,7 @@ export const resolvePortableAnalyticsSeries = (input: {
           filtered.filter((event) => isRevenueMoneyEventName(event.eventName)),
           input.granularity,
           (event) =>
-            numberProperty(event, "gross_amount_usd", "grossAmountUsd", "amount_usd", "amountUsd") /
+            grossAmountUsdCents(event) /
             100,
         ),
       ),
@@ -360,7 +367,7 @@ export const resolvePortableAnalyticsSeries = (input: {
           filtered.filter((event) => HashSet.has(eventNames.subscriptionChurn, event.eventName)),
           input.granularity,
           (event) =>
-            numberProperty(event, "gross_amount_usd", "grossAmountUsd", "amount_usd", "amountUsd") /
+            grossAmountUsdCents(event) /
             100,
         ),
       ),
@@ -383,7 +390,7 @@ export const resolvePortableAnalyticsSeries = (input: {
           filtered.filter(
             (event) =>
               event.eventName === "$subscription.created" &&
-              booleanProperty(event, "is_trial", "isTrial") === trials,
+              isTrial(event) === trials,
           ),
           input.granularity,
           () => 1,
@@ -415,7 +422,7 @@ export const resolvePortableAnalyticsSeries = (input: {
               return state;
             const id = subscriptionId(event);
             if (event.eventName === "$subscription.created") {
-              if (booleanProperty(event, "is_trial", "isTrial")) {
+              if (isTrial(event)) {
                 const existing = HashMap.get(state.trialStarts, id);
                 if (Option.isNone(existing) || event.eventTimestamp < existing.value) {
                   return {
@@ -428,7 +435,7 @@ export const resolvePortableAnalyticsSeries = (input: {
             }
             const trialStart = HashMap.get(state.trialStarts, id);
             if (Option.isNone(trialStart) || event.eventTimestamp < trialStart.value) return state;
-            if (booleanProperty(event, "is_trial", "isTrial")) return state;
+            if (isTrial(event)) return state;
             const existing = HashMap.get(state.conversions, id);
             if (Option.isSome(existing) && event.eventTimestamp >= existing.value.eventTimestamp) {
               return state;
@@ -507,14 +514,7 @@ export const resolvePortableAnalyticsSeries = (input: {
         const paying = uniqueByBucket(
           filtered.filter(
             (event) =>
-              isRevenueMoneyEventName(event.eventName) &&
-              numberProperty(
-                event,
-                "gross_amount_usd",
-                "grossAmountUsd",
-                "amount_usd",
-                "amountUsd",
-              ) > 0,
+              isRevenueMoneyEventName(event.eventName) && grossAmountUsdCents(event) > 0,
           ),
           input.granularity,
           personKey,

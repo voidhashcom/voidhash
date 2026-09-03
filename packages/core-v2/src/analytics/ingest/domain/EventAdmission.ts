@@ -132,6 +132,15 @@ export const BUILTIN_EVENT_ADMISSION_LIST: readonly BuiltinEventAdmissionEntry[]
     warning: "Disabling this breaks A/B test results — experiments have no exposure data.",
   },
   {
+    key: "$set",
+    name: "Person attributes",
+    description:
+      "Emitted when the SDK sets person attributes; carries the $set payload that updates the person profile.",
+    eventNames: ["$set"],
+    defaultEnabled: { cloud: true, oss: true },
+    warning: "Disabling this stops person attributes set from the SDK from reaching person profiles.",
+  },
+  {
     key: "$identify",
     name: "Identify",
     description: "Links an anonymous distinct id to a known user id.",

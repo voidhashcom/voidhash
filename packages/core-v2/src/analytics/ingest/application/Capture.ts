@@ -37,6 +37,17 @@ export class AnalyticsCaptureError extends Schema.TaggedErrorClass<AnalyticsCapt
 const captureError = (error: { readonly cause?: unknown; readonly message: string }) =>
   new AnalyticsCaptureError({ cause: String(error.cause), message: error.message });
 
+/** Coarse location the edge derived from the client address; every field is best effort. */
+export const CaptureRequestGeo = Schema.Struct({
+  city: Schema.optional(Schema.String),
+  /** ISO 3166-1 alpha-2 country code. */
+  country: Schema.optional(Schema.String),
+  region: Schema.optional(Schema.String),
+  /** IANA time zone name. */
+  timezone: Schema.optional(Schema.String),
+});
+export type CaptureRequestGeo = typeof CaptureRequestGeo.Type;
+
 /** Decoded request accepted by the analytics capture application service. */
 export const CaptureRequest = Schema.Struct({
   request: Schema.Struct({
@@ -45,12 +56,32 @@ export const CaptureRequest = Schema.Struct({
     sentAt: Schema.Date,
     receivedAt: Schema.Date,
     clientIp: Schema.optional(Schema.String),
+    geo: Schema.optional(CaptureRequestGeo),
     requestId: Schema.String,
     headers: Schema.Record(Schema.String, Schema.UndefinedOr(Schema.String)),
   }),
   events: Schema.Array(CaptureEvent),
 });
 export type CaptureRequest = typeof CaptureRequest.Type;
+
+/**
+ * Server-observed facts stamped onto every captured event, keyed like the
+ * SDK's own standardized `$` properties so one vocabulary covers both. The
+ * client's own value wins for `$environment`, which it may assert directly.
+ */
+const serverEnrichment = (request: (typeof CaptureRequest.Type)["request"]) => {
+  const userAgent = request.headers["user-agent"];
+  const environment = request.headers["x-environment"];
+  return {
+    ...(userAgent && { $user_agent: userAgent }),
+    ...(request.clientIp && { $ip: request.clientIp }),
+    ...(request.geo?.country && { $geo_country: request.geo.country }),
+    ...(request.geo?.region && { $geo_region: request.geo.region }),
+    ...(request.geo?.city && { $geo_city: request.geo.city }),
+    ...(request.geo?.timezone && { $geo_timezone: request.geo.timezone }),
+    ...(environment && { $environment: environment }),
+  };
+};
 
 /** Result returned after a capture batch has been admitted and delivered. */
 export const CaptureResult = Schema.Struct({
@@ -79,13 +110,15 @@ const makeCaptureEnvelope = (input: {
       processPersonProfile = !input.event.distinct_id.startsWith("vh:anon:");
     }
     // Server-derived enrichment rides inside the user properties object so it
-    // survives the unwrap-to-inner step at storage time.
+    // survives the unwrap-to-inner step at storage time. Client-asserted keys
+    // win only for `$environment`; the rest are facts the client cannot know.
+    const enrichment = serverEnrichment(input.request);
     const innerProperties = {
       ...input.event.properties,
-      ...(input.request.headers["user-agent"] && {
-        $user_agent: input.request.headers["user-agent"],
+      ...enrichment,
+      ...(P.isString(input.event.properties.$environment) && {
+        $environment: input.event.properties.$environment,
       }),
-      ...(input.request.clientIp && { $ip: input.request.clientIp }),
     };
     const properties = {
       distinctId: input.event.distinct_id,
@@ -104,15 +137,6 @@ const makeCaptureEnvelope = (input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       properties,
-      rawPayload: {
-        context: input.event.context,
-        distinct_id: input.event.distinct_id,
-        event: input.event.event,
-        properties,
-        ...(input.event.session_id && { session_id: input.event.session_id }),
-        timestamp: input.event.timestamp,
-        ...(input.event.uuid && { uuid: input.event.uuid }),
-      },
       receivedAt: input.receivedAt.toISOString(),
       request: {
         requestId: input.request.requestId,

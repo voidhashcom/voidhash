@@ -2,6 +2,8 @@ import * as P from "effect/Predicate";
 import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 
+import { TrustClass } from "../ingest/domain/Ingest.ts";
+
 export const AnalyticsEventSource = Schema.Literals(["sdk", "revenue", "internal"]);
 export type AnalyticsEventSource = typeof AnalyticsEventSource.Type;
 
@@ -16,6 +18,8 @@ export const AnalyticsEventV1 = Schema.Struct({
   captureId: Schema.String,
   eventName: Schema.String,
   eventTimestamp: Schema.Date,
+  /** When the client flushed the batch carrying this event; null for server-emitted events. */
+  sentAt: Schema.NullOr(Schema.Date),
   receivedAt: Schema.Date,
   processedAt: Schema.Date,
   organizationId: Schema.String,
@@ -32,6 +36,11 @@ export const AnalyticsEventV1 = Schema.Struct({
   requestPath: Schema.NullOr(Schema.String),
   source: AnalyticsEventSource,
   sourceTopic: Schema.String,
+  /** Position of the delivery this event arrived in, for replay and ordering audits. */
+  sourceOffset: Schema.String,
+  sourcePartition: Schema.Int,
+  /** Provenance stamped at the dispatch boundary, so trust is queryable after the fact. */
+  trustClass: TrustClass,
 });
 export type AnalyticsEventV1 = typeof AnalyticsEventV1.Type;
 
@@ -54,6 +63,13 @@ const sourceForProcessedTopic = (sourceTopic: string) => {
   return "sdk";
 };
 
+/** Envelopes from producers that predate the trust marker are classified by their topic. */
+const trustClassForProcessedTopic = (sourceTopic: string): typeof TrustClass.Type => {
+  if (sourceTopic.startsWith("revenue.")) return "trusted-revenue";
+  if (sourceTopic.startsWith("experiment.")) return "trusted-internal";
+  return "untrusted-sdk";
+};
+
 const previousDistinctIdFrom = (properties: Readonly<Record<string, unknown>>) => {
   if (P.isString(properties.$previous_distinct_id)) {
     return properties.$previous_distinct_id;
@@ -71,6 +87,7 @@ export interface ProcessedAnalyticsEvent {
   readonly distinctId: string;
   readonly event: string;
   readonly eventTimestamp: string;
+  readonly sentAt?: string;
   readonly identity: {
     readonly distinctId: string;
     readonly mode: "full" | "personless";
@@ -84,8 +101,11 @@ export interface ProcessedAnalyticsEvent {
   readonly properties: Readonly<Record<string, unknown>>;
   readonly request: { readonly path?: string; readonly requestId: string };
   readonly sourceTopic: string;
+  readonly sourceOffset?: string;
+  readonly sourcePartition?: number;
   readonly sessionId?: string;
   readonly token: string;
+  readonly trustClass?: typeof TrustClass.Type;
 }
 
 /** Maps a processed ingest envelope onto the portable event contract. */
@@ -97,6 +117,7 @@ export const analyticsEventFromProcessed = (event: ProcessedAnalyticsEvent) => {
     captureId: event.captureId,
     eventName: event.event,
     eventTimestamp: DateTime.toDateUtc(DateTime.makeUnsafe(event.eventTimestamp)),
+    sentAt: event.sentAt === undefined ? null : DateTime.toDateUtc(DateTime.makeUnsafe(event.sentAt)),
     receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(event.receivedAt)),
     processedAt: DateTime.toDateUtc(DateTime.makeUnsafe(event.processedAt)),
     organizationId: event.organizationId,
@@ -113,5 +134,8 @@ export const analyticsEventFromProcessed = (event: ProcessedAnalyticsEvent) => {
     requestPath: event.request.path ?? null,
     source: sourceForProcessedTopic(event.sourceTopic),
     sourceTopic: event.sourceTopic,
+    sourceOffset: event.sourceOffset ?? "",
+    sourcePartition: event.sourcePartition ?? 0,
+    trustClass: event.trustClass ?? trustClassForProcessedTopic(event.sourceTopic),
   } satisfies typeof AnalyticsEventV1.Type;
 };

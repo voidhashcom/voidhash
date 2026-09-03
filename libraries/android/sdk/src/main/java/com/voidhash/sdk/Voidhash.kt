@@ -159,7 +159,12 @@ object Voidhash {
             distinctIdProvider = identityStore::getDistinctId,
             sessionIdProvider = sessionManager::current,
             httpClient = httpClient,
-            standardProperties = { analyticsStandardProperties(platform) },
+            standardProperties = {
+                analyticsStandardProperties(
+                    platform,
+                    environment = if (developmentMode) "development" else "production",
+                )
+            },
             onWarning = ::warn,
         )
 

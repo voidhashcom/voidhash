@@ -1,8 +1,12 @@
+import * as Arr from "effect/Array";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
 import * as Schema from "effect/Schema";
 
 import {
@@ -29,7 +33,9 @@ import {
   CapturedEventV1,
   type CapturedTransportRecord,
   EventContextSchema,
+  type EventProcessorDlqV1,
   EventPropertiesSchema,
+  type ResolvedProcessorProject,
   validateBuiltInProcessorRules,
 } from "../domain/Ingest.ts";
 
@@ -106,7 +112,6 @@ export const makeInternalCaptureEnvelope = (
     properties: Schema.decodeUnknownSync(Schema.fromJsonString(EventPropertiesSchema))(
       encodeJson(enrichedProperties),
     ),
-    rawPayload: {},
     receivedAt: receivedAt.toISOString(),
     request: {
       isInternal: true,
@@ -138,6 +143,7 @@ const buildProcessedEvent = (input: {
     distinctId: input.record.capturedEvent.distinctId,
     event: input.record.capturedEvent.event,
     eventTimestamp,
+    ...(input.record.capturedEvent.sentAt && { sentAt: input.record.capturedEvent.sentAt }),
     identity: input.identity,
     organizationId: input.record.capturedEvent.organizationId,
     processedAt: input.now.toISOString(),
@@ -148,10 +154,15 @@ const buildProcessedEvent = (input: {
     properties: input.record.capturedEvent.properties,
     request: input.record.capturedEvent.request,
     sourceTopic: input.record.sourceTopic,
+    sourceOffset: input.record.sourceOffset,
+    sourcePartition: input.record.sourcePartition,
     ...(input.record.capturedEvent.sessionId && {
       sessionId: input.record.capturedEvent.sessionId,
     }),
     token: input.record.capturedEvent.token,
+    ...(input.record.capturedEvent.trustClass && {
+      trustClass: input.record.capturedEvent.trustClass,
+    }),
   } satisfies ProcessedAnalyticsEvent;
 };
 
@@ -162,12 +173,54 @@ export const ProcessResult = Schema.Struct({
 });
 export type ProcessResult = typeof ProcessResult.Type;
 
+/** Outcome of processing a batch of transport records with one storage write. */
+export const ProcessBatchResult = Schema.Struct({
+  /** Records rejected by policy or validation and persisted as dead letters. */
+  deadLettered: Schema.Int,
+  /** Canonical events the store reported as submitted for insert. */
+  inserted: Schema.Int,
+  /** Records that passed every rule and were handed to the store. */
+  stored: Schema.Int,
+});
+export type ProcessBatchResult = typeof ProcessBatchResult.Type;
+
 /** Analytics processing capabilities shared by inline and queued transports. */
 interface AnalyticsProcessorShape {
+  /** Processes one record; equivalent to a single-record {@link processBatch}. */
   readonly process: (
     record: typeof CapturedTransportRecord.Type,
   ) => Effect.Effect<typeof ProcessResult.Type, AnalyticsProcessorError>;
+  /**
+   * Processes a whole delivery at once: project policy is resolved once per
+   * credential, rejected records are dead-lettered in one write, and every
+   * accepted event plus its identity projections lands in a single store
+   * insert. Nothing is stored when the batch fails, so a retried delivery
+   * cannot leave a partially written prefix behind.
+   */
+  readonly processBatch: (
+    records: ReadonlyArray<typeof CapturedTransportRecord.Type>,
+  ) => Effect.Effect<typeof ProcessBatchResult.Type, AnalyticsProcessorError>;
 }
+
+type DlqFailureClass = (typeof EventProcessorDlqV1.Type)["failureClass"];
+
+interface AdmittedRecord {
+  readonly project: typeof ResolvedProcessorProject.Type;
+  readonly record: typeof CapturedTransportRecord.Type;
+  readonly trustedSource: boolean;
+}
+
+/**
+ * Records sharing a credential and project resolve to the same policy, so a
+ * batch only pays for one repository round trip per distinct key.
+ */
+const projectCacheKey = (
+  capturedEvent: typeof CapturedEventV1.Type,
+  trustedSource: boolean,
+): string =>
+  [String(trustedSource), capturedEvent.projectId, capturedEvent.token]
+    .map((part) => `${part.length}:${part}`)
+    .join("");
 
 const makeAnalyticsProcessor = Effect.fn("makeAnalyticsProcessor")(function* () {
   const config = yield* AnalyticsConfig;
@@ -177,103 +230,198 @@ const makeAnalyticsProcessor = Effect.fn("makeAnalyticsProcessor")(function* () 
   const store = yield* AnalyticsStore;
   const crypto = yield* Crypto.Crypto;
 
-  return {
-    process: (record: typeof CapturedTransportRecord.Type) =>
-      Effect.gen(function* () {
-        const reject = (
-          failureClass: Parameters<typeof buildDlqEvent>[0]["failureClass"],
-          message: string,
-        ) =>
-          Effect.gen(function* () {
-            const event = yield* buildDlqEvent({
-              captureId: record.capturedEvent.captureId,
-              distinctId: record.capturedEvent.distinctId,
-              failureClass,
-              failureMessage: message,
-              headers: { ...record.headers },
-              projectId: record.capturedEvent.projectId,
-              rawKey: record.rawKey,
-              rawValue: record.rawValue,
-              sourceOffset: record.sourceOffset,
-              sourcePartition: record.sourcePartition,
-              sourceTopic: record.sourceTopic,
-              token: record.capturedEvent.token,
-            }).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.mapError(processorError));
-            yield* deadLetters.write([event]).pipe(Effect.mapError(processorError));
-            return { inserted: 0, status: "dead-lettered" } satisfies typeof ProcessResult.Type;
-          });
-        const trustedSource = isTrustedInternalAnalyticsEventSource({
-          eventName: record.capturedEvent.event,
-          sourceTopic: record.sourceTopic,
-          trustClass: record.capturedEvent.trustClass,
-        });
-        const claimsTrustedSource =
-          isReservedRevenueEventName(record.capturedEvent.event) ||
-          record.capturedEvent.event === "$experiment.exposed" ||
-          (record.capturedEvent.trustClass !== undefined &&
-            record.capturedEvent.trustClass !== "untrusted-sdk");
-        if (claimsTrustedSource && !trustedSource) {
-          return yield* reject(
-            "reserved_event_name",
-            "internal analytics event does not have a trusted source",
-          );
-        }
-        const project = yield* projects
-          .resolve(record.capturedEvent)
-          .pipe(Effect.mapError(processorError));
-        if (!project || project.projectId !== record.capturedEvent.projectId) {
-          return yield* reject("project_not_found", "failed to resolve processor project policy");
-        }
-        if (!project.policy.isProcessorEnabled) {
-          return yield* reject("policy_rejected", "processor is disabled for the project");
-        }
-        if (
-          !admitEvent({
-            edition: config.edition,
-            eventName: record.capturedEvent.event,
-            policy: project.policy.admission,
-          }).admitted
-        ) {
-          return yield* reject(
-            "policy_rejected",
-            `event ${record.capturedEvent.event} is not admitted for this project`,
-          );
-        }
-        const now = yield* DateTime.nowAsDate;
-        const validation = validateBuiltInProcessorRules({
-          capturedEvent: record.capturedEvent,
-          sourceTopic: record.sourceTopic,
-        });
-        if (validation) return yield* reject("schema_rejected", validation);
+  const deadLetterFor = (
+    record: typeof CapturedTransportRecord.Type,
+    failureClass: DlqFailureClass,
+    message: string,
+  ) =>
+    buildDlqEvent({
+      captureId: record.capturedEvent.captureId,
+      distinctId: record.capturedEvent.distinctId,
+      failureClass,
+      failureMessage: message,
+      headers: { ...record.headers },
+      projectId: record.capturedEvent.projectId,
+      rawKey: record.rawKey,
+      rawValue: record.rawValue,
+      sourceOffset: record.sourceOffset,
+      sourcePartition: record.sourcePartition,
+      sourceTopic: record.sourceTopic,
+      token: record.capturedEvent.token,
+    }).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.mapError(processorError));
 
-        const claim = record.capturedEvent.identityClaim;
-        let resolution: typeof IdentityResolution.Type;
-        if (claim?._tag === "Resolved" && trustedSource) {
-          resolution = {
-            identity: {
-              distinctId: claim.distinctId,
-              mode: "full",
-              personId: claim.personId,
-            },
-            personEvents: [],
-            personIdentityEvents: [],
-          };
-        } else {
-          resolution = yield* identity.resolve(record).pipe(Effect.mapError(processorError));
-        }
-        const event = analyticsEventFromProcessed(
-          buildProcessedEvent({ identity: resolution.identity, now, record, trustedSource }),
+  /**
+   * Applies every rule that needs no identity work. Returns the admitted
+   * record, or the dead-letter event describing why it was refused.
+   */
+  const admit = (
+    record: typeof CapturedTransportRecord.Type,
+    resolveProject: (
+      key: string,
+      capturedEvent: typeof CapturedEventV1.Type,
+    ) => Effect.Effect<
+      typeof ResolvedProcessorProject.Type | typeof Schema.Undefined.Type,
+      AnalyticsProcessorError
+    >,
+  ) =>
+    Effect.gen(function* () {
+      const reject = (failureClass: DlqFailureClass, message: string) =>
+        Effect.map(deadLetterFor(record, failureClass, message), (event) => ({ event }));
+      const trustedSource = isTrustedInternalAnalyticsEventSource({
+        eventName: record.capturedEvent.event,
+        sourceTopic: record.sourceTopic,
+        trustClass: record.capturedEvent.trustClass,
+      });
+      const claimsTrustedSource =
+        isReservedRevenueEventName(record.capturedEvent.event) ||
+        record.capturedEvent.event === "$experiment.exposed" ||
+        (record.capturedEvent.trustClass !== undefined &&
+          record.capturedEvent.trustClass !== "untrusted-sdk");
+      if (claimsTrustedSource && !trustedSource) {
+        return yield* reject(
+          "reserved_event_name",
+          "internal analytics event does not have a trusted source",
         );
-        const inserted = yield* store
+      }
+      const project = yield* resolveProject(
+        projectCacheKey(record.capturedEvent, trustedSource),
+        record.capturedEvent,
+      );
+      if (!project || project.projectId !== record.capturedEvent.projectId) {
+        return yield* reject("project_not_found", "failed to resolve processor project policy");
+      }
+      if (!project.policy.isProcessorEnabled) {
+        return yield* reject("policy_rejected", "processor is disabled for the project");
+      }
+      if (
+        !admitEvent({
+          edition: config.edition,
+          eventName: record.capturedEvent.event,
+          policy: project.policy.admission,
+        }).admitted
+      ) {
+        return yield* reject(
+          "policy_rejected",
+          `event ${record.capturedEvent.event} is not admitted for this project`,
+        );
+      }
+      const validation = validateBuiltInProcessorRules({
+        capturedEvent: record.capturedEvent,
+        sourceTopic: record.sourceTopic,
+      });
+      if (validation) return yield* reject("schema_rejected", validation);
+      return { admitted: { project, record, trustedSource } satisfies AdmittedRecord };
+    });
+
+  const resolveIdentity = (admitted: AdmittedRecord) => {
+    const claim = admitted.record.capturedEvent.identityClaim;
+    if (claim?._tag === "Resolved" && admitted.trustedSource) {
+      return Effect.succeed({
+        identity: {
+          distinctId: claim.distinctId,
+          mode: "full",
+          personId: claim.personId,
+        },
+        personEvents: [],
+        personIdentityEvents: [],
+      } satisfies typeof IdentityResolution.Type);
+    }
+    return identity.resolve(admitted.record).pipe(Effect.mapError(processorError));
+  };
+
+  const processBatch = (records: ReadonlyArray<typeof CapturedTransportRecord.Type>) =>
+    Effect.gen(function* () {
+      if (Arr.isReadonlyArrayEmpty(records)) {
+        return { deadLettered: 0, inserted: 0, stored: 0 } satisfies typeof ProcessBatchResult.Type;
+      }
+      const projectCache = MutableHashMap.empty<
+        string,
+        typeof ResolvedProcessorProject.Type | typeof Schema.Undefined.Type
+      >();
+      const resolveProject = (key: string, capturedEvent: typeof CapturedEventV1.Type) =>
+        Option.match(MutableHashMap.get(projectCache, key), {
+          onSome: Effect.succeed,
+          onNone: () =>
+            projects.resolve(capturedEvent).pipe(
+              Effect.mapError(processorError),
+              Effect.tap((project) =>
+                Effect.sync(() => {
+                  MutableHashMap.set(projectCache, key, project);
+                }),
+              ),
+            ),
+        });
+
+      const decisions = yield* Effect.forEach(
+        records,
+        (record) => admit(record, resolveProject),
+        { concurrency: 1 },
+      );
+      const deadLetterEvents = Arr.getSomes(
+        decisions.map((decision) =>
+          "event" in decision ? Option.some(decision.event) : Option.none(),
+        ),
+      );
+      const admitted = Arr.getSomes(
+        decisions.map((decision) =>
+          "admitted" in decision ? Option.some(decision.admitted) : Option.none(),
+        ),
+      );
+
+      // Identity resolution mutates person state, so it stays sequential to
+      // keep merges for one distinct id ordered within a delivery.
+      const now = yield* DateTime.nowAsDate;
+      const processed = yield* Effect.forEach(
+        admitted,
+        (entry) =>
+          Effect.map(resolveIdentity(entry), (resolution) => ({
+            event: analyticsEventFromProcessed(
+              buildProcessedEvent({
+                identity: resolution.identity,
+                now,
+                record: entry.record,
+                trustedSource: entry.trustedSource,
+              }),
+            ),
+            project: entry.project,
+            resolution,
+          })),
+        { concurrency: 1 },
+      );
+
+      if (Arr.isReadonlyArrayNonEmpty(deadLetterEvents)) {
+        yield* deadLetters.write(deadLetterEvents).pipe(Effect.mapError(processorError));
+      }
+      let inserted = 0;
+      if (Arr.isReadonlyArrayNonEmpty(processed)) {
+        inserted = yield* store
           .insert({
-            events: [event],
-            organizationIdsByProject: { [project.projectId]: project.organizationId },
-            personEvents: resolution.personEvents,
-            personIdentityEvents: resolution.personIdentityEvents,
+            events: processed.map((entry) => entry.event),
+            organizationIdsByProject: R.fromEntries(
+              processed.map((entry) => [entry.project.projectId, entry.project.organizationId]),
+            ),
+            personEvents: processed.flatMap((entry) => entry.resolution.personEvents),
+            personIdentityEvents: processed.flatMap(
+              (entry) => entry.resolution.personIdentityEvents,
+            ),
           })
           .pipe(Effect.mapError(processorError));
-        return { inserted, status: "stored" };
-      }),
+      }
+      return {
+        deadLettered: deadLetterEvents.length,
+        inserted,
+        stored: processed.length,
+      } satisfies typeof ProcessBatchResult.Type;
+    });
+
+  return {
+    process: (record: typeof CapturedTransportRecord.Type) =>
+      Effect.map(processBatch([record]), (outcome) =>
+        outcome.stored > 0
+          ? ({ inserted: outcome.inserted, status: "stored" } satisfies typeof ProcessResult.Type)
+          : ({ inserted: 0, status: "dead-lettered" } satisfies typeof ProcessResult.Type),
+      ),
+    processBatch,
   } satisfies AnalyticsProcessorShape;
 })();
 

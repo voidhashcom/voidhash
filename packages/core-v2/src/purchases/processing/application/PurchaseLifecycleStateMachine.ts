@@ -366,6 +366,10 @@ const makePurchaseLifecycleStateMachine = Effect.fn("makePurchaseLifecycleStateM
               let subscriptionId: string;
               let projectionAdvanced: boolean;
               let newlyInserted: boolean;
+              // A trial period followed by a paid renewal is the conversion
+              // the trial insights count; only the previous projection knows.
+              const convertedFromTrial =
+                existing !== undefined && existing.isTrial && !input.isTrial;
               if (existing === undefined) {
                 const inserted = yield* txRepository.insertSubscriptionIfAbsent(
                   newSubscriptionRow(input, context, subscriptionKey.value, input.renewedAt),
@@ -394,7 +398,7 @@ const makePurchaseLifecycleStateMachine = Effect.fn("makePurchaseLifecycleStateM
                 action: input,
                 buildEvents: (mapperContext) =>
                   toRenewedAnalyticsInputs(
-                    input,
+                    { ...input, convertedFromTrial },
                     { personId: context.personId, transactionId: transaction.id },
                     mapperContext,
                   ),

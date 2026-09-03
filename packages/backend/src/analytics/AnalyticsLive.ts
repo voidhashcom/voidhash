@@ -22,11 +22,13 @@ import {
   emptyEventAdmissionPolicy,
   extractInnerProperties,
   isTrustedInternalAnalyticsEventSource,
+  makeCaptureCredentialCache,
   parsePersonTraits,
   PolicyCounter,
   PostgresAnalyticsClient,
   PostgresAnalyticsStoreLive,
   ProcessorProjectRepository,
+  withCaptureCredentialCache,
   type CapturedTransportRecord,
   type ClickHouseAnalyticsClientShape,
   type ClickHouseStatement,
@@ -50,7 +52,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as PlatformError from "effect/PlatformError";
 import * as P from "effect/Predicate";
+import * as Option from "effect/Option";
 import * as R from "effect/Record";
+import type * as Schema from "effect/Schema";
 import * as Arr from "effect/Array";
 import { MutableMap } from "../collection-boundary.ts";
 
@@ -119,44 +123,75 @@ const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
     })(),
 });
 
+/**
+ * Credential lookups are memoised across requests. The cache lives at module
+ * scope on purpose: the analytics layer is rebuilt per request around a
+ * per-request database, so a cache inside the layer would never see a second
+ * request. A policy change (quota, ingest toggle, admission) therefore takes
+ * effect within this window rather than immediately.
+ */
+export const CAPTURE_CREDENTIAL_CACHE_TTL = "30 seconds";
+const captureCredentialCache = makeCaptureCredentialCache({
+  capacity: 10_000,
+  timeToLive: CAPTURE_CREDENTIAL_CACHE_TTL,
+});
+
+/** A project without a policy row (left join produced nulls) uses the registry defaults. */
+const admissionPolicyFromRow = (row: {
+  readonly builtinEventOverrides: Readonly<Record<string, boolean>> | typeof Schema.Null.Type;
+  readonly customEventBlocklist: readonly string[] | typeof Schema.Null.Type;
+}) =>
+  Option.match(
+    Option.all({
+      builtinEventOverrides: Option.fromNullishOr(row.builtinEventOverrides),
+      customEventBlocklist: Option.fromNullishOr(row.customEventBlocklist),
+    }),
+    { onNone: () => emptyEventAdmissionPolicy, onSome: (policy) => policy },
+  );
+
 const CaptureCredentialRepositoryLive = Layer.effect(
   CaptureCredentialRepository,
   Effect.gen(function* () {
     const db = yield* Db;
-    return CaptureCredentialRepository.of({
-      resolve: ({ isPublic, lookupKey }) =>
-        Effect.fn("resolve")(function* () {
-          const [record] = yield* db
-            .select({ organizationId: projects.organizationId, projectId: apiKeys.projectId })
-            .from(apiKeys)
-            .innerJoin(projects, eq(projects.id, apiKeys.projectId))
-            .where(and(eq(apiKeys.isPublic, isPublic), eq(apiKeys.key, lookupKey)))
-            .limit(1);
-          if (!record) return undefined;
-          const [policy] = yield* db
-            .select({
-              builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
-              customEventBlocklist: captureProjectPolicies.customEventBlocklist,
-              eventsPerDay: captureProjectPolicies.eventsPerDay,
-              isIngestEnabled: captureProjectPolicies.ingestEnabled,
-              requestsPerMinute: captureProjectPolicies.requestsPerMinute,
-            })
-            .from(captureProjectPolicies)
-            .where(eq(captureProjectPolicies.projectId, record.projectId))
-            .limit(1);
-          return {
-            organizationId: record.organizationId,
-            projectId: record.projectId,
-            policy: {
-              admission: policy ?? emptyEventAdmissionPolicy,
-              eventsPerDay: policy?.eventsPerDay ?? undefined,
-              isIngestEnabled: policy?.isIngestEnabled ?? true,
+    return CaptureCredentialRepository.of(
+      withCaptureCredentialCache(captureCredentialCache)({
+        resolve: ({ isPublic, lookupKey }) =>
+          Effect.fn("resolve")(function* () {
+            // One round trip: the policy row is optional, so it rides along on
+            // a left join instead of a second query.
+            const [record] = yield* db
+              .select({
+                organizationId: projects.organizationId,
+                projectId: apiKeys.projectId,
+                builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
+                customEventBlocklist: captureProjectPolicies.customEventBlocklist,
+                eventsPerDay: captureProjectPolicies.eventsPerDay,
+                isIngestEnabled: captureProjectPolicies.ingestEnabled,
+                requestsPerMinute: captureProjectPolicies.requestsPerMinute,
+              })
+              .from(apiKeys)
+              .innerJoin(projects, eq(projects.id, apiKeys.projectId))
+              .leftJoin(
+                captureProjectPolicies,
+                eq(captureProjectPolicies.projectId, apiKeys.projectId),
+              )
+              .where(and(eq(apiKeys.isPublic, isPublic), eq(apiKeys.key, lookupKey)))
+              .limit(1);
+            if (!record) return undefined;
+            return {
+              organizationId: record.organizationId,
               projectId: record.projectId,
-              requestsPerMinute: policy?.requestsPerMinute ?? undefined,
-            },
-          };
-        })().pipe(Effect.mapError(portError("capture project lookup failed"))),
-    });
+              policy: {
+                admission: admissionPolicyFromRow(record),
+                eventsPerDay: record.eventsPerDay ?? undefined,
+                isIngestEnabled: record.isIngestEnabled ?? true,
+                projectId: record.projectId,
+                requestsPerMinute: record.requestsPerMinute ?? undefined,
+              },
+            };
+          })().pipe(Effect.mapError(portError("capture project lookup failed"))),
+      }),
+    );
   }),
 );
 
@@ -172,19 +207,29 @@ const ProcessorProjectRepositoryLive = Layer.effect(
             sourceTopic: event.sourceTopic,
             trustClass: event.trustClass,
           });
-          const records: ReadonlyArray<{
-            readonly organizationId: string;
-            readonly projectId: string;
-          }> = trusted
+          const projectColumns = {
+            organizationId: projects.organizationId,
+            projectId: projects.id,
+            builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
+            customEventBlocklist: captureProjectPolicies.customEventBlocklist,
+            isProcessorEnabled: captureProjectPolicies.processorEnabled,
+          };
+          const policyJoin = eq(captureProjectPolicies.projectId, projects.id);
+          // Trusted events name their project directly; SDK events must still
+          // map through the credential they were captured with, so a revoked
+          // key stops its in-flight events too.
+          const records = trusted
             ? yield* db
-                .select({ organizationId: projects.organizationId, projectId: projects.id })
+                .select(projectColumns)
                 .from(projects)
+                .leftJoin(captureProjectPolicies, policyJoin)
                 .where(eq(projects.id, event.projectId))
                 .limit(1)
             : yield* db
-                .select({ organizationId: projects.organizationId, projectId: apiKeys.projectId })
+                .select(projectColumns)
                 .from(apiKeys)
                 .innerJoin(projects, eq(projects.id, apiKeys.projectId))
+                .leftJoin(captureProjectPolicies, policyJoin)
                 .where(
                   and(
                     eq(apiKeys.isPublic, event.token.startsWith("vh_pk_")),
@@ -194,26 +239,11 @@ const ProcessorProjectRepositoryLive = Layer.effect(
                 .limit(1);
           const record = records[0];
           if (!record) return undefined;
-          const [policy] = yield* db
-            .select({
-              builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
-              customEventBlocklist: captureProjectPolicies.customEventBlocklist,
-              isProcessorEnabled: captureProjectPolicies.processorEnabled,
-            })
-            .from(captureProjectPolicies)
-            .where(eq(captureProjectPolicies.projectId, record.projectId))
-            .limit(1);
-          const admission = policy
-            ? {
-                builtinEventOverrides: policy.builtinEventOverrides,
-                customEventBlocklist: policy.customEventBlocklist,
-              }
-            : emptyEventAdmissionPolicy;
           return {
             organizationId: record.organizationId,
             policy: {
-              admission,
-              isProcessorEnabled: policy?.isProcessorEnabled ?? true,
+              admission: admissionPolicyFromRow(record),
+              isProcessorEnabled: record.isProcessorEnabled ?? true,
             },
             projectId: record.projectId,
           };

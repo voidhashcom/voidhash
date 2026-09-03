@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import { AnalyticsPortError, AnalyticsStore } from "../../../application/ports.ts";
+import { TrustClass } from "../../domain/Ingest.ts";
 import type {
   AnalyticsEventPage,
   AnalyticsStoreShape,
@@ -64,6 +65,7 @@ const ClickHouseEventRow = Schema.Struct({
   capture_id: Schema.String,
   event_name: Schema.String,
   event_ts: ClickHouseTimestamp,
+  sent_ts: Schema.optional(Schema.NullOr(ClickHouseTimestamp)),
   received_ts: Schema.optional(ClickHouseTimestamp),
   processed_ts: ClickHouseTimestamp,
   inserted_ts: ClickHouseTimestamp,
@@ -79,9 +81,22 @@ const ClickHouseEventRow = Schema.Struct({
   request_id: Schema.String,
   request_path: Schema.String,
   session_id: Schema.NullOr(Schema.String),
+  source_offset: Schema.optional(Schema.String),
+  source_partition: Schema.optional(Schema.Int),
   source_topic: Schema.String,
+  trust_class: Schema.optional(Schema.String),
 });
 type ClickHouseEventRow = typeof ClickHouseEventRow.Type;
+
+const decodeTrustClass = Schema.decodeUnknownOption(TrustClass);
+
+/** Rows written before the column existed carry the empty default and fall back to their topic. */
+const trustClassOf = (row: ClickHouseEventRow): typeof TrustClass.Type =>
+  Option.getOrElse(decodeTrustClass(row.trust_class), () => {
+    if (row.source_topic.startsWith("revenue.")) return "trusted-revenue";
+    if (row.source_topic.startsWith("experiment.")) return "trusted-internal";
+    return "untrusted-sdk";
+  });
 
 const ClickHouseCursorRow = Schema.Struct({
   event_id: Schema.String,
@@ -106,6 +121,7 @@ const storedEvent = (row: ClickHouseEventRow) =>
     captureId: row.capture_id,
     eventName: row.event_name,
     eventTimestamp: utc(row.event_ts),
+    sentAt: row.sent_ts ? utc(row.sent_ts) : null,
     receivedAt: utc(row.received_ts ?? row.processed_ts),
     processedAt: utc(row.processed_ts),
     organizationId: row.organization_id,
@@ -122,6 +138,9 @@ const storedEvent = (row: ClickHouseEventRow) =>
     requestPath: row.request_path || null,
     source: source(row.source_topic),
     sourceTopic: row.source_topic,
+    sourceOffset: row.source_offset ?? "",
+    sourcePartition: row.source_partition ?? 0,
+    trustClass: trustClassOf(row),
   }) satisfies typeof StoredAnalyticsEvent.Type;
 
 const portError = (message: string) => (cause: unknown) =>
@@ -133,6 +152,7 @@ const selectedColumns = [
   "capture_id",
   "event_name",
   "event_ts",
+  "sent_ts",
   "received_ts",
   "processed_ts",
   "inserted_ts",
@@ -148,7 +168,10 @@ const selectedColumns = [
   "request_id",
   "request_path",
   "session_id",
+  "source_offset",
+  "source_partition",
   "source_topic",
+  "trust_class",
 ].join(", ");
 
 const listStatement = (
@@ -214,7 +237,8 @@ const makeClickHouseAnalyticsStore = Effect.fn("makeClickHouseAnalyticsStore")(f
   return {
     insert: (batch) =>
       Effect.gen(function* () {
-        const rows = toAnalyticsWriteBatchRows(batch);
+        const insertedAt = yield* DateTime.nowAsDate;
+        const rows = toAnalyticsWriteBatchRows(batch, insertedAt);
         const insertedEventCount = rows.reduce((count, row) => {
           if (row.record_type === "event") return count + 1;
           return count;

@@ -5,6 +5,7 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 
 import { AnalyticsPortError, AnalyticsStore } from "../../../application/ports.ts";
+import { TrustClass } from "../../domain/Ingest.ts";
 import type {
   AnalyticsEventPage,
   AnalyticsStoreShape,
@@ -43,6 +44,7 @@ const PostgresEventRow = Schema.Struct({
   capture_id: Schema.String,
   event_name: Schema.String,
   event_timestamp: DatabaseDate,
+  sent_at: Schema.NullOr(DatabaseDate),
   received_at: DatabaseDate,
   processed_at: DatabaseDate,
   organization_id: Schema.String,
@@ -59,6 +61,7 @@ const PostgresEventRow = Schema.Struct({
   request_path: Schema.NullOr(Schema.String),
   source: Schema.Literals(["sdk", "revenue", "internal"]),
   source_topic: Schema.String,
+  trust_class: TrustClass,
 });
 type PostgresEventRow = typeof PostgresEventRow.Type;
 
@@ -77,6 +80,7 @@ const storedEvent = (row: PostgresEventRow) =>
     captureId: row.capture_id,
     eventName: row.event_name,
     eventTimestamp: row.event_timestamp,
+    sentAt: row.sent_at,
     receivedAt: row.received_at,
     processedAt: row.processed_at,
     organizationId: row.organization_id,
@@ -93,6 +97,10 @@ const storedEvent = (row: PostgresEventRow) =>
     requestPath: row.request_path,
     source: row.source,
     sourceTopic: row.source_topic,
+    // The portable log has no delivery coordinates; identity of a row is its sequence.
+    sourceOffset: "",
+    sourcePartition: 0,
+    trustClass: row.trust_class,
   }) satisfies typeof StoredAnalyticsEvent.Type;
 
 const columns = [
@@ -102,6 +110,7 @@ const columns = [
   "capture_id",
   "event_name",
   "event_timestamp",
+  "sent_at",
   "received_at",
   "processed_at",
   "organization_id",
@@ -118,6 +127,7 @@ const columns = [
   "request_path",
   "source",
   "source_topic",
+  "trust_class",
 ];
 
 const portError = (message: string) => (cause: unknown) =>
@@ -177,6 +187,7 @@ const insertStatement = (batch: typeof AnalyticsWriteBatch.Type) => {
       event.captureId,
       event.eventName,
       event.eventTimestamp,
+      event.sentAt,
       event.receivedAt,
       event.processedAt,
       event.organizationId,
@@ -193,6 +204,7 @@ const insertStatement = (batch: typeof AnalyticsWriteBatch.Type) => {
       event.requestPath,
       event.source,
       event.sourceTopic,
+      event.trustClass,
     ];
     const placeholders = row.map((value) => `$${values.push(value)}`);
     return `(${placeholders.join(", ")})`;
@@ -201,9 +213,9 @@ const insertStatement = (batch: typeof AnalyticsWriteBatch.Type) => {
     name: "analytics.events.insert",
     text:
       `INSERT INTO analytics_event (` +
-      `schema_version, event_id, capture_id, event_name, event_timestamp, received_at, processed_at, ` +
+      `schema_version, event_id, capture_id, event_name, event_timestamp, sent_at, received_at, processed_at, ` +
       `organization_id, project_id, distinct_id, previous_distinct_id, person_id, identity_mode, ` +
-      `properties, context, session_id, token, request_id, request_path, source, source_topic) VALUES ` +
+      `properties, context, session_id, token, request_id, request_path, source, source_topic, trust_class) VALUES ` +
       rowSql.join(", ") +
       ` ON CONFLICT (project_id, event_id) DO NOTHING RETURNING event_id`,
     values,

@@ -49,9 +49,17 @@ export const toClickhouseTimestamp = (value: string): string => {
   ].join(" ");
 };
 
-/** Map a storage-neutral analytics event to the ClickHouse event schema. */
+const toNullableTimestamp = (value: Date | typeof Schema.Null.Type) =>
+  value === null ? null : toClickhouseTimestamp(value.toISOString());
+
+/**
+ * Map a storage-neutral analytics event to the ClickHouse event schema.
+ * `insertedAt` is the moment the row is handed to ClickHouse; it defaults to
+ * the processing time for callers that do not track the write separately.
+ */
 export const toAnalyticsEventRow = (
   event: typeof AnalyticsEventV1.Type,
+  insertedAt: Date = event.processedAt,
 ): Record<string, unknown> => ({
   capture_id: event.captureId,
   context: encodeJson(event.context),
@@ -61,7 +69,7 @@ export const toAnalyticsEventRow = (
   event_properties: encodeJson(event.properties),
   event_ts: toClickhouseTimestamp(event.eventTimestamp.toISOString()),
   identity_mode: event.identityMode,
-  inserted_ts: toClickhouseTimestamp(event.processedAt.toISOString()),
+  inserted_ts: toClickhouseTimestamp(insertedAt.toISOString()),
   organization_id: event.organizationId,
   person_id: event.personId,
   previous_distinct_id: event.previousDistinctId,
@@ -71,11 +79,13 @@ export const toAnalyticsEventRow = (
   request_id: event.requestId,
   request_path: event.requestPath ?? "",
   schema_version: event.schemaVersion,
+  sent_ts: toNullableTimestamp(event.sentAt),
   session_id: event.sessionId,
-  source_offset: "",
-  source_partition: 0,
+  source_offset: event.sourceOffset,
+  source_partition: event.sourcePartition,
   source_topic: event.sourceTopic,
   token: event.token,
+  trust_class: event.trustClass,
 });
 
 export const toPersonRow = (
@@ -128,6 +138,40 @@ const writePart = (kind: string, ...values: ReadonlyArray<string | number>) => {
   return `${kind}:${encoded.join("")}`;
 };
 
+const FNV_PRIME_32 = 16_777_619;
+const FNV_OFFSET_BASIS_32 = 0x811c_9dc5;
+/** Second, unrelated seed so two 32-bit lanes give 64 bits of digest. */
+const FNV_ALTERNATE_BASIS_32 = 0x9747_b28c;
+
+/** 32-bit FNV-1a over Unicode code points, as fixed-width hex. Plain integer math keeps it target-agnostic. */
+const fnv1a32 = (value: string, basis: number) =>
+  (
+    Arr.reduce(Array.from(value), basis, (hash, character) =>
+      Math.imul(hash ^ (character.codePointAt(0) ?? 0), FNV_PRIME_32),
+    ) >>> 0
+  )
+    .toString(16)
+    .padStart(8, "0");
+
+/** Two independent 32-bit FNV-1a lanes concatenated into a 64-bit hex digest. */
+const digest64 = (value: string) =>
+  `${fnv1a32(value, FNV_OFFSET_BASIS_32)}${fnv1a32(value, FNV_ALTERNATE_BASIS_32)}`;
+
+/**
+ * Deterministic id for one logical write, used both as the ClickHouse insert
+ * deduplication token and as the `write_id` column on every row. A delivery of
+ * a hundred events would otherwise stamp kilobytes of concatenated parts onto
+ * each row, so the sorted parts are digested; the record count and the
+ * lexicographic bounds are kept in clear so two writes can be told apart by eye
+ * and a digest collision would additionally require identical bounds.
+ */
+export const analyticsWriteId = (sortedWriteParts: ReadonlyArray<string>) => {
+  const joined = sortedWriteParts.join("|");
+  const first = sortedWriteParts[0] ?? "";
+  const last = sortedWriteParts[sortedWriteParts.length - 1] ?? "";
+  return `w1:${sortedWriteParts.length}:${digest64(joined)}:${digest64(first)}:${digest64(last)}`;
+};
+
 const dedupeRevenueEventsWithinBatch = (
   events: ReadonlyArray<typeof AnalyticsEventV1.Type>,
 ): ReadonlyArray<typeof AnalyticsEventV1.Type> => {
@@ -153,9 +197,13 @@ const dedupeRevenueEventsWithinBatch = (
   return result.deduped;
 };
 
-/** Map one logical analytics write to a single-partition ClickHouse record block. */
+/**
+ * Map one logical analytics write to a single-partition ClickHouse record
+ * block. `insertedAt` stamps every event row with the real write time.
+ */
 export const toAnalyticsWriteBatchRows = (
   batch: typeof AnalyticsWriteBatch.Type,
+  insertedAt?: Date,
 ): ReadonlyArray<Record<string, unknown>> => {
   const events = dedupeRevenueEventsWithinBatch(batch.events);
   const overrideEvents = batch.personIdentityEvents.filter((event) =>
@@ -172,7 +220,7 @@ export const toAnalyticsWriteBatchRows = (
   ];
   const sortedWriteParts = Arr.sort(writeParts, Order.String);
   if (Arr.isReadonlyArrayEmpty(sortedWriteParts)) return [];
-  const writeId = sortedWriteParts.join("|");
+  const writeId = analyticsWriteId(sortedWriteParts);
   const writeTimestamp =
     events[0]?.processedAt.toISOString() ??
     batch.personEvents[0]?.changedAt ??
@@ -203,7 +251,7 @@ export const toAnalyticsWriteBatchRows = (
         recordType: "event",
         recordVersion: event.processedAt.getTime(),
       }),
-      ...toAnalyticsEventRow(event),
+      ...toAnalyticsEventRow(event, insertedAt),
     })),
     ...batch.personEvents.map((event) => ({
       ...base({

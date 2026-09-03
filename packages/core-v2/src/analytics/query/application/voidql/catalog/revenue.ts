@@ -17,12 +17,11 @@ const REVENUE_EVENT_NAMES = constant([...REVENUE_MONEY_EVENT_NAME_LIST]);
 // Code-derived constants only (event names + JSON keys) — safe to splice.
 const EVENT_NAME_FILTER = `event_name IN (${REVENUE_EVENT_NAMES.map((n) => `'${n}'`).join(", ")})`;
 
-// USD-only, in dollars: the canonical `gross_amount_usd` money fields coalesced
-// over the deprecated `amount_usd` mirrors (snake/camel, FX-less → 0) / 100.
+// USD-only, in dollars: the canonical `grossAmountUsd` cents, falling back to
+// the deprecated `amountUsd` mirror the emitter still writes (FX-less → 0) / 100.
+// Property keys are the emitter's camelCase names (see `RevenueEvents.ts`).
 const AMOUNT_USD_EXPR =
-  "(coalesce(nullIf(JSONExtractFloat(events.event_properties, 'gross_amount_usd'), 0), " +
-  "nullIf(JSONExtractFloat(events.event_properties, 'grossAmountUsd'), 0), " +
-  "nullIf(JSONExtractFloat(events.event_properties, 'amount_usd'), 0), " +
+  "(coalesce(nullIf(JSONExtractFloat(events.event_properties, 'grossAmountUsd'), 0), " +
   "nullIf(JSONExtractFloat(events.event_properties, 'amountUsd'), 0), 0)) / 100";
 
 const amountColumn: CatalogColumn = {

@@ -103,10 +103,14 @@ public actor AnalyticsClient {
     ///
     /// Port of `src/core/analytics/utils.ts`: the same keys, with `$sdk`/`$platform` reporting
     /// this platform. They are merged over the caller's properties, so a caller cannot shadow
-    /// them.
-    public static func standardProperties(device: SdkDeviceInfo, sdkVersion: String)
-        -> [String: JSONValue]
-    {
+    /// them. `environment` is the SDK's environment mode, the same value sent as the
+    /// `x-environment` header.
+    public static func standardProperties(
+        device: SdkDeviceInfo,
+        sdkVersion: String,
+        environment: String = "production",
+        timezone: String? = TimeZone.current.identifier
+    ) -> [String: JSONValue] {
         func text(_ value: String?) -> JSONValue {
             guard let value, !value.isEmpty else {
                 return .null
@@ -121,11 +125,13 @@ public actor AnalyticsClient {
             "$bundle_id": text(device.bundleId),
             "$device_brand": text(device.deviceBrand),
             "$device_name": text(device.deviceName),
+            "$environment": .string(environment),
             "$locale": text(device.locales.first),
             "$platform": .string(SdkHeaders.platformName),
             "$platform_version": text(device.systemVersion),
             "$sdk": .string(SdkHeaders.sdkName),
             "$sdk_version": .string(sdkVersion),
+            "$timezone": text(timezone),
         ]
     }
 

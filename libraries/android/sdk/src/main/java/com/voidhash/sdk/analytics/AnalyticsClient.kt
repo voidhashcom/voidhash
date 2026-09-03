@@ -24,8 +24,8 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
 import java.util.UUID
+import java.util.TimeZone
 
 private const val ANALYTICS_BATCH_SIZE = 20
 private const val ANALYTICS_FLUSH_INTERVAL_MS = 5_000L
@@ -54,11 +54,14 @@ data class AnalyticsEvent(
 
 /**
  * Builds the standardized `$`-prefixed properties every captured event carries,
- * mirroring `src/core/analytics/utils.ts`.
+ * mirroring `src/core/analytics/utils.ts`. `environment` is the SDK's
+ * environment mode, the same value sent as the `x-environment` header.
  */
 fun analyticsStandardProperties(
     platform: PlatformInfo,
     sdkVersion: String = VOIDHASH_SDK_VERSION,
+    environment: String = "production",
+    timezone: String? = TimeZone.getDefault().id,
 ): Map<String, Any?> = mapOf(
     "\$app_build" to platform.appBuild,
     "\$app_name" to (platform.appName ?: platform.bundleId),
@@ -66,11 +69,13 @@ fun analyticsStandardProperties(
     "\$bundle_id" to platform.bundleId,
     "\$device_brand" to platform.deviceBrand,
     "\$device_name" to platform.deviceName,
+    "\$environment" to environment,
     "\$locale" to platform.locales.firstOrNull(),
     "\$platform" to "android",
     "\$platform_version" to platform.systemVersion,
     "\$sdk" to "android",
     "\$sdk_version" to sdkVersion,
+    "\$timezone" to timezone,
 )
 
 /**

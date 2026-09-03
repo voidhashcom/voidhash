@@ -220,10 +220,15 @@ export const toStartedAnalyticsInputs = (
   return [created, completed];
 };
 
+/**
+ * `convertedFromTrial` marks the first paid renewal after a trial period; it
+ * feeds the trial-conversion insights, which count nothing without it.
+ */
 export const toRenewedAnalyticsInputs = (
   input: CommonAnalyticsFields & {
     readonly occurredAt: Date;
     readonly isTrial: boolean;
+    readonly convertedFromTrial?: boolean;
     readonly money: Option.Option<PurchaseProcessingMoney>;
   },
   result: { readonly personId: string; readonly transactionId: Option.Option<string> },
@@ -247,6 +252,9 @@ export const toRenewedAnalyticsInputs = (
         ...revenuePropertiesBase(input, cfg),
         ...signedMoneyProperties(input.money, 1),
         isTrial: input.isTrial,
+        ...(input.convertedFromTrial !== undefined && {
+          convertedFromTrial: input.convertedFromTrial,
+        }),
       },
     },
   ];
@@ -686,7 +694,7 @@ export const toSubscriptionTransferredAnalyticsInputs = (
     providerEventType: "subscription.transferred",
     providerId: input.providerId,
     source: input.source,
-    storeSubscriptionId: input.subscription.storeSubscriptionId,
+    providerSubscriptionId: input.subscription.storeSubscriptionId,
     subscriptionId: input.subscription.id,
     toDistinctId: input.toDistinctId,
     toPersonId: input.toPersonId,

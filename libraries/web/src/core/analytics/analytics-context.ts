@@ -67,7 +67,11 @@ export const createAnalyticsEvent = Effect.fn("createAnalyticsEvent")(function* 
     context: normalizeAnalyticsRecord(platform.buildAnalyticsContext()),
     distinct_id: distinctId,
     event: eventName,
-    properties: normalizeAnalyticsRecord(properties ?? {}),
+    // Standardized properties describe the SDK and device, so they win a key conflict.
+    properties: normalizeAnalyticsRecord({
+      ...properties,
+      ...platform.buildStandardProperties(),
+    }),
     timestamp,
     session_id: options?.sessionId,
     uuid: options?.eventId ?? createEventId(platform),

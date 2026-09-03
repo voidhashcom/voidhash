@@ -41,6 +41,7 @@ import { resolvePortableAnalyticsSeries } from "./portable-series-resolver.ts";
 import { buildPathsLinkResults, validateExecutablePathsDefinition } from "./CustomAnalytics.ts";
 import { SCREEN_PATH_EVENT_NAME, resolvePathsInsight } from "./paths-resolver.ts";
 import { isRevenueMoneyEventName } from "../../domain/InternalAnalyticsEvents.ts";
+import { TrustClass } from "../../ingest/domain/Ingest.ts";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -92,8 +93,11 @@ export const AnalyticsEventListItem = Schema.Struct({
   properties: Schema.Record(Schema.String, Schema.Unknown),
   receivedAt: Schema.Date,
   requestId: Schema.String,
+  sentAt: Schema.NullOr(Schema.Date),
+  sessionId: Schema.NullOr(Schema.String),
   source: Schema.Literals(["internal", "revenue", "sdk"]),
   timestamp: Schema.Date,
+  trustClass: TrustClass,
 });
 export type AnalyticsEventListItem = typeof AnalyticsEventListItem.Type;
 
@@ -120,8 +124,11 @@ const listItem = (event: typeof StoredAnalyticsEvent.Type) =>
     properties: event.properties,
     receivedAt: event.receivedAt,
     requestId: event.requestId,
+    sentAt: event.sentAt,
+    sessionId: event.sessionId,
     source: event.source,
     timestamp: event.eventTimestamp,
+    trustClass: event.trustClass,
   }) satisfies typeof AnalyticsEventListItem.Type;
 
 /** Portable analytics query capabilities. */

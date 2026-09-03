@@ -274,6 +274,15 @@ export class AnalyticsEvent extends Schema.Class<AnalyticsEvent>("AnalyticsEvent
   /** When the capture endpoint accepted the event into the processing pipeline. */
   receivedAt: Schema.Date,
   requestId: Schema.String,
+  /**
+   * When the client flushed the batch carrying this event (the capture
+   * payload's `sent_at`). Null for server-emitted events. `sentAt - timestamp`
+   * is offline buffering; `receivedAt - sentAt` is transport latency plus
+   * device clock skew.
+   */
+  sentAt: Schema.NullOr(Schema.Date),
+  /** The SDK analytics session the event was captured in, when the client reported one. */
+  sessionId: Schema.NullOr(Schema.String),
   source: Schema.String,
   /**
    * The event's own timestamp as reported by the capturing client (device
@@ -282,6 +291,12 @@ export class AnalyticsEvent extends Schema.Class<AnalyticsEvent>("AnalyticsEvent
    * batched offline.
    */
   timestamp: Schema.Date,
+  /**
+   * Provenance of the event: `untrusted-sdk` for events captured from a
+   * client SDK, `trusted-revenue` for server-verified purchase events, and
+   * `trusted-internal` for other server-emitted events.
+   */
+  trustClass: Schema.String,
 }) {}
 
 /**

@@ -124,7 +124,12 @@ export const CapturedEventV1 = Schema.Struct({
   sourceTopic: Schema.String,
   properties: EventProperties,
   context: EventContext,
-  rawPayload: Schema.Record(Schema.String, Schema.Unknown),
+  /**
+   * Legacy copy of the decoded request event. Nothing downstream reads it and
+   * it doubled every queue message, so new envelopes omit it; it stays optional
+   * so in-flight messages from older producers still decode.
+   */
+  rawPayload: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   request: CapturedEventRequest,
   identityClaim: Schema.optional(CapturedIdentityClaim),
   trustClass: Schema.optional(TrustClass),

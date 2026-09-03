@@ -213,6 +213,10 @@ export const analyticsEvents = pgTable(
     captureId: varchar("capture_id", { length: 255 }).notNull(),
     eventName: varchar("event_name", { length: 255 }).notNull(),
     eventTimestamp: timestamp("event_timestamp", { withTimezone: true, precision: 3 }).notNull(),
+    // When the client flushed the batch carrying the event. `sentAt -
+    // eventTimestamp` is offline buffering, `receivedAt - sentAt` is transport
+    // latency plus device clock skew. Null for server-emitted events.
+    sentAt: timestamp("sent_at", { withTimezone: true, precision: 3 }),
     // When the capture endpoint accepted the event into the processing
     // pipeline. `processedAt` (default now) stamps the row insert instead, so
     // `processedAt - receivedAt` measures time spent in the ingest queue.
@@ -236,6 +240,8 @@ export const analyticsEvents = pgTable(
     requestPath: varchar("request_path", { length: 255 }),
     source: varchar("source", { length: 32 }).notNull(),
     sourceTopic: varchar("source_topic", { length: 255 }).notNull(),
+    /** Provenance stamped at the dispatch boundary: `untrusted-sdk`, `trusted-revenue` or `trusted-internal`. */
+    trustClass: varchar("trust_class", { length: 32 }).notNull().default("untrusted-sdk"),
   },
   (table) => [
     uniqueIndex("analytics_event_project_event_uidx").on(table.projectId, table.eventId),

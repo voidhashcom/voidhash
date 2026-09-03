@@ -29,6 +29,7 @@ export interface WebSdkHeaders {
   readonly "x-client-locale"?: string;
   readonly "x-client-version"?: string;
   readonly "x-distinct-id": string;
+  readonly "x-environment": "production" | "development";
   readonly "x-is-backgrounded": "false" | "true";
   readonly "x-is-debug-build": "false" | "true";
   readonly "x-nonce": string;

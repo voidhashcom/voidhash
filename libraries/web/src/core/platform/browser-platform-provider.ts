@@ -166,29 +166,46 @@ export class BrowserPlatformProvider {
     return hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
   }
 
+  /**
+   * Page context captured with every event: where the user is and what they
+   * can see. SDK and device facts are not here; they are the standardized
+   * `$` properties from {@link buildStandardProperties}, and the server
+   * stamps the user agent itself.
+   */
   buildAnalyticsContext() {
     const currentUrl = this.getCurrentUrl();
     const referrerUrl = this.getReferrerUrl();
-    const navigatorRef = optionalNavigator();
     const screenRef = optionalScreen();
     const viewport = optionalViewport();
 
     return trimUndefined({
-      locale: navigatorRef?.language,
       page_title: optionalPageTitle(),
       referrer_origin: Option.getOrUndefined(Option.map(referrerUrl, (url) => url.origin)),
       referrer_path: Option.getOrUndefined(Option.map(referrerUrl, (url) => url.pathname)),
       screen_height: screenRef?.height,
       screen_width: screenRef?.width,
-      sdk: "web",
-      sdk_version: SDK_VERSION,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       url_origin: Option.getOrUndefined(Option.map(currentUrl, (url) => url.origin)),
       url_path: Option.getOrUndefined(Option.map(currentUrl, (url) => url.pathname)),
-      user_agent: navigatorRef?.userAgent,
       viewport_height: viewport?.viewportHeight,
       viewport_width: viewport?.viewportWidth,
     });
+  }
+
+  /**
+   * The standardized `$` properties merged over every event's properties, the
+   * same key vocabulary the native SDKs use. The web SDK has no development
+   * mode, so `$environment` is always `production`.
+   */
+  buildStandardProperties() {
+    const navigatorRef = optionalNavigator();
+    return {
+      $environment: "production",
+      $locale: navigatorRef?.language ?? null,
+      $platform: "web",
+      $sdk: "web",
+      $sdk_version: SDK_VERSION,
+      $timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
+    };
   }
 
   getSdkHeaders(input: {
@@ -201,6 +218,7 @@ export class BrowserPlatformProvider {
       "x-client-bundle-id": "",
       "x-client-locale": navigatorRef?.language,
       "x-client-version": undefined,
+      "x-environment": "production",
       "x-is-backgrounded": "false",
       "x-is-debug-build": booleanHeader(this.isDebugBuild()),
       "x-nonce": this.randomId(),

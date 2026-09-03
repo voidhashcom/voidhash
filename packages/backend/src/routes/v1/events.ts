@@ -47,8 +47,11 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
                 properties: row.properties,
                 receivedAt: row.receivedAt,
                 requestId: row.requestId,
+                sentAt: row.sentAt,
+                sessionId: row.sessionId,
                 source: row.source,
                 timestamp: row.timestamp,
+                trustClass: row.trustClass,
               }),
           );
           const last = events[events.length - 1];

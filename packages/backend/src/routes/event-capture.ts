@@ -9,13 +9,14 @@
  */
 import {
   CaptureAcceptedResponse,
+  type CaptureEvent,
   CaptureDependencyUnavailableError,
   CaptureInternalServerError,
   CaptureRateLimitedError,
   CaptureUnauthorizedError,
   EventCaptureApi,
 } from "@voidhash/api-contracts/event-capture";
-import { AnalyticsCapture } from "@voidhash/core-v2";
+import { AnalyticsCapture, type CaptureRequestGeo } from "@voidhash/core-v2";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -75,6 +76,36 @@ const resolveCaptureToken = (
   );
 };
 
+const nonEmptyString = (value: unknown) =>
+  P.isString(value) && value.trim() ? value.trim() : undefined;
+
+/**
+ * Coarse client location. Cloudflare exposes it on the underlying request's
+ * `cf` object; the `cf-ipcountry` header is the fallback for runtimes that
+ * only forward headers. Absent everywhere locally, which is fine.
+ */
+const extractGeo = (
+  headers: Readonly<Record<string, string | typeof Schema.Undefined.Type>>,
+  source: unknown,
+): CaptureRequestGeo | typeof Schema.Undefined.Type => {
+  const cf = P.hasProperty(source, "cf") ? source.cf : undefined;
+  const geo = {
+    city: nonEmptyString(P.hasProperty(cf, "city") ? cf.city : undefined),
+    country:
+      nonEmptyString(P.hasProperty(cf, "country") ? cf.country : undefined) ??
+      nonEmptyString(headers["cf-ipcountry"]),
+    region: nonEmptyString(P.hasProperty(cf, "region") ? cf.region : undefined),
+    timezone: nonEmptyString(P.hasProperty(cf, "timezone") ? cf.timezone : undefined),
+  };
+  if (!geo.city && !geo.country && !geo.region && !geo.timezone) return undefined;
+  return {
+    ...(geo.city && { city: geo.city }),
+    ...(geo.country && { country: geo.country }),
+    ...(geo.region && { region: geo.region }),
+    ...(geo.timezone && { timezone: geo.timezone }),
+  };
+};
+
 const appendRequestIdHeader = (requestId: string) =>
   HttpEffect.appendPreResponseHandler((_req, response) =>
     Effect.succeed(HttpServerResponse.setHeader(response, "x-request-id", requestId)),
@@ -87,6 +118,78 @@ const appendRetryAfterHeader = (retryAfterMs: number) =>
     ),
   );
 
+/**
+ * Shared handler body for both capture endpoints: mint the request id, resolve
+ * the credential, run the capture service and map its failures onto the wire
+ * error contract.
+ */
+const handleCapture = (input: {
+  readonly captureService: AnalyticsCapture["Service"];
+  readonly events: ReadonlyArray<CaptureEvent>;
+  readonly headers: Readonly<Record<string, string | typeof Schema.Undefined.Type>>;
+  readonly path: string;
+  readonly sentAt: Date;
+  readonly source: unknown;
+  readonly token: string | typeof Schema.Undefined.Type;
+}) =>
+  Effect.fn("EventCaptureGroupLive")(function* () {
+    const requestId = generateId("request");
+    yield* appendRequestIdHeader(requestId);
+    const receivedAt = yield* DateTime.nowAsDate;
+    const token = yield* resolveCaptureToken(input.token, input.headers);
+
+    const result = yield* input.captureService
+      .capture({
+        events: input.events,
+        request: {
+          clientIp: extractClientIp(input.headers),
+          geo: extractGeo(input.headers, input.source),
+          path: input.path,
+          receivedAt,
+          sentAt: input.sentAt,
+          token,
+          headers: input.headers,
+          requestId,
+        },
+      })
+      .pipe(
+        Effect.catchTag("CaptureRateLimitedError", (error) =>
+          Effect.fn("result")(function* () {
+            if (P.isNumber(error.retry_after_ms)) {
+              yield* appendRetryAfterHeader(error.retry_after_ms);
+            }
+            return yield* Effect.fail(
+              new CaptureRateLimitedError({
+                code: error.code,
+                error: error.error,
+              }),
+            );
+          })(),
+        ),
+        Effect.catchTag("AnalyticsCaptureError", () =>
+          Effect.fail(
+            new CaptureDependencyUnavailableError({
+              code: "dependency_unavailable",
+              error: "capture dependency is unavailable",
+            }),
+          ),
+        ),
+        Effect.catchDefect(() =>
+          Effect.fail(
+            new CaptureInternalServerError({
+              code: "internal_error",
+              error: "internal server error",
+            }),
+          ),
+        ),
+      );
+
+    return new CaptureAcceptedResponse({
+      accepted: result.accepted,
+      rejected: result.rejected,
+    });
+  })();
+
 export const EventCaptureGroupLive = HttpApiBuilder.group(
   EventCaptureApi,
   "event_capture",
@@ -95,120 +198,26 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
       const captureService = yield* AnalyticsCapture;
       return handlers
         .handle("capture", ({ request, payload }) =>
-          Effect.fn("EventCaptureGroupLive")(function* () {
-            const requestId = generateId("request");
-            yield* appendRequestIdHeader(requestId);
-            const receivedAt = yield* DateTime.nowAsDate;
-            const token = yield* resolveCaptureToken(payload.token, request.headers);
-
-            const result = yield* captureService
-              .capture({
-                events: [payload],
-                request: {
-                  clientIp: extractClientIp(request.headers),
-                  path: "/i/v1/capture",
-                  receivedAt,
-                  sentAt: payload.sent_at,
-                  token,
-                  headers: request.headers,
-                  requestId,
-                },
-              })
-              .pipe(
-                Effect.catchTag("CaptureRateLimitedError", (error) =>
-                  Effect.fn("result")(function* () {
-                    if (P.isNumber(error.retry_after_ms)) {
-                      yield* appendRetryAfterHeader(error.retry_after_ms);
-                    }
-                    return yield* Effect.fail(
-                      new CaptureRateLimitedError({
-                        code: error.code,
-                        error: error.error,
-                      }),
-                    );
-                  })(),
-                ),
-                Effect.catchTag("AnalyticsCaptureError", () =>
-                  Effect.fail(
-                    new CaptureDependencyUnavailableError({
-                      code: "dependency_unavailable",
-                      error: "capture dependency is unavailable",
-                    }),
-                  ),
-                ),
-                Effect.catchDefect(() =>
-                  Effect.fail(
-                    new CaptureInternalServerError({
-                      code: "internal_error",
-                      error: "internal server error",
-                    }),
-                  ),
-                ),
-              );
-
-            return new CaptureAcceptedResponse({
-              accepted: result.accepted,
-              rejected: result.rejected,
-            });
-          })(),
+          handleCapture({
+            captureService,
+            events: [payload],
+            headers: request.headers,
+            path: "/i/v1/capture",
+            sentAt: payload.sent_at,
+            source: request.source,
+            token: payload.token,
+          }),
         )
         .handle("batch", ({ request, payload }) =>
-          Effect.fn("EventCaptureGroupLive")(function* () {
-            const requestId = generateId("request");
-            yield* appendRequestIdHeader(requestId);
-            const receivedAt = yield* DateTime.nowAsDate;
-            const token = yield* resolveCaptureToken(payload.token, request.headers);
-
-            const result = yield* captureService
-              .capture({
-                events: payload.events,
-                request: {
-                  clientIp: extractClientIp(request.headers),
-                  path: "/i/v1/batch",
-                  receivedAt,
-                  sentAt: payload.sent_at,
-                  token,
-                  headers: request.headers,
-                  requestId,
-                },
-              })
-              .pipe(
-                Effect.catchTag("CaptureRateLimitedError", (error) =>
-                  Effect.fn("result")(function* () {
-                    if (P.isNumber(error.retry_after_ms)) {
-                      yield* appendRetryAfterHeader(error.retry_after_ms);
-                    }
-                    return yield* Effect.fail(
-                      new CaptureRateLimitedError({
-                        code: error.code,
-                        error: error.error,
-                      }),
-                    );
-                  })(),
-                ),
-                Effect.catchTag("AnalyticsCaptureError", () =>
-                  Effect.fail(
-                    new CaptureDependencyUnavailableError({
-                      code: "dependency_unavailable",
-                      error: "capture dependency is unavailable",
-                    }),
-                  ),
-                ),
-                Effect.catchDefect(() =>
-                  Effect.fail(
-                    new CaptureInternalServerError({
-                      code: "internal_error",
-                      error: "internal server error",
-                    }),
-                  ),
-                ),
-              );
-
-            return new CaptureAcceptedResponse({
-              accepted: result.accepted,
-              rejected: result.rejected,
-            });
-          })(),
+          handleCapture({
+            captureService,
+            events: payload.events,
+            headers: request.headers,
+            path: "/i/v1/batch",
+            sentAt: payload.sent_at,
+            source: request.source,
+            token: payload.token,
+          }),
         );
     }),
 );

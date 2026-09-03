@@ -4,6 +4,7 @@ export * from "./domain/InternalAnalyticsEvents.ts";
 export * from "./ingest/domain/EventAdmission.ts";
 export * from "./ingest/domain/Ingest.ts";
 export * from "./ingest/application/Capture.ts";
+export * from "./ingest/application/CaptureCredentialCache.ts";
 export * from "./ingest/application/Processor.ts";
 export * from "./ingest/adapters/delivery/inline.ts";
 export * from "./ingest/adapters/delivery/queue.ts";

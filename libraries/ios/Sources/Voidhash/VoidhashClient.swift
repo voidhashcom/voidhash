@@ -128,7 +128,9 @@ public actor VoidhashClient {
             distinctIdProvider: { [identityStore] in await identityStore.getDistinctId() },
             sessionIdProvider: { await sessionManager.current() },
             standardProperties: AnalyticsClient.standardProperties(
-                device: dependencies.device, sdkVersion: Voidhash.sdkVersion),
+                device: dependencies.device,
+                sdkVersion: Voidhash.sdkVersion,
+                environment: developmentMode ? "development" : "production"),
             now: dependencies.analyticsNow,
             sleep: dependencies.analyticsSleep,
             debug: options.debug,
