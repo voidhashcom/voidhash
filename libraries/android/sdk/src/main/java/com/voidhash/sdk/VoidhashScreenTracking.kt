@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.navigation.NavController
 import com.voidhash.sdk.analytics.composeScreenView
 import java.io.Closeable
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * `$screen` capture for Jetpack Compose Navigation.
@@ -23,7 +24,8 @@ object VoidhashScreenTracking {
     /**
      * Emits a `$screen` for every destination change on [navController] and
      * suppresses the activity-level screen so a single-activity app does not
-     * also report its host activity. Returns a handle that detaches the listener.
+     * also report its host activity. Returns a handle that detaches the listener
+     * and lets activity screens through again.
      *
      * Without a [client] and without a configured [Voidhash.shared] nothing is
      * attached and the handle is a no-op.
@@ -43,7 +45,12 @@ object VoidhashScreenTracking {
             )
         }
         navController.addOnDestinationChangedListener(listener)
-        return Closeable { navController.removeOnDestinationChangedListener(listener) }
+        val closed = AtomicBoolean(false)
+        return Closeable {
+            if (!closed.compareAndSet(false, true)) return@Closeable
+            navController.removeOnDestinationChangedListener(listener)
+            target.releaseActivityScreens()
+        }
     }
 
     @Suppress("DEPRECATION")

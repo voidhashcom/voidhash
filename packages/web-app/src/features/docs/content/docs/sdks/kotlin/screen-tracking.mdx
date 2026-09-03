@@ -27,7 +27,7 @@ DisposableEffect(navController) {
 
 The screen name is the destination route pattern, such as `item/{id}`, and the path is the route
 with arguments filled in, such as `item/42`. While a controller is attached, activity resumes are
-not reported.
+not reported. Closing the handle detaches the listener and lets activity screens through again.
 
 ## Fragments
 
@@ -41,8 +41,8 @@ Voidhash.configure(
 )
 ```
 
-Each resumed fragment is recorded with its class name. Activities hosting tracked fragments are
-not reported themselves.
+Each resumed fragment is recorded with its class name. Framework fragments such as
+`NavHostFragment` are skipped. Activities hosting tracked fragments are not reported themselves.
 
 ## Custom navigation
 
@@ -77,9 +77,9 @@ VoidhashOptions(
 )
 ```
 
-Set `automatic` to `false` to stop the SDK from observing activities. `includeParams` adds route
-arguments to each event. It is off by default because arguments often carry ids. `mapScreen` lets
-you rename a screen or drop it by returning `null`.
+Set `automatic` to `false` to stop the SDK from recording activities as screens. `includeParams`
+adds Compose route arguments to each event as `$screen_params`. It is off by default because
+arguments often carry ids. `mapScreen` lets you rename a screen or drop it by returning `null`.
 
 Screen views can also be switched off per project without an app release from the events settings
 page in the dashboard.

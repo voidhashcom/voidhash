@@ -80,7 +80,7 @@ class VoidhashClient internal constructor(
     private var initialized = false
     private val screenTracker = ScreenTracker(screenTracking, clock)
     private val manualScreenCounter = AtomicInteger(0)
-    private val activityScreensSuppressedFlag = AtomicBoolean(false)
+    private val activityScreenSuppressors = AtomicInteger(0)
 
     private val paywallPurchaseHandler = object : PaywallPurchaseHandler {
         override suspend fun products(): List<VoidhashProduct> = getProducts()
@@ -436,11 +436,19 @@ class VoidhashClient internal constructor(
     }
 
     /** Whether activity resumes are ignored because a finer-grained integration is active. */
-    internal val activityScreensSuppressed: Boolean get() = activityScreensSuppressedFlag.get()
+    internal val activityScreensSuppressed: Boolean get() = activityScreenSuppressors.get() > 0
 
-    /** Stops activity resumes from producing screens; used by the fragment and Compose integrations. */
+    /**
+     * Stops activity resumes from producing screens while at least one finer-grained
+     * integration holds a suppression; the fragment integration holds one for the client's
+     * lifetime, a Compose tracker releases it on close.
+     */
     internal fun suppressActivityScreens() {
-        activityScreensSuppressedFlag.set(true)
+        activityScreenSuppressors.incrementAndGet()
+    }
+
+    internal fun releaseActivityScreens() {
+        activityScreenSuppressors.updateAndGet { count -> maxOf(0, count - 1) }
     }
 
     /**

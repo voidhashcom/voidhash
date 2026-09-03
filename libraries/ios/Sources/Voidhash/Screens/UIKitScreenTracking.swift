@@ -58,6 +58,7 @@ import ObjectiveC
                 identity: identity(of: viewController),
                 className: ScreenControllerDescriptor.unqualifiedClassName(type),
                 isAppClass: isAppClass(type),
+                isContainer: isContainer(viewController),
                 isHostingController: isHostingController(type),
                 parentKind: parentKind(of: viewController.parent),
                 parentChain: chain,
@@ -86,12 +87,12 @@ import ObjectiveC
             guard let parent else {
                 return .none
             }
-            if parent is UINavigationController || parent is UITabBarController
-                || parent is UISplitViewController
-            {
-                return .container
-            }
-            return .other
+            return isContainer(parent) ? .container : .other
+        }
+
+        private static func isContainer(_ viewController: UIViewController) -> Bool {
+            return viewController is UINavigationController || viewController is UITabBarController
+                || viewController is UISplitViewController
         }
 
         private static func isHostingController(_ type: AnyClass) -> Bool {

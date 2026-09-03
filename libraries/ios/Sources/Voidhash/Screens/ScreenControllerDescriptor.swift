@@ -18,6 +18,9 @@ struct ScreenControllerDescriptor: Sendable, Equatable {
     var className: String
     /// Whether the class is defined by the host app rather than a framework.
     var isAppClass: Bool
+    /// Whether the controller is itself a navigation, tab bar or split view controller, including
+    /// app-defined subclasses, which are never screens of their own.
+    var isContainer: Bool
     /// Whether the controller is a `UIHostingController` or a subclass of one.
     var isHostingController: Bool
     var parentKind: ParentKind
@@ -26,12 +29,12 @@ struct ScreenControllerDescriptor: Sendable, Equatable {
     var title: String?
 
     /// Applies the §5.2 filter rules and builds the ``ScreenView`` for a controller that counts
-    /// as a screen; `nil` for framework containers, embedded children and, once a SwiftUI
+    /// as a screen; `nil` for containers, framework classes, embedded children and, once a SwiftUI
     /// screen has fired, hosting controllers.
     static func screenView(
         for descriptor: ScreenControllerDescriptor, suppressHostingControllers: Bool
     ) -> ScreenView? {
-        guard descriptor.isAppClass else {
+        guard descriptor.isAppClass, !descriptor.isContainer else {
             return nil
         }
         guard descriptor.parentKind != .other else {
