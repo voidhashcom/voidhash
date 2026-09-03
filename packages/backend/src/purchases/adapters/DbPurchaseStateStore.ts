@@ -7,6 +7,7 @@ import {
   PurchaseStateStore,
   PurchaseSubscriptionMutationMachine,
   PurchaseTransferStateMachine,
+  PurchaseWebhookDispatcher,
   type PurchaseStateStoreShape,
 } from "@voidhash/core-v2";
 export {
@@ -16,7 +17,6 @@ export {
 } from "@voidhash/core-v2";
 import { PerkGrantService } from "@voidhash/core/services/perkGrants/PerkGrantService";
 import { WebhookDispatchService } from "@voidhash/core/services/webhookDispatch/WebhookDispatchService";
-import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -24,8 +24,8 @@ import * as Layer from "effect/Layer";
 import { DbPurchaseStateRepositoryLive } from "./DbPurchaseStateRepositoryLive.ts";
 import {
   DbPurchaseUnitOfWorkLive,
-  PurchaseEventPublisherLive,
   PurchaseIdGeneratorLive,
+  PurchaseWebhookDispatcherLive,
 } from "./DbPurchaseTransactionPortsLive.ts";
 
 export type PurchaseActionContext = typeof PurchaseActionContextSchema.Type;
@@ -34,7 +34,6 @@ const PurchaseTransactionPortsLive = Layer.mergeAll(
   DbPurchaseStateRepositoryLive,
   DbPurchaseUnitOfWorkLive,
   PurchaseIdGeneratorLive,
-  PurchaseEventPublisherLive,
 );
 
 const PurchaseLifecycleStateMachineLive = PurchaseLifecycleStateMachine.layer.pipe(
@@ -60,7 +59,12 @@ const DbPurchaseStateMachineLive = PurchaseStateMachine.layer.pipe(
   Layer.provide(PurchaseTransferStateMachineLive),
 );
 
-/** Compatibility service for callers that still resolve the former backend state engine. */
+/**
+ * Compatibility service for callers that still resolve the former backend
+ * state engine. Requires `Db`, `PerkGrantService`, `WebhookDispatchService`
+ * (the webhook outbox, staged inside the purchase transaction) and
+ * `PurchaseWebhookDispatcher` (post-commit dispatch of the staged rows).
+ */
 export class PurchaseProcessingService extends Context.Service<
   PurchaseProcessingService,
   PurchaseStateStoreShape
@@ -81,9 +85,25 @@ export const DbPurchaseStateStoreAdapterLive = Layer.effect(
   }),
 );
 
+/** Live webhook outbox and post-commit dispatcher for purchase processing. */
+export const PurchaseWebhooksLive = Layer.merge(
+  WebhookDispatchService.layer,
+  PurchaseWebhookDispatcherLive.pipe(Layer.provide(WebhookDispatchService.layer)),
+);
+
+/**
+ * Test composition for the webhook seam: delivery rows are still staged in
+ * the purchase transaction, but nothing is ever dispatched to the delivery
+ * workflow.
+ */
+export const PurchaseWebhooksTestLive = Layer.merge(
+  WebhookDispatchService.layer,
+  PurchaseWebhookDispatcher.noop,
+);
+
 const DbPurchaseProcessingLive = PurchaseProcessingService.layer.pipe(
   Layer.provide(PerkGrantService.layer),
-  Layer.provide(WebhookEventPublisher.layer.pipe(Layer.provide(WebhookDispatchService.layer))),
+  Layer.provide(PurchaseWebhooksLive),
 );
 
 /** Transactional PostgreSQL purchase state adapter with live webhook publication. */
@@ -98,7 +118,7 @@ export const PurchaseProcessorTestLive = PurchaseProcessor.layer.pipe(
       Layer.provide(
         PurchaseProcessingService.layer.pipe(
           Layer.provide(PerkGrantService.layer),
-          Layer.provide(WebhookEventPublisher.noop),
+          Layer.provide(PurchaseWebhooksTestLive),
         ),
       ),
     ),

@@ -5,11 +5,13 @@ import type { EntitlementSync } from "./EntitlementSync.ts";
 import type { PurchaseLedgerWriteStore } from "./PurchaseLedgerWriteStore.ts";
 import type { PurchasePortError } from "./PurchasePortError.ts";
 import type { PurchaseStateRepository } from "./PurchaseStateRepository.ts";
+import type { PurchaseWebhookOutbox } from "./PurchaseWebhookOutbox.ts";
 
 export type PurchaseTxServices =
   | PurchaseStateRepository
   | PurchaseLedgerWriteStore
-  | EntitlementSync;
+  | EntitlementSync
+  | PurchaseWebhookOutbox;
 
 export interface PurchaseUnitOfWorkShape {
   readonly transact: <A, E>(
@@ -17,7 +19,7 @@ export interface PurchaseUnitOfWorkShape {
   ) => Effect.Effect<A, E | PurchasePortError>;
 }
 
-/** Runs purchase persistence, entitlement sync, and outbox staging atomically. */
+/** Runs purchase persistence, entitlement sync, ledger and webhook outbox staging atomically. */
 export class PurchaseUnitOfWork extends Context.Service<
   PurchaseUnitOfWork,
   PurchaseUnitOfWorkShape

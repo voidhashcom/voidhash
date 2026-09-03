@@ -1,7 +1,6 @@
 export * from "./ports/EntitlementSync.ts";
 export * from "./ports/FxRateStore.ts";
 export * from "./ports/PaymentProviderManagementOperations.ts";
-export * from "./ports/PurchaseEventPublisher.ts";
 export * from "./ports/PurchaseIdGenerator.ts";
 export * from "./ports/PurchaseLedgerStore.ts";
 export * from "./ports/PurchaseLedgerWriteStore.ts";
@@ -11,4 +10,6 @@ export * from "./ports/PurchaseQueryStore.ts";
 export * from "./ports/PurchaseStateRepository.ts";
 export * from "./ports/PurchaseStateStore.ts";
 export * from "./ports/PurchaseUnitOfWork.ts";
+export * from "./ports/PurchaseWebhookDispatcher.ts";
+export * from "./ports/PurchaseWebhookOutbox.ts";
 export * from "./ports/RevenueEventSink.ts";

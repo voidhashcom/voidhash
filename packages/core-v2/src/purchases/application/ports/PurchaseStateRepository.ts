@@ -31,7 +31,8 @@ export const PurchaseTransactionRecord = Schema.Struct({
   personId: Id,
   amount: Schema.Int,
   amountUsd: Schema.NullOr(Schema.Int),
-  currency: Schema.String,
+  /** `null` when the provider event carried no money; see {@link PurchaseTransactionMoneyBackfill}. */
+  currency: Schema.NullOr(Schema.String),
   exchangeRate: Schema.NullOr(Schema.Int),
   grossAmount: Schema.Int,
   grossAmountUsd: Schema.NullOr(Schema.Int),
@@ -139,6 +140,26 @@ export type PurchaseUpdate = Partial<Omit<PurchaseRecord, "id" | "lastEventOccur
   readonly occurredAt: Date;
 };
 
+/** Money block written onto a transaction that was first observed without one. */
+export type PurchaseTransactionMoneyBackfill = Pick<
+  PurchaseTransactionRecord,
+  | "amount"
+  | "amountUsd"
+  | "currency"
+  | "exchangeRate"
+  | "grossAmount"
+  | "grossAmountUsd"
+  | "proceedsAfterTaxAmount"
+  | "proceedsAfterTaxAmountUsd"
+  | "proceedsAmount"
+  | "proceedsAmountUsd"
+  | "storeCommissionAmount"
+  | "storeCommissionAmountUsd"
+  | "storefront"
+  | "taxAmount"
+  | "taxAmountUsd"
+> & { readonly id: string };
+
 export interface PurchaseStateRepositoryShape {
   readonly resolveConfigurationProduct: (
     id: string,
@@ -160,11 +181,21 @@ export interface PurchaseStateRepositoryShape {
     { readonly inserted: boolean; readonly row: PurchaseTransactionRecord },
     PurchasePortError
   >;
-  readonly findSubscriptionByStoreSubscriptionId: (input: {
-    readonly paymentProviderConfigurationProductId: string;
-    readonly storeSubscriptionId: string;
-  }) => Effect.Effect<PurchaseSubscriptionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
-  readonly findSubscriptionForRenewal: (input: {
+  /**
+   * Resolves the subscription series a provider event addresses. A store
+   * subscription id identifies one series within a provider configuration
+   * even when the customer changes product (App Store upgrades keep the
+   * original transaction id, Stripe keeps the subscription id), so the lookup
+   * prefers the exact product mapping, then the row whose pending product
+   * change targets it, and finally any row of the same configuration —
+   * active rows first, most recently updated first.
+   *
+   * Implementations serialize concurrent callers on the series for the rest
+   * of the transaction: the machines rely on the lookup-then-insert sequence
+   * being race free even though the unique index only covers one product.
+   */
+  readonly findSubscriptionSeries: (input: {
+    readonly paymentProviderConfigurationId: string;
     readonly paymentProviderConfigurationProductId: string;
     readonly storeSubscriptionId: string;
   }) => Effect.Effect<PurchaseSubscriptionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
@@ -189,6 +220,14 @@ export interface PurchaseStateRepositoryShape {
   >;
   readonly updateTransactionIfFresher: (
     input: PurchaseTransactionUpdate,
+  ) => Effect.Effect<PurchaseRepositoryUpdateResult, PurchasePortError>;
+  /**
+   * Fills the money block of a transaction whose `currency` is still `null`.
+   * Independent of the event watermark: it completes missing data rather than
+   * advancing state, and never overwrites money that is already known.
+   */
+  readonly backfillTransactionMoney: (
+    input: PurchaseTransactionMoneyBackfill,
   ) => Effect.Effect<PurchaseRepositoryUpdateResult, PurchasePortError>;
   readonly updatePurchaseIfFresher: (
     input: PurchaseUpdate,

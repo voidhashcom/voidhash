@@ -30,8 +30,8 @@ import {
   StripePaymentProviderServiceError,
   StripeWebhookSignatureError,
 } from "./errors.ts";
-import type { StripeAcceptWebhookEventResult } from "@voidhash/core-v2";
-import { decodeStripeEvent, StripeEventType } from "./events.ts";
+import { routeStripeEvent, type StripeAcceptWebhookEventResult } from "@voidhash/core-v2";
+import { decodeStripeEvent } from "./events.ts";
 import { StripePaymentProvider, type StripeRecordInput } from "./payment-provider.ts";
 import { StripePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import type { StripeContext, StripeMode } from "./sdk-context.ts";
@@ -368,32 +368,36 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               ),
             );
 
-          const matchResult: StripeAcceptWebhookEventResult = yield* Match.value(event.type).pipe(
-            Match.when(StripeEventType.InvoicePaid, () =>
+          /** The purchase core owns the event decision table (`routeStripeEvent`). */
+          const route = routeStripeEvent(event.type);
+          yield* Effect.annotateCurrentSpan("stripe.route", route);
+          const matchResult: StripeAcceptWebhookEventResult = yield* Match.value(route).pipe(
+            Match.when("invoice_paid", () =>
               handled(stripePaymentProvider.recordInvoicePaid(recordInput)),
             ),
-            Match.when(StripeEventType.InvoicePaymentFailed, () =>
+            Match.when("invoice_payment_failed", () =>
               handled(stripePaymentProvider.recordInvoicePaymentFailed(recordInput)),
             ),
-            Match.when(StripeEventType.CustomerSubscriptionUpdated, () =>
+            Match.when("subscription_updated", () =>
               handled(stripePaymentProvider.recordSubscriptionUpdated(recordInput)),
             ),
-            Match.when(StripeEventType.CustomerSubscriptionDeleted, () =>
+            Match.when("subscription_deleted", () =>
               handled(stripePaymentProvider.recordSubscriptionDeleted(recordInput)),
             ),
-            Match.when(StripeEventType.CheckoutSessionCompleted, () =>
+            Match.when("checkout_session_completed", () =>
               handled(stripePaymentProvider.recordCheckoutSessionCompleted(recordInput)),
             ),
-            Match.when(StripeEventType.ChargeRefunded, () =>
+            Match.when("charge_refunded", () =>
               handled(stripePaymentProvider.recordChargeRefunded(recordInput)),
             ),
-            Match.when(StripeEventType.ChargeRefundUpdated, () =>
+            Match.when("refund_updated", () =>
               handled(stripePaymentProvider.recordRefundUpdated(recordInput)),
             ),
-            Match.when(StripeEventType.ChargeDisputeClosed, () =>
+            Match.when("dispute_closed", () =>
               handled(stripePaymentProvider.recordDisputeClosed(recordInput)),
             ),
-            Match.orElse(() => Effect.succeed(ack(false))),
+            Match.when("ignored", () => Effect.succeed(ack(false))),
+            Match.exhaustive,
           );
 
           // Wire-level dedup ledger: one row per Stripe `event.id`, regardless of

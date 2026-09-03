@@ -3,6 +3,18 @@ import * as Schema from "effect/Schema";
 /** Maximum number of terminal rows accepted by one operator replay request. */
 export const MAX_PURCHASE_LEDGER_REQUEUE_IDS = 200;
 
+/**
+ * `lastError` prefixes that mark a dead letter as poison: the payload itself
+ * is unprocessable, so the periodic sweep must not requeue it. Only an
+ * explicit operator replay can retry such a row.
+ */
+export const PURCHASE_LEDGER_POISON_ERROR_PREFIXES = ["decode failed:", "poison:"] as const;
+
+/** Whether a dead letter's recorded error marks it as poison rather than transient. */
+export const isPurchaseLedgerPoisonError = (lastError: string | typeof Schema.Null.Type) =>
+  lastError !== null &&
+  PURCHASE_LEDGER_POISON_ERROR_PREFIXES.some((prefix) => lastError.startsWith(prefix));
+
 export const PurchaseLedgerClaimedRow = Schema.Struct({
   attemptCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   /**

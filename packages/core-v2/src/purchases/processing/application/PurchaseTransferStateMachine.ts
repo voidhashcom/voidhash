@@ -12,7 +12,6 @@ import {
   PurchaseStateRepository,
   PurchaseUnitOfWork,
   type PurchaseLedgerWriteStoreShape,
-  PurchasePortError,
   type PurchaseStateRepositoryShape,
 } from "../../application/ports.ts";
 import {
@@ -25,16 +24,17 @@ import type {
   TransferSubscriptionInput,
 } from "../../domain/PurchaseAction.ts";
 import { PurchaseProcessingResult } from "../../domain/PurchaseProcessing.ts";
-import {
-  describePurchaseErrorCause,
-  purchaseProcessingResultSpanAttributes,
-  transferSpanAttributes,
-} from "../domain/PurchaseProcessingHelpers.ts";
+import { transferSpanAttributes } from "../domain/PurchaseProcessingHelpers.ts";
 import {
   toPurchaseTransferredAnalyticsInputs,
   toSubscriptionTransferredAnalyticsInputs,
   type RevenueAnalyticsMapperContext,
 } from "../domain/RevenueEventMapper.ts";
+import {
+  buildRevenueMapperContext,
+  mapPurchasePortErrors,
+  stagePurchaseLedgerRow,
+} from "./PurchaseActionSupport.ts";
 
 export interface PurchaseTransferStateMachineShape {
   readonly transferSubscription: (
@@ -49,60 +49,6 @@ const makePurchaseTransferStateMachine = Effect.fn("makePurchaseTransferStateMac
   function* () {
     const ids = yield* PurchaseIdGenerator;
     const unitOfWork = yield* PurchaseUnitOfWork;
-
-    const mapErrors = <A, E extends PurchaseProcessingError | PurchasePortError>(
-      effect: Effect.Effect<A, E>,
-    ) =>
-      effect.pipe(
-        Effect.mapError((error): PurchaseProcessingError => {
-          if (error instanceof PurchasePortError) {
-            return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
-          }
-          return error;
-        }),
-      );
-
-    const revenueContext = (
-      repository: PurchaseStateRepositoryShape,
-      input: {
-        readonly idempotencyKey: string;
-        readonly organizationId: string;
-        readonly paymentProviderConfigurationId: string;
-        readonly paymentProviderConfigurationProductId: string;
-        readonly personId: string;
-        readonly projectId: string;
-      },
-    ) =>
-      Effect.gen(function* () {
-        const mapping = yield* repository.resolveConfigurationProduct(
-          input.paymentProviderConfigurationProductId,
-        );
-        if (
-          mapping === undefined ||
-          mapping.productProjectId !== input.projectId ||
-          mapping.paymentProviderConfigurationId !== input.paymentProviderConfigurationId
-        ) {
-          return yield* new PurchaseProcessingServiceError({
-            cause: `Revenue product mapping ${input.paymentProviderConfigurationProductId} is missing or outside project ${input.projectId}`,
-          });
-        }
-        const [token, distinctId] = yield* Effect.all(
-          [
-            repository.findPublicApiToken(input.projectId),
-            repository.resolveDistinctId(input.personId),
-          ],
-          { concurrency: 1 },
-        );
-        return {
-          distinctId,
-          idempotencyKey: input.idempotencyKey,
-          organizationId: input.organizationId,
-          productId: mapping.productId,
-          projectId: input.projectId,
-          providerProductKey: mapping.providerProductKey,
-          token: token ?? `vh_server_revenue_${input.projectId}`,
-        } satisfies RevenueAnalyticsMapperContext;
-      });
 
     const reserveAndStage = (
       repository: PurchaseStateRepositoryShape,
@@ -139,15 +85,10 @@ const makePurchaseTransferStateMachine = Effect.fn("makePurchaseTransferStateMac
           Match.when({ _tag: "duplicate" }, ({ result }) => Effect.succeed(result)),
           Match.when({ _tag: "reserved" }, ({ reservation }) =>
             Effect.gen(function* () {
-              const mapperContext = yield* revenueContext(repository, input);
+              const mapperContext = yield* buildRevenueMapperContext(repository, input);
               const events = input.buildEvents(mapperContext);
               const result = input.buildResult(events.map((event) => event.eventId));
-              yield* Effect.annotateCurrentSpan({
-                ...purchaseProcessingResultSpanAttributes(result),
-                "voidhash.analytics.event_count": events.length,
-              });
-              yield* ledger.stageEvents({ events, reservation, result });
-              return result;
+              return yield* stagePurchaseLedgerRow(ledger, reservation, events, result);
             }),
           ),
           Match.exhaustive,
@@ -155,7 +96,7 @@ const makePurchaseTransferStateMachine = Effect.fn("makePurchaseTransferStateMac
       });
 
     const transferSubscription = (input: typeof TransferSubscriptionInput.Type) =>
-      mapErrors(
+      mapPurchasePortErrors(
         Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan(transferSpanAttributes(input));
           return yield* unitOfWork.transact(
@@ -280,7 +221,7 @@ const makePurchaseTransferStateMachine = Effect.fn("makePurchaseTransferStateMac
       );
 
     const transferPurchase = (input: typeof TransferPurchaseInput.Type) =>
-      mapErrors(
+      mapPurchasePortErrors(
         Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan(transferSpanAttributes(input));
           return yield* unitOfWork.transact(

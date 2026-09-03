@@ -7,72 +7,55 @@ import type * as Schema from "effect/Schema";
 
 import {
   EntitlementSync,
-  PurchaseEventPublisher,
   PurchaseIdGenerator,
   PurchaseLedgerWriteStore,
   PurchaseStateRepository,
   PurchaseUnitOfWork,
-  type PurchaseLedgerReservation,
-  type PurchaseLedgerWriteStoreShape,
-  PurchasePortError,
+  PurchaseWebhookDispatcher,
+  PurchaseWebhookOutbox,
   type PurchaseRecord,
   type PurchaseStateRepositoryShape,
   type PurchaseTransactionRecord,
 } from "../../application/ports.ts";
 import {
-  PurchaseProcessingProductNotMappedError,
   PurchaseProcessingServiceError,
   type PurchaseProcessingError,
 } from "../../application/ports/PurchaseStateStore.ts";
-import type { RevenueEvent } from "../../contract/RevenueEvents.ts";
 import type {
   PurchaseActionContext,
   RefundPurchaseInput,
   ReverseRefundInput,
   RevokePurchaseInput,
 } from "../../domain/PurchaseAction.ts";
-import { PurchaseProcessingResult } from "../../domain/PurchaseProcessing.ts";
 import {
-  describePurchaseErrorCause,
+  PurchaseProcessingResult,
+  type PurchaseProcessingMoney,
+} from "../../domain/PurchaseProcessing.ts";
+import {
   moneyFromStoredTransaction,
   purchaseActionSpanAttributes,
-  purchaseProcessingResultSpanAttributes,
 } from "../domain/PurchaseProcessingHelpers.ts";
 import {
   toPurchaseRevokedAnalyticsInputs,
   toRefundedAnalyticsInputs,
   toRefundReversedAnalyticsInputs,
-  type RevenueAnalyticsMapperContext,
 } from "../domain/RevenueEventMapper.ts";
+import { toPurchaseRefundedWebhookEvent } from "../domain/WebhookEventMapper.ts";
 import {
-  toPurchaseRefundedWebhookEvent,
-  type WebhookEventMapperContext,
-  type WebhookLifecycleEvent,
-} from "../domain/WebhookEventMapper.ts";
+  dispatchLifecycleEvents,
+  emptyPurchaseResult,
+  mapPurchasePortErrors,
+  purchaseProviderKeyOf,
+  reservePurchaseLedgerRow,
+  resolvePurchaseContext,
+  stageLifecycleEvents,
+  stagePurchaseRevenue,
+  webhookContextOf,
+  type ResolvedPurchaseContext,
+  type WebhookBuilder,
+} from "./PurchaseActionSupport.ts";
 
 type Action = typeof PurchaseActionContext.Type;
-type WebhookBuilder = (() => WebhookLifecycleEvent) | typeof Schema.Null.Type;
-
-interface ResolvedContext {
-  readonly configurationProduct: {
-    readonly id: string;
-    readonly productId: string;
-    readonly productSlug: string | typeof Schema.Null.Type;
-    readonly providerProductKey: string;
-  };
-  readonly distinctId: string;
-  readonly personId: string;
-}
-
-interface StagedRevenueInput {
-  readonly action: Action;
-  readonly buildEvents: (context: RevenueAnalyticsMapperContext) => ReadonlyArray<RevenueEvent>;
-  readonly buildResult: (eventIds: ReadonlyArray<string>) => PurchaseProcessingResult;
-  readonly context: ResolvedContext;
-  readonly ledger: PurchaseLedgerWriteStoreShape;
-  readonly repository: PurchaseStateRepositoryShape;
-  readonly reservation: PurchaseLedgerReservation;
-}
 
 export interface PurchaseRefundStateMachineShape {
   readonly refundPurchase: (
@@ -86,119 +69,18 @@ export interface PurchaseRefundStateMachineShape {
   ) => Effect.Effect<PurchaseProcessingResult, PurchaseProcessingError>;
 }
 
-const emptyResult = (personId: string) =>
-  new PurchaseProcessingResult({
-    analyticsEventIds: [],
-    changedGrantIds: [],
-    idempotent: false,
-    personId,
-    purchaseId: Option.none(),
-    subscriptionId: Option.none(),
-    transactionId: Option.none(),
-  });
-
 const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine")(function* () {
   const ids = yield* PurchaseIdGenerator;
   const repository = yield* PurchaseStateRepository;
   const unitOfWork = yield* PurchaseUnitOfWork;
-  const publisher = yield* PurchaseEventPublisher;
+  const dispatcher = yield* PurchaseWebhookDispatcher;
 
-  const resolveContext = (input: Action) =>
-    Effect.gen(function* () {
-      const configurationProduct = yield* repository.resolveConfigurationProduct(
-        input.paymentProviderConfigurationProductId,
-      );
-      if (
-        configurationProduct === undefined ||
-        configurationProduct.productProjectId !== input.projectId ||
-        configurationProduct.paymentProviderConfigurationId !== input.paymentProviderConfigurationId
-      ) {
-        return yield* new PurchaseProcessingProductNotMappedError({
-          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-          paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
-        });
-      }
-      const person = yield* repository.findPerson(input.personId);
-      if (person === undefined || person.projectId !== input.projectId) {
-        return yield* new PurchaseProcessingServiceError({
-          cause: `Resolved person ${input.personId} not found for project ${input.projectId}`,
-        });
-      }
-      return {
-        configurationProduct: {
-          id: configurationProduct.id,
-          productId: configurationProduct.productId,
-          productSlug: configurationProduct.productSlug,
-          providerProductKey: configurationProduct.providerProductKey,
-        },
-        distinctId: person.primaryDistinctId ?? person.id,
-        personId: person.id,
-      } satisfies ResolvedContext;
-    });
-
-  const webhookContext = (context: ResolvedContext): WebhookEventMapperContext => ({
-    distinctId: context.distinctId,
-    productId: context.configurationProduct.productId,
-    productSlug: context.configurationProduct.productSlug,
-    providerProductId: context.configurationProduct.providerProductKey,
-  });
-
-  const reserve = (ledger: PurchaseLedgerWriteStoreShape, input: Action) =>
-    ledger.reserve({
-      id: ids.generate("purchaseLedger"),
-      idempotencyKey: input.idempotencyKey,
-      organizationId: input.organizationId,
-      personId: input.personId,
-      projectId: input.projectId,
-      providerEventType: input.providerEventType,
-      providerId: input.providerId,
-      rawProviderPayload: Option.getOrNull(input.rawProviderPayload),
-      source: input.source,
-    });
-
-  const stageRevenue = (input: StagedRevenueInput) =>
-    Effect.gen(function* () {
-      const mapping = yield* input.repository.resolveConfigurationProduct(
-        input.action.paymentProviderConfigurationProductId,
-      );
-      if (
-        mapping === undefined ||
-        mapping.productProjectId !== input.action.projectId ||
-        mapping.paymentProviderConfigurationId !== input.action.paymentProviderConfigurationId
-      ) {
-        return yield* new PurchaseProcessingServiceError({
-          cause: `Revenue product mapping ${input.action.paymentProviderConfigurationProductId} is missing or outside project ${input.action.projectId}`,
-        });
-      }
-      const [token, distinctId] = yield* Effect.all(
-        [
-          input.repository.findPublicApiToken(input.action.projectId),
-          input.repository.resolveDistinctId(input.context.personId),
-        ],
-        { concurrency: 1 },
-      );
-      const events = input.buildEvents({
-        distinctId,
-        idempotencyKey: input.action.idempotencyKey,
-        organizationId: input.action.organizationId,
-        productId: mapping.productId,
-        projectId: input.action.projectId,
-        providerProductKey: mapping.providerProductKey,
-        token: token ?? `vh_server_revenue_${input.action.projectId}`,
-      });
-      const result = input.buildResult(events.map((event) => event.eventId));
-      yield* Effect.annotateCurrentSpan({
-        ...purchaseProcessingResultSpanAttributes(result),
-        "voidhash.analytics.event_count": events.length,
-      });
-      yield* input.ledger.stageEvents({ events, reservation: input.reservation, result });
-      return result;
-    });
+  const resolveContext = (input: Action) => resolvePurchaseContext(repository, input);
 
   const findTransaction = (
     txRepository: PurchaseStateRepositoryShape,
     action: Action,
-    context: ResolvedContext,
+    context: ResolvedPurchaseContext,
   ) => {
     if (Option.isNone(action.providerTransactionId)) {
       return Effect.succeed<PurchaseTransactionRecord | typeof Schema.Undefined.Type>(undefined);
@@ -209,15 +91,12 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
     });
   };
 
-  const providerKey = (action: Action) =>
-    Option.firstSomeOf([action.providerTransactionId, action.providerSubscriptionId]);
-
   const findPurchase = (
     txRepository: PurchaseStateRepositoryShape,
     action: Action,
-    context: ResolvedContext,
+    context: ResolvedPurchaseContext,
   ) => {
-    const key = providerKey(action);
+    const key = purchaseProviderKeyOf(action);
     if (Option.isNone(key)) {
       return Effect.succeed<PurchaseRecord | typeof Schema.Undefined.Type>(undefined);
     }
@@ -227,30 +106,13 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
     });
   };
 
-  const mapErrors = <A, E extends PurchaseProcessingError | PurchasePortError>(
-    effect: Effect.Effect<A, E>,
-  ) =>
-    effect.pipe(
-      Effect.mapError((error): PurchaseProcessingError => {
-        if (error instanceof PurchasePortError) {
-          return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
-        }
-        return error;
-      }),
-    );
-
-  const publish = (projectId: string, builder: WebhookBuilder) => {
-    if (builder === null) return Effect.void;
-    return Effect.sync(builder).pipe(
-      Effect.flatMap((event) => publisher.publish({ ...event, projectId })),
-      Effect.catchCause((cause) =>
-        Effect.logWarning("failed to publish purchase refund event", { cause, projectId }),
-      ),
-    );
+  const storedMoney = (transaction: PurchaseTransactionRecord | typeof Schema.Undefined.Type) => {
+    if (transaction === undefined) return Option.none<PurchaseProcessingMoney>();
+    return moneyFromStoredTransaction(transaction);
   };
 
   const refundPurchase = (input: typeof RefundPurchaseInput.Type) =>
-    mapErrors(
+    mapPurchasePortErrors(
       Effect.gen(function* () {
         yield* Effect.annotateCurrentSpan(purchaseActionSpanAttributes(input));
         const context = yield* resolveContext(input);
@@ -259,12 +121,13 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
             const txRepository = yield* PurchaseStateRepository;
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
-            const claim = yield* reserve(ledger, input);
-            if (P.hasProperty(claim, "result")) return { event: null, result: claim.result };
+            const outbox = yield* PurchaseWebhookOutbox;
+            const claim = yield* reservePurchaseLedgerRow(ids, ledger, input);
+            if (P.hasProperty(claim, "result")) return { deliveries: [], result: claim.result };
 
             if (input.partialRefundMoney !== undefined) {
               const partialRefundMoney = input.partialRefundMoney;
-              const result = yield* stageRevenue({
+              const result = yield* stagePurchaseRevenue({
                 action: input,
                 buildEvents: (mapperContext) =>
                   toRefundedAnalyticsInputs(
@@ -287,7 +150,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
                 repository: txRepository,
                 reservation: claim.reservation,
               });
-              return { event: null, result };
+              return { deliveries: [], result };
             }
 
             const transaction = yield* findTransaction(txRepository, input, context);
@@ -331,12 +194,12 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
               purchaseNewlyRefunded =
                 purchaseUpdated && purchase.refundedAt?.getTime() !== input.refundedAt.getTime();
               if (!purchaseUpdated) {
-                const key = providerKey(input);
+                const key = purchaseProviderKeyOf(input);
                 yield* Effect.logWarning(
                   `refundPurchase: purchase row watermark rejected (providerKey=${Option.getOrElse(key, () => "—")}, occurredAt=${input.occurredAt.toISOString()})`,
                 );
               }
-            } else if (Option.isNone(providerKey(input))) {
+            } else if (Option.isNone(purchaseProviderKeyOf(input))) {
               yield* Effect.logWarning(
                 "refundPurchase: no purchase provider key; skipping purchase row update",
               );
@@ -345,21 +208,18 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
               yield* Effect.logWarning(
                 "refundPurchase: no transaction and no purchase row for the refund subject; finalizing an empty ledger row without analytics",
               );
-              const result = emptyResult(context.personId);
+              const result = emptyPurchaseResult(context.personId);
               yield* ledger.finalize({ reservation: claim.reservation, result });
-              return { event: null, result };
+              return { deliveries: [], result };
             }
             let changedGrantIds: ReadonlyArray<string> = [];
             if (purchaseUpdated) {
               changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
             }
-            let money = Option.none<ReturnType<typeof moneyFromStoredTransaction>>();
-            if (transaction !== undefined) {
-              money = Option.some(moneyFromStoredTransaction(transaction));
-            }
+            const money = storedMoney(transaction);
             let purchaseId = Option.none<string>();
             if (purchase !== undefined) purchaseId = Option.some(purchase.id);
-            const result = yield* stageRevenue({
+            const result = yield* stagePurchaseRevenue({
               action: input,
               buildEvents: (mapperContext) =>
                 toRefundedAnalyticsInputs(
@@ -388,23 +248,24 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
                 toPurchaseRefundedWebhookEvent(
                   input,
                   { money, purchaseId: Option.getOrNull(purchaseId) },
-                  webhookContext(context),
+                  webhookContextOf(context),
                 );
             }
-            return { event, result };
+            const deliveries = yield* stageLifecycleEvents(outbox, input.projectId, [event]);
+            return { deliveries, result };
           }),
         );
-        yield* publish(input.projectId, outcome.event);
+        yield* dispatchLifecycleEvents(dispatcher, input.projectId, outcome.deliveries);
         return outcome.result;
       }),
     );
 
   const revokePurchase = (input: typeof RevokePurchaseInput.Type) =>
-    mapErrors(
+    mapPurchasePortErrors(
       Effect.gen(function* () {
         yield* Effect.annotateCurrentSpan(purchaseActionSpanAttributes(input));
         const context = yield* resolveContext(input);
-        const key = providerKey(input);
+        const key = purchaseProviderKeyOf(input);
         if (Option.isNone(key)) {
           return yield* new PurchaseProcessingServiceError({
             cause: `Purchase event has no purchase identifier (providerEventType=${input.providerEventType}, providerWebhookNotificationId=${Option.getOrElse(input.providerWebhookNotificationId, () => "—")})`,
@@ -415,11 +276,11 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
             const txRepository = yield* PurchaseStateRepository;
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
-            const claim = yield* reserve(ledger, input);
+            const claim = yield* reservePurchaseLedgerRow(ids, ledger, input);
             if (P.hasProperty(claim, "result")) return claim.result;
             const purchase = yield* findPurchase(txRepository, input, context);
             if (purchase === undefined) {
-              const result = emptyResult(context.personId);
+              const result = emptyPurchaseResult(context.personId);
               yield* ledger.finalize({ reservation: claim.reservation, result });
               return result;
             }
@@ -463,18 +324,12 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
             if (updated.affectedRows > 0) {
               changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
             }
-            let money = Option.none<ReturnType<typeof moneyFromStoredTransaction>>();
-            if (transaction !== undefined) {
-              money = Option.some(moneyFromStoredTransaction(transaction));
-            }
-            return yield* stageRevenue({
+            const money = storedMoney(transaction);
+            return yield* stagePurchaseRevenue({
               action: input,
               buildEvents: (mapperContext) =>
                 toPurchaseRevokedAnalyticsInputs(
-                  {
-                    ...input,
-                    money,
-                  },
+                  { ...input, money },
                   { personId: context.personId },
                   mapperContext,
                 ),
@@ -499,7 +354,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
     );
 
   const reverseRefund = (input: typeof ReverseRefundInput.Type) =>
-    mapErrors(
+    mapPurchasePortErrors(
       Effect.gen(function* () {
         yield* Effect.annotateCurrentSpan(purchaseActionSpanAttributes(input));
         const context = yield* resolveContext(input);
@@ -508,7 +363,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
             const txRepository = yield* PurchaseStateRepository;
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
-            const claim = yield* reserve(ledger, input);
+            const claim = yield* reservePurchaseLedgerRow(ids, ledger, input);
             if (P.hasProperty(claim, "result")) return claim.result;
             const transaction = yield* findTransaction(txRepository, input, context);
             const purchase = yield* findPurchase(txRepository, input, context);
@@ -547,12 +402,12 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
               });
               purchaseUpdated = updated.affectedRows > 0;
               if (!purchaseUpdated) {
-                const key = providerKey(input);
+                const key = purchaseProviderKeyOf(input);
                 yield* Effect.logWarning(
                   `reverseRefund: purchase row watermark rejected (providerKey=${Option.getOrElse(key, () => "—")}, occurredAt=${input.occurredAt.toISOString()})`,
                 );
               }
-            } else if (Option.isNone(providerKey(input))) {
+            } else if (Option.isNone(purchaseProviderKeyOf(input))) {
               yield* Effect.logWarning(
                 "reverseRefund: no purchase provider key; skipping purchase row update",
               );
@@ -561,7 +416,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
               yield* Effect.logWarning(
                 "reverseRefund: no transaction and no purchase row for the reversal subject; finalizing an empty ledger row without analytics",
               );
-              const result = emptyResult(context.personId);
+              const result = emptyPurchaseResult(context.personId);
               yield* ledger.finalize({ reservation: claim.reservation, result });
               return result;
             }
@@ -569,18 +424,12 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
             if (purchaseUpdated) {
               changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
             }
-            let money = Option.none<ReturnType<typeof moneyFromStoredTransaction>>();
-            if (transaction !== undefined) {
-              money = Option.some(moneyFromStoredTransaction(transaction));
-            }
-            return yield* stageRevenue({
+            const money = storedMoney(transaction);
+            return yield* stagePurchaseRevenue({
               action: input,
               buildEvents: (mapperContext) =>
                 toRefundReversedAnalyticsInputs(
-                  {
-                    ...input,
-                    money,
-                  },
+                  { ...input, money },
                   { personId: context.personId },
                   mapperContext,
                 ),

@@ -21,6 +21,7 @@ import * as Context from "effect/Context";
 import { createHash } from "@voidhash/core/services/apiKeys/create-hash";
 
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
+import { routeAppStoreNotification } from "@voidhash/core-v2";
 import {
   AppStorePaymentProviderConfigurationNotFoundError,
   AppStorePaymentProviderProductNotMappedError,
@@ -635,125 +636,66 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * etc.) follow the same gate: they too are parked until the SDK
            * confirms the series.
            */
-          const matchResult: AcceptServerNotificationResult = yield* Match.value(
+          /**
+           * The purchase core owns the notification decision table
+           * (`routeAppStoreNotification`); this only binds each route to the
+           * provider's record method. `TEST` never reaches here — it is
+           * short-circuited to an `ignored` ledger row above, before the
+           * signed-transaction requirement.
+           */
+          const route = routeAppStoreNotification({
             notificationType,
-          ).pipe(
-            /**
-             * New subscription (subtypes `INITIAL_BUY`, `RESUBSCRIBE`) or a
-             * one-time charge / non-renewing purchase.
-             */
-            Match.when(NotificationTypeV2.SUBSCRIBED, () =>
+            subtype: Option.fromNullishOr(subtype),
+          });
+          yield* Effect.annotateCurrentSpan("app_store.route", route);
+          const matchResult: AcceptServerNotificationResult = yield* Match.value(route).pipe(
+            Match.when("purchase", () =>
               handled(appStorePaymentProvider.recordPurchase(recordInput)),
             ),
-            Match.when(NotificationTypeV2.ONE_TIME_CHARGE, () =>
-              handled(appStorePaymentProvider.recordPurchase(recordInput)),
-            ),
-
-            /** Auto-renewable subscription renewed (incl. `BILLING_RECOVERY`). */
-            Match.when(NotificationTypeV2.DID_RENEW, () =>
+            Match.when("renewal", () =>
               handled(appStorePaymentProvider.recordSubscriptionRenewed(recordInput)),
             ),
-
-            /** Subscription expired or grace period elapsed without recovery. */
-            Match.when(NotificationTypeV2.EXPIRED, () =>
+            Match.when("expired", () =>
               handled(appStorePaymentProvider.recordSubscriptionExpired(recordInput)),
             ),
-            Match.when(NotificationTypeV2.GRACE_PERIOD_EXPIRED, () =>
-              handled(appStorePaymentProvider.recordSubscriptionExpired(recordInput)),
+            Match.when("cancel_at_period_end", () =>
+              handled(
+                appStorePaymentProvider.recordSubscriptionCanceled({
+                  ...recordInput,
+                  cancelAtPeriodEnd: true,
+                }),
+              ),
             ),
-
-            /**
-             * User toggled auto-renew. AUTO_RENEW_DISABLED → cancel-at-period-end;
-             * AUTO_RENEW_ENABLED → resume (clear cancel flags + re-sync perks).
-             */
-            Match.when(NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS, () => {
-              if (subtype === "AUTO_RENEW_DISABLED") {
-                return handled(
-                  appStorePaymentProvider.recordSubscriptionCanceled({
-                    ...recordInput,
-                    cancelAtPeriodEnd: true,
-                  }),
-                );
-              }
-              if (subtype === "AUTO_RENEW_ENABLED") {
-                return handled(appStorePaymentProvider.recordAutoRenewResumed(recordInput));
-              }
-              return Effect.succeed(ack(false));
-            }),
-
-            /** Apple refunded a transaction. */
-            Match.when(NotificationTypeV2.REFUND, () =>
-              handled(appStorePaymentProvider.recordRefund(recordInput)),
+            Match.when("auto_renew_resumed", () =>
+              handled(appStorePaymentProvider.recordAutoRenewResumed(recordInput)),
             ),
-
-            /** Family Sharing entitlement revoked. */
-            Match.when(NotificationTypeV2.REVOKE, () =>
+            Match.when("refund", () => handled(appStorePaymentProvider.recordRefund(recordInput))),
+            Match.when("revoke", () =>
               handled(appStorePaymentProvider.recordEntitlementRevoked(recordInput)),
             ),
-
-            /** Apple reversed a prior refund — re-grant the entitlement. */
-            Match.when(NotificationTypeV2.REFUND_REVERSED, () =>
+            Match.when("refund_reversed", () =>
               handled(appStorePaymentProvider.recordRefundReversed(recordInput)),
             ),
-
-            /** Subscription entered the billing-retry loop. */
-            Match.when(NotificationTypeV2.DID_FAIL_TO_RENEW, () =>
+            Match.when("billing_retry", () =>
               handled(appStorePaymentProvider.recordBillingRetry(recordInput)),
             ),
-
-            /** Service-issued period extension. */
-            Match.when(NotificationTypeV2.RENEWAL_EXTENDED, () =>
+            Match.when("extended", () =>
               handled(appStorePaymentProvider.recordSubscriptionExtended(recordInput)),
             ),
-            Match.when(NotificationTypeV2.RENEWAL_EXTENSION, () =>
-              handled(appStorePaymentProvider.recordSubscriptionExtended(recordInput)),
-            ),
-
-            /** Customer changed the product for the next billing cycle. */
-            Match.when(NotificationTypeV2.DID_CHANGE_RENEWAL_PREF, () =>
+            Match.when("renewal_pref_change", () =>
               handled(appStorePaymentProvider.recordRenewalPreferenceChange(recordInput)),
             ),
-
-            /** Promotional / introductory / win-back offer redeemed. */
-            Match.when(NotificationTypeV2.OFFER_REDEEMED, () =>
+            Match.when("offer_redeemed", () =>
               handled(appStorePaymentProvider.recordOfferRedeemed(recordInput)),
             ),
-
-            /** Apple has scheduled a price change for the next renewal. */
-            Match.when(NotificationTypeV2.PRICE_INCREASE, () =>
+            Match.when("price_increase", () =>
               handled(appStorePaymentProvider.recordPriceIncrease(recordInput)),
             ),
-
-            /**
-             * Informational notifications — ingested into the per-notification
-             * ledger (written below the match) for audit, but no purchase
-             * state changes. `CONSUMPTION_REQUEST` requires a write-back call
-             * (`sendConsumptionInformation`) which is out of scope for this
-             * phase; `EXTERNAL_PURCHASE_TOKEN` requires token-reporting which
-             * is also out of scope.
-             */
-            /**
-             * Informational notifications collapsed into one branch. They
-             * carry no purchase state — the per-notification ledger row
-             * (written below the match) is the durable record. Note: Apple
-             * does not currently emit a `METADATA_UPDATE` notification, but
-             * if added in the future it can land here without changes.
-             */
-            Match.whenOr(
-              NotificationTypeV2.REFUND_DECLINED,
-              NotificationTypeV2.RESCIND_CONSENT,
-              NotificationTypeV2.CONSUMPTION_REQUEST,
-              NotificationTypeV2.EXTERNAL_PURCHASE_TOKEN,
-              () => handled(appStorePaymentProvider.recordInformationalNotification(recordInput)),
+            Match.when("informational", () =>
+              handled(appStorePaymentProvider.recordInformationalNotification(recordInput)),
             ),
-
-            /**
-             * `TEST` never reaches here — it is short-circuited to an `ignored`
-             * ledger row above, before the signed-transaction requirement.
-             */
-
-            /** Any other notification type still gets a notification-ledger row but is ignored. */
-            Match.orElse(() => Effect.succeed(ack(false))),
+            Match.when("ignored", () => Effect.succeed(ack(false))),
+            Match.exhaustive,
           );
 
           /**

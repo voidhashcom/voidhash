@@ -73,7 +73,7 @@ import {
   buildGooglePlayMoney,
   googleMoneyToMinorUnits,
   resolveGooglePlayCommissionRateBps,
-} from "./money.ts";
+} from "@voidhash/core-v2";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import {
   type GooglePlaySdkContext,

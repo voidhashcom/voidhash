@@ -12,10 +12,13 @@ import {
   Db,
   type DbTransaction,
   and,
+  asc,
   eq,
+  getTableColumns,
   isNull,
   lte,
   or,
+  paymentProviderConfigurationProducts,
   purchases,
   sql,
   subscriptions,
@@ -103,16 +106,21 @@ export const makeDbPurchaseStateRepository = (
         ),
         Effect.mapError(portError("failed to load purchase projection")),
       ),
-  findSubscriptionByStoreSubscriptionId: (input) =>
-    db.query.subscriptions.findFirst({ where: input }).pipe(
-      Effect.flatMap((row) =>
-        decodeOptional(PurchaseSubscriptionRecord, row, "invalid subscription projection row"),
-      ),
-      Effect.mapError(portError("failed to load subscription projection")),
-    ),
-  findSubscriptionForRenewal: (input) =>
+  findSubscriptionSeries: (input) =>
     Effect.gen(function* () {
-      const current = yield* db.query.subscriptions.findFirst({ where: input });
+      // Serialize every event of one series for the rest of the transaction.
+      // The unique index only guards one product mapping, so without this two
+      // concurrent first-contact events billed under different products could
+      // both miss the sibling lookup below and open two rows for one series.
+      yield* db.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${input.paymentProviderConfigurationId} || ':' || ${input.storeSubscriptionId}))`,
+      );
+      const current = yield* db.query.subscriptions.findFirst({
+        where: {
+          paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
+          storeSubscriptionId: input.storeSubscriptionId,
+        },
+      });
       if (current !== undefined) {
         return yield* decodeRequired(
           PurchaseSubscriptionRecord,
@@ -126,12 +134,45 @@ export const makeDbPurchaseStateRepository = (
           storeSubscriptionId: input.storeSubscriptionId,
         },
       });
+      if (pending !== undefined) {
+        return yield* decodeRequired(
+          PurchaseSubscriptionRecord,
+          pending,
+          "invalid subscription projection row",
+        );
+      }
+      // Same series billed under another product of this configuration
+      // (upgrade / crossgrade). Prefer the active row, then the freshest.
+      const siblings = yield* db
+        .select(getTableColumns(subscriptions))
+        .from(subscriptions)
+        .innerJoin(
+          paymentProviderConfigurationProducts,
+          eq(
+            paymentProviderConfigurationProducts.id,
+            subscriptions.paymentProviderConfigurationProductId,
+          ),
+        )
+        .where(
+          and(
+            eq(subscriptions.storeSubscriptionId, input.storeSubscriptionId),
+            eq(
+              paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+              input.paymentProviderConfigurationId,
+            ),
+          ),
+        )
+        .orderBy(
+          asc(subscriptions.status),
+          sql`${subscriptions.lastEventOccurredAt} DESC NULLS LAST`,
+        )
+        .limit(1);
       return yield* decodeOptional(
         PurchaseSubscriptionRecord,
-        pending,
+        siblings[0],
         "invalid subscription projection row",
       );
-    }).pipe(Effect.mapError(portError("failed to load renewal subscription projection"))),
+    }).pipe(Effect.mapError(portError("failed to resolve subscription series"))),
   findTransactionByProviderTransactionId: (input) =>
     db.query.transactions
       .findFirst({
@@ -318,6 +359,18 @@ export const makeDbPurchaseStateRepository = (
       .pipe(
         Effect.map((rows) => ({ affectedRows: rows.length })),
         Effect.mapError(portError("failed to update subscription projection")),
+      );
+  },
+  backfillTransactionMoney: (input) => {
+    const { id, ...money } = input;
+    return db
+      .update(transactions)
+      .set(money)
+      .where(and(eq(transactions.id, id), isNull(transactions.currency)))
+      .returning({ id: transactions.id })
+      .pipe(
+        Effect.map((rows) => ({ affectedRows: rows.length })),
+        Effect.mapError(portError("failed to backfill transaction money")),
       );
   },
   updateTransactionIfFresher: (input) => {

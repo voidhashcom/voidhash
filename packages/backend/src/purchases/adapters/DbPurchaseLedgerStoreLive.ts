@@ -1,5 +1,6 @@
 import {
   MAX_PURCHASE_LEDGER_REQUEUE_IDS,
+  PURCHASE_LEDGER_POISON_ERROR_PREFIXES,
   PurchaseLedgerClaimedRow,
   PurchaseLedgerDeadLetterRow,
   PurchaseLedgerStore,
@@ -244,7 +245,11 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                     eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
                     or(
                       isNull(purchaseLedger.lastError),
-                      sql`${purchaseLedger.lastError} NOT LIKE 'decode failed:%'`,
+                      and(
+                        ...PURCHASE_LEDGER_POISON_ERROR_PREFIXES.map(
+                          (prefix) => sql`${purchaseLedger.lastError} NOT LIKE ${`${prefix}%`}`,
+                        ),
+                      ),
                     ),
                     sql`COALESCE(${purchaseLedger.updatedAt}, ${purchaseLedger.createdAt}) <= NOW() - ${minimumDeadLetterAgeSeconds} * INTERVAL '1 second'`,
                   ),

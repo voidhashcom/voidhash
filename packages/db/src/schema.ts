@@ -940,7 +940,12 @@ export const transactions = pgTable(
      * have cut over.
      */
     amount: integer("amount").notNull(),
-    currency: varchar("currency", { length: 3 }).notNull(),
+    /**
+     * ISO 4217 code of the original charge. `NULL` when the provider event
+     * carried no money breakdown: amounts are then zero and a later event for
+     * the same store transaction backfills the whole money block.
+     */
+    currency: varchar("currency", { length: 3 }),
     /**
      * Legacy USD-converted amount. Mirrors {@link transactions.grossAmountUsd}
      * during the read-side migration window; remove with `amount`.

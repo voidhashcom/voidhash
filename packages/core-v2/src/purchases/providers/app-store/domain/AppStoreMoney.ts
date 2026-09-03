@@ -10,28 +10,25 @@
  *   proc.  = gross - comm.
  *   procT. = gross - comm. - tax
  *
- * The same module owns the FX conversion to USD via {@link FxRateService}.
  * Inputs that are missing on the JWS (no price, no currency) yield
- * `Option.none()` so downstream layers can leave money fields blank rather
- * than emit zeros.
+ * `Option.none()` so downstream layers leave money fields blank rather than
+ * emit zeros. The decoded JWS is consumed structurally so this module stays
+ * free of the App Store SDK.
  */
-import {
-  InAppOwnershipType,
-  type JWSTransactionDecodedPayload,
-  Type as AppleTransactionType,
-} from "@voidhash/app-store-server-sdk";
-import { getStorefrontVatRateBps, parseISO4217CurrencyCode } from "@voidhash/lib/constants";
+import { getStorefrontVatRateBps } from "@voidhash/lib/constants";
 import { pick } from "@voidhash/lib/lang";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
 
-import { PurchaseProcessingMoney, PurchaseProcessingMoneyUsd } from "@voidhash/core-v2";
-import { CurrencyCode, ExchangeRate, MinorAmount } from "@voidhash/core-v2";
-import type { DbError } from "@voidhash/db";
-
-import { FX_RATE_PRECISION, type FxRateLookup, type FxRateServiceError } from "@voidhash/core-v2";
-import * as Schema from "effect/Schema";
+import { CurrencyCode, MinorAmount } from "../../../domain/Money.ts";
+import { PurchaseProcessingMoney } from "../../../domain/PurchaseProcessing.ts";
+import {
+  buildUsdBreakdown,
+  parseProviderCurrency,
+  type FxRateLookupShape,
+} from "../../domain/ProviderMoney.ts";
 
 /** Apple's `price` field on a decoded JWS is in milliunits (10× minor units). */
 const APPLE_PRICE_DENOMINATOR = 10;
@@ -39,18 +36,33 @@ const APPLE_PRICE_DENOMINATOR = 10;
 /** Apple's `revocationPercentage` is in milliunits (100% = 100_000). */
 const APPLE_REVOCATION_FULL = 100_000;
 
-/** Commission rates in basis points. */
-const APPLE_COMMISSION_STANDARD_BPS = 3_000; // 30.00%
-const APPLE_COMMISSION_REDUCED_BPS = 1_500; // 15.00%
+export const APPLE_COMMISSION_STANDARD_BPS = 3_000;
+export const APPLE_COMMISSION_REDUCED_BPS = 1_500;
+
+/** Apple's `type` value for auto-renewable subscriptions. */
+export const APPLE_AUTO_RENEWABLE_SUBSCRIPTION_TYPE = "Auto-Renewable Subscription";
+
+/** Apple's `inAppOwnershipType` value for family-shared entitlements. */
+export const APPLE_FAMILY_SHARED_OWNERSHIP = "FAMILY_SHARED";
 
 /** One Gregorian year in milliseconds (365.25 days). Used for the year-2+ rule. */
 const ONE_YEAR_MS = Math.round(365.25 * 24 * 60 * 60 * 1_000);
 
+/** Fields of a decoded App Store JWS transaction that money normalization reads. */
+export interface AppStoreMoneyTransaction {
+  readonly currency: Option.Option<string>;
+  readonly inAppOwnershipType: Option.Option<string>;
+  readonly originalPurchaseDate: Option.Option<number>;
+  readonly price: Option.Option<number>;
+  readonly purchaseDate: Option.Option<number>;
+  readonly revocationPercentage: Option.Option<number>;
+  readonly storefront: Option.Option<string>;
+  readonly type: Option.Option<string>;
+}
+
 /**
  * Subset of the App Store global configuration needed to compute the
- * commission rate. Defined structurally so this module doesn't pull in the
- * full payment-provider configuration shape (the broader type lives in
- * `payment-provider.ts` and is internal there).
+ * commission rate.
  */
 export interface AppleCommissionConfiguration {
   readonly appleSmallBusinessProgramStartDate?: string;
@@ -82,9 +94,8 @@ const isSmallBusinessProgramActiveAt = (
   return at <= end;
 };
 
-const isYearTwoOrLaterAutoRenewable = (decoded: JWSTransactionDecodedPayload): boolean => {
-  const type = Option.getOrUndefined(decoded.type);
-  if (type !== AppleTransactionType.AUTO_RENEWABLE_SUBSCRIPTION) return false;
+const isYearTwoOrLaterAutoRenewable = (decoded: AppStoreMoneyTransaction): boolean => {
+  if (!Option.contains(decoded.type, APPLE_AUTO_RENEWABLE_SUBSCRIPTION_TYPE)) return false;
   const original = Option.getOrUndefined(decoded.originalPurchaseDate);
   const current = Option.getOrUndefined(decoded.purchaseDate);
   if (original === undefined || current === undefined) return false;
@@ -99,7 +110,7 @@ const isYearTwoOrLaterAutoRenewable = (decoded: JWSTransactionDecodedPayload): b
  * (Apple's automatic reduction after year 1). Else 30%.
  */
 export const resolveAppleCommissionRateBps = (input: {
-  readonly decoded: JWSTransactionDecodedPayload;
+  readonly decoded: AppStoreMoneyTransaction;
   readonly globalConfiguration: AppleCommissionConfiguration;
   readonly occurredAt: Date;
 }): number => {
@@ -130,8 +141,6 @@ export const estimateAppleTaxAmount = (input: {
 }): number => {
   const rateBps = getStorefrontVatRateBps(input.storefront);
   if (rateBps <= 0) return 0;
-  // tax = gross × rate / (1 + rate); rate is `rateBps / 10_000` so
-  // tax = gross × rateBps / (10_000 + rateBps).
   const numerator = input.grossAmount * rateBps;
   const denominator = 10_000 + rateBps;
   return Math.round(numerator / denominator);
@@ -145,45 +154,6 @@ const scaleAmountByRefundPercentage = (
   if (refundPercentageMilliunits <= 0) return 0;
   return Math.round((amount * refundPercentageMilliunits) / APPLE_REVOCATION_FULL);
 };
-
-const convertToUsd = (amount: number, rate: number): number =>
-  Math.round((amount * rate) / FX_RATE_PRECISION);
-
-const buildUsdBreakdown = (
-  amounts: {
-    readonly grossAmount: number;
-    readonly storeCommissionAmount: number;
-    readonly taxAmount: number;
-    readonly proceedsAmount: number;
-    readonly proceedsAfterTaxAmount: number;
-  },
-  exchangeRate: number,
-): PurchaseProcessingMoneyUsd =>
-  new PurchaseProcessingMoneyUsd({
-    exchangeRate: ExchangeRate.make(exchangeRate),
-    grossAmount: MinorAmount.make(convertToUsd(amounts.grossAmount, exchangeRate)),
-    proceedsAfterTaxAmount: MinorAmount.make(
-      convertToUsd(amounts.proceedsAfterTaxAmount, exchangeRate),
-    ),
-    proceedsAmount: MinorAmount.make(convertToUsd(amounts.proceedsAmount, exchangeRate)),
-    storeCommissionAmount: MinorAmount.make(
-      convertToUsd(amounts.storeCommissionAmount, exchangeRate),
-    ),
-    taxAmount: MinorAmount.make(convertToUsd(amounts.taxAmount, exchangeRate)),
-  });
-
-/**
- * Subset of `FxRateService` that {@link buildAppStoreMoney} needs. Defined
- * structurally so callers can pass the already-resolved instance — avoids
- * leaking the `FxRateService` requirement into every method that calls this
- * helper.
- */
-export interface FxRateLookupShape {
-  readonly getUsdRate: (input: {
-    readonly currency: string;
-    readonly asOf: Date;
-  }) => Effect.Effect<Option.Option<FxRateLookup>, FxRateServiceError | DbError>;
-}
 
 /**
  * Builds the full money record for an App Store JWS transaction.
@@ -199,25 +169,18 @@ export interface FxRateLookupShape {
  * the full-purchase amounts.
  */
 export const buildAppStoreMoney = (input: {
-  readonly decoded: JWSTransactionDecodedPayload;
+  readonly decoded: AppStoreMoneyTransaction;
   readonly globalConfiguration: AppleCommissionConfiguration;
   readonly occurredAt: Date;
   readonly fxRateService: FxRateLookupShape;
 }) =>
   Effect.gen(function* () {
-    const fxRateService = input.fxRateService;
-
     const priceOp = input.decoded.price;
     const currencyRawOp = input.decoded.currency;
     if (Option.isNone(priceOp) || Option.isNone(currencyRawOp)) {
       return Option.none<PurchaseProcessingMoney>();
     }
-    const currencyOp = yield* parseISO4217CurrencyCode(currencyRawOp.value).pipe(
-      Effect.map(Option.some),
-      Effect.catchTag("InvalidISO4217CurrencyCodeError", () =>
-        Effect.succeed(Option.none<string>()),
-      ),
-    );
+    const currencyOp = yield* parseProviderCurrency(currencyRawOp.value);
     if (Option.isNone(currencyOp)) {
       return Option.none<PurchaseProcessingMoney>();
     }
@@ -238,10 +201,11 @@ export const buildAppStoreMoney = (input: {
     // Family-shared transactions never generate revenue for us — Apple does
     // not credit the developer for the family member's grant. We still record
     // the gross so analytics can see the entitlement, but commission and
-    // proceeds are zero. The `family_revoke` analytics path is the only
-    // negative delta we ever emit for this kind of transaction.
-    const isFamilyShared =
-      Option.getOrUndefined(input.decoded.inAppOwnershipType) === InAppOwnershipType.FAMILY_SHARED;
+    // proceeds are zero.
+    const isFamilyShared = Option.contains(
+      input.decoded.inAppOwnershipType,
+      APPLE_FAMILY_SHARED_OWNERSHIP,
+    );
     const storeCommissionAmount = pick(
       isFamilyShared,
       0,
@@ -249,12 +213,11 @@ export const buildAppStoreMoney = (input: {
     );
     const taxAmount = estimateAppleTaxAmount({ grossAmount, storefront });
     const proceedsAmount = grossAmount - storeCommissionAmount;
-    // Clamped like the Stripe path: an estimated VAT above the proceeds
-    // (rate ≥ ~23,334 bps at the standard commission tier) must not produce a
-    // negative amount — `MinorAmount` rejects negatives as a defect.
+    // An estimated VAT above the proceeds must not produce a negative amount;
+    // `MinorAmount` rejects negatives as a defect.
     const proceedsAfterTaxAmount = Math.max(0, proceedsAmount - taxAmount);
 
-    const fxLookup = yield* fxRateService.getUsdRate({ asOf: input.occurredAt, currency });
+    const fxLookup = yield* input.fxRateService.getUsdRate({ asOf: input.occurredAt, currency });
     const usd = Option.map(fxLookup, (lookup) =>
       buildUsdBreakdown(
         { grossAmount, proceedsAfterTaxAmount, proceedsAmount, storeCommissionAmount, taxAmount },

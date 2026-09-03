@@ -77,14 +77,31 @@ const makePurchaseLedgerWorker = Effect.fn("makePurchaseLedgerWorker")(function*
       return PUBLISHED;
     }
 
+    const nextAttempt = row.attemptCount + 1;
+    // The sink accepted the batch but rejected some events for good (they are
+    // already in the analytics dead-letter queue). Redelivering the same
+    // payload can never succeed, so the row is poison rather than transient.
+    if (delivered.ok && delivered.deadLettered > 0) {
+      yield* store.deadLetter({
+        attemptCount: nextAttempt,
+        claimedBy: row.claimedBy,
+        id: row.id,
+        lastError:
+          `poison: sink rejected ${delivered.deadLettered}/${decoded.length} events (stored ${delivered.stored})`.slice(
+            0,
+            1_000,
+          ),
+      });
+      return DEAD_LETTERED;
+    }
+
     let deliveryError: string;
     if (delivered.ok) {
-      deliveryError = `delivery incomplete: stored ${delivered.stored}/${decoded.length}, dead-lettered ${delivered.deadLettered}`;
+      deliveryError = `delivery incomplete: stored ${delivered.stored}/${decoded.length}`;
     } else {
       deliveryError = delivered.error;
     }
 
-    const nextAttempt = row.attemptCount + 1;
     if (nextAttempt >= maxAttempts) {
       yield* store.deadLetter({
         attemptCount: nextAttempt,

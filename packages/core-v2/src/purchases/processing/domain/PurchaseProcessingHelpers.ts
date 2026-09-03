@@ -23,7 +23,7 @@ import {
 type StoredNull = typeof Schema.Null.Type;
 
 export interface StoredTransactionMoneyFields {
-  readonly currency: string;
+  readonly currency: string | StoredNull;
   readonly storefront: string | StoredNull;
   readonly grossAmount: number;
   readonly storeCommissionAmount: number;
@@ -72,20 +72,51 @@ export const usdFromStoredTransaction = (
   );
 };
 
-/** Reconstructs normalized money from a persisted transaction row. */
+/**
+ * Reconstructs normalized money from a persisted transaction row. Absent when
+ * the row was observed without a money breakdown (`currency` is `null`), so
+ * downstream events carry no amounts instead of a fabricated zero.
+ */
 export const moneyFromStoredTransaction = (
   row: StoredTransactionMoneyFields,
-): PurchaseProcessingMoney =>
-  new PurchaseProcessingMoney({
-    currency: currency(row.currency),
-    grossAmount: minor(row.grossAmount),
-    proceedsAfterTaxAmount: minor(row.proceedsAfterTaxAmount),
-    proceedsAmount: minor(row.proceedsAmount),
-    storeCommissionAmount: minor(row.storeCommissionAmount),
-    storefront: Option.fromNullishOr(row.storefront),
-    taxAmount: minor(row.taxAmount),
-    usd: usdFromStoredTransaction(row),
-  });
+): Option.Option<PurchaseProcessingMoney> => {
+  if (row.currency === null) return Option.none();
+  return Option.some(
+    new PurchaseProcessingMoney({
+      currency: currency(row.currency),
+      grossAmount: minor(row.grossAmount),
+      proceedsAfterTaxAmount: minor(row.proceedsAfterTaxAmount),
+      proceedsAmount: minor(row.proceedsAmount),
+      storeCommissionAmount: minor(row.storeCommissionAmount),
+      storefront: Option.fromNullishOr(row.storefront),
+      taxAmount: minor(row.taxAmount),
+      usd: usdFromStoredTransaction(row),
+    }),
+  );
+};
+
+/** Persisted money columns for a normalized money value; absent money stores zeros and a null currency. */
+export const storedMoneyColumns = (money: Option.Option<PurchaseProcessingMoney>) => {
+  const value = Option.getOrUndefined(money);
+  const usd = Option.getOrUndefined(Option.flatMap(money, (some) => some.usd));
+  return {
+    amount: value?.grossAmount ?? 0,
+    amountUsd: usd?.grossAmount ?? null,
+    currency: value?.currency ?? null,
+    exchangeRate: usd?.exchangeRate ?? null,
+    grossAmount: value?.grossAmount ?? 0,
+    grossAmountUsd: usd?.grossAmount ?? null,
+    proceedsAfterTaxAmount: value?.proceedsAfterTaxAmount ?? 0,
+    proceedsAfterTaxAmountUsd: usd?.proceedsAfterTaxAmount ?? null,
+    proceedsAmount: value?.proceedsAmount ?? 0,
+    proceedsAmountUsd: usd?.proceedsAmount ?? null,
+    storeCommissionAmount: value?.storeCommissionAmount ?? 0,
+    storeCommissionAmountUsd: usd?.storeCommissionAmount ?? null,
+    storefront: Option.getOrNull(Option.flatMap(money, (some) => some.storefront)),
+    taxAmount: value?.taxAmount ?? 0,
+    taxAmountUsd: usd?.taxAmount ?? null,
+  };
+};
 
 /** Unwraps nested infrastructure errors to their most specific available cause. */
 export const describePurchaseErrorCause = (error: unknown): string => {

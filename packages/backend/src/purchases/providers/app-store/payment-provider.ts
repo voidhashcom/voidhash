@@ -23,6 +23,11 @@ import * as Context from "effect/Context";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
 import {
+  buildAppStoreMoney,
+  isAppStoreRenewalTransaction,
+  resolveAppStoreRenewalPreferenceProduct,
+} from "@voidhash/core-v2";
+import {
   DEFAULT_SUBSCRIPTION_TRANSFER_MODE,
   type SubscriptionTransferMode,
 } from "@voidhash/core-v2";
@@ -60,7 +65,6 @@ import {
   getAppStoreProviderTransactionId,
   makeIgnoredPurchaseProcessingResult,
 } from "./helpers.ts";
-import { buildAppStoreMoney } from "./money.ts";
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import {
   buildAppStoreSdkContext,
@@ -938,9 +942,10 @@ const make = Effect.fn("make")(function* () {
    * depending on the decoded transaction shape.
    */
   const recordPurchase = Effect.fn("recordPurchase")(function* (input: RecordTransactionInput) {
-    const isRenewal =
-      input.subtype === "RESUBSCRIBE" ||
-      Option.exists(input.decodedTransaction.transactionReason, (reason) => reason === "RENEWAL");
+    const isRenewal = isAppStoreRenewalTransaction({
+      subtype: Option.fromNullishOr(input.subtype),
+      transactionReason: input.decodedTransaction.transactionReason,
+    });
     const providerEventType = pick(isRenewal, "renewal", "purchase");
     const ctx = yield* _resolveAppStorePurchaseContext(input, providerEventType);
     if (ctx.kind === "ignored") {
@@ -1194,18 +1199,25 @@ const make = Effect.fn("make")(function* () {
     if (ctx.kind === "ignored") {
       return makeIgnoredPurchaseProcessingResult();
     }
-    if (Option.isNone(ctx.decodedTransaction.productId)) {
+    const nextProductKey = resolveAppStoreRenewalPreferenceProduct({
+      autoRenewProductId: Option.flatMap(
+        input.decodedRenewalInfo,
+        (renewalInfo) => renewalInfo.autoRenewProductId,
+      ),
+      transactionProductId: ctx.decodedTransaction.productId,
+    });
+    if (Option.isNone(nextProductKey)) {
       return makeIgnoredPurchaseProcessingResult();
     }
     // Try to resolve the new product mapping; absent is OK (records intent).
     const newProduct = yield* queries.findPaymentProviderConfigurationProductByPrimaryKey({
       paymentProviderConfigurationId: ctx.base.paymentProviderConfigurationId,
-      providerProductKey: ctx.decodedTransaction.productId.value,
+      providerProductKey: nextProductKey.value,
     });
     return yield* purchaseProcessingService.changeRenewalPreference({
       ...ctx.base,
       newPaymentProviderConfigurationProductId: Option.fromNullishOr(newProduct?.id),
-      newProviderProductKey: ctx.decodedTransaction.productId.value,
+      newProviderProductKey: nextProductKey.value,
     });
   }, _withRecordTransactionObservability);
 

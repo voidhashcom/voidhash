@@ -91,7 +91,7 @@ import {
   stripeProviderProductKey,
   subscriptionPrimaryPriceProduct,
 } from "./helpers.ts";
-import { buildStripeMoney } from "./money.ts";
+import { buildStripeMoney } from "@voidhash/core-v2";
 import { StripePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import { buildStripeContext, type StripeContext, type StripeMode } from "./sdk-context.ts";
 import * as P from "effect/Predicate";

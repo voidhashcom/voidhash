@@ -21,6 +21,7 @@ import * as Schema from "effect/Schema";
 import { createHash } from "@voidhash/core/services/apiKeys/create-hash";
 
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
+import { GooglePlayVoidedPurchaseRefundType, routeGooglePlayNotification } from "@voidhash/core-v2";
 import {
   GooglePlayPaymentProviderConfigurationNotFoundError,
   GooglePlayPaymentProviderProductNotMappedError,
@@ -495,64 +496,66 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               ),
             );
 
-          const matchResult: AcceptRtdnNotificationResult = yield* Match.value(decoded).pipe(
-            Match.when({ type: "subscription" }, (subscription) =>
-              Match.value(subscription.notificationType).pipe(
-                // PURCHASED → new subscription.
-                Match.when(4, () => handled(googlePlayPaymentProvider.recordPurchase(recordInput))),
-                // RENEWED / RECOVERED → successful renewal charge.
-                Match.whenOr(2, 1, () =>
-                  handled(googlePlayPaymentProvider.recordSubscriptionRenewed(recordInput)),
-                ),
-                // CANCELED → auto-renew disabled; entitled until expiry.
-                Match.when(3, () =>
-                  handled(googlePlayPaymentProvider.recordSubscriptionCanceled(recordInput)),
-                ),
-                // ON_HOLD / IN_GRACE_PERIOD → billing retry.
-                Match.whenOr(5, 6, () =>
-                  handled(googlePlayPaymentProvider.recordBillingRetry(recordInput)),
-                ),
-                // RESTARTED → user re-enabled auto-renew.
-                Match.when(7, () =>
-                  handled(googlePlayPaymentProvider.recordAutoRenewResumed(recordInput)),
-                ),
-                // PRICE_CHANGE_CONFIRMED → pending price change.
-                Match.when(8, () =>
-                  handled(googlePlayPaymentProvider.recordPriceIncrease(recordInput)),
-                ),
-                // DEFERRED → renewal date extended.
-                Match.when(9, () =>
-                  handled(googlePlayPaymentProvider.recordSubscriptionExtended(recordInput)),
-                ),
-                // REVOKED → entitlement revoked immediately.
-                Match.when(12, () =>
-                  handled(googlePlayPaymentProvider.recordEntitlementRevoked(recordInput)),
-                ),
-                // EXPIRED → subscription ended.
-                Match.when(13, () =>
-                  handled(googlePlayPaymentProvider.recordSubscriptionExpired(recordInput)),
-                ),
-                // PAUSED / PAUSE_SCHEDULE_CHANGED (10/11) → no state change.
-                Match.orElse(() =>
-                  handled(googlePlayPaymentProvider.recordInformationalNotification(recordInput)),
-                ),
-              ),
+          /**
+           * The purchase core owns the notification decision table
+           * (`routeGooglePlayNotification`); this only binds each route to the
+           * provider's record method.
+           */
+          const route = routeGooglePlayNotification(
+            Match.value(decoded).pipe(
+              Match.when({ type: "subscription" }, (notification) => ({
+                notificationType: notification.notificationType,
+                type: "subscription" as const,
+              })),
+              Match.when({ type: "oneTimeProduct" }, (notification) => ({
+                notificationType: notification.notificationType,
+                type: "oneTimeProduct" as const,
+              })),
+              Match.when({ type: "voidedPurchase" }, (notification) => ({
+                refundType:
+                  notification.refundType ?? GooglePlayVoidedPurchaseRefundType.FullRefund,
+                type: "voidedPurchase" as const,
+              })),
+              Match.orElse(() => ({ type: "test" as const })),
             ),
-            Match.when({ type: "oneTimeProduct" }, (oneTime) => {
-              // PURCHASED (1) → new purchase; anything else is a refund.
-              if (oneTime.notificationType === 1) {
-                return handled(googlePlayPaymentProvider.recordPurchase(recordInput));
-              }
-              return handled(googlePlayPaymentProvider.recordRefund(recordInput));
-            }),
-            Match.when({ type: "voidedPurchase" }, (voided) => {
-              // refundType 2 = revoke (entitlement pulled), otherwise a refund.
-              if (voided.refundType === 2) {
-                return handled(googlePlayPaymentProvider.recordEntitlementRevoked(recordInput));
-              }
-              return handled(googlePlayPaymentProvider.recordRefund(recordInput));
-            }),
-            Match.orElse(() => Effect.succeed(ack(false))),
+          );
+          yield* Effect.annotateCurrentSpan("google_play.route", route);
+          const matchResult: AcceptRtdnNotificationResult = yield* Match.value(route).pipe(
+            Match.when("purchase", () =>
+              handled(googlePlayPaymentProvider.recordPurchase(recordInput)),
+            ),
+            Match.when("renewal", () =>
+              handled(googlePlayPaymentProvider.recordSubscriptionRenewed(recordInput)),
+            ),
+            Match.when("cancel_at_period_end", () =>
+              handled(googlePlayPaymentProvider.recordSubscriptionCanceled(recordInput)),
+            ),
+            Match.when("billing_retry", () =>
+              handled(googlePlayPaymentProvider.recordBillingRetry(recordInput)),
+            ),
+            Match.when("auto_renew_resumed", () =>
+              handled(googlePlayPaymentProvider.recordAutoRenewResumed(recordInput)),
+            ),
+            Match.when("price_increase", () =>
+              handled(googlePlayPaymentProvider.recordPriceIncrease(recordInput)),
+            ),
+            Match.when("extended", () =>
+              handled(googlePlayPaymentProvider.recordSubscriptionExtended(recordInput)),
+            ),
+            Match.when("revoke", () =>
+              handled(googlePlayPaymentProvider.recordEntitlementRevoked(recordInput)),
+            ),
+            Match.when("expired", () =>
+              handled(googlePlayPaymentProvider.recordSubscriptionExpired(recordInput)),
+            ),
+            Match.when("refund", () =>
+              handled(googlePlayPaymentProvider.recordRefund(recordInput)),
+            ),
+            Match.when("informational", () =>
+              handled(googlePlayPaymentProvider.recordInformationalNotification(recordInput)),
+            ),
+            Match.when("ignored", () => Effect.succeed(ack(false))),
+            Match.exhaustive,
           );
 
           const ledgerResult =

@@ -9,12 +9,8 @@ import {
   EntitlementSync,
   PurchaseIdGenerator,
   PurchaseLedgerWriteStore,
-  PurchasePortError,
   PurchaseStateRepository,
   PurchaseUnitOfWork,
-  type PurchaseLedgerReservation,
-  type PurchaseLedgerWriteStoreShape,
-  type PurchaseStateRepositoryShape,
   type PurchaseSubscriptionUpdate,
 } from "../../application/ports.ts";
 import type {
@@ -26,18 +22,10 @@ import type {
   RedeemOfferInput,
   ResumeAutoRenewInput,
 } from "../../domain/PurchaseAction.ts";
-import {
-  PurchaseProcessingProductNotMappedError,
-  PurchaseProcessingServiceError,
-  type PurchaseProcessingError,
-} from "../../application/ports/PurchaseStateStore.ts";
+import type { PurchaseProcessingError } from "../../application/ports/PurchaseStateStore.ts";
 import { PurchaseProcessingResult } from "../../domain/PurchaseProcessing.ts";
 import type { RevenueEvent } from "../../contract/RevenueEvents.ts";
-import {
-  describePurchaseErrorCause,
-  purchaseActionSpanAttributes,
-  purchaseProcessingResultSpanAttributes,
-} from "../domain/PurchaseProcessingHelpers.ts";
+import { purchaseActionSpanAttributes } from "../domain/PurchaseProcessingHelpers.ts";
 import {
   toAutoRenewResumedAnalyticsInputs,
   toBillingRetryAnalyticsInputs,
@@ -47,19 +35,18 @@ import {
   toRenewalPreferenceChangeAnalyticsInputs,
   type RevenueAnalyticsMapperContext,
 } from "../domain/RevenueEventMapper.ts";
+import {
+  emptyPurchaseResult,
+  mapPurchasePortErrors,
+  reservePurchaseLedgerRow,
+  resolvePurchaseContext,
+  stagePurchaseRevenue,
+  storeSubscriptionIdOf,
+  subscriptionIdentifierError,
+} from "./PurchaseActionSupport.ts";
 
 type Action = typeof PurchaseActionContext.Type;
 type SubscriptionPatch = Omit<PurchaseSubscriptionUpdate, "id" | "occurredAt">;
-
-interface ResolvedContext {
-  readonly configurationProduct: {
-    readonly id: string;
-    readonly productId: string;
-    readonly providerProductKey: string;
-  };
-  readonly distinctId: string;
-  readonly personId: string;
-}
 
 interface ApplyMutationInput<I extends Action> {
   readonly action: I;
@@ -97,22 +84,6 @@ export interface PurchaseSubscriptionMutationMachineShape {
   ) => Effect.Effect<PurchaseProcessingResult, PurchaseProcessingError>;
 }
 
-const emptyResult = (personId: string) =>
-  new PurchaseProcessingResult({
-    analyticsEventIds: [],
-    changedGrantIds: [],
-    idempotent: false,
-    personId,
-    purchaseId: Option.none(),
-    subscriptionId: Option.none(),
-    transactionId: Option.none(),
-  });
-
-const subscriptionIdentifierError = (input: Action) =>
-  new PurchaseProcessingServiceError({
-    cause: `Subscription event has no subscription identifier (providerEventType=${input.providerEventType}, providerWebhookNotificationId=${Option.getOrElse(input.providerWebhookNotificationId, () => "—")})`,
-  });
-
 const makePurchaseSubscriptionMutationMachine = Effect.fn(
   "makePurchaseSubscriptionMutationMachine",
 )(function* () {
@@ -120,163 +91,76 @@ const makePurchaseSubscriptionMutationMachine = Effect.fn(
   const repository = yield* PurchaseStateRepository;
   const unitOfWork = yield* PurchaseUnitOfWork;
 
-  const resolveContext = (input: Action) =>
-    Effect.gen(function* () {
-      const configurationProduct = yield* repository.resolveConfigurationProduct(
-        input.paymentProviderConfigurationProductId,
-      );
-      if (
-        configurationProduct === undefined ||
-        configurationProduct.productProjectId !== input.projectId ||
-        configurationProduct.paymentProviderConfigurationId !== input.paymentProviderConfigurationId
-      ) {
-        return yield* new PurchaseProcessingProductNotMappedError({
-          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-          paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
-        });
-      }
-      const person = yield* repository.findPerson(input.personId);
-      if (person === undefined || person.projectId !== input.projectId) {
-        return yield* new PurchaseProcessingServiceError({
-          cause: `Resolved person ${input.personId} not found for project ${input.projectId}`,
-        });
-      }
-      return {
-        configurationProduct,
-        distinctId: person.primaryDistinctId ?? person.id,
-        personId: person.id,
-      } satisfies ResolvedContext;
-    });
-
-  const reserve = (ledger: PurchaseLedgerWriteStoreShape, input: Action) =>
-    ledger.reserve({
-      id: ids.generate("purchaseLedger"),
-      idempotencyKey: input.idempotencyKey,
-      organizationId: input.organizationId,
-      personId: input.personId,
-      projectId: input.projectId,
-      providerEventType: input.providerEventType,
-      providerId: input.providerId,
-      rawProviderPayload: Option.getOrNull(input.rawProviderPayload),
-      source: input.source,
-    });
-
-  const revenueContext = (
-    txRepository: PurchaseStateRepositoryShape,
-    action: Action,
-    context: ResolvedContext,
-  ) =>
-    Effect.gen(function* () {
-      const mapping = yield* txRepository.resolveConfigurationProduct(
-        action.paymentProviderConfigurationProductId,
-      );
-      if (
-        mapping === undefined ||
-        mapping.productProjectId !== action.projectId ||
-        mapping.paymentProviderConfigurationId !== action.paymentProviderConfigurationId
-      ) {
-        return yield* new PurchaseProcessingServiceError({
-          cause: `Revenue product mapping ${action.paymentProviderConfigurationProductId} is missing or outside project ${action.projectId}`,
-        });
-      }
-      const token = yield* txRepository.findPublicApiToken(action.projectId);
-      const distinctId = yield* txRepository.resolveDistinctId(context.personId);
-      return {
-        distinctId,
-        idempotencyKey: action.idempotencyKey,
-        organizationId: action.organizationId,
-        productId: mapping.productId,
-        projectId: action.projectId,
-        providerProductKey: mapping.providerProductKey,
-        token: token ?? `vh_server_revenue_${action.projectId}`,
-      } satisfies RevenueAnalyticsMapperContext;
-    });
-
-  const stage = (
-    ledger: PurchaseLedgerWriteStoreShape,
-    reservation: PurchaseLedgerReservation,
-    events: ReadonlyArray<RevenueEvent>,
-    result: PurchaseProcessingResult,
-  ) =>
-    Effect.gen(function* () {
-      yield* Effect.annotateCurrentSpan({
-        ...purchaseProcessingResultSpanAttributes(result),
-        "voidhash.analytics.event_count": events.length,
-      });
-      yield* ledger.stageEvents({ events, reservation, result });
-      return result;
-    });
-
   const applyMutation = <I extends Action>(input: ApplyMutationInput<I>) =>
-    Effect.gen(function* () {
-      yield* Effect.annotateCurrentSpan(purchaseActionSpanAttributes(input.action));
-      const context = yield* resolveContext(input.action);
-      const storeSubscriptionId = Option.firstSomeOf([
-        input.action.providerSubscriptionId,
-        input.action.providerTransactionId,
-      ]);
-      if (Option.isNone(storeSubscriptionId)) {
-        return yield* subscriptionIdentifierError(input.action);
-      }
-
-      return yield* unitOfWork.transact(
-        Effect.gen(function* () {
-          const txRepository = yield* PurchaseStateRepository;
-          const ledger = yield* PurchaseLedgerWriteStore;
-          const entitlements = yield* EntitlementSync;
-          const claim = yield* reserve(ledger, input.action);
-          if (P.hasProperty(claim, "result")) return claim.result;
-
-          const existing = yield* txRepository.findSubscriptionByStoreSubscriptionId({
-            paymentProviderConfigurationProductId: context.configurationProduct.id,
-            storeSubscriptionId: storeSubscriptionId.value,
-          });
-          if (existing === undefined) {
-            const result = emptyResult(context.personId);
-            yield* ledger.finalize({ reservation: claim.reservation, result });
-            return result;
-          }
-
-          const updated = yield* txRepository.updateSubscriptionIfFresher({
-            ...input.buildPatch({
-              ...existing,
-              expiresAt: Option.fromNullishOr(existing.expiresAt),
-            }),
-            id: existing.id,
-            occurredAt: input.action.occurredAt,
-          });
-          if (updated.affectedRows === 0) {
-            yield* Effect.logInfo(
-              `${input.methodName}: stale event; watermark guard rejected projection update (subscriptionId=${existing.id}, occurredAt=${input.action.occurredAt.toISOString()})`,
-            );
-          }
-          let changedGrantIds: ReadonlyArray<string> = [];
-          if (input.syncPerksOnApply) {
-            changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
-          }
-          const mapperContext = yield* revenueContext(txRepository, input.action, context);
-          const events = input.buildEvents(
-            { personId: context.personId, subscriptionId: Option.some(existing.id) },
-            mapperContext,
-          );
-          const result = new PurchaseProcessingResult({
-            analyticsEventIds: events.map((event) => event.eventId),
-            changedGrantIds,
-            idempotent: false,
-            personId: context.personId,
-            purchaseId: Option.none(),
-            subscriptionId: Option.some(existing.id),
-            transactionId: Option.none(),
-          });
-          return yield* stage(ledger, claim.reservation, events, result);
-        }),
-      );
-    }).pipe(
-      Effect.mapError((error) => {
-        if (error instanceof PurchasePortError) {
-          return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
+    mapPurchasePortErrors(
+      Effect.gen(function* () {
+        yield* Effect.annotateCurrentSpan(purchaseActionSpanAttributes(input.action));
+        const context = yield* resolvePurchaseContext(repository, input.action);
+        const storeSubscriptionId = storeSubscriptionIdOf(input.action);
+        if (Option.isNone(storeSubscriptionId)) {
+          return yield* subscriptionIdentifierError(input.action);
         }
-        return error;
+
+        return yield* unitOfWork.transact(
+          Effect.gen(function* () {
+            const txRepository = yield* PurchaseStateRepository;
+            const ledger = yield* PurchaseLedgerWriteStore;
+            const entitlements = yield* EntitlementSync;
+            const claim = yield* reservePurchaseLedgerRow(ids, ledger, input.action);
+            if (P.hasProperty(claim, "result")) return claim.result;
+
+            const existing = yield* txRepository.findSubscriptionSeries({
+              paymentProviderConfigurationId: input.action.paymentProviderConfigurationId,
+              paymentProviderConfigurationProductId: context.configurationProduct.id,
+              storeSubscriptionId: storeSubscriptionId.value,
+            });
+            if (existing === undefined) {
+              const result = emptyPurchaseResult(context.personId);
+              yield* ledger.finalize({ reservation: claim.reservation, result });
+              return result;
+            }
+
+            const updated = yield* txRepository.updateSubscriptionIfFresher({
+              ...input.buildPatch({
+                ...existing,
+                expiresAt: Option.fromNullishOr(existing.expiresAt),
+              }),
+              id: existing.id,
+              occurredAt: input.action.occurredAt,
+            });
+            if (updated.affectedRows === 0) {
+              yield* Effect.logInfo(
+                `${input.methodName}: stale event; watermark guard rejected projection update (subscriptionId=${existing.id}, occurredAt=${input.action.occurredAt.toISOString()})`,
+              );
+            }
+            let changedGrantIds: ReadonlyArray<string> = [];
+            if (input.syncPerksOnApply) {
+              changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
+            }
+            return yield* stagePurchaseRevenue({
+              action: input.action,
+              buildEvents: (mapperContext) =>
+                input.buildEvents(
+                  { personId: context.personId, subscriptionId: Option.some(existing.id) },
+                  mapperContext,
+                ),
+              buildResult: (analyticsEventIds) =>
+                new PurchaseProcessingResult({
+                  analyticsEventIds,
+                  changedGrantIds,
+                  idempotent: false,
+                  personId: context.personId,
+                  purchaseId: Option.none(),
+                  subscriptionId: Option.some(existing.id),
+                  transactionId: Option.none(),
+                }),
+              context,
+              ledger,
+              repository: txRepository,
+              reservation: claim.reservation,
+            });
+          }),
+        );
       }),
     );
 
@@ -346,10 +230,10 @@ const makePurchaseSubscriptionMutationMachine = Effect.fn(
           const periodStillRunning =
             Option.isNone(existing.expiresAt) ||
             existing.expiresAt.value.getTime() > input.occurredAt.getTime();
-          const patch = {
-            cancelAtPeriodEnd: false,
+          const patch: SubscriptionPatch = {
             canceledAt: null,
             cancellationReason: null,
+            isCancelAtPeriodEnd: false,
           };
           if (periodStillRunning) return { ...patch, status: SubscriptionStatus.Active };
           return patch;
