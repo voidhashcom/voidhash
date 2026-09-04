@@ -216,7 +216,19 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         const epoch = identityEpoch.current();
         const distinctId = yield* identityManager.getDistinctId();
         const cacheKey = generateCacheKey(distinctId, flagKeys);
-        const cached = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
+        const exact = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
+        const allFlags =
+          Option.isNone(exact) && flagKeys && Arr.isReadonlyArrayNonEmpty(flagKeys)
+            ? yield* cacheManager.get<FeatureFlagsResult>(generateCacheKey(distinctId))
+            : Option.none();
+        const cached = Option.orElse(exact, () =>
+          Option.map(allFlags, (hit) => ({
+            ...hit,
+            value: {
+              flags: hit.value.flags.filter((flag) => flagKeys?.includes(flag.key)),
+            },
+          })),
+        );
 
         if (Option.isSome(cached)) {
           const hit = cached.value;

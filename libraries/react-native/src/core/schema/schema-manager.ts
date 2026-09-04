@@ -61,13 +61,14 @@ const isSchemaCacheEntry = (value: unknown): value is SchemaCacheEntry =>
 interface ResolveSchemaArgs {
   readonly distinctId: string;
   readonly internalSchema?: RuntimeSchema;
+  readonly localOnly?: boolean;
 }
 
 /**
  * Resolves the runtime schema from local state first and keeps it fresh in the
- * background. A cached schema is served at any age; a cold cache tries the
- * network once and falls back to an empty schema when the server is
- * unreachable, so a first launch with no connectivity still boots — analytics,
+ * background. A cached schema is served at any age. Local-only boot reads return
+ * an empty schema immediately on a miss; other cold reads try one request first.
+ * A first launch with no connectivity still boots — analytics,
  * lifecycle events and identity do not depend on the schema.
  */
 export class SchemaManager extends Context.Service<SchemaManager>()("rn-voidhash/SchemaManager", {
@@ -222,6 +223,7 @@ export class SchemaManager extends Context.Service<SchemaManager>()("rn-voidhash
     const resolveSchema = Effect.fn("SchemaManager.resolveSchema")(function* ({
       distinctId,
       internalSchema,
+      localOnly = false,
     }: ResolveSchemaArgs) {
       // Test/internal escape hatch — never hit the cache or network.
       if (internalSchema) {
@@ -239,14 +241,14 @@ export class SchemaManager extends Context.Service<SchemaManager>()("rn-voidhash
         return cached.value.schema;
       }
 
-      // Cold cache: one attempt, then boot on an empty schema. Commerce reads
-      // degrade; analytics, lifecycle and identity are unaffected.
-      const refreshed = yield* refresh(distinctId);
-      return Option.getOrElse(refreshed, () => {
-        const empty = createEmptyRuntimeSchema();
-        publishSchema(empty);
-        return empty;
-      });
+      if (!localOnly) {
+        const refreshed = yield* refresh(distinctId);
+        if (Option.isSome(refreshed)) return refreshed.value;
+      }
+      const empty = createEmptyRuntimeSchema();
+      publishSchema(empty);
+      yield* Effect.forkIn(refresh(distinctId), serviceScope, { startImmediately: true });
+      return empty;
     });
 
     return { refresh, resolveSchema } as const;

@@ -80,8 +80,8 @@ class App : Application() {
 }
 ```
 
-`configure` is synchronous and cheap; `initialize()` connects to Google Play, resolves the project
-schema and reconciles anything the store still reports as unfinished. The client is also reachable
+`configure` is synchronous and cheap; `initialize()` loads local state and starts the Google Play
+connection, schema refresh and unfinished-purchase reconciliation in the background. The client is also reachable
 as `Voidhash.shared` afterwards.
 
 `initialize()` never fails because Voidhash is unreachable, slow, or returning 5xx. It
@@ -92,9 +92,14 @@ you never have to call it again. The `try`/`catch` above is there for programmer
 
 ## Offline behaviour
 
-If Voidhash is down or the device is offline, the worst outcome for your app is delayed
-analytics and delayed writes. No SDK call fails, throws, or blocks startup because the
-backend is unreachable, and nothing you have queued is lost.
+Requests for selected flags reuse the same identity's cached full evaluation when no exact
+evaluation is cached, including stale values offline. A subset never substitutes for a full evaluation.
+
+Initialization and cached reads tolerate an unreachable backend. Entitlements, flags and paywalls
+use the last known state while analytics and supported writes wait for delivery. Without cached
+data, reads return their documented empty or unavailable results; purchases still require a usable
+store connection. Offline state is not guaranteed to reflect the latest server state. Queue capacity,
+invalid events and storage failures still impose durability limits.
 
 What _can_ still throw is a definite answer from a healthy server — a `422` on a malformed
 `identify`, for instance — or a programmer error such as starting a purchase before the SDK

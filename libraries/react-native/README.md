@@ -160,15 +160,23 @@ not resolve, preload, or present a paywall.
 
 ## Offline behavior
 
-If Voidhash is down or the device is offline, the worst outcome for your app is delayed analytics.
-Your app keeps working, entitlements, flags and paywalls are served from the last known state, and
-no SDK call fails, throws, or blocks startup because the backend is unreachable, slow, or returning
-5xx.
+Initialization and cached reads tolerate an unreachable backend. Entitlements, flags and paywalls
+use the last known state while analytics and supported writes wait for delivery. Without cached
+data, reads return their documented empty or unavailable results; purchases still require a usable
+store connection. Invalid inputs, rejected operations and operations without a safe fallback can
+still report errors.
 
-When the network is available, reads still answer from local state in constant time and the SDK
-keeps that state fresh on its own. You never have to call a refresh to get correct data.
+Fresh cached reads return immediately; stale reads use a bounded refresh budget. The SDK refreshes
+state in the background, but cannot guarantee fresh server state while offline.
 
 ### Reads are cache-first
+
+Initialization loads local state without waiting for backend or store connections. An initial
+distinct ID is adopted locally and its alias is queued. On a cold start the schema can initially
+be empty; subsequent operations use the refreshed schema when it arrives.
+
+Requests for selected feature flags can reuse the current identity's cached full evaluation,
+including stale evaluations while offline. Subset evaluations never stand in for a full evaluation.
 
 `hasPerk`, `getCurrentPerson`, `getFeatureFlags` and `getPaywallForLocation` answer from the cached
 value first. When that value is past its refresh window the SDK starts a refresh behind the read and
@@ -188,8 +196,8 @@ while a refresh is still running), `refresh-failed` (the refresh finished withou
 anything), or `no-cache` (the SDK has never seen a snapshot for this identity, so
 `hasAccess: false` means "no evidence", not "denied").
 
-A cached value that is merely stale is served after waiting at most 500 ms for the refresh. A cold
-or expired one has nothing to fall back on, so the read waits for the request budget (10 s) instead.
+A stale or expired cached value is served after waiting at most 500 ms for the refresh. A cold
+read has nothing to fall back on, so it waits for the request budget (about 10 s) instead.
 `hasPerk`'s `allowStale` option is deprecated and no longer read — branch on `isStale` and
 `isExpired` instead.
 

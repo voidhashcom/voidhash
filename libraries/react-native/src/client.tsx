@@ -525,8 +525,8 @@ export class VoidhashClient {
   }
 
   /**
-   * Initializes the voidhash client. Fetches the runtime schema from the
-   * server (or uses the injected internal schema if one was provided for tests).
+   * Initializes from local identity, person and schema state. Schema refresh,
+   * store observation and reconciliation continue in the background.
    * Resolves immediately without touching the store, the network or the
    * cache when the client was created with `enabled: false`.
    *
@@ -577,22 +577,16 @@ export class VoidhashClient {
       // any authentication pause from the previous configuration is lifted.
       this.runInBackground("resumeAuthentication", initializedClient.resumeAuthentication());
 
-      const observerResult = await this.toResult(
-        initializedClient.startTransactionObserver((transaction) => {
-          this.runInBackground(
-            "processObservedTransaction",
-            initializedClient.processObservedTransaction(transaction),
-          );
-        }),
-        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
-      );
-      if (observerResult.isErr()) {
-        return Result.err(observerResult.error);
-      }
-
       this.runInBackground(
-        "reconcileObservedTransactions",
-        initializedClient.reconcileObservedTransactions(),
+        "startTransactionObserver",
+        initializedClient
+          .startTransactionObserver((transaction) => {
+            this.runInBackground(
+              "processObservedTransaction",
+              initializedClient.processObservedTransaction(transaction),
+            );
+          })
+          .pipe(Effect.andThen(initializedClient.reconcileObservedTransactions())),
       );
 
       this.initializedClient = initializedClient;

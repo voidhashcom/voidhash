@@ -18,16 +18,21 @@ Requirements: iOS 15+, Swift 6 toolchain (the sources build with Swift 5.9 langu
 
 ## Offline behaviour
 
-If Voidhash is down or the device is offline, the worst outcome for your app is delayed
-analytics. Your app keeps working, entitlements, flags and paywalls are served from the last
-known state, and no SDK call fails, throws, or blocks startup because the backend is
-unreachable, slow, or returning 5xx.
+Initialization and cached reads tolerate an unreachable backend. Entitlements, flags and paywalls
+use the last known state while analytics and supported writes wait for delivery. Without cached
+data, reads return their documented empty or unavailable results; purchases still require a usable
+store connection. Invalid inputs, rejected operations and operations without a safe fallback can
+still report errors. Offline state is not guaranteed to reflect the latest server state.
 
 Concretely:
 
 - `waitForInitialization()` resolves from local state. With no cached schema and no connectivity
   it returns an empty schema and refreshes in the background; analytics capture and lifecycle
   tracking are already running by the time it returns.
+- Initialization does not wait for backend or store connections, even on a cold online launch.
+  The initial schema may be empty; background refresh updates subsequent operations.
+- A request for selected flags can reuse the same identity's cached full evaluation. Stale
+  evaluations remain available offline; a subset never stands in for the full evaluation.
 - Reads are cache-first. `getCurrentPerson`, `getFeatureFlags` and `getPaywall` answer from the
   cache and refresh behind the read. A stale value waits at most 500 ms for the refresh before
   being returned as is; the refresh continues and lands for the next read.

@@ -78,8 +78,9 @@ class SchemaManager(
      * Returns the schema, serving any cached copy immediately and revalidating in the
      * background. Returns `null` only when nothing is cached and the server is unreachable;
      * the refresh started here keeps trying.
+     * @param localOnly Return immediately on a cache miss and fetch in the background during boot.
      */
-    suspend fun resolveSchema(distinctId: String): RuntimeSchema? {
+    suspend fun resolveSchema(distinctId: String, localOnly: Boolean = false): RuntimeSchema? {
         val cached = readCachedSchema()
         if (cached != null) {
             val schema = RuntimeSchema.fromJson(cached.raw)
@@ -88,6 +89,11 @@ class SchemaManager(
                 scheduleBackgroundRefresh(distinctId)
             }
             return schema
+        }
+
+        if (localOnly) {
+            scheduleBackgroundRefresh(distinctId)
+            return null
         }
 
         val fetched = try {

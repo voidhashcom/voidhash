@@ -295,7 +295,10 @@ public actor VoidhashClient {
             return []
         }
 
-        let schema = try await ensureInitialized()
+        var schema = try await ensureInitialized()
+        if schema.isEmpty {
+            schema = await schemaManager.refresh(headers: await headerFactory.build()) ?? schema
+        }
 
         // The mock store synthesizes products from the schema's computed development
         // metadata — no store round-trip, works on any simulator.
@@ -638,7 +641,19 @@ public actor VoidhashClient {
 
         let distinctId = await identityStore.getDistinctId()
         let cacheKey = VoidhashClient.flagsCacheKey(distinctId: distinctId, keys: keys)
-        let cached = await cacheManager.get(cacheKey, as: [SdkFeatureFlagResult].self)
+        let exact = await cacheManager.get(cacheKey, as: [SdkFeatureFlagResult].self)
+        var cached = exact.map {
+            Stale(value: $0.value, isStale: $0.isStale, isExpired: $0.isExpired)
+        }
+        if cached == nil, let keys, !keys.isEmpty,
+            let all = await cacheManager.get(
+                VoidhashClient.flagsCacheKey(distinctId: distinctId, keys: nil),
+                as: [SdkFeatureFlagResult].self)
+        {
+            cached = Stale(
+                value: all.value.filter { keys.contains($0.key) },
+                isStale: all.isStale, isExpired: all.isExpired)
+        }
 
         if let cached, !cached.isStale {
             return Stale(value: cached.value, isStale: false, isExpired: cached.isExpired)
@@ -1204,20 +1219,6 @@ public actor VoidhashClient {
             observeConnectivity()
         }
 
-        // A failed store connection is not fatal either: the observer is what reconciles
-        // purchases made outside this session, so it is retried on the next foreground refresh.
-        do {
-            _ = try await engine.initConnection(onTransaction: { [weak self] storeTransaction in
-                guard let self else { return }
-                Task { await self.handleObservedTransaction(storeTransaction) }
-            })
-        } catch {
-            warn("Failed to connect to the store: \(error)")
-            diagnostics.emit(
-                .transport, code: "STORE_CONNECTION_FAILED", operation: "client.initialize",
-                retryable: true, message: String(describing: error))
-        }
-
         let schema: RuntimeSchema
         if let currentSchema {
             schema = currentSchema
@@ -1225,7 +1226,9 @@ public actor VoidhashClient {
             schema = await schemaManager.resolveSchemaTolerant(
                 headers: await headerFactory.build())
         }
-        currentSchema = schema
+        if currentSchema == nil {
+            currentSchema = schema
+        }
 
         knownPlacements = VoidhashClient.normalizeKnownPlacements(
             await cacheManager.get(
@@ -1237,15 +1240,33 @@ public actor VoidhashClient {
             }
         }
 
-        Task { [orchestrator = orchestrator(), warn] in
-            do {
-                try await orchestrator.reconcileObservedTransactions(schema: schema)
-            } catch {
-                warn("Failed to reconcile observed transactions: \(error)")
-            }
+        Task { [weak self] in
+            await self?.connectAndReconcileStore()
         }
 
-        return schema
+        return currentSchema ?? schema
+    }
+
+    private func connectAndReconcileStore() async {
+        guard !isShutDown else { return }
+        do {
+            _ = try await engine.initConnection(onTransaction: { [weak self] storeTransaction in
+                guard let self else { return }
+                Task { await self.handleObservedTransaction(storeTransaction) }
+            })
+        } catch {
+            warn("Failed to connect to the store: \(error)")
+            diagnostics.emit(
+                .transport, code: "STORE_CONNECTION_FAILED", operation: "client.initialize",
+                retryable: true, message: String(describing: error))
+        }
+        guard !isShutDown else { return }
+        do {
+            try await orchestrator().reconcileObservedTransactions(
+                schema: currentSchema ?? RuntimeSchema.empty)
+        } catch {
+            warn("Failed to reconcile observed transactions: \(error)")
+        }
     }
 
     /// Warms everything the app is likely to ask for, in the order it is likely to ask.

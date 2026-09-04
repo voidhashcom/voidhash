@@ -29,7 +29,7 @@ import { buildPaywallRuntimeConfig } from "./core/paywalls/paywall-runtime-confi
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import { PlatformProvider } from "./core/platform/platform-provider";
 import { ProductService, type ProductsBySlug } from "./core/products/product-service";
-import { currentPersonAtom } from "./core/reactivity/client-state";
+import { currentPersonAtom, schemaAtom } from "./core/reactivity/client-state";
 import type { LocationSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
@@ -92,15 +92,13 @@ interface InitOptions {
 /**
  * Build the initial state of the SDK before `init()` has run. Returns an
  * object whose `init` method establishes identity, resolves the runtime
- * schema (via `SchemaManager`'s stale-while-revalidate cache), and yields
- * the fully-initialized client facade. The independent network calls are
- * run concurrently via `Effect.all({ concurrency: "unbounded" })`.
+ * schema from local state, and yields the initialized client facade without
+ * waiting for a network response.
  *
  * Nothing the server does fails `init`: a cold cache on an unreachable server
  * boots on an empty schema and no person snapshot, and the background refresh
  * fills both in once the server answers. A provided `distinctId` is adopted
- * locally even when the server refuses the alias; the refusal is reported
- * through the diagnostics hook.
+ * locally and its alias is queued for delivery.
  */
 const makeUnitializedClient = () => ({
   init: (initOptions: InitOptions = {}) =>
@@ -119,10 +117,11 @@ const makeUnitializedClient = () => ({
         // `currentPersonAtom`, so we don't duplicate that here.
         const [outcome, runtimeSchema] = yield* Effect.all(
           [
-            Effect.result(identityManager.identify(initOptions.distinctId, {})),
+            Effect.result(identityManager.identify(initOptions.distinctId, {}, true)),
             schemaManager.resolveSchema({
               distinctId: initOptions.distinctId,
               internalSchema: initOptions.internalSchema,
+              localOnly: true,
             }),
           ],
           { concurrency: "unbounded" },
@@ -159,23 +158,19 @@ const makeUnitializedClient = () => ({
         distinctId,
       });
 
-      // Both legs recover from transport failures internally, so a cold cache
-      // on an unreachable network still boots.
       const [prefetchedPerson, runtimeSchema] = yield* Effect.all(
         [
-          personInfoManager.resolvePerson(distinctId),
+          personInfoManager.getPerson(distinctId, "cache"),
           schemaManager.resolveSchema({
             distinctId,
             internalSchema: initOptions.internalSchema,
+            localOnly: true,
           }),
         ],
         { concurrency: "unbounded" },
       );
 
-      // Publish the prefetched person so React subscribers see initial
-      // state without having to wait for a hook-driven refetch.
-      // `SchemaManager` publishes `schemaAtom` itself.
-      atomRegistry.set(currentPersonAtom, Option.fromNullOr(prefetchedPerson.person));
+      atomRegistry.set(currentPersonAtom, Option.fromNullOr(prefetchedPerson));
 
       return yield* makeInitializedClient({
         preloadPaywallAsset: initOptions.preloadPaywallAsset,
@@ -250,6 +245,8 @@ const makeInitializedClient = (options: {
     const analyticsService = yield* AnalyticsService;
     const sessionManager = yield* AnalyticsSessionManager;
     const identityEpoch = yield* IdentityEpoch;
+    const atomRegistry = yield* AtomRegistry.AtomRegistry;
+    const getSchema = () => Option.getOrElse(atomRegistry.get(schemaAtom), () => options.schema);
 
     return {
       end: () =>
@@ -286,7 +283,7 @@ const makeInitializedClient = (options: {
           const productService = yield* ProductService;
           const platformProvider = yield* PlatformProvider;
 
-          const productsBySlug = yield* productService.getProducts(options.schema);
+          const productsBySlug = yield* productService.getProducts(getSchema());
 
           const skippedSlugs: string[] = [];
           const runtimeConfig = buildPaywallRuntimeConfig({
@@ -442,11 +439,11 @@ const makeInitializedClient = (options: {
       getProducts: () =>
         Effect.gen(function* getProducts() {
           const productService = yield* ProductService;
-          return yield* productService.getProducts(options.schema);
+          return yield* productService.getProducts(getSchema());
         }),
 
-      /** Read access to the schema fetched at init time. */
-      getSchema: () => options.schema,
+      /** Read access to the latest cached or refreshed schema. */
+      getSchema,
 
       /**
        * Switches the identity and reports whether the server confirmed it
@@ -499,7 +496,7 @@ const makeInitializedClient = (options: {
       processObservedTransaction: (transaction: Transaction) =>
         Effect.gen(function* processObservedTransaction() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.processObservedTransaction(transaction, options.schema);
+          return yield* transactionService.processObservedTransaction(transaction, getSchema());
         }),
 
       /**
@@ -509,19 +506,19 @@ const makeInitializedClient = (options: {
       purchase: (product: Product) =>
         Effect.gen(function* purchase() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.purchase(product, options.schema);
+          return yield* transactionService.purchase(product, getSchema());
         }),
 
       restorePurchases: () =>
         Effect.gen(function* restorePurchases() {
           const transactionService = yield* TransactionService;
-          yield* transactionService.restorePurchases(options.schema);
+          yield* transactionService.restorePurchases(getSchema());
         }),
 
       reconcileObservedTransactions: () =>
         Effect.gen(function* reconcileObservedTransactions() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.reconcileObservedTransactions(options.schema);
+          return yield* transactionService.reconcileObservedTransactions(getSchema());
         }),
 
       // --- Analytics: Effect methods delegate to AnalyticsService ---
@@ -663,7 +660,7 @@ const makeInitializedClient = (options: {
       /** Re-attempts every receipt still waiting for the server. */
       syncTransactionOutbox: () =>
         Effect.flatMap(TransactionService, (transactionService) =>
-          transactionService.syncOutbox(options.schema),
+          transactionService.syncOutbox(getSchema()),
         ),
 
       /** Number of receipts still waiting for the server. */

@@ -119,8 +119,8 @@ public actor SchemaManager {
 
     /// Resolves the schema without ever failing on transport.
     ///
-    /// Returns the cached schema when one exists, otherwise the freshly fetched one, otherwise
-    /// ``RuntimeSchema/empty`` with a background refresh scheduled. This is what client
+    /// Returns the cached schema when one exists, otherwise ``RuntimeSchema/empty`` immediately
+    /// with a background refresh scheduled. This is what client
     /// initialization uses, so a cold-cache offline launch still brings up analytics, identity
     /// and flags.
     public func resolveSchemaTolerant(headers: [String: String]) async -> RuntimeSchema {
@@ -128,10 +128,6 @@ public actor SchemaManager {
             onSchemaUpdated?(cached.schema)
             scheduleBackgroundRefresh(headers: headers, isStale: cached.isStale)
             return cached.schema
-        }
-
-        if let schema = await refresh(headers: headers) {
-            return schema
         }
 
         scheduleBackgroundRefresh(headers: headers, isStale: true)

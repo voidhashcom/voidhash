@@ -231,41 +231,44 @@ class VoidhashClient internal constructor(
             // `resolveSchema` publishes through `publishSchema`, and a warm cache can
             // revalidate before it returns — so only fill the gap, never overwrite a
             // fresher schema.
-            val schema = schemaRef.get() ?: schemaManager.resolveSchema(distinctId)
+            val schema = schemaRef.get() ?: schemaManager.resolveSchema(distinctId, localOnly = true)
             if (schema != null) {
                 schemaRef.compareAndSet(null, schema)
             }
 
-            runQuietly("connect to the store") {
-                billing.initConnection { purchase ->
-                    scope.launch {
-                        try {
-                            val current = schemaRef.get()
-                            orchestrator.processObservedTransaction(
-                                mapBillingPurchaseToTransaction(purchase),
-                                current ?: RuntimeSchema.EMPTY,
-                                deferStoreFinalization = current == null,
-                            )
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (error: Throwable) {
-                            onWarning("Failed to process an observed purchase: ${error.message}")
-                        }
+            scope.launch { connectAndReconcileStore() }
+            scope.launch { runQuietly("drain the transaction outbox") { drainOutbox() } }
+            scope.launch { runQuietly("preload cached state") { preload(distinctId) } }
+        }
+    }
+
+    private suspend fun connectAndReconcileStore() {
+        runQuietly("connect to the store") {
+            billing.initConnection { purchase ->
+                scope.launch {
+                    try {
+                        val current = schemaRef.get()
+                        orchestrator.processObservedTransaction(
+                            mapBillingPurchaseToTransaction(purchase),
+                            current ?: RuntimeSchema.EMPTY,
+                            deferStoreFinalization = current == null,
+                        )
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        onWarning("Failed to process an observed purchase: ${error.message}")
                     }
                 }
             }
-            billingReady.set(true)
+        }
+        billingReady.set(true)
 
-            val current = schemaRef.get()
-            runQuietly("reconcile observed transactions") {
-                orchestrator.reconcileObservedTransactions(
-                    current ?: RuntimeSchema.EMPTY,
-                    deferStoreFinalization = current == null,
-                )
-            }
-
-            scope.launch { runQuietly("drain the transaction outbox") { drainOutbox() } }
-            scope.launch { runQuietly("preload cached state") { preload(distinctId) } }
+        val current = schemaRef.get()
+        runQuietly("reconcile observed transactions") {
+            orchestrator.reconcileObservedTransactions(
+                current ?: RuntimeSchema.EMPTY,
+                deferStoreFinalization = current == null,
+            )
         }
     }
 
@@ -604,11 +607,17 @@ class VoidhashClient internal constructor(
 
         val distinctId = identityStore.getDistinctId()
         val cacheKey = flagsCacheKey(distinctId, keys)
-        val cached = cacheManager.getArray(cacheKey)
+        val exact = cacheManager.getArray(cacheKey)
+        val cached = exact ?: if (keys.isNotEmpty()) {
+            cacheManager.getArray(flagsCacheKey(distinctId, emptyList()))
+        } else null
+        val cachedFlags = cached?.value?.let(::decodeFlags)?.let { flags ->
+            if (exact == null && keys.isNotEmpty()) flags.filter { it.key in keys } else flags
+        }
 
         val state = readThrough(
             key = cacheKey,
-            cached = cached?.value?.let(::decodeFlags),
+            cached = cachedFlags,
             isStale = cached?.isStale != false,
             isExpired = cached?.isExpired == true,
         ) { refreshFlags(distinctId, keys) }

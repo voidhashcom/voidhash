@@ -201,6 +201,7 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
    * a transport failure, leaves it `deferred` for the caller to queue. A
    * verdict the server will not change (a non-retryable 4xx) fails.
    * @param options - The options.
+   * @param deferRequest - Adopt locally and return a deferred alias without a request during boot.
    */
   const identify = (
     distinctId: string,
@@ -208,6 +209,7 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
       email?: string;
       name?: string;
     },
+    deferRequest = false,
   ) =>
     Effect.gen(function* identify() {
       const previousDistinctId = yield* getDistinctId();
@@ -215,7 +217,9 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
       yield* switchLocalIdentity(distinctId);
 
       const request = yield* Effect.result(
-        requestIdentify(previousDistinctId, distinctId, options),
+        deferRequest
+          ? Effect.succeed(Option.none<SdkPerson>())
+          : requestIdentify(previousDistinctId, distinctId, options),
       );
       if (Result.isFailure(request)) {
         yield* setDistinctIdInCache(previousDistinctId);
