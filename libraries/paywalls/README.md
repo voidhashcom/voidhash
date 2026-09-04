@@ -261,24 +261,6 @@ The closed mono mirrors these with effect-Schema validators and a contract test
 that locks the two in lock-step (version equality, style-key-set equality,
 fixture round-trip).
 
-## Composition — `@voidhash/paywalls/compose`
-
-The constrained-JSX composition surface for `.paywall.tsx` files that compose
-paywalls out of screens, layout, and deployed components. Two audiences share
-this entry, and it is **mimic-free** (never imports the document model):
-
-- **Authors** import the inert author surface — `paywall`, `Screen`, `View`,
-  `Text`, `Component`, `variable`, `product`, `purchase`, `closePaywall`,
-  `none`, `payload`. These are analyzed, never executed.
-- **Tooling** imports the toolchain: `parseComposition` (a TS-parser whitelist
-  grammar → the public serializable `CompositionAST`), the deterministic
-  `printComposition` (AST → source; round-trip = reconcile no-op),
-  `generateComposeDts` (Monaco ambient types), the registry vocabulary, and the
-  `CompositionAST` node types. `CompositionError` carries grammar diagnostics.
-
-The mimic snapshot ↔ AST lift/lower and CRDT reconcile stay in the closed
-`paywall-composition` bridge, driven by this AST.
-
 ## Studio sandbox — `@voidhash/paywalls/sandbox`
 
 Dev-only, for the studio's in-browser render iframe (not part of any shipped

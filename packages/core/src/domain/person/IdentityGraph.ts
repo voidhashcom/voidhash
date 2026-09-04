@@ -6,8 +6,7 @@ import * as Order from "effect/Order";
 import * as R from "effect/Record";
 /**
  * Order-agnostic identity resolution — the pure core of the event-sourced
- * ("Option B") identity model described in
- * `docs/order-agnostic-analytics-events.md`.
+ * identity model.
  *
  * The whole point of this module: every value it computes is a function of the
  * *set* of identity inputs, never of the order they are folded in. Each fold is

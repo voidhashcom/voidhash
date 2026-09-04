@@ -11,12 +11,12 @@ import * as R from "effect/Record";
  * Request-context OpenTelemetry helpers for the backend HTTP/RPC handler.
  *
  * The tracer Layer itself is provided at the Worker fetch-graph root
- * (`stacks/backend/workers/BackendWorker.ts`); these helpers run inside the
+ * by the application composition; these helpers run inside the
  * request span created by `HttpMiddleware.tracer` and stamp the cross-cutting
  * attributes that make a request traceable end-to-end. With Effect's default
  * no-op tracer (dev / tests) every call here is a cheap no-op.
  *
- * See `docs/attribute-registry.md` for the canonical attribute set.
+ * {@link identityAttributes} defines the emitted identity attribute set.
  */
 
 const REQUEST_ID_HEADER = "x-request-id";
@@ -84,8 +84,7 @@ export interface IdentitySource {
 }
 
 /**
- * The canonical identity attributes for a session — the per-request set defined
- * in `docs/attribute-registry.md` §2b. Stamps the authenticated principal
+ * The canonical identity attributes for a session. Stamps the authenticated principal
  * (user / person + auth method), the active/first organization and project, and
  * `*.count` cardinality breadcrumbs so a multi-org/multi-project session is
  * flagged without dumping every id. Nullable fields are omitted (never emitted

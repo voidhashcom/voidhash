@@ -8,10 +8,9 @@
  * through the existing bearer pipeline unchanged.
  *
  * WebCrypto only (no Node `crypto`/`Buffer`), matching {@link jwt-sign} — the
- * module is imported by the Node self-host runtime and the TanStack Start
- * server routes alike.
+ * module is shared by backend and TanStack Start server routes.
  *
- * See `docs/standalone-auth-design.md` for the trust model.
+ * See `docs/security/backend-threat-model.md` for the trust model.
  */
 import * as Clock from "effect/Clock";
 import * as Arr from "effect/Array";

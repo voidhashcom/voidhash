@@ -445,7 +445,7 @@ export const personPersonlessIdentities = pgTable(
 
 /**
  * Append-only log of identity assertions — the source of truth for the
- * order-agnostic ("Option B") identity model (`docs/order-agnostic-analytics-events.md`).
+ * order-agnostic identity model.
  * Every `$identify` appends one immutable row asserting that two distinct ids
  * name the same person. The `(distinctIdA, distinctIdB)` pair is stored
  * canonically sorted (`a <= b`) so an unordered edge has a single
