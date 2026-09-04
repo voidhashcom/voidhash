@@ -14,7 +14,7 @@ import type {
   ListAnalyticsEventsInput,
   StoredAnalyticsEvent,
 } from "../../../application/ports.ts";
-import { toAnalyticsWriteBatchRows } from "./rows.ts";
+import { toAnalyticsWriteBatchRows, toClickhouseTimestamp } from "./rows.ts";
 
 export interface ClickHouseStatement {
   readonly name: string;
@@ -182,14 +182,12 @@ const listStatement = (
   const params: Record<string, unknown> = { projectIds: [...input.projectIds] };
   const where = ["project_id IN {projectIds:Array(String)}"];
   if (input.start) {
-    // ISO-8601 with an explicit UTC offset so the range filter is correct on
-    // non-UTC ClickHouse servers too.
-    params.start = input.start.toISOString();
-    where.push("event_ts >= {start:DateTime64(3)}");
+    params.start = toClickhouseTimestamp(input.start.toISOString());
+    where.push("event_ts >= {start:DateTime64(3, 'UTC')}");
   }
   if (input.end) {
-    params.end = input.end.toISOString();
-    where.push("event_ts <= {end:DateTime64(3)}");
+    params.end = toClickhouseTimestamp(input.end.toISOString());
+    where.push("event_ts <= {end:DateTime64(3, 'UTC')}");
   }
   if (input.eventNames?.length) {
     params.eventNames = [...input.eventNames];

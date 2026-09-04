@@ -33,6 +33,7 @@ export const toFlag = (value: boolean): 0 | 1 => {
   return 0;
 };
 
+/** Formats an instant as UTC DateTime64(3) text for ClickHouse rows and parameters. */
 export const toClickhouseTimestamp = (value: string): string => {
   const parsed = DateTime.make(value);
   if (Option.isNone(parsed)) {
