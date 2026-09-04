@@ -9,10 +9,12 @@ import {
   flushAnalyticsEffect,
   flushAnalyticsKeepaliveEffect,
   getFeatureFlagsEffect,
+  halfOpenCircuitsEffect,
   identifyEffect,
   initializeEffect,
   refreshFeatureFlagsEffect,
   refreshTrackedKeySetsEffect,
+  resetAnalyticsBackoffEffect,
   resetEffect,
   resolveVoidhashConfig,
   setPersonAttributesEffect,
@@ -26,6 +28,7 @@ import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import { IdentityManager } from "./core/identity/identity-manager";
 import type {
   AnalyticsFlushResult,
+  AnalyticsFlushStatus,
   FeatureFlagsResult,
   VoidhashClientOptions,
   VoidhashEventMap,
@@ -33,7 +36,11 @@ import type {
   VoidhashPersonAttributes,
   VoidhashTrackOptions,
   VoidhashTraits,
+  VoidhashDiagnostic,
 } from "./types";
+
+/** How often the connectivity/visibility triggers are allowed to refresh. */
+const REFRESH_DEBOUNCE_MS = 60_000;
 
 type ClientState = "destroyed" | "idle" | "initializing" | "ready";
 
@@ -75,7 +82,8 @@ export class VoidhashWebClient {
   private state: ClientState = "idle";
   private initializePromise = Option.none<Promise<void>>();
   private listeners: Array<() => void> = [];
-  private inFlightFlush = Option.none<Promise<Option.Option<AnalyticsFlushResult>>>();
+  private inFlightFlush = Option.none<Promise<AnalyticsFlushStatus>>();
+  private lastRefreshAt = 0;
 
   // Service references for sync access (set during init)
   private featureFlagService = Option.none<FeatureFlagService["Service"]>();
@@ -137,8 +145,13 @@ export class VoidhashWebClient {
 
           this.attachBrowserListeners(config);
 
+          // Initialization resolves once local state is loaded; the prefetch
+          // refreshes in the background so a slow or unreachable backend never
+          // delays startup.
           if (config.featureFlags.prefetchOnInit) {
-            yield* withErrorCode(getFeatureFlagsEffect(), "FAILED_TO_PREFETCH_FLAGS");
+            void this.runEffect(getFeatureFlagsEffect(), "FAILED_TO_PREFETCH_FLAGS").catch(
+              () => {},
+            );
           }
 
           const initializedDistinctId = yield* Option.match(distinctId, {
@@ -273,8 +286,22 @@ export class VoidhashWebClient {
     );
   }
 
-  flushAnalytics(): Promise<Option.Option<AnalyticsFlushResult>> {
+  /**
+   * Sends queued analytics. Resolves with the flush status and never rejects
+   * because of transport: failed events stay queued for the next attempt.
+   * Calling it before `initialize` or after `destroy` still rejects, because
+   * that is a programmer error rather than an outage.
+   */
+  flushAnalytics(): Promise<AnalyticsFlushStatus> {
     return this.whenReady(() => this.flushAnalyticsInternal());
+  }
+
+  /**
+   * Subscribes to SDK diagnostics. Equivalent to the `onDiagnostic` option and
+   * to `on("diagnostic", handler)`.
+   */
+  onDiagnostic(handler: (diagnostic: VoidhashDiagnostic) => void) {
+    return this.eventBus.on("diagnostic", handler);
   }
 
   on<TEvent extends VoidhashEventName>(
@@ -291,7 +318,7 @@ export class VoidhashWebClient {
     this.eventBus.off(eventName, handler);
   }
 
-  private flushAnalyticsInternal(): Promise<Option.Option<AnalyticsFlushResult>> {
+  private flushAnalyticsInternal(): Promise<AnalyticsFlushStatus> {
     if (Option.isSome(this.inFlightFlush)) return this.inFlightFlush.value;
 
     const inFlightFlush = this.runEffect(
@@ -305,9 +332,21 @@ export class VoidhashWebClient {
     return inFlightFlush;
   }
 
-  /** Runs `run` only once the client is ready, rejecting with the state error otherwise. */
+  /**
+   * Runs `run` only once the client is ready, rejecting with the state error
+   * otherwise. The check happens before the runtime is touched so a call after
+   * `destroy` reports the SDK error rather than a disposed-runtime failure.
+   */
   private whenReady<T>(run: () => Promise<T>): Promise<T> {
-    return this.runtime.runPromise(Effect.flatMap(this.ensureReady, () => fromPromise(run)));
+    if (this.state === "destroyed") {
+      return Promise.reject(new VoidhashDestroyedError());
+    }
+
+    if (this.state !== "ready") {
+      return Promise.reject(new VoidhashNotInitializedError());
+    }
+
+    return this.runtime.runPromise(fromPromise(run));
   }
 
   private get ensureReady(): Effect.Effect<void, VoidhashError> {
@@ -327,11 +366,32 @@ export class VoidhashWebClient {
       return;
     }
 
+    const refreshFlags = () => {
+      // oxlint-disable-next-line effect/use-clock-service -- plain debounce in a DOM event handler outside any Effect; the client wrapper has no Clock in scope here.
+      const now = Date.now();
+      if (now - this.lastRefreshAt < REFRESH_DEBOUNCE_MS) {
+        return;
+      }
+      this.lastRefreshAt = now;
+      void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(() => {});
+    };
+
+    const flushQueued = () => {
+      if (!config.analytics.enabled) {
+        return;
+      }
+      void this.runEffect(resetAnalyticsBackoffEffect(), "FAILED_TO_RESET_BACKOFF")
+        .then(() => this.flushAnalyticsInternal())
+        .catch(() => {});
+    };
+
+    // Connectivity restored: probe any open circuit, drain the queue, then
+    // refresh configuration.
     const onlineHandler = () => {
+      void this.runEffect(halfOpenCircuitsEffect(), "FAILED_TO_RESET_CIRCUITS").catch(() => {});
+      flushQueued();
       if (config.featureFlags.refreshOnOnline) {
-        void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(
-          () => {},
-        );
+        refreshFlags();
       }
     };
 
@@ -342,14 +402,13 @@ export class VoidhashWebClient {
     };
 
     const visibilityHandler = () => {
-      if (
-        config.featureFlags.refreshOnVisibility &&
-        !P.isUndefined(document) &&
-        document.visibilityState === "visible"
-      ) {
-        void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(
-          () => {},
-        );
+      if (P.isUndefined(document) || document.visibilityState !== "visible") {
+        return;
+      }
+      void this.runEffect(halfOpenCircuitsEffect(), "FAILED_TO_RESET_CIRCUITS").catch(() => {});
+      flushQueued();
+      if (config.featureFlags.refreshOnVisibility) {
+        refreshFlags();
       }
     };
 
@@ -376,7 +435,9 @@ export const createVoidhashClient = (options: VoidhashClientOptions) =>
 
 export type {
   AnalyticsFlushResult,
+  AnalyticsFlushStatus,
   FeatureFlagsResult,
   VoidhashClientOptions,
+  VoidhashDiagnostic,
   VoidhashTrackOptions,
 };

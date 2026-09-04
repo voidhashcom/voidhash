@@ -18,6 +18,11 @@ export const AUTOMATIC_EVENTS = {
   APP_BECAME_ACTIVE: "$app_became_active",
   /** User signed out (identity reset triggered via `signOut`). */
   SIGN_OUT: "$sign_out",
+  /**
+   * An identity switch the server has not confirmed yet. Carries the anonymous
+   * and identified distinct ids so the server can alias them when it arrives.
+   */
+  IDENTIFY: "$identify",
   /** The user arrived on a screen (route, view controller, activity, …). */
   SCREEN: "$screen",
 } as const;

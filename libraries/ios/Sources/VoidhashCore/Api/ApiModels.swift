@@ -223,17 +223,16 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
 
 /// Response of `POST /api/v1/sdk/sync-transaction`.
 public struct SdkSyncTransactionResponse: Codable, Sendable, Equatable {
-    /// Whether the backend recorded the transaction. A response that omits the field predates the
-    /// flag and counts as accepted.
+    /// Whether the backend recorded the transaction.
     public let accepted: Bool
 
-    public init(accepted: Bool = true) {
+    public init(accepted: Bool) {
         self.accepted = accepted
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        accepted = try container.decodeIfPresent(Bool.self, forKey: .accepted) ?? true
+        accepted = try container.decode(Bool.self, forKey: .accepted)
     }
 }
 

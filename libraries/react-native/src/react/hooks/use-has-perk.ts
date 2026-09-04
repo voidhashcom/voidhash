@@ -34,6 +34,7 @@ export function hasPerkHookFactory(
     const getPersonCallback = React.useCallback(() => client.getCurrentPerson(), []);
 
     const {
+      data: personResult,
       isLoading,
       error: fetchError,
       refetch,
@@ -46,10 +47,16 @@ export function hasPerkHookFactory(
 
     const grant = React.useMemo(() => findActiveGrant(person, perkSlug), [person, perkSlug]);
 
-    // A failed refresh must not be read as "no access": when a cached snapshot
-    // exists the answer is served stale instead of denied.
+    // Staleness comes from the snapshot, not from the error channel: transport
+    // failures never surface as errors (the cached snapshot is served instead),
+    // so an error-derived flag would report stale answers as fresh. The error
+    // fallback stays for the rare failures that do surface while a cached
+    // grant is being served.
+    const snapshotIsStale =
+      personResult !== undefined && (personResult.isStale || personResult.isExpired);
     const isStale =
-      !isLoading && Option.isSome(error) && Option.isSome(person) && Option.isSome(grant);
+      !isLoading &&
+      (snapshotIsStale || (Option.isSome(error) && Option.isSome(person) && Option.isSome(grant)));
 
     return {
       error,

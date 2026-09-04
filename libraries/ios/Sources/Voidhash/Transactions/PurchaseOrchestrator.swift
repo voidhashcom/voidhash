@@ -14,7 +14,7 @@ extension VoidhashApiClient: TransactionSyncing {}
 public protocol DevelopmentPurchasing: Sendable {
     /// `POST /api/v1/sdk/development/purchase`
     func developmentPurchase(headers: [String: String], body: SdkDevelopmentPurchaseBody)
-        async throws
+        async throws -> Bool
 }
 
 extension VoidhashApiClient: DevelopmentPurchasing {}
@@ -73,7 +73,7 @@ public actor PurchaseOrchestrator {
     private final class InFlightTransaction: @unchecked Sendable {
         var ownerClaimed: Bool
         var storeFinalizationPending = false
-        var task: Task<Void, any Error>?
+        var task: Task<Bool, any Error>?
 
         init(ownerClaimed: Bool) {
             self.ownerClaimed = ownerClaimed
@@ -144,9 +144,11 @@ public actor PurchaseOrchestrator {
             isDevelopment: isDevelopmentMode,
             isAcknowledgedOverride: isDevelopmentMode
         )
-        try await processTransaction(
+        let accepted = try await processTransaction(
             transaction, schema: schema, readOnlyOverride: readOnlyAtPurchaseStart)
-        await refreshPerson()
+        if accepted {
+            await refreshPerson()
+        }
     }
 
     /// Reconciles every observed transaction and refreshes the person snapshot.
@@ -202,21 +204,25 @@ public actor PurchaseOrchestrator {
     public func processObservedTransaction(
         _ transaction: VoidhashTransaction, schema: RuntimeSchema
     ) async throws {
-        try await processTransaction(transaction, schema: schema)
-        await refreshPerson()
+        if try await processTransaction(transaction, schema: schema) {
+            await refreshPerson()
+        }
     }
 
     /// Syncs one transaction to the backend and — unless the SDK is read-only — finishes it.
     ///
     /// - Parameter readOnlyOverride: Pins the ownership decision for a purchase this SDK started.
     ///   Every other caller omits it and reads the live flag when the decision is made.
+    /// - Returns: `true` only after the backend explicitly accepts the receipt. `false` leaves the
+    ///   receipt queued and the store transaction unfinished.
+    @discardableResult
     public func processTransaction(
         _ transaction: VoidhashTransaction,
         schema: RuntimeSchema,
         readOnlyOverride: Bool? = nil
-    ) async throws {
+    ) async throws -> Bool {
         guard transaction.purchaseState == .purchased else {
-            return
+            return false
         }
 
         let key = PurchaseOrchestrator.processingKey(transaction)
@@ -224,15 +230,17 @@ public actor PurchaseOrchestrator {
 
         if let existing = inFlightTransactions[key] {
             guard readOnlyOverride == false else {
-                try await existing.task?.value
-                return
+                return try await existing.task?.value ?? false
             }
 
             existing.ownerClaimed = true
-            try await existing.task?.value
-            try await finalizeSkippedStoreFinalization(
-                transaction, schema: schema, entry: existing, processedCacheKey: processedCacheKey)
-            return
+            let accepted = try await existing.task?.value ?? false
+            if accepted {
+                try await finalizeSkippedStoreFinalization(
+                    transaction, schema: schema, entry: existing,
+                    processedCacheKey: processedCacheKey)
+            }
+            return accepted
         }
 
         let entry = InFlightTransaction(ownerClaimed: readOnlyOverride == false)
@@ -249,7 +257,7 @@ public actor PurchaseOrchestrator {
         entry.task = task
 
         defer { inFlightTransactions[key] = nil }
-        try await task.value
+        return try await task.value
     }
 
     private func runProcessing(
@@ -258,12 +266,15 @@ public actor PurchaseOrchestrator {
         entry: InFlightTransaction,
         readOnlyOverride: Bool?,
         processedCacheKey: String
-    ) async throws {
-        let cachedState = await cacheManager.get(
-            processedCacheKey, as: TransactionProcessingState.self)?.value
+    ) async throws -> Bool {
+        // An expired marker is a miss: the cache serves expired entries for offline reads, but a
+        // processed-transaction record past its lifetime must not stop a receipt from syncing.
+        let cachedHit = await cacheManager.get(
+            processedCacheKey, as: TransactionProcessingState.self)
+        let cachedState = cachedHit?.isExpired == true ? nil : cachedHit?.value
 
         if cachedState?.storeFinalized == true {
-            return
+            return true
         }
 
         if cachedState?.backendAccepted != true {
@@ -276,27 +287,36 @@ public actor PurchaseOrchestrator {
                         code: "CONFIGURATION_MISSING",
                         message: "Development purchases need a development gateway client")
                 }
-                try await developmentApi.developmentPurchase(
-                    headers: headers,
-                    body: SdkDevelopmentPurchaseBody(
-                        devTransactionId: transaction.transactionId,
-                        productSlug: PurchaseOrchestrator.resolveProductSlug(
-                            transaction, products: schema.products),
-                        purchaseDate: transaction.purchaseDate,
-                        quantity: transaction.quantity
-                    ))
+                do {
+                    let accepted = try await developmentApi.developmentPurchase(
+                        headers: headers,
+                        body: SdkDevelopmentPurchaseBody(
+                            devTransactionId: transaction.transactionId,
+                            productSlug: PurchaseOrchestrator.resolveProductSlug(
+                                transaction, products: schema.products),
+                            purchaseDate: transaction.purchaseDate,
+                            quantity: transaction.quantity
+                        ))
+                    guard accepted else {
+                        return false
+                    }
+                } catch is VoidhashApiError {
+                    return false
+                }
             } else {
-                let response = try await api.syncTransaction(
-                    headers: headers,
-                    body: PurchaseOrchestrator.syncPayload(transaction, products: schema.products)
-                )
+                let response: SdkSyncTransactionResponse
+                do {
+                    response = try await api.syncTransaction(
+                        headers: headers,
+                        body: PurchaseOrchestrator.syncPayload(
+                            transaction, products: schema.products)
+                    )
+                } catch is VoidhashApiError {
+                    return false
+                }
 
-                // Fail-safe: a backend that answers `accepted: false` did not record the
-                // purchase, so the transaction stays unfinished (the store re-delivers it)
-                // and nothing is cached.
                 guard response.accepted else {
-                    throw VoidhashStoreError.transactionVerificationRejected(
-                        transactionId: transaction.transactionId)
+                    return false
                 }
             }
 
@@ -310,10 +330,11 @@ public actor PurchaseOrchestrator {
 
         if !entry.ownerClaimed && (readOnlyOverride ?? isReadOnly()) {
             entry.storeFinalizationPending = true
-            return
+            return true
         }
 
         try await finalizeWithStore(transaction, processedCacheKey: processedCacheKey)
+        return true
     }
 
     /// Runs the store finish that an already-completed processing skipped because it read

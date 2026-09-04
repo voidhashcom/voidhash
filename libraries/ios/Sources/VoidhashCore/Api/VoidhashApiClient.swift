@@ -16,7 +16,14 @@ public final class VoidhashApiClient: Sendable {
     private let baseUrl: URL
     private let session: URLSession
 
-    public init(baseUrl: URL = VoidhashApiClient.defaultBaseUrl, session: URLSession = .shared) {
+    /// - Parameters:
+    ///   - baseUrl: API origin.
+    ///   - session: Transport. Defaults to ``NetworkPolicy/defaultSession``, which carries the
+    ///     SDK request and resource timeouts.
+    public init(
+        baseUrl: URL = VoidhashApiClient.defaultBaseUrl,
+        session: URLSession = NetworkPolicy.defaultSession
+    ) {
         self.baseUrl = baseUrl
         self.session = session
     }
@@ -89,19 +96,12 @@ public final class VoidhashApiClient: Sendable {
     /// `POST /api/v1/sdk/development/purchase` — records a simulated purchase. Only valid
     /// while the SDK runs with `x-environment: development`; the backend rejects it otherwise.
     public func developmentPurchase(headers: [String: String], body: SdkDevelopmentPurchaseBody)
-        async throws
+        async throws -> Bool
     {
         let data = try await send(
             method: "POST", path: "/api/v1/sdk/development/purchase", headers: headers, body: body)
-        if isNullBody(data) {
-            return
-        }
-        // The endpoint reuses the sync-transaction response shape; tolerate an empty one.
-        let response = try? decode(SdkSyncTransactionResponse.self, from: data)
-        if let response, !response.accepted {
-            throw VoidhashStoreError.transactionVerificationRejected(
-                transactionId: body.devTransactionId)
-        }
+        let response = try decode(SdkSyncTransactionResponse.self, from: data)
+        return response.accepted
     }
 
     private func send(
@@ -138,6 +138,12 @@ public final class VoidhashApiClient: Sendable {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            // A cancelled task surfaces as `URLError.cancelled`; reporting it as a transport
+            // failure would count it against the host's breaker and let callers treat a caller
+            // that went away as an outage.
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                throw CancellationError()
+            }
             throw VoidhashApiError.network(error.localizedDescription)
         }
 
@@ -148,7 +154,14 @@ public final class VoidhashApiClient: Sendable {
         guard (200..<300).contains(httpResponse.statusCode) else {
             let failure = decodeErrorBody(data)
             throw VoidhashApiError.http(
-                statusCode: httpResponse.statusCode, tag: failure.tag, message: failure.message)
+                statusCode: httpResponse.statusCode,
+                tag: failure.tag,
+                message: failure.message,
+                retryAfterMilliseconds: NetworkPolicy.retryAfterMilliseconds(
+                    header: httpResponse.value(forHTTPHeaderField: "retry-after"),
+                    body: data,
+                    now: Date().timeIntervalSince1970 * 1000)
+            )
         }
 
         return data

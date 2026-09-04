@@ -118,6 +118,18 @@ data class ResolvedPaywall(
     }
 }
 
+/** What the backend said about a synced store transaction. */
+enum class TransactionSyncVerdict {
+    /** Recorded. The receipt can be dropped. */
+    ACCEPTED,
+
+    /** Refused for a reason retrying will not change. The receipt is dropped with a diagnostic. */
+    REJECTED,
+
+    /** The answer did not say. The receipt is kept and retried; syncing is idempotent. */
+    INDETERMINATE,
+}
+
 /** Payload of `POST /api/v1/sdk/sync-transaction` for Android transactions. */
 data class SyncTransactionRequest(
     val appAccountToken: String?,

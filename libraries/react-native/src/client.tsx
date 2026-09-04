@@ -19,6 +19,22 @@ import { AnalyticsService } from "./core/analytics/service";
 import { AnalyticsSessionManager } from "./core/analytics/session-manager";
 import { NativeStorageCacheAdapter } from "./core/caching/native-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
+import {
+  type VoidhashDiagnostic,
+  type VoidhashDiagnosticHandler,
+  Diagnostics,
+  makeDiagnosticsLayer,
+} from "./core/diagnostics/diagnostics";
+import { AuthGate } from "./core/network/auth-gate";
+import { CircuitBreaker } from "./core/network/circuit-breaker";
+import {
+  type ConnectivityPort,
+  Connectivity,
+  makeConnectivityLayer,
+} from "./core/network/connectivity";
+import { SingleFlight } from "./core/network/single-flight";
+import { TransactionOutbox } from "./core/transactions/transaction-outbox";
+import type { SdkPerson } from "@voidhash/generated-clients";
 import type { Product } from "./core/entities/product";
 import {
   type FeatureFlagsResult,
@@ -29,6 +45,7 @@ import {
   PersonAttributeManager,
 } from "./core/identity/person-attribute-manager";
 import { PersonInfoManager } from "./core/identity/person-info-manager";
+import { IdentityEpoch } from "./core/identity/identity-epoch";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
@@ -38,7 +55,7 @@ import { DevelopmentPaymentAdapter } from "./core/payment-adapters/development-p
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { PurchasePendingError, UserCancelledError } from "./core/payment-adapters/errors";
-import { findActiveGrant, type EntitlementGrant } from "./core/entitlements/find-grant";
+import type { EntitlementGrant } from "./core/entitlements/find-grant";
 import { engineApiClientLayer } from "./core/networking/engine-api-client";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
@@ -102,6 +119,26 @@ export interface VoidhashClientOptions {
   enabled?: boolean;
   ingestUrl?: string;
   /**
+   * Optional reachability source. React Native has no built-in one and the SDK
+   * adds no native dependency, so apps that already depend on a reachability
+   * library can hand its state in here: the SDK then flushes its queues and
+   * refreshes stale state the moment the device comes back online. Without it
+   * the SDK still recovers on its own, one probe at a time.
+   */
+  connectivity?: ConnectivityPort;
+  /**
+   * Called for every non-fatal event the SDK handled itself — a request that
+   * failed and will be retried, an event evicted from a full queue, a rejected
+   * publishable key. Purely informational; exceptions thrown here are
+   * swallowed. Prefer this over `unstable_swallowErrors`.
+   */
+  onDiagnostic?: VoidhashDiagnosticHandler;
+  /**
+   * Placements to warm at boot so their first `show()` renders without a round
+   * trip. Placements the device has already resolved are preloaded anyway.
+   */
+  preloadPlacements?: string[];
+  /**
    * Starts the SDK in observer mode: transactions are reported to Voidhash but
    * never finished/acknowledged with the store, and purchases are blocked.
    * Commerce is temporarily unavailable, so the current release always runs
@@ -116,6 +153,11 @@ export interface VoidhashClientOptions {
    * `client.screen()`.
    */
   screenTracking?: ScreenTrackingOptions;
+  /**
+   * @deprecated Transport failures no longer surface as errors, so there is
+   * nothing left for this to swallow. Use `onDiagnostic` to observe recovered
+   * failures instead. Removed in a future release.
+   */
   unstable_swallowErrors?: boolean;
   /**
    * Test/internal escape hatch — inject a known runtime schema instead of
@@ -137,6 +179,8 @@ const CreateEffectRuntime = (
   developmentMode: boolean,
   atomRegistry: AtomRegistry.AtomRegistry,
   sdkConfiguration: typeof SdkConfiguration.Service,
+  diagnosticsLayer: Layer.Layer<Diagnostics>,
+  connectivityLayer: Layer.Layer<Connectivity>,
   nativeEngine?: VoidhashEngineSpec,
 ) => {
   const paymentAdapterLayer: Layer.Layer<PaymentAdapter> =
@@ -149,6 +193,25 @@ const CreateEffectRuntime = (
   // headers and environment mode are then built natively, exactly like a pure-native app.
   const apiClientLayer =
     nativeEngine !== undefined ? engineApiClientLayer(nativeEngine) : ApiClient.Default;
+  // Split in two because `pipe` accepts at most 20 arguments: the base half
+  // carries the infrastructure services, the feature half the SDK services.
+  const infrastructureLayer = pipe(
+    CacheManager.Default,
+    Layer.provideMerge(NativeStorageCacheAdapter),
+    Layer.provideMerge(IdentityEpoch.layer),
+    Layer.provideMerge(CircuitBreaker.layer),
+    Layer.provideMerge(AuthGate.layer),
+    Layer.provideMerge(SingleFlight.layer),
+    Layer.provideMerge(connectivityLayer),
+    Layer.provideMerge(diagnosticsLayer),
+    Layer.provideMerge(apiClientLayer),
+    Layer.provideMerge(FetchHttpClient.layer),
+    Layer.provideMerge(paymentAdapterLayer),
+    Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
+    Layer.provideMerge(ReactNativePlatformProvider),
+    Layer.provideMerge(Layer.succeed(SdkConfiguration, sdkConfiguration)),
+  );
+
   return ManagedRuntime.make(
     pipe(
       PersonAttributeManager.Default,
@@ -156,27 +219,27 @@ const CreateEffectRuntime = (
       Layer.provideMerge(FeatureFlagService.layer),
       Layer.provideMerge(PaywallService.layer),
       Layer.provideMerge(TransactionService.layer),
+      Layer.provideMerge(TransactionOutbox.layer),
       Layer.provideMerge(AnalyticsService.layer),
       Layer.provideMerge(AnalyticsSessionManager.layer),
       Layer.provideMerge(LifecycleService.layer),
       Layer.provideMerge(ReactNativeLifecycleAdapter),
-      Layer.provideMerge(PersonInfoManager.Default),
       Layer.provideMerge(SchemaManager.layer),
       Layer.provideMerge(IdentityManager.Default),
-      Layer.provideMerge(CacheManager.Default),
-      Layer.provideMerge(NativeStorageCacheAdapter),
-      Layer.provideMerge(apiClientLayer),
-      Layer.provideMerge(FetchHttpClient.layer),
-      Layer.provideMerge(paymentAdapterLayer),
-      Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
-      Layer.provideMerge(ReactNativePlatformProvider),
-      Layer.provideMerge(Layer.succeed(SdkConfiguration, sdkConfiguration)),
+      Layer.provideMerge(PersonInfoManager.Default),
+      Layer.provideMerge(infrastructureLayer),
     ),
   );
 };
 
 /** Feature flag answer of a disabled client: no flags were ever evaluated. */
-const DISABLED_FEATURE_FLAGS: FeatureFlagsResult = { flags: [] };
+const DISABLED_FEATURE_FLAGS: FeatureFlagsResult = { flags: [], isStale: false };
+
+/** Upper bound on events buffered before `init()` resolves. */
+const PRE_INIT_BUFFER_CAP = 100;
+
+/** Minimum gap between two foreground-triggered refreshes. */
+const FOREGROUND_REFRESH_DEBOUNCE_MS = 60_000;
 
 /** Paywall runtime config answer of a disabled client. */
 const DISABLED_PAYWALL_RUNTIME_CONFIG: PaywallRuntimeConfig = { products: [], variables: {} };
@@ -201,6 +264,9 @@ const toErrorWithMessage = (code: VoidhashErrorCode, unknownCause: unknown) => {
  *
  * - `completed`: the transaction was validated by Voidhash and the person
  *   snapshot has been refreshed.
+ * - `deferred`: the store completed the purchase but Voidhash could not be
+ *   reached to validate the receipt. It sits in the outbox and is re-sent on
+ *   boot, foreground and connectivity restore; access arrives once it lands.
  * - `cancelled`: the customer dismissed the native store sheet.
  * - `pending`: the purchase needs external action (e.g. approval) before it
  *   completes; access arrives once the transaction observer reconciles it.
@@ -208,9 +274,32 @@ const toErrorWithMessage = (code: VoidhashErrorCode, unknownCause: unknown) => {
  */
 export type PurchaseOutcome =
   | { status: "completed" }
+  | { status: "deferred" }
   | { status: "cancelled" }
   | { status: "pending" }
   | { status: "disabled" };
+
+/** Outcome of an identity switch reported by {@link VoidhashClient.identifySync}. */
+export type IdentifyResult =
+  | {
+      /** The server confirmed the identity and returned the person. */
+      status: "confirmed";
+      person: SdkPerson;
+    }
+  | {
+      /**
+       * The server was unreachable. The device already runs under the new
+       * distinct id and a `$identify` event is queued so the server catches up.
+       */
+      status: "deferred";
+      // oxlint-disable-next-line effect/prefer-option-over-null -- public SDK answer consumed by non-Effect app code.
+      person: SdkPerson | null;
+    }
+  | {
+      /** The client was created with `enabled: false`, so nothing was recorded. */
+      status: "disabled";
+      person: null;
+    };
 
 /** Answer to an entitlement check for one perk. */
 export interface HasPerkResult {
@@ -218,11 +307,72 @@ export interface HasPerkResult {
   grant: Option.Option<EntitlementGrant>;
   hasAccess: boolean;
   /**
-   * True when `hasAccess` was served from the cached snapshot because a
-   * refresh failed (offline, server error). Only ever `true` together with
-   * `hasAccess: true` and a non-null `grant`.
+   * The answer came from a cached snapshot that is past its refresh window,
+   * either because a refresh is still running or because the server could not
+   * be reached.
    */
   isStale: boolean;
+  /**
+   * The cached snapshot is past its two-day TTL. Access is still reported as
+   * the snapshot recorded it; apps gating high-value content can decide to
+   * treat this as untrusted.
+   */
+  isExpired: boolean;
+  /**
+   * Why the answer has the freshness it has.
+   *
+   * - `fresh`: confirmed by the server just now.
+   * - `refresh-in-flight`: served from cache while a refresh is still running;
+   *   its result lands for the next read.
+   * - `refresh-failed`: served from cache because the refresh could not
+   *   complete.
+   * - `no-cache`: the SDK has never seen a snapshot for this identity, so
+   *   `hasAccess` is `false` for lack of evidence rather than because access
+   *   was denied.
+   */
+  reason: "fresh" | "refresh-in-flight" | "refresh-failed" | "no-cache";
+}
+
+/** Person snapshot together with how much to trust it. */
+export interface CurrentPersonResult {
+  /** The snapshot, or `null` before the SDK has ever seen one. */
+  // oxlint-disable-next-line effect/prefer-option-over-null -- public SDK answer consumed by non-Effect app code.
+  person: SdkPerson | null;
+  /** Served from cache past its refresh window. */
+  isStale: boolean;
+  /** Served from cache past its TTL. */
+  isExpired: boolean;
+  /** Why the snapshot has the freshness it has; see {@link HasPerkResult.reason}. */
+  reason: "fresh" | "refresh-in-flight" | "refresh-failed" | "no-cache";
+}
+
+/** Outcome of a synchronous person-attribute update. */
+export type SetPersonAttributesResult =
+  | {
+      /** The server accepted and returned the updated snapshot. */
+      status: "confirmed";
+      person: SdkPerson;
+    }
+  | {
+      /** The server was unreachable; the update is queued and will be retried. */
+      status: "deferred";
+      // oxlint-disable-next-line effect/prefer-option-over-null -- public SDK answer consumed by non-Effect app code.
+      person: SdkPerson | null;
+    }
+  | {
+      /** The client was created with `enabled: false`, so nothing was recorded. */
+      status: "disabled";
+      person: null;
+    };
+
+/** Outcome of an analytics flush. */
+export interface FlushResult {
+  /** Events the server accepted during this flush. */
+  flushed: number;
+  /** Events still queued, waiting for their next attempt. */
+  pending: number;
+  /** The failure that stopped the flush, when one did. */
+  lastError?: VoidhashError;
 }
 
 type UninitializedEffectClient = ReturnType<typeof VoidhashEffectClient.makeUnitializedClient>;
@@ -235,7 +385,7 @@ type InitializedEffectClient = Effect.Success<
 
 export class VoidhashClient {
   private _isInitialized = false;
-  private analyticsFlushInFlight = Option.none<Promise<Result<void, VoidhashError>>>();
+  private analyticsFlushInFlight = Option.none<Promise<Result<FlushResult, VoidhashError>>>();
   private appLifecycleSubscription = Option.none<{ remove: () => void }>();
   private preInitAnalyticsBuffer: Array<{
     eventName: string;
@@ -253,8 +403,18 @@ export class VoidhashClient {
   private nativeEngine?: VoidhashEngineSpec;
   private screenTracker: ScreenTracker;
   private manualScreenCounter = 0;
+  private preloadPlacements: ReadonlyArray<string>;
+  private preloadPaywallAsset?: (locationSlug: string, htmlUrl: string) => Promise<unknown>;
+  private diagnosticHandler: Option.Option<VoidhashDiagnosticHandler>;
+  private connectivitySubscription = Option.none<{ remove: () => void }>();
+  private lastRecoveryAt = 0;
+  /** Set by `end()` until the next `init()`: the runtime is gone. */
+  private ended = false;
+  /** The `init()` in progress, shared by every caller until it settles. */
+  private initInFlight = Option.none<Promise<Result<void, VoidhashError>>>();
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
+  private readonly buildRuntime: () => ReturnType<typeof CreateEffectRuntime>;
 
   private unitializedClient: UninitializedEffectClient;
   private initializedClient?: InitializedEffectClient;
@@ -275,6 +435,12 @@ export class VoidhashClient {
     enabled = true,
     nativeEngine?: VoidhashEngineSpec,
     screenTracking: ScreenTrackingOptions = {},
+    offlineOptions: {
+      connectivity?: ConnectivityPort;
+      onDiagnostic?: VoidhashDiagnosticHandler;
+      preloadPlacements?: ReadonlyArray<string>;
+      preloadPaywallAsset?: (locationSlug: string, htmlUrl: string) => Promise<unknown>;
+    } = {},
   ) {
     this.initialDistinctId = Option.isOption(initialDistinctId)
       ? Option.filter(initialDistinctId, P.isString)
@@ -285,6 +451,9 @@ export class VoidhashClient {
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.atomRegistry = atomRegistry;
+    this.preloadPlacements = offlineOptions.preloadPlacements ?? [];
+    this.preloadPaywallAsset = offlineOptions.preloadPaywallAsset;
+    this.diagnosticHandler = Option.fromUndefinedOr(offlineOptions.onDiagnostic);
     const mapScreen = screenTracking.mapScreen;
     this.screenTracker = createScreenTracker({
       enabled: enabled && (screenTracking.enabled ?? true),
@@ -317,13 +486,19 @@ export class VoidhashClient {
       );
       this.nativeEngine = nativeEngine;
     }
-    this.effectRuntime = CreateEffectRuntime(
-      platform,
-      this.developmentMode,
-      atomRegistry,
-      this.sdkConfiguration.service,
-      nativeEngine,
-    );
+    this.buildRuntime = () =>
+      CreateEffectRuntime(
+        platform,
+        this.developmentMode,
+        atomRegistry,
+        this.sdkConfiguration.service,
+        makeDiagnosticsLayer(this.diagnosticHandler),
+        offlineOptions.connectivity
+          ? makeConnectivityLayer(offlineOptions.connectivity)
+          : Connectivity.noop,
+        nativeEngine,
+      );
+    this.effectRuntime = this.buildRuntime();
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
 
@@ -354,17 +529,43 @@ export class VoidhashClient {
    * server (or uses the injected internal schema if one was provided for tests).
    * Resolves immediately without touching the store, the network or the
    * cache when the client was created with `enabled: false`.
+   *
+   * Idempotent: a call that overlaps a running `init()` joins it, and a call
+   * on an initialized client resolves at once. Neither registers a second
+   * lifecycle listener, transaction observer or flush timer.
    */
   async init(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
       return Result.ok(undefined);
     }
+    if (Option.isSome(this.initInFlight)) {
+      return this.initInFlight.value;
+    }
+    if (this.initializedClient !== undefined) {
+      return Result.ok(undefined);
+    }
 
+    const inFlight = this.runInit().finally(() => {
+      this.initInFlight = Option.none();
+    });
+    this.initInFlight = Option.some(inFlight);
+    return inFlight;
+  }
+
+  private runInit(): Promise<Result<void, VoidhashError>> {
     return this.runSideEffect("init", async () => {
+      if (this.ended) {
+        // `end()` disposed the previous runtime along with its daemons and
+        // store connection; a re-init starts from a fresh one.
+        this.effectRuntime = this.buildRuntime();
+        this.ended = false;
+      }
       const initializedClientResult = await this.toResult(
         this.unitializedClient.init({
           distinctId: this.initialDistinctId.valueOrUndefined,
           internalSchema: this.internalSchema,
+          preloadPaywallAsset: this.preloadPaywallAsset,
+          preloadPlacements: this.preloadPlacements,
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
@@ -372,10 +573,14 @@ export class VoidhashClient {
         return Result.err(initializedClientResult.error);
       }
       const initializedClient = initializedClientResult.value;
+      // A fresh `init()` is the moment a corrected publishable key arrives, so
+      // any authentication pause from the previous configuration is lifted.
+      this.runInBackground("resumeAuthentication", initializedClient.resumeAuthentication());
 
       const observerResult = await this.toResult(
         initializedClient.startTransactionObserver((transaction) => {
-          void this.effectRuntime.runPromiseExit(
+          this.runInBackground(
+            "processObservedTransaction",
             initializedClient.processObservedTransaction(transaction),
           );
         }),
@@ -385,7 +590,10 @@ export class VoidhashClient {
         return Result.err(observerResult.error);
       }
 
-      void this.effectRuntime.runPromiseExit(initializedClient.reconcileObservedTransactions());
+      this.runInBackground(
+        "reconcileObservedTransactions",
+        initializedClient.reconcileObservedTransactions(),
+      );
 
       this.initializedClient = initializedClient;
       this._isInitialized = true;
@@ -433,6 +641,12 @@ export class VoidhashClient {
       const lifecycleResult = await this.toResult(
         initializedClient.setupAutomaticLifecycleEvents((eventName) => {
           this.capture(eventName);
+          if (eventName === AUTOMATIC_EVENTS.APP_BECAME_ACTIVE) {
+            this.handleForeground();
+          }
+          if (eventName === AUTOMATIC_EVENTS.APP_BACKGROUNDED) {
+            this.triggerBackgroundFlush("flush analytics on background");
+          }
         }),
         "FAILED_TO_SETUP_LIFECYCLE_EVENTS",
       );
@@ -442,13 +656,61 @@ export class VoidhashClient {
       this.appLifecycleSubscription = lifecycleResult.value;
 
       this.triggerBackgroundFlush("flush analytics after init");
+
+      // Everything below runs behind `init()`: the client is usable from local
+      // state the moment this returns.
+      this.runInBackground("refreshAll", initializedClient.refreshAll());
+      this.runInBackground("syncTransactionOutbox", initializedClient.syncTransactionOutbox());
+
+      const connectivityResult = await this.toResult(
+        initializedClient.observeConnectivity(() => {
+          this.handleConnectivityRestored();
+        }),
+        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
+      );
+      if (connectivityResult.isOk()) {
+        this.connectivitySubscription = connectivityResult.value;
+      }
+
       return Result.ok(undefined);
     });
   }
 
   /**
-   * Ends the voidhash client. No-ops on a disabled client, which never
-   * acquired anything to tear down.
+   * Recovery chain shared by app foreground and connectivity restore:
+   * half-open every tripped host, flush the queues and refresh anything
+   * stale. Debounced to once a minute across both triggers, so a user
+   * flipping between apps or a flapping network does not turn into a
+   * request storm.
+   */
+  private recover(reason: string) {
+    const client = this.initializedClient;
+    if (!client) return;
+    // oxlint-disable-next-line effect/use-clock-service -- plain debounce outside any Effect; the client wrapper has no Clock in scope here.
+    const now = Date.now();
+    if (now - this.lastRecoveryAt < FOREGROUND_REFRESH_DEBOUNCE_MS) return;
+    this.lastRecoveryAt = now;
+    this.runInBackground("halfOpenCircuits", client.halfOpenCircuits());
+    this.triggerBackgroundFlush(`flush analytics ${reason}`);
+    this.runInBackground("refreshAll", client.refreshAll());
+    this.runInBackground("syncTransactionOutbox", client.syncTransactionOutbox());
+  }
+
+  private handleForeground() {
+    this.recover("on foreground");
+  }
+
+  /** Connectivity went from offline to online; the facade filters repeats. */
+  private handleConnectivityRestored() {
+    this.recover("after connectivity restored");
+  }
+
+  /**
+   * Ends the voidhash client: flushes analytics, closes the store connection,
+   * removes the lifecycle and connectivity listeners and disposes the Effect
+   * runtime, which stops the flush and persist daemons. Afterwards `capture()`
+   * drops events with a diagnostic and `init()` builds a fresh runtime.
+   * No-ops on a disabled client, which never acquired anything to tear down.
    */
   async end(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
@@ -470,7 +732,12 @@ export class VoidhashClient {
       }
       Option.getOrUndefined(this.appLifecycleSubscription)?.remove();
       this.appLifecycleSubscription = Option.none();
+      Option.getOrUndefined(this.connectivitySubscription)?.remove();
+      this.connectivitySubscription = Option.none();
+      this.initializedClient = undefined;
       this._isInitialized = false;
+      this.ended = true;
+      await this.effectRuntime.dispose();
       return Result.ok(undefined);
     });
   }
@@ -526,14 +793,18 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns the current person snapshot, or `null` before the first snapshot
-   * exists. Serves a fresh cache entry when available
-   * (stale-while-revalidate); pass `{ forceFetch: true }` to skip the cache.
-   * Answers `Ok(null)` while disabled.
+   * Returns the current person snapshot together with how much to trust it.
+   * The answer comes from cache whenever one exists — a stale entry is served
+   * while a refresh runs behind the read — so this never waits on the network
+   * and never fails because the server is unreachable. Pass
+   * `{ forceFetch: true }` to prefer the server. Answers an empty snapshot
+   * while disabled.
    */
-  async getCurrentPerson(options: { forceFetch?: boolean } = {}) {
+  async getCurrentPerson(
+    options: { forceFetch?: boolean } = {},
+  ): Promise<Result<CurrentPersonResult, VoidhashError>> {
     if (!this.enabled) {
-      return Result.ok(null);
+      return Result.ok({ isExpired: false, isStale: false, person: null, reason: "no-cache" });
     }
 
     if (!this.initializedClient) {
@@ -548,53 +819,44 @@ export class VoidhashClient {
   /**
    * Checks whether the current person holds an active grant for a perk.
    *
-   * Refreshes the person snapshot first; if that fails (offline, server
-   * error) the answer falls back to the cached snapshot and `isStale` is set,
-   * so apps fail open with known-good data instead of silently denying
-   * access. Pass `{ allowStale: false }` to fail with the refresh error
-   * instead.
+   * Cache-first: a fresh snapshot answers immediately, a stale one is served
+   * while a refresh runs behind the read, and an entitlement granted before
+   * the device went offline keeps answering `true`. The result always says how
+   * fresh it is (`isStale`, `isExpired`, `reason`) — it never fails because
+   * the server is unreachable. Pass `{ forceFetch: true }` to prefer the
+   * server.
    */
   async hasPerk(
     perkSlug: PerkSlug,
-    options: { allowStale?: boolean } = {},
+    options: {
+      /**
+       * @deprecated No longer read. A stale answer beats no answer, so the
+       * cached grant is always served. Branch on `isStale`/`isExpired` in the
+       * result instead. Removed in a future release.
+       */
+      allowStale?: boolean;
+      /** Prefer the server, waiting for it before answering. */
+      forceFetch?: boolean;
+    } = {},
   ): Promise<Result<HasPerkResult, VoidhashError>> {
     if (!this.enabled) {
-      return Result.ok({ grant: Option.none(), hasAccess: false, isStale: false });
+      return Result.ok({
+        grant: Option.none(),
+        hasAccess: false,
+        isExpired: false,
+        isStale: false,
+        reason: "no-cache",
+      });
     }
 
     if (!this.initializedClient) {
       return Result.err(new NotInitializedError());
     }
 
-    const refreshResult = await this.toResult(
-      this.initializedClient.getCurrentPerson(true),
+    return this.toResult(
+      this.initializedClient.hasPerk(perkSlug, { forceFetch: options.forceFetch }),
       "FAILED_TO_GET_CURRENT_PERSON",
     );
-
-    if (refreshResult.isOk()) {
-      const grant = findActiveGrant(Option.fromNullOr(refreshResult.value), perkSlug);
-      return Result.ok({ grant, hasAccess: Option.isSome(grant), isStale: false });
-    }
-
-    const refreshError = refreshResult.error;
-    if (options.allowStale === false) {
-      return Result.err(refreshError);
-    }
-
-    const cachedResult = await this.toResult(
-      this.initializedClient.getCachedPerson(),
-      "FAILED_TO_GET_CURRENT_PERSON",
-    );
-    const grant = findActiveGrant(
-      cachedResult.isOk() ? Option.fromNullOr(cachedResult.value) : Option.none(),
-      perkSlug,
-    );
-    if (Option.isNone(grant)) {
-      // No cached evidence of access — surface the refresh failure rather
-      // than answering a confident "no" from nothing.
-      return Result.err(refreshError);
-    }
-    return Result.ok({ grant, hasAccess: true, isStale: true });
   }
 
   /**
@@ -620,13 +882,17 @@ export class VoidhashClient {
   }
 
   /**
-   * Sets person attributes synchronously and returns the updated person
-   * snapshot. Performs a network round-trip, so this is a write — it is blocked
-   * in read-only mode, mirroring `purchase`. Answers `Ok(null)` while disabled.
+   * Sets person attributes synchronously and reports whether the server
+   * confirmed them. Performs a network round-trip, so this is a write — it is
+   * blocked in read-only mode, mirroring `purchase`. When the server is
+   * unreachable the update is queued and the result is `deferred` with the
+   * last known snapshot, rather than an error.
    */
-  async setPersonAttributesSync(attributes: PersonAttributes) {
+  async setPersonAttributesSync(
+    attributes: PersonAttributes,
+  ): Promise<Result<SetPersonAttributesResult, VoidhashError>> {
     if (!this.enabled) {
-      return Result.ok(null);
+      return Result.ok({ person: null, status: "disabled" });
     }
 
     if (!this.initializedClient) {
@@ -668,7 +934,10 @@ export class VoidhashClient {
   }
 
   /**
-   * Identifies the user by switching the current distinct id.
+   * Identifies the user by switching the current distinct id. The switch
+   * happens locally first; when the server is unreachable it is queued as a
+   * `$identify` event and delivered later rather than failing. Use
+   * {@link identifySync} to learn which of the two happened.
    */
   async identify(
     externalUserId: string,
@@ -685,11 +954,45 @@ export class VoidhashClient {
       if (!this.initializedClient) {
         return Result.err(new NotInitializedError());
       }
-      return this.toResult(
+      const result = await this.toResult(
         this.initializedClient.identify(externalUserId, options),
         "FAILED_TO_IDENTIFY",
       );
+      return result.map(() => undefined);
     });
+  }
+
+  /**
+   * Identifies the user and reports whether the server confirmed the switch
+   * (`confirmed`, with the person) or the device switched locally and queued
+   * the switch for later delivery (`deferred`, with the last known snapshot
+   * for that identity, if any). Only a verdict the server will not change —
+   * a non-retryable 4xx — is an `Err`.
+   */
+  async identifySync(
+    externalUserId: string,
+    options: {
+      email?: string;
+      name?: string;
+    } = {},
+  ): Promise<Result<IdentifyResult, VoidhashError>> {
+    if (!this.enabled) {
+      return Result.ok({ person: null, status: "disabled" });
+    }
+
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    const result = await this.toResult(
+      this.initializedClient.identify(externalUserId, options),
+      "FAILED_TO_IDENTIFY",
+    );
+    return result.map(
+      (outcome): IdentifyResult =>
+        outcome.status === "confirmed"
+          ? { person: outcome.person, status: "confirmed" }
+          : { person: outcome.person, status: "deferred" },
+    );
   }
 
   /**
@@ -755,10 +1058,15 @@ export class VoidhashClient {
     if (!this.initializedClient) {
       return Result.err(new NotInitializedError());
     }
-    return this.toResult(
+    const exit = await this.effectRuntime.runPromiseExit(
       this.initializedClient.getPaywallForLocation(locationSlug),
-      "FAILED_TO_GET_PAYWALL_FOR_LOCATION",
     );
+    if (Exit.isSuccess(exit)) return Result.ok(exit.value);
+    const cause = Cause.squash(exit.cause);
+    // `PaywallUnavailableError` is a state, not a fault: the caller renders
+    // "unavailable" rather than reporting a failure, so its code survives.
+    if (cause instanceof VoidhashError) return Result.err(cause);
+    return Result.err(toErrorWithMessage("FAILED_TO_GET_PAYWALL_FOR_LOCATION", cause));
   }
 
   /**
@@ -784,7 +1092,10 @@ export class VoidhashClient {
    * in effect when the purchase starts, so a `setReadOnly()` landing later
    * doesn't abandon it. Resolves to a `Result`; cancellation and deferral are
    * `Ok` outcomes, every failure is an `Err` carrying a coded
-   * {@link VoidhashError}. Answers `Ok({ status: "disabled" })` while disabled.
+   * {@link VoidhashError}. `completed` means Voidhash validated the receipt;
+   * `deferred` means the store completed the purchase but the receipt is
+   * still waiting in the outbox for the server. Answers
+   * `Ok({ status: "disabled" })` while disabled.
    */
   async purchase(product: Product): Promise<Result<PurchaseOutcome, VoidhashError>> {
     if (!this.enabled) {
@@ -800,7 +1111,7 @@ export class VoidhashClient {
 
     const exit = await this.effectRuntime.runPromiseExit(this.initializedClient.purchase(product));
     if (Exit.isSuccess(exit)) {
-      return Result.ok({ status: "completed" });
+      return Result.ok({ status: exit.value === true ? "completed" : "deferred" });
     }
 
     const cause = Cause.squash(exit.cause);
@@ -843,10 +1154,40 @@ export class VoidhashClient {
       return;
     }
 
+    if (this.ended) {
+      // The runtime is disposed: nothing could deliver this event. Reported
+      // rather than buffered, because a re-init is not expected.
+      this.emitDiagnostic({
+        code: "ANALYTICS_EVENT_DROPPED",
+        kind: "eviction",
+        message: `Dropped "${eventName.trim()}" — captured after end()`,
+        operation: "capture",
+        retryable: false,
+      });
+      return;
+    }
+
     if (!this.initializedClient) {
       const normalized = eventName.trim();
       if (normalized) {
         this.preInitAnalyticsBuffer.push({ eventName: normalized, properties });
+        // Bounded: `init()` normally resolves in milliseconds, so a buffer
+        // growing past this means events are being captured faster than the
+        // SDK can start. Drop the oldest rather than the newest.
+        const overflow = this.preInitAnalyticsBuffer.length - PRE_INIT_BUFFER_CAP;
+        if (overflow > 0) {
+          const evicted = this.preInitAnalyticsBuffer.slice(0, overflow);
+          this.preInitAnalyticsBuffer = this.preInitAnalyticsBuffer.slice(overflow);
+          Arr.forEach(evicted, (dropped) => {
+            this.emitDiagnostic({
+              code: "ANALYTICS_EVENT_DROPPED",
+              kind: "eviction",
+              message: `Evicted "${dropped.eventName}" — the pre-init buffer reached its cap of ${PRE_INIT_BUFFER_CAP} events`,
+              operation: "capture",
+              retryable: false,
+            });
+          });
+        }
       }
       return;
     }
@@ -893,31 +1234,42 @@ export class VoidhashClient {
    * Flushes queued analytics events. Nothing is ever queued while disabled, so
    * this no-ops.
    */
-  async flush(): Promise<Result<void, VoidhashError>> {
+  async flush(): Promise<Result<FlushResult, VoidhashError>> {
     if (!this.enabled) {
-      return Result.ok(undefined);
+      return Result.ok({ flushed: 0, pending: 0 });
     }
 
-    return this.runSideEffect("flush", async () => {
-      if (Option.isSome(this.analyticsFlushInFlight)) {
-        await this.analyticsFlushInFlight.value;
-        return Result.ok(undefined);
-      }
+    if (Option.isSome(this.analyticsFlushInFlight)) {
+      return this.analyticsFlushInFlight.value;
+    }
 
-      if (!this.initializedClient) {
-        return Result.ok(undefined);
-      }
+    if (!this.initializedClient) {
+      return Result.ok({ flushed: 0, pending: this.preInitAnalyticsBuffer.length });
+    }
 
-      const inFlight = this.toResult(
-        this.initializedClient.flush(),
-        "FAILED_TO_FLUSH_ANALYTICS",
-      ).finally(() => {
+    const inFlight = this.toResult(this.initializedClient.flush(), "FAILED_TO_FLUSH_ANALYTICS")
+      .then((result) =>
+        result.map(
+          (outcome): FlushResult => ({
+            flushed: outcome.flushed,
+            // The last delivery failure of this flush, when one stopped it.
+            // Present alongside a non-zero `pending`, never instead of it: the
+            // events are queued, not lost.
+            lastError: Option.getOrUndefined(
+              Option.map(outcome.lastError, (failure) =>
+                toErrorWithMessage("FAILED_TO_FLUSH_ANALYTICS", failure),
+              ),
+            ),
+            pending: outcome.pending,
+          }),
+        ),
+      )
+      .finally(() => {
         this.analyticsFlushInFlight = Option.none();
       });
-      this.analyticsFlushInFlight = Option.some(inFlight);
+    this.analyticsFlushInFlight = Option.some(inFlight);
 
-      return inFlight;
-    });
+    return inFlight;
   }
 
   // ===============================
@@ -994,6 +1346,34 @@ export class VoidhashClient {
       this.initializedClient.buildPaywallRuntimeConfig(runtime),
       "FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG",
     );
+  }
+
+  /** Routes a diagnostic to the host handler, swallowing handler exceptions. */
+  private emitDiagnostic(diagnostic: VoidhashDiagnostic) {
+    if (Option.isNone(this.diagnosticHandler)) return;
+    // oxlint-disable-next-line effect/avoid-try-catch -- boundary with host application code: the handler is a plain callback the app supplies and may throw anything.
+    try {
+      this.diagnosticHandler.value(diagnostic);
+    } catch {
+      // A throwing host handler must never fail the SDK path that reported.
+    }
+  }
+
+  /**
+   * Runs an SDK-owned background task without awaiting it, reporting a failure
+   * through the diagnostics hook rather than dropping it on the floor.
+   */
+  private runInBackground(operation: string, effect: Effect.Effect<unknown, unknown, any>) {
+    void this.effectRuntime.runPromiseExit(effect).then((exit) => {
+      if (Exit.isSuccess(exit)) return;
+      this.emitDiagnostic({
+        code: "BACKGROUND_TASK_FAILED",
+        kind: "transport",
+        message: `${operation} failed: ${Cause.pretty(exit.cause)}`,
+        operation,
+        retryable: true,
+      });
+    });
   }
 
   private triggerBackgroundFlush(operation: string) {

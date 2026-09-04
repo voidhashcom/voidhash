@@ -45,6 +45,10 @@ const normalizeFeatureFlagsResponse = (
   })),
 });
 
+const requireExplicitAcceptance = <Response extends { readonly accepted: boolean }>(
+  response: Response,
+) => Effect.as(Schema.decodeUnknownEffect(Schema.Boolean)(response.accepted), response);
+
 /** Binds the generated core client to the React Native SDK request surface. */
 export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
   sdk: {
@@ -99,18 +103,24 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
       headers: ReactNativeSdkHeaders;
       payload: ReactNativeSyncTransactionRequest;
     }) =>
-      client.sdkSyncTransaction({
-        params: request.headers,
-        payload: request.payload,
-      }),
+      Effect.flatMap(
+        client.sdkSyncTransaction({
+          params: request.headers,
+          payload: request.payload,
+        }),
+        requireExplicitAcceptance,
+      ),
     developmentPurchase: (request: {
       headers: ReactNativeSdkHeaders;
       payload: ReactNativeDevelopmentPurchaseRequest;
     }) =>
-      client.sdkDevelopmentPurchase({
-        params: request.headers,
-        payload: request.payload,
-      }),
+      Effect.flatMap(
+        client.sdkDevelopmentPurchase({
+          params: request.headers,
+          payload: request.payload,
+        }),
+        requireExplicitAcceptance,
+      ),
   },
 });
 

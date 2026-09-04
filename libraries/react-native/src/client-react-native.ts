@@ -6,7 +6,7 @@ import { VoidhashClient, type VoidhashClientOptions } from "./client";
 import { COMMERCE_FEATURES_ENABLED } from "./core/constants";
 import { SchemeNotSetError } from "./errors";
 import { getNativePlatformInfo, resolveScheme } from "./core/platform/native-platform";
-import { getVoidhashEngine } from "./nitro";
+import { getVoidhashEngine, PaywallPresenter } from "./nitro";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
 import { useRetrieveAppStoreProducts } from "./react/hooks/app-store/use-retrieve-app-store-products";
@@ -53,6 +53,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
 
   const atomRegistry = AtomRegistry.make();
   const platform = RNPlatform.OS === "ios" ? "ios" : "android";
+  const paywallPresenter = PaywallPresenter;
 
   const client = new VoidhashClient(
     distinctId,
@@ -70,6 +71,15 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     enabled,
     options.unstable_nativeEngine === true ? Option.getOrUndefined(getVoidhashEngine()) : undefined,
     options.screenTracking,
+    {
+      connectivity: options.connectivity,
+      onDiagnostic: options.onDiagnostic,
+      preloadPaywallAsset:
+        paywallPresenter === undefined
+          ? undefined
+          : (locationSlug, htmlUrl) => paywallPresenter.preload(locationSlug, htmlUrl),
+      preloadPlacements: options.preloadPlacements,
+    },
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

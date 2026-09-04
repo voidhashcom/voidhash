@@ -152,6 +152,17 @@ public struct RuntimeSchema: Codable, Sendable, Equatable {
         self.locations = locations
     }
 
+    /// Schema served when nothing has ever been fetched and the backend is unreachable.
+    ///
+    /// A cold-cache offline launch resolves to this rather than failing: analytics, identity and
+    /// flags all work without it, and it is replaced by the first successful refresh.
+    public static let empty = RuntimeSchema(version: "")
+
+    /// Whether this is the ``empty`` placeholder rather than a schema the backend served.
+    public var isEmpty: Bool {
+        return version.isEmpty && products.isEmpty && locations.isEmpty
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(String.self, forKey: .version)

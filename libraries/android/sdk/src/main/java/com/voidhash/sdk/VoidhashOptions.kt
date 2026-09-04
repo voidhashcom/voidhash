@@ -1,6 +1,7 @@
 package com.voidhash.sdk
 
 import com.voidhash.sdk.analytics.ScreenView
+import com.voidhash.sdk.diagnostics.VoidhashDiagnostic
 
 /** SDK version reported through `x-sdk-version`; matches the npm package version. */
 const val VOIDHASH_SDK_VERSION: String = "0.0.1-alpha.1"
@@ -32,6 +33,12 @@ internal const val COMMERCE_FEATURES_ENABLED: Boolean = false
  * @property automaticLifecycleEvents captures `$app_installed`, `$app_updated`, `$app_opened`,
  *   `$app_backgrounded`, `$app_became_active` and `$sign_out`. Hosts that emit these events
  *   themselves (the React Native SDK) turn it off.
+ * @property preloadPlacements paywall locations to fetch and cache on the first launch, so a
+ *   paywall can be presented before the device has ever resolved it online. Locations the
+ *   device has already resolved are remembered and preloaded without being listed here.
+ * @property onDiagnostic receives structured reports about situations the SDK handled on its
+ *   own: dropped events, an open circuit, a rejected key, an unreadable cache entry. Called
+ *   from background threads; exceptions it raises are swallowed.
  */
 data class VoidhashOptions(
     val baseUrl: String = VOIDHASH_DEFAULT_BASE_URL,
@@ -43,6 +50,8 @@ data class VoidhashOptions(
     val dev: Boolean = false,
     val screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
     val automaticLifecycleEvents: Boolean = true,
+    val preloadPlacements: List<String> = emptyList(),
+    val onDiagnostic: ((VoidhashDiagnostic) -> Unit)? = null,
 )
 
 /**

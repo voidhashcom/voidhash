@@ -53,6 +53,15 @@ data class RuntimeSchema(
     val locations: Map<String, RuntimeLocationDefinition>,
 ) {
     companion object {
+        /**
+         * The schema a client has when the backend has never been reachable.
+         *
+         * Store operations answer from it rather than failing: an app that asks for its
+         * products on a cold offline launch gets an empty list, which it can render, instead
+         * of an exception it has to catch.
+         */
+        val EMPTY: RuntimeSchema = RuntimeSchema("", emptyMap(), emptyMap())
+
         /** Parses the schema response body. */
         fun fromJson(json: JSONObject): RuntimeSchema {
             val products = json.optJSONObject("products") ?: JSONObject()

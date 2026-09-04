@@ -1,5 +1,9 @@
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Result from "effect/Result";
 import * as Arr from "effect/Array";
+import * as MutableRef from "effect/MutableRef";
 import * as Option from "effect/Option";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
@@ -14,9 +18,12 @@ import {
   type PersonAttributes,
   PersonAttributeManager,
 } from "./core/identity/person-attribute-manager";
+import type { SdkPerson } from "@voidhash/generated-clients";
+import { IdentityEpoch } from "./core/identity/identity-epoch";
 import { PersonInfoManager } from "./core/identity/person-info-manager";
-import { IdentityManager } from "./core/identity/identity-manager";
+import { type IdentifyOutcome, IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
+import { httpStatusOf, IDENTIFY_FLUSH_BUDGET_MS, isRetryableStatus } from "./core/network/policy";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { buildPaywallRuntimeConfig } from "./core/paywalls/paywall-runtime-config";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
@@ -27,14 +34,52 @@ import type { LocationSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
 import { TransactionService } from "./core/transactions/transaction-service";
-import { UnsupportedPlatformError } from "./errors";
+import { TransactionOutbox } from "./core/transactions/transaction-outbox";
+import * as Cause from "effect/Cause";
+
+import { AuthGate } from "./core/network/auth-gate";
+import { CircuitBreaker } from "./core/network/circuit-breaker";
+import { Diagnostics, DIAGNOSTIC_CODES } from "./core/diagnostics/diagnostics";
+import { Connectivity } from "./core/network/connectivity";
+import { findActiveGrant } from "./core/entitlements/find-grant";
+import type { PerkSlug } from "./core/schema/registry";
+import { AuthenticationFailedError, UnsupportedPlatformError } from "./errors";
 
 export type { ProductsBySlug };
 export type { AnalyticsIngestEvent };
 export type { PersonAttributes };
+export type { IdentifyOutcome };
+
+/** The identify options the `$identify` event carries when the switch is deferred. */
+interface IdentifyOptions {
+  readonly email?: string;
+  readonly name?: string;
+}
+
+/**
+ * Queues the `$identify` event that lets the server perform a deferred
+ * identity switch once the queue drains. Same shape as the iOS and Android
+ * SDKs emit, so the server handles every platform alike.
+ */
+const captureDeferredIdentify = (
+  analyticsService: typeof AnalyticsService.Service,
+  outcome: Extract<IdentifyOutcome, { status: "deferred" }>,
+  distinctId: string,
+  options: IdentifyOptions,
+) =>
+  analyticsService.capture(AUTOMATIC_EVENTS.IDENTIFY, {
+    $anon_distinct_id: outcome.previousDistinctId,
+    $distinct_id: distinctId,
+    ...(options.email !== undefined ? { $email: options.email } : {}),
+    ...(options.name !== undefined ? { $name: options.name } : {}),
+    $process_person_profile: true,
+  });
 
 interface InitOptions {
   readonly distinctId?: string;
+  /** Placements to warm on first launch, before any of them has resolved. */
+  readonly preloadPlacements?: ReadonlyArray<string>;
+  readonly preloadPaywallAsset?: (locationSlug: string, htmlUrl: string) => Promise<unknown>;
   /**
    * Test/internal escape hatch — inject a known runtime schema instead of
    * fetching from the server. Not part of the public API. Lets the test
@@ -51,10 +96,11 @@ interface InitOptions {
  * the fully-initialized client facade. The independent network calls are
  * run concurrently via `Effect.all({ concurrency: "unbounded" })`.
  *
- * A missing/failed schema fetch is fatal — when the cache is cold and the
- * server is unreachable, `init` rejects with `FailedToFetchSchemaError`.
- * This trades silent degradation for a loud failure that surfaces through
- * `client.tsx`'s `runEffect` wrapping.
+ * Nothing the server does fails `init`: a cold cache on an unreachable server
+ * boots on an empty schema and no person snapshot, and the background refresh
+ * fills both in once the server answers. A provided `distinctId` is adopted
+ * locally even when the server refuses the alias; the refusal is reported
+ * through the diagnostics hook.
  */
 const makeUnitializedClient = () => ({
   init: (initOptions: InitOptions = {}) =>
@@ -71,9 +117,9 @@ const makeUnitializedClient = () => ({
 
         // `identityManager.identify()` publishes the new person to
         // `currentPersonAtom`, so we don't duplicate that here.
-        const [, runtimeSchema] = yield* Effect.all(
+        const [outcome, runtimeSchema] = yield* Effect.all(
           [
-            identityManager.identify(initOptions.distinctId, {}),
+            Effect.result(identityManager.identify(initOptions.distinctId, {})),
             schemaManager.resolveSchema({
               distinctId: initOptions.distinctId,
               internalSchema: initOptions.internalSchema,
@@ -81,7 +127,31 @@ const makeUnitializedClient = () => ({
           ],
           { concurrency: "unbounded" },
         );
-        return yield* makeInitializedClient({ schema: runtimeSchema });
+        if (Result.isFailure(outcome)) {
+          const diagnostics = yield* Diagnostics;
+          yield* diagnostics.emit({
+            code: DIAGNOSTIC_CODES.REQUEST_FAILED,
+            httpStatus: Option.getOrUndefined(httpStatusOf(outcome.failure)),
+            kind: "transport",
+            message: "The server refused the identify at init; the identity is pinned locally",
+            operation: "identify",
+            retryable: false,
+          });
+          yield* identityManager.pinLocalIdentity(initOptions.distinctId);
+        } else if (outcome.success.status === "deferred") {
+          const analyticsService = yield* AnalyticsService;
+          yield* captureDeferredIdentify(
+            analyticsService,
+            outcome.success,
+            initOptions.distinctId,
+            {},
+          );
+        }
+        return yield* makeInitializedClient({
+          preloadPaywallAsset: initOptions.preloadPaywallAsset,
+          preloadPlacements: initOptions.preloadPlacements ?? [],
+          schema: runtimeSchema,
+        });
       }
 
       const distinctId = yield* identityManager.getDistinctId();
@@ -89,9 +159,11 @@ const makeUnitializedClient = () => ({
         distinctId,
       });
 
+      // Both legs recover from transport failures internally, so a cold cache
+      // on an unreachable network still boots.
       const [prefetchedPerson, runtimeSchema] = yield* Effect.all(
         [
-          personInfoManager.getPerson(distinctId, "fetch"),
+          personInfoManager.resolvePerson(distinctId),
           schemaManager.resolveSchema({
             distinctId,
             internalSchema: initOptions.internalSchema,
@@ -103,11 +175,65 @@ const makeUnitializedClient = () => ({
       // Publish the prefetched person so React subscribers see initial
       // state without having to wait for a hook-driven refetch.
       // `SchemaManager` publishes `schemaAtom` itself.
-      atomRegistry.set(currentPersonAtom, Option.fromNullOr(prefetchedPerson));
+      atomRegistry.set(currentPersonAtom, Option.fromNullOr(prefetchedPerson.person));
 
-      return yield* makeInitializedClient({ schema: runtimeSchema });
+      return yield* makeInitializedClient({
+        preloadPaywallAsset: initOptions.preloadPaywallAsset,
+        preloadPlacements: initOptions.preloadPlacements ?? [],
+        schema: runtimeSchema,
+      });
     }),
 });
+
+/**
+ * Fails a read exactly once with `AUTHENTICATION_FAILED` when the publishable
+ * key was rejected and there is nothing cached to answer with. A read that can
+ * still serve a cached value stays an `Ok` — the failure was already reported
+ * through the diagnostics hook — but a read that answers with nothing because
+ * of a bad key has to say so, or a misconfigured build looks like a user who
+ * simply owns nothing.
+ */
+const surfaceAuthenticationFailure = (answeredWithNothing: boolean) =>
+  Effect.gen(function* surfaceAuthenticationFailure() {
+    if (!answeredWithNothing) return;
+    const authGate = yield* AuthGate;
+    if (!authGate.takeUnsurfaced()) return;
+    return yield* Effect.fail(
+      new AuthenticationFailedError(
+        "The publishable key was rejected. Check the key this build ships with.",
+      ),
+    );
+  });
+
+/**
+ * Publishes a person snapshot to the reactive store, unless the identity
+ * changed since `epoch`: a read that started under the previous identity must
+ * not overwrite the store `identify()`/`reset()` just replaced.
+ */
+const publishPerson = (
+  atomRegistry: AtomRegistry.AtomRegistry,
+  identityEpoch: typeof IdentityEpoch.Service,
+  epoch: number,
+  // oxlint-disable-next-line effect/prefer-option-over-null -- mirrors `PersonSnapshot.person`, which is `null` before any snapshot exists.
+  person: SdkPerson | null,
+) => {
+  if (identityEpoch.current() !== epoch) return;
+  atomRegistry.set(currentPersonAtom, Option.fromNullOr(person));
+};
+
+/**
+ * Drains the analytics queue on its own fiber and waits for it at most
+ * {@link IDENTIFY_FLUSH_BUDGET_MS}. Used before an identity switch so queued
+ * events go out under the identity that captured them, without letting a slow
+ * or unreachable server hold the switch hostage: every event is already
+ * stamped with its distinct id, so a flush that outlives the budget still
+ * attributes correctly when it lands.
+ */
+const flushWithinBudget = (analyticsService: typeof AnalyticsService.Service) =>
+  Effect.gen(function* flushWithinBudget() {
+    const flushFiber = yield* analyticsService.startFlush();
+    yield* Effect.timeoutOption(Fiber.await(flushFiber), Duration.millis(IDENTIFY_FLUSH_BUDGET_MS));
+  });
 
 /**
  * Build the initialized SDK facade. Yields long-lived services from the
@@ -115,10 +241,15 @@ const makeUnitializedClient = () => ({
  * exposed via the synchronous accessors below) and returns an object that
  * delegates every method to the appropriate service.
  */
-const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
+const makeInitializedClient = (options: {
+  readonly preloadPaywallAsset?: (locationSlug: string, htmlUrl: string) => Promise<unknown>;
+  readonly preloadPlacements?: ReadonlyArray<string>;
+  readonly schema: RuntimeSchema;
+}) =>
   Effect.gen(function* () {
     const analyticsService = yield* AnalyticsService;
     const sessionManager = yield* AnalyticsSessionManager;
+    const identityEpoch = yield* IdentityEpoch;
 
     return {
       end: () =>
@@ -130,7 +261,11 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       getFeatureFlags: (flagKeys?: string[]) =>
         Effect.gen(function* getFeatureFlags() {
           const featureFlagService = yield* FeatureFlagService;
-          return yield* featureFlagService.getFeatureFlags(flagKeys);
+          const result = yield* featureFlagService.getFeatureFlags(flagKeys);
+          yield* surfaceAuthenticationFailure(
+            (result.isStale ?? false) && Arr.isReadonlyArrayEmpty(result.flags),
+          );
+          return result;
         }),
 
       getPaywallForLocation: (locationSlug: LocationSlug) =>
@@ -171,21 +306,50 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return runtimeConfig;
         }),
 
+      /**
+       * Cache-first person read. Returns the snapshot together with how much
+       * to trust it; never fails because the server is unreachable.
+       */
       getCurrentPerson: (forceFetch = false) =>
         Effect.gen(function* getCurrentPerson() {
           const identityManager = yield* IdentityManager;
           const personInfoManager = yield* PersonInfoManager;
           const atomRegistry = yield* AtomRegistry.AtomRegistry;
+          const epoch = identityEpoch.current();
           const distinctId = yield* identityManager.getDistinctId();
-          const person = yield* personInfoManager.getPerson(
-            distinctId,
-            forceFetch ? "fetch" : "fetch-while-stale",
-          );
+          const snapshot = yield* personInfoManager.resolvePerson(distinctId, { forceFetch });
           // Publish to the reactive store so any subscribed React hook
           // re-renders with the latest result (whether cached or freshly
           // fetched).
-          atomRegistry.set(currentPersonAtom, Option.fromNullOr(person));
-          return person;
+          publishPerson(atomRegistry, identityEpoch, epoch, snapshot.person);
+          yield* surfaceAuthenticationFailure(snapshot.person === null);
+          return snapshot;
+        }),
+
+      /**
+       * Answers an entitlement check from the cached person snapshot, starting
+       * a refresh behind the read when the snapshot is stale.
+       */
+      hasPerk: (perkSlug: PerkSlug, hasPerkOptions: { readonly forceFetch?: boolean } = {}) =>
+        Effect.gen(function* hasPerk() {
+          const identityManager = yield* IdentityManager;
+          const personInfoManager = yield* PersonInfoManager;
+          const atomRegistry = yield* AtomRegistry.AtomRegistry;
+          const epoch = identityEpoch.current();
+          const distinctId = yield* identityManager.getDistinctId();
+          const snapshot = yield* personInfoManager.resolvePerson(distinctId, {
+            forceFetch: hasPerkOptions.forceFetch,
+          });
+          publishPerson(atomRegistry, identityEpoch, epoch, snapshot.person);
+          yield* surfaceAuthenticationFailure(snapshot.person === null);
+          const grant = findActiveGrant(Option.fromNullOr(snapshot.person), perkSlug);
+          return {
+            grant,
+            hasAccess: Option.isSome(grant),
+            isExpired: snapshot.isExpired,
+            isStale: snapshot.isStale,
+            reason: snapshot.reason,
+          };
         }),
 
       /**
@@ -211,10 +375,10 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         }),
 
       /**
-       * Sets person attributes synchronously (opt-in). Performs the network
-       * sync, caches and publishes the returned person snapshot to
-       * `currentPersonAtom`, and returns it. Use when the caller needs the
-       * updated snapshot immediately; otherwise prefer `setPersonAttributes`.
+       * Syncs attributes and reports whether the server confirmed them
+       * (`confirmed`) or the update was queued for later delivery because the
+       * server was unreachable (`deferred`). A deferred result still carries
+       * the last known snapshot.
        */
       setPersonAttributesSync: (attributes: PersonAttributes) =>
         Effect.gen(function* setPersonAttributesSync() {
@@ -223,10 +387,34 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const personInfoManager = yield* PersonInfoManager;
           const atomRegistry = yield* AtomRegistry.AtomRegistry;
           const distinctId = yield* identityManager.getDistinctId();
-          const person = yield* personAttributeManager.syncPersonAttributes(distinctId, attributes);
-          yield* personInfoManager.cache(distinctId, person);
-          atomRegistry.set(currentPersonAtom, Option.some(person));
-          return person;
+          const outcome = yield* Effect.result(
+            personAttributeManager.syncPersonAttributes(distinctId, attributes),
+          );
+
+          if (Result.isSuccess(outcome)) {
+            yield* personInfoManager.cache(distinctId, outcome.success);
+            atomRegistry.set(currentPersonAtom, Option.some(outcome.success));
+            return { person: outcome.success, status: "confirmed" as const };
+          }
+
+          const status = httpStatusOf(outcome.failure);
+          if (Option.isSome(status) && !isRetryableStatus(status.value)) {
+            return yield* Effect.fail(outcome.failure);
+          }
+
+          // The update rides the analytics queue instead, which retries until
+          // it lands, and the caller keeps the last known snapshot.
+          const { email, name, ...rest } = attributes;
+          yield* analyticsService.capture("$set", {
+            $process_person_profile: true,
+            $set: {
+              ...rest,
+              ...(email !== undefined ? { email } : {}),
+              ...(name !== undefined ? { name } : {}),
+            },
+          });
+          const cached = yield* personInfoManager.getPerson(distinctId, "cache");
+          return { person: cached, status: "deferred" as const };
         }),
 
       getCachedPerson: () =>
@@ -260,21 +448,26 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       /** Read access to the schema fetched at init time. */
       getSchema: () => options.schema,
 
-      identify: (
-        distinctId: string,
-        identifyOptions: {
-          email?: string;
-          name?: string;
-        },
-      ) =>
+      /**
+       * Switches the identity and reports whether the server confirmed it
+       * (`confirmed`) or the switch is local for now and queued as a
+       * `$identify` event (`deferred`). Queued events are flushed first so
+       * they attribute to the pre-switch distinct id, but the flush is only
+       * waited on for {@link IDENTIFY_FLUSH_BUDGET_MS}: it keeps running past
+       * that, and neither a slow nor a failed flush can fail the switch.
+       */
+      identify: (distinctId: string, identifyOptions: IdentifyOptions) =>
         Effect.gen(function* identify() {
           const identityManager = yield* IdentityManager;
-          // Drain queued events first so they attribute to the pre-switch
-          // distinct id. Flushed here in the facade (not in `IdentityManager`)
-          // because `AnalyticsService` depends on `IdentityManager` — a flush
-          // inside the manager would create a layer cycle.
-          yield* analyticsService.flush();
-          return yield* identityManager.identify(distinctId, identifyOptions);
+          // Flushed here in the facade (not in `IdentityManager`) because
+          // `AnalyticsService` depends on `IdentityManager` — a flush inside
+          // the manager would create a layer cycle.
+          yield* flushWithinBudget(analyticsService);
+          const outcome = yield* identityManager.identify(distinctId, identifyOptions);
+          if (outcome.status === "deferred") {
+            yield* captureDeferredIdentify(analyticsService, outcome, distinctId, identifyOptions);
+          }
+          return outcome;
         }),
 
       iosPresentCodeRedemptionSheet: () =>
@@ -309,10 +502,14 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return yield* transactionService.processObservedTransaction(transaction, options.schema);
         }),
 
+      /**
+       * Buys a product. Resolves to whether the backend accepted the receipt;
+       * `false` means it is in the outbox waiting for the server.
+       */
       purchase: (product: Product) =>
         Effect.gen(function* purchase() {
           const transactionService = yield* TransactionService;
-          yield* transactionService.purchase(product, options.schema);
+          return yield* transactionService.purchase(product, options.schema);
         }),
 
       restorePurchases: () =>
@@ -377,32 +574,120 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
 
       // --- Identity ---
 
+      /**
+       * Resets to a fresh anonymous identity. Queued events are flushed
+       * first, within the same budget `identify` uses, so a reset while the
+       * server is unreachable still completes promptly.
+       */
       reset: () =>
         Effect.gen(function* reset() {
           const identityManager = yield* IdentityManager;
-          // Drain queued events first so they attribute to the pre-reset
-          // distinct id (after reset, `getDistinctId()` mints a fresh anon id).
           // Flushed in the facade, not in `IdentityManager`, to avoid a layer
           // cycle (`AnalyticsService` depends on `IdentityManager`).
-          yield* analyticsService.flush();
+          yield* flushWithinBudget(analyticsService);
           return yield* identityManager.reset();
         }),
 
+      /**
+       * Captures the built-in `$sign_out` event, flushes within the identify
+       * budget and resets to a fresh anonymous identity. The event is stamped
+       * with the signing-out distinct id at capture, so it attributes
+       * correctly even when the flush lands after the reset.
+       */
       signOut: () =>
         Effect.gen(function* signOut() {
           const identityManager = yield* IdentityManager;
-          // Capture the built-in sign-out event and drain the queue *before*
-          // resetting: `reset()` clears the identity cache, after which
-          // `getDistinctId()` mints a fresh anonymous id. Flushing first keeps
-          // `$sign_out` (and any pending events) attributed to the
-          // signing-out distinct id rather than the post-reset anonymous one.
           yield* analyticsService.capture(AUTOMATIC_EVENTS.SIGN_OUT);
-          yield* analyticsService.flush();
+          yield* flushWithinBudget(analyticsService);
           const person = yield* identityManager.reset();
           // Rotated after `reset()`, which clears the cache: the next event
           // starts a fresh session and the new id is what ends up persisted.
           yield* sessionManager.rotate();
           return person;
+        }),
+
+      /**
+       * Boot and foreground refresh chain: schema, then person, flags and the
+       * paywalls for every known or preloaded placement. Every leg recovers
+       * from transport failures on its own, so this never fails.
+       */
+      refreshAll: () =>
+        Effect.gen(function* refreshAll() {
+          const identityManager = yield* IdentityManager;
+          const personInfoManager = yield* PersonInfoManager;
+          const featureFlagService = yield* FeatureFlagService;
+          const paywallService = yield* PaywallService;
+          const schemaManager = yield* SchemaManager;
+          const distinctId = yield* identityManager.getDistinctId();
+
+          const diagnostics = yield* Diagnostics;
+          const reportFailure = (operation: string) => (cause: Cause.Cause<unknown>) =>
+            diagnostics.emit({
+              code: DIAGNOSTIC_CODES.BACKGROUND_TASK_FAILED,
+              kind: "transport",
+              message: `Background refresh of ${operation} failed: ${Cause.pretty(cause)}`,
+              operation,
+              retryable: true,
+            });
+
+          yield* schemaManager.refresh(distinctId);
+          yield* personInfoManager.refresh(distinctId);
+          // oxlint-disable-next-line effect/effect-catchall-default -- deliberate blanket recovery: a background refresh must never fail the chain behind it, but it is reported rather than swallowed.
+          yield* featureFlagService
+            .getFeatureFlags()
+            .pipe(Effect.catchCause(reportFailure("evaluateFeatureFlags")));
+          const assets = yield* paywallService.preloadPlacements(options.preloadPlacements ?? []);
+          const preloadPaywallAsset = options.preloadPaywallAsset;
+          if (preloadPaywallAsset !== undefined) {
+            yield* Effect.forEach(
+              assets,
+              ({ htmlUrl, locationSlug }) =>
+                Effect.tryPromise({
+                  try: () => preloadPaywallAsset(locationSlug, htmlUrl),
+                  catch: (error) => error,
+                }).pipe(Effect.catchCause(reportFailure("paywall.preload"))),
+              { concurrency: 1 },
+            );
+          }
+        }),
+
+      /**
+       * Clears an authentication pause. Called when the host reconfigures the
+       * SDK, which is the moment a corrected publishable key arrives.
+       */
+      resumeAuthentication: () => Effect.flatMap(AuthGate, (authGate) => authGate.resume()),
+
+      /** Half-opens every tripped host, so a foreground retries immediately. */
+      halfOpenCircuits: () => Effect.flatMap(CircuitBreaker, (breaker) => breaker.halfOpenAll()),
+
+      /** Re-attempts every receipt still waiting for the server. */
+      syncTransactionOutbox: () =>
+        Effect.flatMap(TransactionService, (transactionService) =>
+          transactionService.syncOutbox(options.schema),
+        ),
+
+      /** Number of receipts still waiting for the server. */
+      getPendingTransactionCount: () =>
+        Effect.map(
+          Effect.flatMap(TransactionOutbox, (outbox) => outbox.pending()),
+          (entries) => entries.length,
+        ),
+
+      /**
+       * Subscribes to host-provided reachability changes, when there is one.
+       * `onOnline` fires only on an offline-to-online transition: a source
+       * that repeats `true` (or reports it first thing) does not trigger a
+       * recovery, so a chatty reachability library cannot turn into a
+       * request storm.
+       */
+      observeConnectivity: (onOnline: () => void) =>
+        Effect.flatMap(Connectivity, (connectivity) => {
+          const lastOnline = MutableRef.make(Option.none<boolean>());
+          return connectivity.subscribe((online) => {
+            const previous = MutableRef.get(lastOnline);
+            MutableRef.set(lastOnline, Option.some(online));
+            if (online && Option.contains(previous, false)) onOnline();
+          });
         }),
 
       startTransactionObserver: (onPurchase?: (transaction: Transaction) => void) =>

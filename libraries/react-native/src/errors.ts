@@ -20,6 +20,8 @@ export const VOIDHASH_ERROR_CODES = [
   "FAILED_TO_SIGN_OUT",
   "FAILED_TO_GET_FEATURE_FLAGS",
   "FAILED_TO_GET_PAYWALL_FOR_LOCATION",
+  "PAYWALL_UNAVAILABLE",
+  "AUTHENTICATION_FAILED",
   "FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG",
   "FAILED_TO_GET_PRODUCTS",
   "FAILED_TO_PURCHASE",
@@ -64,6 +66,30 @@ export class FailedToFetchSchemaError extends VoidhashError {
   constructor(message?: string, options?: { cause?: unknown }) {
     super("FAILED_TO_FETCH_SCHEMA", message, options);
     this.name = "FailedToFetchSchemaError";
+  }
+}
+
+/**
+ * No paywall configuration has ever been cached for a placement and the
+ * server cannot be reached. Distinct from a failure: there is simply nothing
+ * to show yet, so callers hide the paywall and try again later.
+ */
+export class PaywallUnavailableError extends VoidhashError {
+  constructor(message?: string, options?: { cause?: unknown }) {
+    super("PAYWALL_UNAVAILABLE", message, options);
+    this.name = "PaywallUnavailableError";
+  }
+}
+
+/**
+ * The publishable key was rejected by the server. Surfaced once, on the first
+ * read that had no cached value to answer with — every other operation keeps
+ * its data queued and reports through the diagnostics hook instead.
+ */
+export class AuthenticationFailedError extends VoidhashError {
+  constructor(message?: string, options?: { cause?: unknown }) {
+    super("AUTHENTICATION_FAILED", message, options);
+    this.name = "AuthenticationFailedError";
   }
 }
 

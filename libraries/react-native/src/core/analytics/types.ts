@@ -3,6 +3,8 @@ import * as Schema from "effect/Schema";
 export interface QueuedAnalyticsEvent {
   readonly attempts: number;
   readonly availableAt: number;
+  /** Identity active when the event entered the queue. */
+  readonly distinctId: string;
   readonly eventName: string;
   readonly eventTimestamp: string;
   readonly id: string;
@@ -18,6 +20,8 @@ export interface AnalyticsIngestEvent {
   readonly event_id: string;
   /** Canonical event name used for analytics processing. */
   readonly event_name: string;
+  /** Identity active when this event was captured. Defaults to the current identity. */
+  readonly distinct_id?: string;
   /** Event timestamp in string form (typically ISO-8601). */
   readonly event_ts: string;
   /** Event-specific payload fields for this event name. */

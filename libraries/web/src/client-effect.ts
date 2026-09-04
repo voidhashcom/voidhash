@@ -3,6 +3,7 @@ import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as Option from "effect/Option";
 import { pipe } from "effect/Function";
 import { FetchHttpClient } from "effect/unstable/http";
 
@@ -19,11 +20,15 @@ import type {
 import { AnalyticsService } from "./core/analytics/analytics-service";
 import { CacheManager } from "./core/caching/cache-manager";
 import { createBrowserCacheAdapterLayer } from "./core/caching/adapters/browser-cache-adapter";
+import { Diagnostics } from "./core/diagnostics";
 import { type EventBus, EventBusProvider } from "./core/event-bus";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
+import { AuthGate } from "./core/networking/auth-gate";
+import { CircuitBreaker } from "./core/networking/circuit-breaker";
 import { EventCaptureApiClient } from "./core/networking/event-capture-api-client";
+import { SingleFlight } from "./core/networking/single-flight";
 import { BrowserPlatformProviderLayer } from "./core/platform/platform-provider";
 import { SdkConfiguration } from "./core/sdk-configuration";
 
@@ -86,6 +91,7 @@ export const resolveVoidhashConfig = (options: VoidhashClientOptions): ResolvedV
     },
     distinctId: options.distinctId,
     observerMode: options.observerMode ?? false,
+    ...(options.onDiagnostic ? { onDiagnostic: options.onDiagnostic } : {}),
     publishableKey: options.publishableKey,
   };
 };
@@ -106,6 +112,10 @@ export const CreateEffectRuntime = (config: ResolvedVoidhashConfig, eventBus: Ev
             Effect.sync(() => globalThis.fetch),
           ).pipe(Layer.provideMerge(FetchHttpClient.layer)),
         ),
+        Layer.provideMerge(AuthGate.Default),
+        Layer.provideMerge(CircuitBreaker.Default),
+        Layer.provideMerge(SingleFlight.Default),
+        Layer.provideMerge(Diagnostics.Default),
         Layer.provideMerge(createBrowserCacheAdapterLayer()),
         Layer.provideMerge(BrowserPlatformProviderLayer),
         Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
@@ -118,6 +128,9 @@ export const CreateEffectRuntime = (config: ResolvedVoidhashConfig, eventBus: Ev
 export const initializeEffect = (initialDistinctId?: string) =>
   Effect.gen(function* initialize() {
     const identityManager = yield* IdentityManager;
+    const authGate = yield* AuthGate;
+    // A re-initialization may carry a corrected key, so the pause is lifted.
+    yield* authGate.resume();
     return yield* identityManager.initialize(initialDistinctId);
   });
 
@@ -135,8 +148,11 @@ export const identifyEffect = (distinctId: string, traits?: VoidhashTraits) =>
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
     yield* flushAnalyticsForIdentitySwitch();
+    const previousDistinctId = identityManager.getDistinctId();
+    const authGate = yield* AuthGate;
+    yield* authGate.resume();
     yield* identityManager.identify(distinctId, traits);
-    yield* featureFlags.clearCachedFlags();
+    yield* featureFlags.clearCachedFlags(Option.getOrUndefined(previousDistinctId));
     yield* featureFlags.refreshTrackedKeySets();
   });
 
@@ -145,8 +161,11 @@ export const resetEffect = () =>
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
     yield* flushAnalyticsForIdentitySwitch();
+    const previousDistinctId = identityManager.getDistinctId();
+    const authGate = yield* AuthGate;
+    yield* authGate.resume();
     yield* identityManager.reset();
-    yield* featureFlags.clearCachedFlags();
+    yield* featureFlags.clearCachedFlags(Option.getOrUndefined(previousDistinctId));
     yield* featureFlags.refreshTrackedKeySets();
   });
 
@@ -235,10 +254,38 @@ export const refreshFeatureFlagsEffect = (keys?: string[]) =>
     return yield* featureFlags.refreshFeatureFlags(keys);
   });
 
+/**
+ * Prepares the transport for a fresh attempt after a foreground or
+ * connectivity trigger: open circuits move to half-open, and an authentication
+ * pause that has held for at least a minute is lifted for one probe.
+ */
+export const halfOpenCircuitsEffect = () =>
+  Effect.gen(function* halfOpenCircuits() {
+    const breaker = yield* CircuitBreaker;
+    yield* breaker.halfOpenAll();
+  });
+
+/** Lifts an authentication pause unconditionally, e.g. on re-initialization. */
+export const resumeOutboundEffect = () =>
+  Effect.gen(function* resumeOutbound() {
+    const authGate = yield* AuthGate;
+    yield* authGate.resume();
+  });
+
 export const refreshTrackedKeySetsEffect = () =>
   Effect.gen(function* refreshTrackedKeySets() {
     const featureFlags = yield* FeatureFlagService;
     yield* featureFlags.refreshTrackedKeySets();
+  });
+
+/**
+ * Clears the retry backoff so a queue held back during an outage is sent as
+ * soon as connectivity returns.
+ */
+export const resetAnalyticsBackoffEffect = () =>
+  Effect.gen(function* resetAnalyticsBackoff() {
+    const analyticsService = yield* AnalyticsService;
+    yield* analyticsService.resetBackoff();
   });
 
 export const flushAnalyticsEffect = () =>

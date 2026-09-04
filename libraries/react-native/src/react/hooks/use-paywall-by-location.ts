@@ -47,6 +47,9 @@ import { toVoidhashInitError } from "../internal/client-lifecycle";
  * - `native_unavailable`: the platform has no native paywall presenter.
  * - `not_assigned`: resolution succeeded but no published paywall is assigned
  *   to the location.
+ * - `unavailable`: nothing has ever been cached for this placement and the
+ *   server cannot be reached. Not a failure — try again once the device is
+ *   back online, or preload the placement with `preloadPlacements`.
  * - `failed`: resolving, preloading or presenting threw, or the native
  *   presenter declined to present.
  */
@@ -57,6 +60,7 @@ export type ShowPaywallResult =
   | { error: Error; status: "initialization_failed" }
   | { status: "native_unavailable" }
   | { status: "not_assigned" }
+  | { status: "unavailable" }
   | { error: Error; status: "failed" };
 
 export interface UsePaywallByLocationResult {
@@ -645,7 +649,13 @@ async function showPaywallForLocation(
   if (Option.isNone(MutableHashMap.get(resolvedPaywallByLocation, locationKey))) {
     const preloadError = await preloadPaywall();
     if (Option.isSome(preloadError)) {
-      return { error: preloadError.value, status: "failed" };
+      const error = preloadError.value;
+      // Nothing cached and no way to reach the server: a state to retry, not
+      // a failure to report.
+      if (error instanceof VoidhashError && error.code === "PAYWALL_UNAVAILABLE") {
+        return { status: "unavailable" };
+      }
+      return { error, status: "failed" };
     }
   }
 

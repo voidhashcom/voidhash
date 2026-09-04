@@ -13,13 +13,23 @@ public protocol CacheAdapter: Sendable {
     func delete(_ key: String) async
 }
 
+/// A ``CacheAdapter`` that can list what it holds.
+///
+/// Only needed by the one-time migration out of the pre-namespace layout, which has to find
+/// entries whose keys it does not know in advance (`person:*`, `processed-transaction:*`).
+public protocol EnumerableCacheAdapter: CacheAdapter {
+    /// Every key currently stored in this adapter's namespace, without the namespace prefix.
+    func keys() async -> [String]
+}
+
 /// `UserDefaults` backed ``CacheAdapter``.
 ///
-/// Keys are namespaced with `keyPrefix` because `UserDefaults` is shared with the host app,
-/// unlike the private AsyncStorage namespace the React Native SDK writes to.
+/// Keys are namespaced with `keyPrefix` because `UserDefaults` is shared with the host app. Use
+/// ``init(defaults:publishableKey:baseUrl:)`` so the namespace also separates two clients
+/// configured with different keys or origins.
 public final class UserDefaultsCacheAdapter: CacheAdapter {
-    /// Default namespace applied to every key written by the SDK.
-    public static let defaultKeyPrefix = "voidhash:"
+    /// Namespace used when no publishable key is supplied.
+    public static let defaultKeyPrefix = "vh:\(CacheNamespace.schemaVersion):"
 
     // `UserDefaults` is thread-safe but not annotated `Sendable`.
     private nonisolated(unsafe) let defaults: UserDefaults
@@ -31,6 +41,22 @@ public final class UserDefaultsCacheAdapter: CacheAdapter {
     ) {
         self.defaults = defaults
         self.keyPrefix = keyPrefix
+    }
+
+    /// Namespaces every key by the publishable key and API origin, per ``CacheNamespace``.
+    public convenience init(
+        defaults: UserDefaults = .standard,
+        publishableKey: String,
+        baseUrl: URL
+    ) {
+        self.init(
+            defaults: defaults,
+            keyPrefix: CacheNamespace.prefix(publishableKey: publishableKey, baseUrl: baseUrl))
+    }
+
+    /// The namespace prefix applied to every key.
+    public var namespace: String {
+        return keyPrefix
     }
 
     public func get(_ key: String) async -> String? {
@@ -46,8 +72,16 @@ public final class UserDefaultsCacheAdapter: CacheAdapter {
     }
 }
 
+extension UserDefaultsCacheAdapter: EnumerableCacheAdapter {
+    public func keys() async -> [String] {
+        return defaults.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix(keyPrefix) }
+            .map { String($0.dropFirst(keyPrefix.count)) }
+    }
+}
+
 /// In-memory ``CacheAdapter``, useful for tests and for opting out of persistence.
-public actor InMemoryCacheAdapter: CacheAdapter {
+public actor InMemoryCacheAdapter: EnumerableCacheAdapter {
     private var storage: [String: String] = [:]
 
     public init() {}
@@ -62,5 +96,9 @@ public actor InMemoryCacheAdapter: CacheAdapter {
 
     public func delete(_ key: String) async {
         storage.removeValue(forKey: key)
+    }
+
+    public func keys() async -> [String] {
+        return Array(storage.keys)
     }
 }

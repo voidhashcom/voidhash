@@ -3,13 +3,14 @@ import VoidhashCore
 
 /// The Nitro-free heart of `HybridVoidhashStorage`: the React Native SDK's cache store.
 ///
-/// Wraps the same ``UserDefaultsCacheAdapter`` the Swift SDK persists through — same suite, same
-/// key prefix — so the TypeScript `CacheManager` and the embedded native client share one cache.
+/// Wraps the same ``UserDefaultsCacheAdapter`` the Swift SDK persists through, without a prefix:
+/// the TypeScript `CacheManager` applies the `vh:<version>:<hash>:` namespace itself, using the
+/// same derivation as ``CacheNamespace``, so it and the embedded native client share one cache.
 /// The adapter is injectable so tests can isolate a `UserDefaults` suite.
 final class VoidhashStorageCore: Sendable {
     private let adapter: any CacheAdapter
 
-    init(adapter: any CacheAdapter = UserDefaultsCacheAdapter()) {
+    init(adapter: any CacheAdapter = UserDefaultsCacheAdapter(keyPrefix: "")) {
         self.adapter = adapter
     }
 

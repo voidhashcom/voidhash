@@ -33,7 +33,11 @@ internal class VoidhashActivityLifecycleCallbacks(
     }
 
     override fun onActivityStarted(activity: Activity) {
-        lifecycleTracker.activityStarted()?.let { clientProvider()?.captureAutomaticEvent(it) }
+        val client = clientProvider()
+        lifecycleTracker.activityStarted()?.let { client?.captureAutomaticEvent(it) }
+        // The foreground transition is also the SDK's cue to half-open the circuit breaker
+        // and refresh, independent of whether the host wants the lifecycle events.
+        client?.onAppForegrounded()
     }
 
     override fun onActivityResumed(activity: Activity) {
@@ -52,9 +56,13 @@ internal class VoidhashActivityLifecycleCallbacks(
     override fun onActivityPaused(activity: Activity) {}
 
     override fun onActivityStopped(activity: Activity) {
+        val client = clientProvider()
         lifecycleTracker.activityStopped(activity.isChangingConfigurations)?.let {
-            clientProvider()?.captureAutomaticEvent(it)
+            client?.captureAutomaticEvent(it)
         }
+        // Backgrounding closes the persist-behind window: anything captured in the last
+        // 250 ms has to be on disk before the process can be killed.
+        client?.persistQueuedEvents()
     }
 
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}

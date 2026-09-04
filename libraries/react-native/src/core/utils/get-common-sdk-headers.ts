@@ -2,7 +2,6 @@ import * as Effect from "effect/Effect";
 import * as Arr from "effect/Array";
 
 import { SDK_VERSION } from "../constants";
-import type { IdentityManager } from "../identity/identity-manager";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 
@@ -34,7 +33,7 @@ interface ReactNativeSdkHeaders {
 export const getCommonSdkHeaders = (): Effect.Effect<
   Omit<ReactNativeSdkHeaders, "x-distinct-id">,
   never,
-  PlatformProvider | SdkConfiguration | IdentityManager
+  PlatformProvider | SdkConfiguration
 > =>
   Effect.gen(function* getCommonSdkHeaders() {
     const platformProvider = yield* PlatformProvider;

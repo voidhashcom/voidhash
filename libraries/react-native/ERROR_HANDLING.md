@@ -54,6 +54,20 @@ ERROR_CODE: descriptive message
 - `RATE_LIMIT_EXCEEDED`: Rate limit exceeded
 - `AUTHENTICATION_FAILED`: Authentication failed
 
+### Authentication Errors
+
+- `AUTHENTICATION_FAILED`: The publishable key was rejected. Surfaced as a `VoidhashError` once, on
+  the first read that had no cached value to answer with; every other operation keeps its data
+  queued and reports through `onDiagnostic` instead. Outbound traffic pauses, one request is allowed
+  through every 60 s, and `init()` clears the pause.
+
+### Paywall Errors
+
+- `PAYWALL_UNAVAILABLE`: No paywall configuration has ever been cached for this placement and the
+  server cannot be reached. Not a failure: hide the paywall and try again once the device is back
+  online, or warm the placement with the `preloadPlacements` client option. `show()` surfaces this
+  as `{ status: "unavailable" }`.
+
 ### Configuration Errors
 
 - `CONFIGURATION_MISSING`: Required configuration is missing
@@ -105,6 +119,44 @@ throw RuntimeError.error(withMessage: "INVALID_PRODUCT_ID: Product not found in 
 // Throwing errors with descriptive messages
 throw Error("SKU_NOT_FOUND: The SKU was not found. Please fetch products first by calling getItems")
 ```
+
+## What is not an error
+
+Transport failure is an expected state, not an error. A request that times out, cannot reach the
+host, or comes back `408`/`429`/`5xx` never produces a `VoidhashError`:
+
+- Reads (`hasPerk`, `getCurrentPerson`, `getFeatureFlags`, `getPaywallForLocation`) answer from the
+  cached value and mark it `isStale`.
+- Writes that can wait (`capture`, `setPersonAttributes`, `setPersonAttributesSync`, store receipt
+  sync) are queued on device and retried until the server accepts them. `setPersonAttributesSync`
+  reports this as `{ status: "deferred" }`.
+- `init()` resolves once local state is loaded, whatever the network is doing.
+
+The only failures the SDK cannot absorb are reads for which no fallback exists — a paywall placement
+it has never resolved (`PAYWALL_UNAVAILABLE`), or a read with an empty cache behind a rejected
+publishable key (`AUTHENTICATION_FAILED`, surfaced once) — and programmer errors such as calling a
+method before `init()` (`VOIDHASH_CLIENT_NOT_INITIALIZED`).
+
+Failures the SDK recovered from are reported through the `onDiagnostic` client option instead of the
+error channel. Diagnostics carry a `kind` (`transport`, `eviction`, `breaker`, `auth`, `cache`), a
+stable `code`, the `operation`, and whether the SDK will retry. Notably:
+
+- `AUTHENTICATION_FAILED` — the publishable key was rejected (`401`/`403`). Outbound traffic pauses
+  and queued data is kept, so fixing the key and relaunching delivers it. Reported once.
+- `CACHE_WRITE_FAILED` — a write to device storage failed. The value is still held in memory and the
+  next write retries.
+- `CACHE_MIGRATION_FAILED` — entries written by a pre-namespace SDK release could not be moved into
+  the namespace. They stay readable and the next launch retries.
+- `BACKGROUND_TASK_FAILED` — an SDK-owned background task (a refresh chain, an outbox sync) failed
+  outright rather than degrading.
+- `TRANSACTION_RECEIPT_DROPPED` — a queued receipt can never be verified (for example an Android
+  purchase with no purchase token) and was discarded.
+- `TRANSACTION_SYNC_DEFERRED` — a receipt is still queued after a failed sync attempt.
+- `ANALYTICS_EVENT_DROPPED` — an event was evicted because the queue reached its 1000-event cap, or
+  the server refused it with a verdict re-sending cannot change.
+- `CIRCUIT_OPEN` — a host failed five times in a row, so requests to it are skipped and the cache is
+  served until the next probe.
+- `CACHE_READ_FAILED` — an unreadable cache entry was discarded and treated as a miss.
 
 ## Error Handling Flow
 

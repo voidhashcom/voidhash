@@ -51,8 +51,16 @@ public enum PaywallPresentationResult: Sendable, Equatable {
     case shown
     /// The location resolved, but no published paywall is assigned to it.
     case notAssigned
-    /// The presenter declined to present the paywall.
+    /// The presenter declined to present the paywall, or the SDK was misconfigured.
+    ///
+    /// Reserved for causes the developer can act on; a backend that is down or unreachable
+    /// reports ``unavailable`` instead.
     case failed
+    /// No configuration for this placement is cached and the backend could not be reached.
+    ///
+    /// The placement may well have a paywall; the device simply has never seen it. Show your own
+    /// fallback, or nothing.
+    case unavailable
 }
 
 /// Presents paywalls and speaks the bridge protocol on their behalf.
@@ -114,6 +122,10 @@ public actor PaywallCoordinator {
         self.warn = warn
     }
 
+    func preload(locationSlug: String, htmlUrl: String) async throws -> Bool {
+        try await presenter.preload(locationSlug: locationSlug, htmlUrl: htmlUrl)
+    }
+
     /// Resolves and presents the paywall assigned to `location`.
     ///
     /// - Parameter delegate: Held weakly — keep a strong reference to it for as long as the
@@ -124,7 +136,14 @@ public actor PaywallCoordinator {
     {
         self.delegate = delegate
 
-        let resolved = try await resolvePaywall(location)
+        let resolved: SdkResolvedPaywall?
+        do {
+            resolved = try await resolvePaywall(location)
+        } catch {
+            // Transport is never a `failed`: there is simply nothing cached to show.
+            warn("Paywall \"\(location)\" is unavailable: \(errorMessage(error))")
+            return .unavailable
+        }
         guard let release = resolved?.showing.paywallRelease, !release.htmlUrl.isEmpty else {
             return .notAssigned
         }

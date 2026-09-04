@@ -184,11 +184,10 @@ final class VoidhashEngineCore: @unchecked Sendable {
     func developmentPurchase(distinctId: String, requestJson: String) async throws -> Bool {
         let envelope = try JSONDecoder().decode(
             DevelopmentRequestEnvelope.self, from: Data(requestJson.utf8))
-        try await requireClient().recordDevelopmentPurchase(
+        return try await requireClient().recordDevelopmentPurchase(
             envelope.request,
             distinctId: envelope.distinctId.isEmpty ? distinctId : envelope.distinctId
         )
-        return true
     }
 
     func injectInternalSchema(schemaJson: String) async throws {

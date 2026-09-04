@@ -4,6 +4,7 @@ import com.voidhash.core.billing.BillingBuyItemParams
 import com.voidhash.core.billing.BillingProductType
 import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.SyncTransactionRequest
+import com.voidhash.sdk.api.TransactionSyncVerdict
 import com.voidhash.sdk.api.VoidhashApiClient
 import com.voidhash.sdk.billing.BillingEnginePort
 import com.voidhash.sdk.billing.VoidhashProduct
@@ -14,8 +15,11 @@ import com.voidhash.sdk.billing.mapDevelopmentPurchaseToTransaction
 import com.voidhash.sdk.cache.CacheManager
 import com.voidhash.sdk.identity.AccountToken
 import com.voidhash.sdk.identity.IdentityStore
+import com.voidhash.sdk.network.VoidhashCircuitOpenException
+import com.voidhash.sdk.network.VoidhashOutboundPausedException
 import com.voidhash.sdk.schema.RuntimeProductDefinition
 import com.voidhash.sdk.schema.RuntimeSchema
+import com.voidhash.sdk.transactions.TransactionOutbox
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -27,7 +31,7 @@ import org.json.JSONObject
 private const val PROCESSED_TRANSACTION_TTL_MS = 1000L * 60 * 30
 
 private class InFlightTransaction {
-    val deferred = CompletableDeferred<Unit>()
+    val deferred = CompletableDeferred<Boolean>()
     var ownerClaimed = false
     var storeFinalizationPending = false
 }
@@ -55,6 +59,8 @@ class PurchaseOrchestrator(
     /** When true purchases run against the mock store instead of Play Billing. */
     private val developmentMode: Boolean = false,
     private val onPersonRefresh: suspend () -> Unit = {},
+    /** Durable receipt store; a receipt is recorded here before it is ever sent. */
+    private val outbox: TransactionOutbox? = null,
     private val onWarning: (String) -> Unit = {},
 ) {
     private val inFlightTransactions = mutableMapOf<String, InFlightTransaction>()
@@ -157,8 +163,9 @@ class PurchaseOrchestrator(
             )
         }
 
-        processTransaction(transaction, schema, readOnlyAtPurchaseStart)
-        refreshPerson("a purchase")
+        if (processTransaction(transaction, schema, readOnlyAtPurchaseStart)) {
+            refreshPerson("a purchase")
+        }
         return transaction
     }
 
@@ -171,9 +178,13 @@ class PurchaseOrchestrator(
     /**
      * Processes every transaction the store still reports. One-time consumables
      * are skipped: consuming them here would silently burn an entitlement the
-     * app has already granted.
+     * app has already granted. When [deferStoreFinalization] is true, receipts
+     * are synced but left unfinished until a schema can classify the product.
      */
-    suspend fun reconcileObservedTransactions(schema: RuntimeSchema) {
+    suspend fun reconcileObservedTransactions(
+        schema: RuntimeSchema,
+        deferStoreFinalization: Boolean = false,
+    ) {
         val purchases = billing.getAvailableItemsByType(BillingProductType.INAPP) +
             billing.getAvailableItemsByType(BillingProductType.SUBS)
 
@@ -189,7 +200,11 @@ class PurchaseOrchestrator(
                 continue
             }
             try {
-                processTransaction(transaction, schema, null)
+                processTransaction(
+                    transaction,
+                    schema,
+                    if (deferStoreFinalization) true else null,
+                )
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -206,10 +221,25 @@ class PurchaseOrchestrator(
         }
     }
 
-    /** Processes one observed transaction and refreshes the person snapshot. */
-    suspend fun processObservedTransaction(transaction: VoidhashTransaction, schema: RuntimeSchema) {
-        processTransaction(transaction, schema, null)
-        refreshPerson("an observed transaction")
+    /**
+     * Processes one observed transaction and refreshes the person snapshot.
+     * [deferStoreFinalization] records and syncs the receipt without finishing
+     * it in the store until product metadata is available.
+     */
+    suspend fun processObservedTransaction(
+        transaction: VoidhashTransaction,
+        schema: RuntimeSchema,
+        deferStoreFinalization: Boolean = false,
+    ) {
+        if (
+            processTransaction(
+                transaction,
+                schema,
+                if (deferStoreFinalization) true else null,
+            )
+        ) {
+            refreshPerson("an observed transaction")
+        }
     }
 
     /**
@@ -219,14 +249,17 @@ class PurchaseOrchestrator(
      * [readOnlyOverride] pins the ownership decision for a purchase this SDK
      * started; every other caller passes `null` and reads the live flag at the
      * moment the decision is made.
+     *
+     * Returns `true` only after the backend explicitly accepts the receipt. A
+     * `false` result leaves the receipt queued and the store transaction unfinished.
      */
     suspend fun processTransaction(
         transaction: VoidhashTransaction,
         schema: RuntimeSchema,
         readOnlyOverride: Boolean?,
-    ) {
+    ): Boolean {
         if (transaction.purchaseState != "purchased") {
-            return
+            return false
         }
 
         val processingKey = transaction.processingKey
@@ -236,16 +269,24 @@ class PurchaseOrchestrator(
         if (!claim.isOwner) {
             // Rethrows the owner's failure: a joiner must never read a failed —
             // or cancelled — run as a synced, finished transaction.
-            claim.entry.deferred.await()
-            if (readOnlyOverride == false && takeStoreFinalizationPending(claim.entry)) {
+            val accepted = claim.entry.deferred.await()
+            if (accepted && readOnlyOverride == false && takeStoreFinalizationPending(claim.entry)) {
                 finalizeWithStore(transaction, schema, processedCacheKey)
             }
-            return
+            return accepted
         }
 
         try {
-            runTransaction(transaction, schema, readOnlyOverride, claim.entry, processedCacheKey)
-            claim.entry.deferred.complete(Unit)
+            val accepted = runTransaction(
+                transaction,
+                schema,
+                readOnlyOverride,
+                claim.entry,
+                processedCacheKey,
+                processingKey,
+            )
+            claim.entry.deferred.complete(accepted)
+            return accepted
         } catch (error: Throwable) {
             claim.entry.deferred.completeExceptionally(error)
             throw error
@@ -287,50 +328,81 @@ class PurchaseOrchestrator(
         readOnlyOverride: Boolean?,
         entry: InFlightTransaction,
         processedCacheKey: String,
-    ) {
+        processingKey: String,
+    ): Boolean {
         val cachedState = readProcessedState(processedCacheKey)
         if (cachedState?.storeFinalized == true) {
-            return
+            return true
         }
 
         if (!transaction.isDevelopment && transaction.purchaseToken.isNullOrEmpty()) {
             onWarning(
                 "Skipping observed Android transaction without purchase token ${transaction.transactionId}",
             )
-            return
+            return false
         }
 
         if (cachedState?.backendAccepted != true) {
             val distinctId = identityStore.getDistinctId()
             if (transaction.isDevelopment) {
-                apiClient.developmentPurchase(
-                    distinctId,
-                    DevelopmentPurchaseRequest(
-                        devTransactionId = transaction.transactionId,
-                        productSlug = resolveProductSlug(transaction, schema),
-                        purchaseDate = transaction.purchaseDate,
-                        quantity = transaction.quantity,
-                    ),
-                )
-            } else {
-                val accepted = apiClient.syncTransaction(
-                    distinctId,
-                    SyncTransactionRequest(
-                        appAccountToken = transaction.appAccountToken,
-                        providerProductId = transaction.productId,
-                        productSlug = resolveProductSlug(transaction, schema),
-                        purchaseDate = transaction.purchaseDate,
-                        purchaseToken = transaction.purchaseToken ?: "",
-                        quantity = transaction.quantity,
-                        receipt = transaction.receipt,
-                        transactionId = transaction.transactionId,
-                    ),
-                )
-                if (!accepted) {
-                    throw VoidhashException(
-                        "TRANSACTION_VERIFICATION_FAILED",
-                        "Backend rejected transaction ${transaction.transactionId}",
+                val accepted = try {
+                    apiClient.developmentPurchase(
+                        distinctId,
+                        DevelopmentPurchaseRequest(
+                            devTransactionId = transaction.transactionId,
+                            productSlug = resolveProductSlug(transaction, schema),
+                            purchaseDate = transaction.purchaseDate,
+                            quantity = transaction.quantity,
+                        ),
                     )
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    if (!isDeferredSyncFailure(error)) throw error
+                    onWarning(
+                        "Deferred development transaction ${transaction.transactionId}: ${error.message}",
+                    )
+                    return false
+                }
+                if (!accepted) {
+                    onWarning("Backend did not accept transaction ${transaction.transactionId}")
+                    return false
+                }
+            } else {
+                val request = SyncTransactionRequest(
+                    appAccountToken = transaction.appAccountToken,
+                    providerProductId = transaction.productId,
+                    productSlug = resolveProductSlug(transaction, schema),
+                    purchaseDate = transaction.purchaseDate,
+                    purchaseToken = transaction.purchaseToken ?: "",
+                    quantity = transaction.quantity,
+                    receipt = transaction.receipt,
+                    transactionId = transaction.transactionId,
+                )
+                // Recorded before the request so a crash, a kill, or an outage between here
+                // and the backend's answer cannot lose a purchase the user already paid for.
+                outbox?.enqueue(processingKey, distinctId, request)
+                val verdict = try {
+                    apiClient.syncTransactionVerdict(distinctId, request)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    if (!isDeferredSyncFailure(error)) throw error
+                    onWarning(
+                        "Deferred transaction ${transaction.transactionId}: ${error.message}",
+                    )
+                    outbox?.postpone(processingKey)
+                    return false
+                }
+                when (verdict) {
+                    TransactionSyncVerdict.ACCEPTED -> outbox?.acknowledge(processingKey)
+                    TransactionSyncVerdict.REJECTED,
+                    TransactionSyncVerdict.INDETERMINATE,
+                    -> {
+                        onWarning("Backend did not accept transaction ${transaction.transactionId}")
+                        outbox?.postpone(processingKey)
+                        return false
+                    }
                 }
             }
 
@@ -350,10 +422,19 @@ class PurchaseOrchestrator(
             }
         }
         if (deferFinalization) {
-            return
+            return true
         }
 
         finalizeWithStore(transaction, schema, processedCacheKey)
+        return true
+    }
+
+    private fun isDeferredSyncFailure(error: Throwable): Boolean = when (error) {
+        is VoidhashNetworkException -> true
+        is VoidhashCircuitOpenException -> true
+        is VoidhashOutboundPausedException -> true
+        is VoidhashApiException -> true
+        else -> false
     }
 
     /**
@@ -411,6 +492,10 @@ class PurchaseOrchestrator(
 
     private fun readProcessedState(cacheKey: String): ProcessedTransactionState? {
         val cached = cacheManager.getObject(cacheKey) ?: return null
+        // An expired marker is a miss: the cache serves expired entries for offline reads,
+        // but a processed-transaction record past its lifetime must not stop a receipt
+        // from syncing again.
+        if (cached.isExpired) return null
         return ProcessedTransactionState(
             backendAccepted = cached.value.optBoolean("backendAccepted"),
             storeFinalized = cached.value.optBoolean("storeFinalized"),

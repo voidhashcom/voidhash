@@ -1,3 +1,4 @@
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -16,23 +17,37 @@ const resolveTimezone = Effect.try(() => Intl.DateTimeFormat().resolvedOptions()
   Effect.orElseSucceed(() => Option.none<string>()),
 );
 
+/**
+ * Stamps a captured event for the queue without leaving the calling stack.
+ * The capture path must stay synchronous end to end (see `AnalyticsService`),
+ * so the timestamp is passed in rather than read from the Effect clock here.
+ */
+export const createQueuedAnalyticsEventUnsafe = (
+  eventName: string,
+  properties: Record<string, unknown>,
+  sessionId: string,
+  distinctId: string,
+  nowMillis: number,
+): QueuedAnalyticsEvent => ({
+  attempts: 0,
+  availableAt: nowMillis,
+  distinctId,
+  eventName,
+  eventTimestamp: DateTime.formatIso(DateTime.makeUnsafe(nowMillis)),
+  id: getNonce(),
+  properties,
+  sessionId,
+});
+
 export const createQueuedAnalyticsEvent = (
   eventName: string,
   properties: Record<string, unknown>,
   sessionId: string,
+  distinctId: string,
 ): Effect.Effect<QueuedAnalyticsEvent> =>
-  Effect.gen(function* () {
-    const now = yield* DateTime.now;
-    return {
-      attempts: 0,
-      availableAt: DateTime.toEpochMillis(now),
-      eventName,
-      eventTimestamp: DateTime.formatIso(now),
-      id: getNonce(),
-      properties,
-      sessionId,
-    };
-  });
+  Effect.map(Clock.currentTimeMillis, (now) =>
+    createQueuedAnalyticsEventUnsafe(eventName, properties, sessionId, distinctId, now),
+  );
 
 const fallbackProperties = {
   $app_build: null,
@@ -80,6 +95,7 @@ export const mapQueuedAnalyticsEventToIngestEvent = (
   standardizedProperties: Record<string, unknown>,
 ) => ({
   context: {},
+  distinct_id: event.distinctId,
   event_id: event.id,
   event_name: event.eventName,
   event_ts: event.eventTimestamp,

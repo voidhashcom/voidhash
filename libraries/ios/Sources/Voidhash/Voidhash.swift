@@ -28,6 +28,15 @@ public struct VoidhashOptions: Sendable {
     /// an unparseable paywall bridge message, a dropped analytics batch). Defaults to
     /// ``VoidhashWarnings/standard``.
     public var onWarning: VoidhashWarningHandler?
+    /// Receives structured ``VoidhashDiagnostic`` values for situations the SDK handled with a
+    /// documented fallback: a paused transport, an evicted queue entry, an opened circuit
+    /// breaker, a rejected key, an unreadable cache entry. Handler exceptions never propagate.
+    public var onDiagnostic: VoidhashDiagnosticHandler?
+    /// Paywall placements to fetch and warm on the first launch, before the app asks for them.
+    ///
+    /// Placements the device has already resolved are remembered and preloaded automatically;
+    /// this option covers the very first launch, where there is no history yet.
+    public var preloadPlacements: [String]
     /// Configuration of the built-in `$screen` event.
     public var screenTracking: ScreenTrackingOptions
     /// Captures `$app_installed`, `$app_updated`, `$app_opened`, `$app_backgrounded`,
@@ -44,6 +53,8 @@ public struct VoidhashOptions: Sendable {
         readOnly: Bool = true,
         dev: Bool = false,
         onWarning: VoidhashWarningHandler? = nil,
+        onDiagnostic: VoidhashDiagnosticHandler? = nil,
+        preloadPlacements: [String] = [],
         screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
         automaticLifecycleEvents: Bool = true
     ) {
@@ -55,6 +66,8 @@ public struct VoidhashOptions: Sendable {
         self.readOnly = readOnly || !commerceFeaturesEnabled
         self.dev = dev
         self.onWarning = onWarning
+        self.onDiagnostic = onDiagnostic
+        self.preloadPlacements = preloadPlacements
         self.screenTracking = screenTracking
         self.automaticLifecycleEvents = automaticLifecycleEvents
     }

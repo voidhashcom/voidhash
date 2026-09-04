@@ -16,18 +16,22 @@ import { CacheAdapter } from "../cache-adapter";
  */
 const makeBrowserCacheAdapter = () => {
   let memoryStore = HashMap.empty<string, string>();
+  // Keys whose last persistence attempt failed. Memory stays authoritative for
+  // them: an empty backing store means "the write never landed", not "another
+  // tab removed the value", so a refreshing read must not discard the value.
+  let unpersistedKeys = HashSet.empty<string>();
   const localStorage = detectLocalStorage();
 
   return {
-    get: (key: string) =>
+    get: (key: string, options?: { readonly refresh?: boolean }) =>
       Effect.suspend(() => {
         const memoryValue = HashMap.get(memoryStore, key);
-        if (Option.isSome(memoryValue)) {
+        if (Option.isSome(memoryValue) && !options?.refresh) {
           return Effect.succeed(Option.some(memoryValue.value));
         }
 
-        if (Option.isNone(localStorage)) {
-          return Effect.succeed(Option.none());
+        if (Option.isNone(localStorage) || HashSet.has(unpersistedKeys, key)) {
+          return Effect.succeed(memoryValue);
         }
 
         return Effect.try({
@@ -37,7 +41,11 @@ const makeBrowserCacheAdapter = () => {
           Effect.option,
           Effect.map((persistedValue) => {
             if (Option.isNone(persistedValue) || persistedValue.value === null) {
-              return Option.none();
+              if (options?.refresh) {
+                memoryStore = HashMap.remove(memoryStore, key);
+                return Option.none();
+              }
+              return memoryValue;
             }
 
             memoryStore = HashMap.set(memoryStore, key, persistedValue.value);
@@ -51,14 +59,22 @@ const makeBrowserCacheAdapter = () => {
         memoryStore = HashMap.set(memoryStore, key, value);
 
         if (Option.isNone(localStorage)) {
-          return Effect.void;
+          return Effect.succeed(false);
         }
 
-        // Graceful degradation — storage may be full or unavailable
-        return Effect.ignore(
-          Effect.try({
-            try: () => localStorage.value.setItem(key, value),
-            catch: (error) => error,
+        return Effect.try({
+          try: () => {
+            localStorage.value.setItem(key, value);
+            return true;
+          },
+          catch: (error) => error,
+        }).pipe(
+          Effect.orElseSucceed(() => false),
+          Effect.map((persisted) => {
+            unpersistedKeys = persisted
+              ? HashSet.remove(unpersistedKeys, key)
+              : HashSet.add(unpersistedKeys, key);
+            return persisted;
           }),
         );
       }),
@@ -66,6 +82,7 @@ const makeBrowserCacheAdapter = () => {
     delete: (key: string) =>
       Effect.suspend(() => {
         memoryStore = HashMap.remove(memoryStore, key);
+        unpersistedKeys = HashSet.remove(unpersistedKeys, key);
 
         if (Option.isNone(localStorage)) {
           return Effect.void;

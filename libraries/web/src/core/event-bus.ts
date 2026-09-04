@@ -9,6 +9,7 @@ export class EventBus {
     "analytics-flush-needed": [],
     "analytics-flushed": [],
     "analytics-partial-rejection": [],
+    diagnostic: [],
     error: [],
     "feature-flags-updated": [],
     "identity-changed": [],

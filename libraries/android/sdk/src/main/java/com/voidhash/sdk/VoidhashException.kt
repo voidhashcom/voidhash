@@ -11,11 +11,17 @@ open class VoidhashException(
     cause: Throwable? = null,
 ) : RuntimeException("$code: $description", cause)
 
-/** Raised when the API responds with a non-2xx status. */
+/**
+ * Raised when the API responds with a non-2xx status.
+ *
+ * @property retryAfterMs the cool-down the server asked for on a 429 or 503, from the
+ *   `Retry-After` header or the response body. `null` when the server named none.
+ */
 class VoidhashApiException(
     val status: Int,
     code: String,
     description: String,
+    val retryAfterMs: Long? = null,
 ) : VoidhashException(code, description)
 
 /** Raised when a request never reached the API. */

@@ -20,8 +20,20 @@ import com.voidhash.sdk.billing.DevelopmentBillingEngine
 import com.voidhash.sdk.billing.BillingEnginePort
 import com.voidhash.sdk.cache.CacheManager
 import com.voidhash.sdk.cache.SharedPreferencesCacheAdapter
+import com.voidhash.sdk.cache.cacheKeyPrefix
+import com.voidhash.sdk.diagnostics.DiagnosticEmitter
 import com.voidhash.sdk.identity.IdentityStore
 import com.voidhash.sdk.lifecycle.VoidhashActivityLifecycleCallbacks
+import com.voidhash.sdk.network.AndroidConnectivityMonitor
+import com.voidhash.sdk.network.CircuitBreaker
+import com.voidhash.sdk.network.ConnectivityMonitor
+import com.voidhash.sdk.network.OutboundGate
+import com.voidhash.sdk.network.SystemSdkClock
+import com.voidhash.sdk.network.buildSdkHttpClient
+import com.voidhash.sdk.storage.FileRecordStore
+import com.voidhash.sdk.storage.PersistenceWriter
+import com.voidhash.sdk.transactions.PersonWriteOutbox
+import com.voidhash.sdk.transactions.TransactionOutbox
 import com.voidhash.sdk.paywall.DefaultPaywallPresenterPort
 import com.voidhash.sdk.paywall.PaywallCoordinator
 import com.voidhash.sdk.platform.PlatformInfo
@@ -31,7 +43,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import okhttp3.OkHttpClient
+import java.io.File
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -55,6 +67,9 @@ object Voidhash {
 
     @Volatile
     private var activeLifecycleCallbacks: Pair<Application, Application.ActivityLifecycleCallbacks>? = null
+
+    @Volatile
+    private var activeConnectivityMonitor: ConnectivityMonitor? = null
 
     /** The client created by the most recent [configure] call. */
     @JvmStatic
@@ -83,6 +98,8 @@ object Voidhash {
             application.unregisterActivityLifecycleCallbacks(callbacks)
         }
         activeLifecycleCallbacks = null
+        activeConnectivityMonitor?.stop()
+        activeConnectivityMonitor = null
 
         val applicationContext = context.applicationContext
         val platform = PlatformInfo.fromContext(applicationContext)
@@ -96,7 +113,33 @@ object Voidhash {
         // `instance` singleton, which a later `configure()` moves elsewhere.
         val clientRef = AtomicReference<VoidhashClient?>(null)
 
-        val cacheManager = CacheManager(SharedPreferencesCacheAdapter(applicationContext))
+        val diagnostics = DiagnosticEmitter(options.onDiagnostic)
+        val gate = OutboundGate(CircuitBreaker(SystemSdkClock, diagnostics), diagnostics, SystemSdkClock)
+
+        // Every byte the SDK reads or writes goes through this one thread, so `configure`
+        // and `capture` return without ever waiting on storage.
+        val writer = PersistenceWriter(scope) { error ->
+            warn("A Voidhash persistence task failed: ${error.message}")
+        }
+
+        // Namespacing by publishable key and origin keeps two configured projects — or the
+        // same app before and after a key rotation — from reading each other's state.
+        val cacheAdapter = SharedPreferencesCacheAdapter(
+            applicationContext,
+            cacheKeyPrefix(publishableKey, options.baseUrl),
+        )
+        val cacheManager = CacheManager(
+            adapter = cacheAdapter,
+            diagnostics = diagnostics,
+            writer = writer,
+            // Runs once, on the writer thread, before anything reads through: adopts the
+            // identity, session and receipts an unnamespaced release left behind.
+            onWarmUp = {
+                if (cacheAdapter.migrateLegacyEntries()) {
+                    warn("Adopted Voidhash state written by an earlier SDK release")
+                }
+            },
+        )
         val identityStore = IdentityStore(cacheManager)
         options.distinctId?.let(identityStore::setDistinctId)
 
@@ -104,7 +147,9 @@ object Voidhash {
         val readOnlyRef = AtomicBoolean(options.readOnly || !COMMERCE_FEATURES_ENABLED)
         val readOnlyProvider = { clientRef.get()?.currentReadOnly ?: readOnlyRef.get() }
 
-        val httpClient = OkHttpClient()
+        // One client, one connection pool, one explicit timeout budget for every request the
+        // SDK makes.
+        val httpClient = buildSdkHttpClient()
         val headers = SdkHeaders(
             publishableKey = publishableKey,
             platform = platform,
@@ -112,7 +157,32 @@ object Voidhash {
             debugProvider = { options.debug },
             environmentProvider = { if (developmentMode) "development" else "production" },
         )
-        val apiClient = VoidhashApiClient(options.baseUrl, headers, httpClient)
+        val apiClient = VoidhashApiClient(options.baseUrl, headers, httpClient, gate = gate)
+
+        val queueDirectory = File(applicationContext.filesDir, "voidhash")
+        val queueNamespace = cacheKeyPrefix(publishableKey, options.baseUrl)
+            .trim(':')
+            .replace(':', '-')
+        val outbox = TransactionOutbox(
+            store = FileRecordStore(
+                File(queueDirectory, "$queueNamespace-transactions.ndjson"),
+                diagnostics,
+            ),
+            clock = SystemSdkClock,
+            writer = writer,
+            diagnostics = diagnostics,
+            onWarning = ::warn,
+        )
+        val personWrites = PersonWriteOutbox(
+            store = FileRecordStore(
+                File(queueDirectory, "$queueNamespace-person-writes.ndjson"),
+                diagnostics,
+            ),
+            clock = SystemSdkClock,
+            writer = writer,
+            diagnostics = diagnostics,
+            onWarning = ::warn,
+        )
 
         val billing: BillingEnginePort = if (developmentMode) {
             DevelopmentBillingEngine(activityProvider = { currentActivity.get() }, onWarning = ::warn)
@@ -148,7 +218,8 @@ object Voidhash {
             identityStore = identityStore,
             readOnlyProvider = readOnlyProvider,
             developmentMode = developmentMode,
-            onPersonRefresh = { clientRef.get()?.getCurrentPerson(forceFetch = true) },
+            onPersonRefresh = { clientRef.get()?.refreshPersonAfterPurchase() },
+            outbox = outbox,
             onWarning = ::warn,
         )
 
@@ -165,6 +236,13 @@ object Voidhash {
                     environment = if (developmentMode) "development" else "production",
                 )
             },
+            store = FileRecordStore(
+                File(queueDirectory, "$queueNamespace-analytics.ndjson"),
+                diagnostics,
+            ),
+            writer = writer,
+            gate = gate,
+            diagnostics = diagnostics,
             onWarning = ::warn,
         )
 
@@ -199,19 +277,20 @@ object Voidhash {
                 refreshScope = scope,
                 onSchema = onSchemaResolved,
                 onWarning = ::warn,
+                clock = SystemSdkClock,
+                gate = gate,
+                diagnostics = diagnostics,
             ),
             orchestrator = orchestrator,
             analyticsClient = analyticsClient,
             sessionManager = sessionManager,
             billing = billing,
             scope = scope,
-            paywallCoordinatorFactory = { purchaseHandler ->
+            paywallCoordinatorFactory = { purchaseHandler, resolve ->
                 PaywallCoordinator(
                     presenter = DefaultPaywallPresenterPort(presenter),
                     purchaseHandler = purchaseHandler,
-                    resolvePaywall = { locationSlug ->
-                        apiClient.resolvePaywall(identityStore.getDistinctId(), locationSlug)
-                    },
+                    resolvePaywall = resolve,
                     openExternal = { url -> openExternal(applicationContext, url) },
                     locale = platform.locales.firstOrNull(),
                     onCapture = { name, properties ->
@@ -227,16 +306,37 @@ object Voidhash {
             platform = platform,
             screenTracking = options.screenTracking,
             automaticLifecycleEvents = options.automaticLifecycleEvents,
-            onShutdown = detachLifecycleCallbacks,
+            sdkClock = SystemSdkClock,
+            gate = gate,
+            outbox = outbox,
+            personWrites = personWrites,
+            preloadPlacements = options.preloadPlacements,
+            paywallPreloader = { locationSlug, htmlUrl ->
+                presenter.preload(locationSlug, htmlUrl)
+            },
+            diagnostics = diagnostics,
+            onShutdown = {
+                detachLifecycleCallbacks()
+                activeConnectivityMonitor?.stop()
+                activeConnectivityMonitor = null
+            },
         )
 
         clientRef.set(client)
         instance = client
 
-        val observesActivities = options.automaticLifecycleEvents || options.screenTracking.automatic
-        if (application != null && options.enabled && observesActivities) {
+        // Activity callbacks are always installed for an enabled client: besides the
+        // lifecycle events and screens they carry the foreground signal that half-opens the
+        // circuit breaker and triggers the refresh and flush.
+        if (application != null && options.enabled) {
             application.registerActivityLifecycleCallbacks(lifecycleCallbacks)
             activeLifecycleCallbacks = application to lifecycleCallbacks
+        }
+
+        if (options.enabled) {
+            val monitor = AndroidConnectivityMonitor(applicationContext, diagnostics)
+            monitor.start { clientRef.get()?.onConnectivityRestored() }
+            activeConnectivityMonitor = monitor
         }
         return client
     }

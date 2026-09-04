@@ -1,6 +1,7 @@
 import type { SdkPerson } from "@voidhash/generated-clients";
 import * as Arr from "effect/Array";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import * as Str from "effect/String";
 import { Atom } from "effect/unstable/reactivity";
 
@@ -39,6 +40,9 @@ export const schemaAtom: Atom.Writable<Option.Option<RuntimeSchema>> = Atom.make
 export const featureFlagsByKeyAtom: Atom.Writable<Readonly<Record<string, FeatureFlagsResult>>> =
   Atom.make<Readonly<Record<string, FeatureFlagsResult>>>({});
 
+const FeatureFlagKeysFromJson = Schema.fromJsonString(Schema.Array(Schema.String));
+const encodeFeatureFlagKeys = Schema.encodeSync(FeatureFlagKeysFromJson);
+
 /**
  * Normalizes a feature-flag request signature so that any callers asking for
  * the same set of keys (regardless of order) share the same atom slot. We
@@ -51,7 +55,7 @@ export const normalizeFeatureFlagKeys = (flagKeys?: readonly string[]): string =
     onSome: (keys) =>
       Arr.match(keys, {
         onEmpty: () => "all",
-        onNonEmpty: (values) => Arr.sort(values, Str.Order).join(","),
+        onNonEmpty: (values) => encodeFeatureFlagKeys(Arr.sort(values, Str.Order)),
       }),
   });
 };

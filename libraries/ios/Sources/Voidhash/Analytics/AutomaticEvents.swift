@@ -19,6 +19,11 @@ public enum AutomaticEvents {
     public static let signOut = "$sign_out"
     /// The user arrived on a screen (view controller, SwiftUI view, manual call).
     public static let screen = "$screen"
+    /// An `identify` the backend could not confirm; carries the alias so the merge is applied
+    /// when the queue drains.
+    public static let identify = "$identify"
+    /// A `setPersonAttributes` the backend could not confirm; carries the traits.
+    public static let set = "$set"
 }
 
 /// Property names stamped on the built-in `$screen` event.

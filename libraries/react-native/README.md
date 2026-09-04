@@ -80,7 +80,10 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 | `baseUrl`                | `https://api.voidhash.com`  | API origin.                                                        |
 | `ingestUrl`              | Same origin as `baseUrl`    | Analytics origin override.                                         |
 | `screenTracking`         | `{ enabled: true }`         | Automatic `$screen` events; see "Screen tracking".                 |
-| `unstable_swallowErrors` | `false`                     | See below.                                                         |
+| `preloadPlacements`      | `[]`                        | Paywall placements to warm at boot; see "Offline behavior".        |
+| `onDiagnostic`           | none                        | Reports failures the SDK recovered from; see below.                |
+| `connectivity`           | none                        | Optional reachability source; see "Offline behavior".              |
+| `unstable_swallowErrors` | `false`                     | Deprecated; see below.                                             |
 
 ## Provider and initialization
 
@@ -155,7 +158,137 @@ kept in the package for the upcoming launch, but it is inert: `getPaywallForLoca
 `Ok(null)`, `usePaywallByLocation(...).show()` returns `{ status: "disabled" }`, and the SDK does
 not resolve, preload, or present a paywall.
 
+## Offline behavior
+
+If Voidhash is down or the device is offline, the worst outcome for your app is delayed analytics.
+Your app keeps working, entitlements, flags and paywalls are served from the last known state, and
+no SDK call fails, throws, or blocks startup because the backend is unreachable, slow, or returning
+5xx.
+
+When the network is available, reads still answer from local state in constant time and the SDK
+keeps that state fresh on its own. You never have to call a refresh to get correct data.
+
+### Reads are cache-first
+
+`hasPerk`, `getCurrentPerson`, `getFeatureFlags` and `getPaywallForLocation` answer from the cached
+value first. When that value is past its refresh window the SDK starts a refresh behind the read and
+waits at most 500 ms for it before answering from cache; the refresh keeps running and lands for the
+next read. Results carry `isStale` and, for person snapshots, `isExpired`, so an app that gates
+high-value content can decide how much to trust an answer that has not been confirmed in a while.
+
+```ts
+const perk = await client.hasPerk("pro");
+if (perk.isOk() && perk.value.hasAccess) {
+  unlock({ trusted: !perk.value.isExpired });
+}
+```
+
+`reason` says why an answer has the freshness it has: `fresh`, `refresh-in-flight` (cache served
+while a refresh is still running), `refresh-failed` (the refresh finished without producing
+anything), or `no-cache` (the SDK has never seen a snapshot for this identity, so
+`hasAccess: false` means "no evidence", not "denied").
+
+A cached value that is merely stale is served after waiting at most 500 ms for the refresh. A cold
+or expired one has nothing to fall back on, so the read waits for the request budget (10 s) instead.
+`hasPerk`'s `allowStale` option is deprecated and no longer read — branch on `isStale` and
+`isExpired` instead.
+
+### Nothing queued is lost
+
+Analytics events and store receipts are written to device storage and leave their queue only when
+the server accepts them. Timeouts, 5xx responses, an open circuit and a paused authentication gate
+all keep the data queued and retry it with jittered backoff — indefinitely. The only things that
+drop an event are the queue cap (1000 events, oldest evicted first, each eviction reported through
+`onDiagnostic`) and a server verdict that re-sending cannot change.
+
+Store receipts go through a separate outbox that is written before the first network call and never
+evicts an unacknowledged receipt, so a purchase made during an outage is still reported after the
+next launch. A receipt leaves the outbox on any terminal outcome — accepted now, accepted by an
+earlier run, or impossible to send — so it is never reprocessed forever.
+
+`flush()` answers with `{ flushed, pending, lastError }`. A non-zero `pending` alongside a
+`lastError` means the events are queued for another attempt, not lost.
+
+### Refresh triggers
+
+The SDK refreshes on its own at boot (schema, then person, flags and the paywalls it knows about),
+on app foreground (debounced to once a minute), when a read finds a stale value, after a purchase,
+and whenever `identify()` or `reset()` changes the identity — which also invalidates the person
+snapshot and flag evaluations belonging to the previous one, and discards any refresh that was
+already in flight for it. After a purchase the SDK refreshes grants again at 2 s and 5 s, because
+the server needs a moment to turn an accepted receipt into an entitlement.
+
+React Native ships no reachability API and this SDK adds no native dependency for one. If your app
+already depends on a reachability library, hand its state in and the SDK will flush and refresh the
+moment the device comes back:
+
+```ts
+import NetInfo from "@react-native-community/netinfo";
+
+createVoidhashClient("vh_pk_...", {
+  connectivity: {
+    subscribe: (listener) =>
+      NetInfo.addEventListener((state) => listener(state.isConnected === true)),
+  },
+});
+```
+
+Without it the SDK still recovers on its own: a host whose circuit is open is probed again after
+30 s, and on every app foreground.
+
+### Paywalls
+
+A placement whose configuration has ever been resolved on this device is cached for seven days and
+shows during an outage. A placement that has never resolved returns `{ status: "unavailable" }` from
+`show()` — a state to retry, not a failure to report. Warm placements ahead of the first `show()`
+with `preloadPlacements`:
+
+```ts
+createVoidhashClient("vh_pk_...", {
+  preloadPlacements: ["onboarding", "settings_upsell"],
+});
+```
+
+Placements the device has resolved before are preloaded at every launch without being listed.
+
+### Diagnostics
+
+`onDiagnostic` reports what the SDK handled on its own. Everything it reports has already been
+recovered from — it is for your logging and alerting, not for recovery:
+
+```ts
+createVoidhashClient("vh_pk_...", {
+  onDiagnostic: (diagnostic) => {
+    if (diagnostic.kind === "auth" || diagnostic.kind === "eviction") {
+      reportToMonitoring(diagnostic);
+    }
+  },
+});
+```
+
+| Field        | Meaning                                                    |
+| ------------ | ---------------------------------------------------------- |
+| `kind`       | `transport`, `eviction`, `breaker`, `auth` or `cache`.     |
+| `code`       | Stable identifier, for example `ANALYTICS_EVENT_DROPPED`.  |
+| `operation`  | The SDK operation that produced it, for example `capture`. |
+| `retryable`  | Whether the SDK will try the same work again on its own.   |
+| `httpStatus` | Present when there was a response.                         |
+| `message`    | Human-readable detail. Not stable; do not parse.           |
+
+Exceptions thrown by the handler are swallowed.
+
+A rejected publishable key (`401`/`403`) is reported once as
+`{ kind: "auth", code: "AUTHENTICATION_FAILED" }` and pauses outbound traffic. Queued data is kept,
+so fixing the key and relaunching delivers it. The pause is not permanent: one request is allowed
+through every 60 s, and `init()` clears it outright. The first read that has _nothing_ cached to
+answer with also fails once with an `AUTHENTICATION_FAILED` `VoidhashError`, so a wrong key in
+development is impossible to miss; every later read answers from cache as usual.
+
 ## Unstable error swallowing
+
+Deprecated. Transport failures no longer surface as errors, so there is nothing left for this flag
+to swallow — use `onDiagnostic` to observe failures the SDK recovered from. The flag still works and
+will be removed in a future release.
 
 For early-alpha integrations, side-effect methods can log instead of rejecting:
 
@@ -167,12 +300,14 @@ createVoidhashClient("vh_pk_...", {
 ```
 
 Swallowed (warn, return `Result.ok`): `init()`, `end()`, `identify(...)`, `reset()`, `signOut()`,
-`setPersonAttributes(...)`, `restorePurchases()`, `flush()`, `iosPresentCodeRedemptionSheet()`,
-`iosShowManageSubscriptions()`.
+`setPersonAttributes(...)`, `restorePurchases()`, `iosPresentCodeRedemptionSheet()`,
+`iosShowManageSubscriptions()`. `flush()` is no longer among them: it answers with delivery counts,
+so a failure has to reach the caller.
 
 Strict (return `Result.err` on failure): `getCurrentPerson(...)`, `getFeatureFlags(...)`,
 `getPaywallForLocation(...)`, `getProducts()`, `hasPerk(...)`, `setPersonAttributesSync(...)`,
-`purchase(...)`.
+`purchase(...)`. In practice these no longer fail for transport reasons — they answer from cache
+instead.
 
 Every fallible client method returns a [`Result`](https://better-result.dev) from better-result and
 never rejects:
@@ -290,3 +425,32 @@ createVoidhashClient("vh_pk_...", {
 ```
 
 # Contributing
+
+## Migrating to the offline-first release
+
+Behavior that changed. All of it removes a failure mode; none of it needs a flag.
+
+- `init()` no longer rejects when the schema cannot be fetched. A first launch with no connectivity
+  boots on an empty schema and fills it in once the network is back. Analytics, lifecycle events and
+  identity never depended on the schema and are unaffected.
+- `hasPerk(...)` is cache-first instead of refreshing on every call, and its two former `Err`
+  branches are now typed `Ok` values carrying `reason: "no-cache" | "refresh-failed"`. `allowStale`
+  is still accepted and no longer changes the outcome; pass `{ forceFetch: true }` when you
+  deliberately want the server.
+- `getCurrentPerson()` returns `{ person, isStale, isExpired }` rather than the bare snapshot, and
+  `getFeatureFlags()` adds `isStale`.
+- `setPersonAttributesSync(...)` returns `{ status: "confirmed" | "deferred", person }`. A
+  `deferred` result means the server was unreachable and the update is queued.
+- `flush()` returns `{ flushed, pending }` instead of `void`.
+- `usePaywallByLocation(...).show()` can return `{ status: "unavailable" }` for a placement that has
+  never been resolved on this device while the server is unreachable.
+- `setPersonAttributesSync(...)` on a client created with `enabled: false` now answers
+  `{ status: "disabled", person: null }` rather than `deferred` — nothing was recorded, and nothing
+  is queued.
+- Cached entries are now namespaced under `vh:<version>:<hash>:` in `AsyncStorage`, so the SDK can
+  no longer collide with your app's own keys. Entries written by earlier releases are migrated into
+  the namespace once, on the first launch after the upgrade: the distinct id, the person snapshot,
+  the analytics session, the seen app release and the cached schema all carry over, so existing
+  installs keep their identity and do not re-fire `$app_installed`.
+- Call `identify` as early as you know the user: the SDK invalidates and refetches the per-person
+  state for you.

@@ -15,12 +15,33 @@ public struct VoidhashApiError: Error, Equatable, Sendable, CustomStringConverti
     public let statusCode: Int?
     /// Server error tag (`_tag`), when the response carried one.
     public let tag: String?
+    /// Delay requested by `Retry-After`, in milliseconds, when the response carried one.
+    public let retryAfterMilliseconds: Double?
 
-    public init(code: String, message: String, statusCode: Int? = nil, tag: String? = nil) {
+    public init(
+        code: String,
+        message: String,
+        statusCode: Int? = nil,
+        tag: String? = nil,
+        retryAfterMilliseconds: Double? = nil
+    ) {
         self.code = code
         self.message = message
         self.statusCode = statusCode
         self.tag = tag
+        self.retryAfterMilliseconds = retryAfterMilliseconds
+    }
+
+    /// Whether the SDK should try this request again later, per ``NetworkPolicy``.
+    ///
+    /// Transport failures (no status code) always are; only the retryable status set is.
+    public var isRetryable: Bool {
+        return NetworkPolicy.isRetryable(statusCode: statusCode)
+    }
+
+    /// Whether the publishable key was rejected (`401`/`403`).
+    public var isAuthFailure: Bool {
+        return NetworkPolicy.isAuthFailure(statusCode: statusCode)
     }
 
     public var description: String {
@@ -51,7 +72,12 @@ extension VoidhashApiError {
     ///
     /// The codes are the ones documented in `libraries/react-native/ERROR_HANDLING.md` and shared
     /// with the Android SDK.
-    public static func http(statusCode: Int, tag: String?, message: String?) -> VoidhashApiError {
+    public static func http(
+        statusCode: Int,
+        tag: String?,
+        message: String?,
+        retryAfterMilliseconds: Double? = nil
+    ) -> VoidhashApiError {
         let code: String
         switch statusCode {
         case 400:
@@ -72,7 +98,8 @@ extension VoidhashApiError {
             code: code,
             message: message ?? "Request failed with status \(statusCode)",
             statusCode: statusCode,
-            tag: tag
+            tag: tag,
+            retryAfterMilliseconds: retryAfterMilliseconds
         )
     }
 }

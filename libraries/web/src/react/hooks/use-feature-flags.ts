@@ -4,6 +4,7 @@ import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 import * as Option from "effect/Option";
 import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import * as Str from "effect/String";
 import React from "react";
 
@@ -13,10 +14,13 @@ import { useVoidhash } from "./use-voidhash";
 
 const ALL_KEYS = "all";
 const runtime = ManagedRuntime.make(Layer.empty);
+const FlagKeysFromJson = Schema.fromJsonString(Schema.Array(Schema.String));
+const encodeFlagKeys = Schema.encodeSync(FlagKeysFromJson);
+const decodeFlagKeys = Schema.decodeUnknownSync(FlagKeysFromJson);
 
 const serializeKeys = (keys?: ReadonlyArray<string>) => {
   if (keys && Arr.isReadonlyArrayNonEmpty(keys)) {
-    return Arr.sort(keys, Str.Order).join(",");
+    return encodeFlagKeys(Arr.sort(keys, Str.Order));
   }
 
   return ALL_KEYS;
@@ -27,7 +31,7 @@ const deserializeKeys = (serializedKeys: string) => {
     return undefined;
   }
 
-  return serializedKeys.split(",");
+  return [...decodeFlagKeys(serializedKeys)];
 };
 
 const areEntriesEqual = (left: FeatureFlagEntry, right: FeatureFlagEntry) =>
@@ -38,6 +42,9 @@ const areEntriesEqual = (left: FeatureFlagEntry, right: FeatureFlagEntry) =>
 
 /** Structural comparison used to keep the previous state object when nothing changed. */
 const areResultsEqual = (left: FeatureFlagsResult, right: FeatureFlagsResult) => {
+  if (left.isStale !== right.isStale || left.isExpired !== right.isExpired) {
+    return false;
+  }
   const leftMatches = left.flags.every((flag, index) => {
     const other = right.flags[index];
     if (!other) {
@@ -63,7 +70,11 @@ const toFeatureFlagsError = (cause: unknown, fallbackMessage: string) => {
 
 export const useFeatureFlags = (keys?: string[]) => {
   const { client, distinctId, isInitialized } = useVoidhash();
-  const [data, setData] = React.useState<FeatureFlagsResult>({ flags: [] });
+  const [data, setData] = React.useState<FeatureFlagsResult>({
+    flags: [],
+    isExpired: true,
+    isStale: true,
+  });
   const [error, setError] = React.useState<Option.Option<Error>>(Option.none());
   const [isLoading, setIsLoading] = React.useState(false);
   const serializedKeys = React.useMemo(() => serializeKeys(keys), [keys]);
@@ -150,7 +161,11 @@ export const useFeatureFlags = (keys?: string[]) => {
     error,
     getVariant,
     isEnabled,
+    /** `true` when the served flags were past their hard TTL. */
+    isExpired: data.isExpired,
     isLoading,
+    /** `true` when the served flags came from cache without a fresh refresh. */
+    isStale: data.isStale,
     refetch,
   };
 };
