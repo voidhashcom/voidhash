@@ -31,7 +31,7 @@ import * as Match from "effect/Match";
 
 /**
  * Picks the (single) enabled App Store payment provider configuration for the
- * given bundle id from a project's configurations. Fails with
+ * given bundle id from a project's configurations, excluding other stores. Fails with
  * `AppStorePaymentProviderNotEnabledForFollowingBundleIdError` when no enabled configuration
  * matches — that's not a database error, the rows simply don't grant access
  * to this bundle.
@@ -44,6 +44,7 @@ export const getActiveAppStorePaymentProviderConfiguration = (
   Effect.gen(function* () {
     const configuration = configurations.find(
       (paymentProviderConfiguration) =>
+        paymentProviderConfiguration.providerId === "apple-app-store" &&
         paymentProviderConfiguration.paymentProviderKey === paymentProviderKey &&
         paymentProviderConfiguration.enabled,
     );

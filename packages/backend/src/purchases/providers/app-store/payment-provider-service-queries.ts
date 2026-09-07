@@ -46,6 +46,7 @@ const make = Effect.fn("make")(function* () {
         return yield* db.query.paymentProviderConfigurations.findMany({
           where: {
             projectId,
+            providerId: "apple-app-store",
             deletedAt: { isNull: true },
           },
         });

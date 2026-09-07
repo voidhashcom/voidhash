@@ -75,7 +75,7 @@ const parseRfc3339 = (value: string | typeof Schema.Undefined.Type): Option.Opti
 
 /**
  * Picks the (single) enabled Google Play configuration for the given package
- * name. Fails with
+ * name, excluding configurations belonging to other stores. Fails with
  * {@link GooglePlayPaymentProviderNotEnabledForFollowingPackageNameError} when
  * none matches — not a database error, the rows simply don't grant access.
  */
@@ -86,7 +86,10 @@ export const getActiveGooglePlayPaymentProviderConfiguration = (
 ) =>
   Effect.gen(function* () {
     const configuration = configurations.find(
-      (candidate) => candidate.paymentProviderKey === paymentProviderKey && candidate.enabled,
+      (candidate) =>
+        candidate.providerId === "google-play" &&
+        candidate.paymentProviderKey === paymentProviderKey &&
+        candidate.enabled,
     );
     if (!configuration) {
       return yield* Effect.fail(

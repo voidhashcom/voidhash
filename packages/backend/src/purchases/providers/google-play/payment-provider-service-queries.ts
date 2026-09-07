@@ -48,6 +48,7 @@ const make = Effect.fn("make")(function* () {
         return yield* db.query.paymentProviderConfigurations.findMany({
           where: {
             projectId,
+            providerId: "google-play",
             deletedAt: { isNull: true },
           },
         });
