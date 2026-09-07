@@ -13,6 +13,7 @@ ignoredBuiltDependencies:
   - "@mongodb-js/zstd"
   - node-liblzma
 patchedDependencies:
+  "nitrogen@0.35.5": patches/nitrogen@0.35.5.patch
   "@earendil-works/pi-ai@0.80.7": patches/@earendil-works__pi-ai@0.80.7.patch
   "brace-expansion@5.0.9": patches/brace-expansion@5.0.9.patch
 catalog:

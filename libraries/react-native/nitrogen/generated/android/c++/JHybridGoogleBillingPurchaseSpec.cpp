@@ -88,7 +88,7 @@ namespace margelo::nitro::voidhash {
     return __result->toStdString();
   }
   std::optional<bool> JHybridGoogleBillingPurchaseSpec::getIsAutoRenewing() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JBoolean>()>("getIsAutoRenewing");
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JBoolean>()>("isAutoRenewing");
     auto __result = method(_javaPart);
     return __result != nullptr ? std::make_optional(static_cast<bool>(__result->value())) : std::nullopt;
   }

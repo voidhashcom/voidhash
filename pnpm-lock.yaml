@@ -192,6 +192,7 @@ pnpmfileChecksum: sha256-FmQ3RWUsIKZQg8qJsKhZOw8G3ylUwk93HvwW4x5Nr5A=
 patchedDependencies:
   '@earendil-works/pi-ai@0.80.7': 3fbb9897213abf111acd834b26232ea390b59077e07751ef66a6e45bd00a4bd3
   brace-expansion@5.0.9: f142ba995ebb0372d071486e30b1fb522c19e147dfe3674c8c7dcd9a04308337
+  nitrogen@0.35.5: cb06cac2f2af1acb08a1b78a49116c012516ad3de95fe3d9e6fd83609f4169f8
 
 importers:
 
@@ -853,7 +854,7 @@ importers:
         version: 55.0.18(1e8ae7a83f64eb0077ffb51820341afe)
       nitrogen:
         specifier: 0.35.5
-        version: 0.35.5(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))(react@19.1.0)
+        version: 0.35.5(patch_hash=cb06cac2f2af1acb08a1b78a49116c012516ad3de95fe3d9e6fd83609f4169f8)(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -31891,7 +31892,7 @@ snapshots:
       - babel-plugin-macros
     optional: true
 
-  nitrogen@0.35.5(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))(react@19.1.0):
+  nitrogen@0.35.5(patch_hash=cb06cac2f2af1acb08a1b78a49116c012516ad3de95fe3d9e6fd83609f4169f8)(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))(react@19.1.0):
     dependencies:
       chalk: 5.6.2
       react-native-nitro-modules: 0.35.5(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))(react@19.1.0)
