@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { QueryAnalyticsInsightsResponseType } from "@voidhash/rpc";
 import {
   Button,
@@ -30,6 +30,7 @@ interface OrganizationOverviewProps {
   organizationSlug: string;
 }
 
+/** Displays organization metrics with stable requests and explicit loading states. */
 export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewProps) => {
   const { user } = useAuth();
   const [dateRange, setDateRange] = useState<DateRange>("last_7d");
@@ -39,14 +40,18 @@ export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewP
 
   // Hooks must run unconditionally, so the analytics query is declared before
   // the missing-org guard and gated with `enabled`.
-  const analyticsQuery = useQuery({
-    ...queryAnalyticsInsightsOptions(
+  const analyticsRequest = useMemo(
+    () =>
       buildOverviewAnalyticsRequest({
         dateRange,
         granularity,
         organizationId: activeOrganization?.id ?? "",
       }),
-    ),
+    [dateRange, granularity, activeOrganization?.id],
+  );
+
+  const analyticsQuery = useQuery({
+    ...queryAnalyticsInsightsOptions(analyticsRequest),
     enabled: Boolean(activeOrganization),
   });
 
@@ -82,6 +87,8 @@ export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewP
               </Button>
             </CardContent>
           </Card>
+        ) : analyticsQuery.isPending ? (
+          <p role="status">Loading analytics...</p>
         ) : (
           <>
             <Card>

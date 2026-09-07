@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { QueryAnalyticsInsightsResponseType } from "@voidhash/rpc";
 
 import {
@@ -28,6 +28,7 @@ interface ProjectOverviewProps {
   projectSlug: string;
 }
 
+/** Displays a project overview without rebuilding time ranges on result updates. */
 export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOverviewProps) => {
   const { user } = useAuth();
   const [dateRange, setDateRange] = useState<DateRange>("last_7d");
@@ -35,20 +36,25 @@ export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOvervi
   const activeOrganization = user.organizations.find((org) => org.slug === organizationSlug);
   const project = CurrentUser.getProjectBySlugs(user, organizationSlug, projectSlug);
 
-  if (!activeOrganization || !project) {
-    return <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "Project not found" }} />;
-  }
-
-  const analyticsQuery = useQuery(
-    queryAnalyticsInsightsOptions(
+  const analyticsRequest = useMemo(
+    () =>
       buildOverviewAnalyticsRequest({
         dateRange,
         granularity,
-        organizationId: activeOrganization.id,
-        projectId: project.id,
+        organizationId: activeOrganization?.id ?? "",
+        projectId: project?.id,
       }),
-    ),
+    [dateRange, granularity, activeOrganization?.id, project?.id],
   );
+
+  const analyticsQuery = useQuery({
+    ...queryAnalyticsInsightsOptions(analyticsRequest),
+    enabled: Boolean(activeOrganization && project),
+  });
+
+  if (!activeOrganization || !project) {
+    return <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "Project not found" }} />;
+  }
 
   if (analyticsQuery.error) {
     return (
@@ -60,6 +66,8 @@ export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOvervi
       />
     );
   }
+
+  if (analyticsQuery.isPending) return <p role="status">Loading analytics...</p>;
 
   const analyticsData = analyticsQuery.data as QueryAnalyticsInsightsResponseType | undefined;
   const resultsByKey = mapAnalyticsResultsByKey(analyticsData?.results ?? []);

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { QueryAnalyticsInsightsResponseType } from "@voidhash/rpc";
 import { Card, CardContent, Page, PageHeader, PageHeaderTitle, Switch } from "@voidhash/ui";
 
@@ -33,6 +33,7 @@ interface ProjectAnalyticsPageProps {
   title: string;
 }
 
+/** Displays project metrics with stable requests for the selected filters. */
 export const ProjectAnalyticsPage = ({
   columns = 2,
   metrics,
@@ -49,22 +50,26 @@ export const ProjectAnalyticsPage = ({
   );
   const project = CurrentUser.getProjectBySlugs(user, organizationSlug, projectSlug);
 
-  if (!activeOrganization || !project) {
-    return <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "Project not found" }} />;
-  }
-
-  const analyticsQuery = useQuery(
-    queryAnalyticsInsightsOptions(
+  const analyticsRequest = useMemo(
+    () =>
       buildMetricsAnalyticsRequest({
         dateRange,
         granularity,
+        organizationId: activeOrganization?.id ?? "",
         metrics,
-        organizationId: activeOrganization.id,
-        projectId: project.id,
+        projectId: project?.id,
       }),
-      includeTestData ? "all" : "production",
-    ),
+    [dateRange, granularity, activeOrganization?.id, metrics, project?.id],
   );
+
+  const analyticsQuery = useQuery({
+    ...queryAnalyticsInsightsOptions(analyticsRequest, includeTestData ? "all" : "production"),
+    enabled: Boolean(activeOrganization && project),
+  });
+
+  if (!activeOrganization || !project) {
+    return <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "Project not found" }} />;
+  }
 
   if (analyticsQuery.error) {
     return (
@@ -76,6 +81,8 @@ export const ProjectAnalyticsPage = ({
       />
     );
   }
+
+  if (analyticsQuery.isPending) return <p role="status">Loading analytics...</p>;
 
   const analyticsData = analyticsQuery.data as QueryAnalyticsInsightsResponseType | undefined;
   const resultsByKey = mapAnalyticsResultsByKey(analyticsData?.results ?? []);
