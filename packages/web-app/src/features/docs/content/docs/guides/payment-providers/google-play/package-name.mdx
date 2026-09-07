@@ -1,0 +1,37 @@
+---
+title: Find your Google Play package name
+description: Find the Android application ID for your Google Play app.
+---
+
+The **Google Play package name** identifies your Android app, for example `com.example.app`.
+
+<Steps>
+
+<Step>
+### Open your app module
+
+In Android Studio, open your app module's `build.gradle.kts` or `build.gradle` file.
+Find `applicationId` inside `android → defaultConfig`.
+
+</Step>
+
+<Step>
+### Check the release variant
+
+Use the application ID of the build uploaded to Google Play. Product flavors and
+`applicationIdSuffix` can change the final value. The `namespace` setting may be different;
+copy the application ID used by your release build.
+
+</Step>
+
+<Step>
+### Paste the package name
+
+Enter the complete identifier into **Google Play package name** in Voidhash, then save.
+
+</Step>
+
+</Steps>
+
+See Google's [application ID guide](https://developer.android.com/build/configure-app-module#set-application-id)
+for details on build variants and identifiers.

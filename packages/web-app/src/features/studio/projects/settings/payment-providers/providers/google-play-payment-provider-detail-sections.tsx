@@ -3,6 +3,7 @@
 import { Input } from "@voidhash/ui";
 import type { ReactNode } from "react";
 import type { FieldErrors, FieldPath, UseFormReturn } from "react-hook-form";
+import { WhereToFindGuide } from "@/features/docs/components/where-to-find-guide";
 import type { GooglePlayGlobalConfiguration } from "@/features/studio/lib/payment-providers/google-play";
 import { SettingsCard, SettingsRow } from "@/features/studio/settings";
 
@@ -14,10 +15,12 @@ import {
   PaymentProviderFieldValidationIndicator,
 } from "../components/payment-provider-validation";
 import {
+  GOOGLE_PLAY_FIELD_GUIDES,
   GOOGLE_PLAY_FIELD_LABELS,
   type GooglePlayTabId,
 } from "./google-play-payment-provider-detail-config";
 
+/** Renders Google Play setup tabs with validation and inline field guides. */
 export function GooglePlayPaymentProviderTabContent({
   activeTab,
   errors,
@@ -72,6 +75,12 @@ export function GooglePlayPaymentProviderTabContent({
           <SettingsCard>
             <SettingsRow
               description="Used by Voidhash to validate Google Play purchases server-side."
+              status={
+                <WhereToFindGuide
+                  fieldLabel={GOOGLE_PLAY_FIELD_LABELS.serviceAccountKey}
+                  guide={GOOGLE_PLAY_FIELD_GUIDES.serviceAccountKey}
+                />
+              }
               title="Service account key file"
             >
               <PaymentProviderTextFileField
@@ -151,6 +160,7 @@ function GooglePlayTextFieldRow({
       disabled={disabled}
       errors={errors}
       fieldLabels={GOOGLE_PLAY_FIELD_LABELS}
+      guide={GOOGLE_PLAY_FIELD_GUIDES[name]}
       name={name}
       optional={optional}
       placeholder={placeholder}

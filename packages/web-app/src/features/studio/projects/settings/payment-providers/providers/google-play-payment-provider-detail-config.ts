@@ -44,6 +44,16 @@ export const GOOGLE_PLAY_FIELD_LABELS: Record<keyof GooglePlayGlobalConfiguratio
   serviceAccountKey: "Service account key file",
 };
 
+const GOOGLE_PLAY_GUIDE_BASE = "guides/payment-providers/google-play";
+
+/** Maps Google Play configuration fields to their inline documentation guides. */
+export const GOOGLE_PLAY_FIELD_GUIDES: Record<keyof GooglePlayGlobalConfiguration, string> = {
+  googleRealTimeDeveloperNotificationForwardingUrl: `${GOOGLE_PLAY_GUIDE_BASE}/event-forwarding`,
+  googleRealTimeDeveloperNotificationTopicName: `${GOOGLE_PLAY_GUIDE_BASE}/real-time-developer-notifications`,
+  packageName: `${GOOGLE_PLAY_GUIDE_BASE}/package-name`,
+  serviceAccountKey: `${GOOGLE_PLAY_GUIDE_BASE}/service-account-key`,
+};
+
 const OPTIONAL_FIELDS = new Set<keyof GooglePlayGlobalConfiguration>([
   "googleRealTimeDeveloperNotificationForwardingUrl",
   "googleRealTimeDeveloperNotificationTopicName",

@@ -1,0 +1,48 @@
+---
+title: Find your Google Play RTDN topic name
+description: Create or find the Pub/Sub topic used for real-time developer notifications.
+---
+
+The optional **Google Play RTDN topic name** field stores the topic you use when managing
+notification delivery outside Voidhash. Entering a topic here does not create a Pub/Sub subscription.
+
+<Steps>
+
+<Step>
+### Find or create a topic
+
+In [Google Cloud Console](https://console.cloud.google.com), select your project and open
+**Pub/Sub → Topics**. Open your RTDN topic or create one.
+Copy its full name, such as `projects/example-project/topics/google-play-rtdn`.
+
+</Step>
+
+<Step>
+### Allow Google Play to publish
+
+In the topic's permissions, grant `google-play-developer-notifications@system.gserviceaccount.com`
+the **Pub/Sub Publisher** role.
+
+</Step>
+
+<Step>
+### Configure your app in Play Console
+
+Open your app in [Google Play Console](https://play.google.com/console), then go to
+**Monetize → Monetization setup → Real-time developer notifications**. Enable notifications,
+enter the full topic name, choose the notification types, send a test message, and save.
+
+</Step>
+
+<Step>
+### Copy the topic to Voidhash
+
+Paste the same full name into **Google Play RTDN topic name** and save. Configure a Pub/Sub
+subscription for your backend and confirm it receives the test message.
+
+</Step>
+
+</Steps>
+
+Follow Google's [RTDN setup guide](https://developer.android.com/google/play/billing/getting-ready#configure-rtdn)
+for subscription delivery options and troubleshooting.

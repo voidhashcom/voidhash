@@ -1,0 +1,33 @@
+---
+title: Set your raw Google events forwarding URL
+description: Choose the backend endpoint that receives forwarded Google Play notifications.
+---
+
+**Raw Google events forwarding URL** is optional. Use it when your backend needs a copy of the
+raw Google Play notification payloads received by Voidhash.
+
+<Steps>
+
+<Step>
+### Get your backend endpoint
+
+Use the URL your team has set up to receive Google Play events, for example
+`https://example.com/google-raw-events`. Your backend team supplies this value; Google Play
+Console does not generate it.
+
+</Step>
+
+<Step>
+### Enter the forwarding URL
+
+Paste the complete endpoint URL into **Raw Google events forwarding URL** and save the provider.
+Leave this field empty if you do not need a separate event copy.
+
+</Step>
+
+</Steps>
+
+Forwarding applies to notifications Voidhash receives. Setting this URL does not configure
+Google Play or subscribe your backend to a Pub/Sub topic. See the
+[RTDN topic guide](/docs/guides/payment-providers/google-play/real-time-developer-notifications)
+for topic setup.
