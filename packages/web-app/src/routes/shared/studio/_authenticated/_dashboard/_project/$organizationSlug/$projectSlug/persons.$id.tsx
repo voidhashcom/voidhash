@@ -2,11 +2,11 @@ import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 
+import { PersonPurchaseStatePanel } from "@/features/studio/persons/person-purchase-state";
 import { PersonFlagOverridesPanel } from "@/features/studio/feature-flags/components/person-detail-page/person-flag-overrides-panel";
 import { getPersonByDistinctIdOptions } from "@/features/studio/lib/tanstack-query/persons";
 import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
@@ -86,27 +86,7 @@ function PersonDetailPage() {
         <div className="grid grid-cols-12 gap-8">
           <div className="col-span-9">
             <div className="mt-8 space-y-8">
-              <Card className="gap-0 overflow-hidden pb-0">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-4">Purchases</CardTitle>
-                </CardHeader>
-                <CardContent className="divide-y divide-border border-border border-t px-0">
-                  <div className="flex h-full flex-col items-center justify-center py-6">
-                    <div className="text-muted-foreground">Person has not made any purchases.</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="gap-0 overflow-hidden pb-0">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-4">Unlocked Perks</CardTitle>
-                </CardHeader>
-                <CardContent className="divide-y divide-border border-border border-t px-0">
-                  <div className="flex h-full flex-col items-center justify-center py-6">
-                    <div className="text-muted-foreground">Person has no unlocked perks.</div>
-                  </div>
-                </CardContent>
-              </Card>
+              <PersonPurchaseStatePanel personId={person.personId} projectId={project.id} />
 
               {featureFlagsEnabled && (
                 <PersonFlagOverridesPanel personId={person.personId} projectId={project.id} />

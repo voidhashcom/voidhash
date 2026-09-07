@@ -2,6 +2,13 @@ import { queryKeys } from "@/features/studio/lib/tanstack-query";
 
 import { VoidhashRpc, eq } from "../effect-query";
 
+/** Queries recorded purchases and grants for a person in the current project. */
+export const getPersonPurchaseStateOptions = (options: { projectId: string; personId: string }) =>
+  eq.queryOptions({
+    queryFn: () => VoidhashRpc.request((rpc) => rpc.GetPersonPurchaseState(options)),
+    queryKey: ["person", options.projectId, options.personId, "purchase-state"],
+  });
+
 export const listPersonsOptions = (options: { projectId: string }) =>
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.ListPersons({ projectId: options.projectId })),

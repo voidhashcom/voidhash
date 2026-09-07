@@ -10,6 +10,7 @@ import {
 } from "@voidhash/rpc";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import { getPersonPurchaseState } from "./person-purchase-state.ts";
 
 const toRpcPerson = (person: {
   createdAt: Date | typeof Schema.Null.Type;
@@ -32,6 +33,7 @@ export const PersonRpcsLive = PersonRpcsDef.toLayer(
   Effect.gen(function* PersonRpcsLive() {
     const personService = yield* PersonService;
     return {
+      GetPersonPurchaseState: getPersonPurchaseState,
       CreatePerson: ({ distinctId, name, email, projectId }) =>
         personService
           .createPerson({
