@@ -16,7 +16,7 @@ namespace margelo::nitro::voidhash {
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("get", &HybridVoidhashStorageSpec::get);
       prototype.registerHybridMethod("set", &HybridVoidhashStorageSpec::set);
-      prototype.registerHybridMethod("delete", &HybridVoidhashStorageSpec::delete);
+      prototype.registerHybridMethod("remove", &HybridVoidhashStorageSpec::remove);
     });
   }
 

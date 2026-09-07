@@ -54,5 +54,10 @@ namespace margelo::nitro::voidhash {
     auto __result = method(_javaPart);
     return __result->toCpp();
   }
+  std::string JHybridVoidhashPlatformSpec::randomUUID() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JString>()>("randomUUID");
+    auto __result = method(_javaPart);
+    return __result->toStdString();
+  }
 
 } // namespace margelo::nitro::voidhash

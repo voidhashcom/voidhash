@@ -15,6 +15,8 @@ import com.margelo.nitro.voidhash.platform.VoidhashPlatformCore
 class HybridVoidhashPlatform : HybridVoidhashPlatformSpec() {
     private val core = VoidhashPlatformCore()
 
+    override fun randomUUID(): String = core.randomUUID()
+
     override fun getInfo(): NativePlatformInfo {
         val context: Context = requireNotNull(NitroModules.applicationContext) {
             "CONFIGURATION_MISSING: VoidhashPlatform used before the application started"

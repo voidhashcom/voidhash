@@ -5,11 +5,12 @@ var __importDefault =
     return mod && mod.__esModule ? mod : { default: mod };
   };
 Object.defineProperty(exports, "__esModule", { value: true });
-const require_utils_1 = require("@expo/require-utils");
+exports.addSchemeMetaData = void 0;
+/* oxlint-disable effect/avoid-try-catch, effect/use-path-service, effect/prefer-effect-is, typescript/unbound-method -- Expo plugins run in CommonJS and cannot import the ESM-only Effect runtime. */
+const node_path_1 = require("node:path");
 const config_plugins_1 = require("expo/config-plugins");
-const pathe_1 = require("pathe");
 const package_json_1 = __importDefault(require("../../package.json"));
-const PACKAGE_ROOT = (0, pathe_1.resolve)(__dirname, "..", "..");
+const PACKAGE_ROOT = (0, node_path_1.resolve)(__dirname, "..", "..");
 const POD_NAMES = ["VoidhashCore", "Voidhash"];
 const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
 /**
@@ -19,12 +20,20 @@ const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
  * where the workspace dependency is not installed.
  */
 const resolveCorePodDirectory = () => {
-  const installedPackage = (0, require_utils_1.resolveFrom)(
-    PACKAGE_ROOT,
-    "@voidhash/ios/package.json",
-  );
-  if (installedPackage) return (0, pathe_1.dirname)(installedPackage);
-  return (0, pathe_1.resolve)(PACKAGE_ROOT, "..", "ios");
+  try {
+    return (0, node_path_1.dirname)(
+      require.resolve("@voidhash/ios/package.json", { paths: [PACKAGE_ROOT] }),
+    );
+  } catch (error) {
+    if (
+      typeof error !== "object" ||
+      error === null ||
+      !("code" in error) ||
+      error.code !== "MODULE_NOT_FOUND"
+    )
+      throw error;
+    return (0, node_path_1.resolve)(PACKAGE_ROOT, "..", "ios");
+  }
 };
 /**
  * Adds the `VoidhashCore` development pod — the shared native core the Nitro module links
@@ -60,7 +69,7 @@ const withVoidhashCorePod = (config) =>
     if (anchor === undefined) {
       return podfileConfig;
     }
-    const podDirectory = (0, pathe_1.relative)(
+    const podDirectory = (0, node_path_1.relative)(
       podfileConfig.modRequest.platformProjectRoot,
       resolveCorePodDirectory(),
     );
@@ -79,7 +88,38 @@ const withVoidhashCorePod = (config) =>
     }).contents;
     return podfileConfig;
   });
-const withVoidhashReactNative = (config) => withVoidhashCorePod(config);
+/** Manifest meta-data key the native `VoidhashPlatform` hybrid reads the URL scheme(s) from. */
+const SCHEME_META_DATA_KEY = "com.voidhash.sdk.scheme";
+/**
+ * Mirrors `expo.scheme` into manifest meta-data. Android cannot enumerate its own
+ * intent-filter schemes at runtime, so this is how the SDK learns the deep-link scheme when
+ * `createVoidhashClient` is not given one explicitly.
+ */
+const addSchemeMetaData = (manifest, scheme) => {
+  const schemes = [scheme].flat().filter(
+    // oxlint-disable-next-line effect/prefer-effect-is -- the plugin is CommonJS and cannot import the ESM-only `effect`
+    (candidate) => typeof candidate === "string" && candidate !== "",
+  );
+  const [firstScheme] = schemes;
+  if (firstScheme === undefined) return manifest;
+  const application = config_plugins_1.AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
+  config_plugins_1.AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+    application,
+    SCHEME_META_DATA_KEY,
+    schemes.join(","),
+  );
+  return manifest;
+};
+exports.addSchemeMetaData = addSchemeMetaData;
+const withVoidhashScheme = (config) =>
+  (0, config_plugins_1.withAndroidManifest)(config, (manifestConfig) => {
+    manifestConfig.modResults = (0, exports.addSchemeMetaData)(
+      manifestConfig.modResults,
+      config.scheme,
+    );
+    return manifestConfig;
+  });
+const withVoidhashReactNative = (config) => withVoidhashScheme(withVoidhashCorePod(config));
 exports.default = (0, config_plugins_1.createRunOncePlugin)(
   withVoidhashReactNative,
   package_json_1.default.name,

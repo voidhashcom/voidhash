@@ -15,6 +15,7 @@ namespace margelo::nitro::voidhash {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("getInfo", &HybridVoidhashPlatformSpec::getInfo);
+      prototype.registerHybridMethod("randomUUID", &HybridVoidhashPlatformSpec::randomUUID);
     });
   }
 

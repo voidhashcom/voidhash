@@ -18,7 +18,7 @@ final class HybridVoidhashStorage: HybridVoidhashStorageSpec {
         }
     }
 
-    func delete(key: String) throws -> Promise<Void> {
+    func remove(key: String) throws -> Promise<Void> {
         return Promise.async {
             await self.core.delete(key)
         }

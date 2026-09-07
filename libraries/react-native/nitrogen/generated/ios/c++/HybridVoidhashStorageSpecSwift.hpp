@@ -84,8 +84,8 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<void>> delete(const std::string& key) override {
-      auto __result = _swiftPart.delete(key);
+    inline std::shared_ptr<Promise<void>> remove(const std::string& key) override {
+      auto __result = _swiftPart.remove(key);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

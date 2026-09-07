@@ -23,7 +23,7 @@ class HybridVoidhashStorage : HybridVoidhashStorageSpec() {
         return Promise.async { core.set(key, value) }
     }
 
-    override fun delete(key: String): Promise<Unit> {
+    override fun remove(key: String): Promise<Unit> {
         return Promise.async { core.delete(key) }
     }
 }

@@ -1,0 +1,60 @@
+name: React Native artifacts
+
+on:
+  pull_request:
+    paths:
+      - libraries/react-native/**
+      - libraries/ios/**
+      - libraries/android/**
+      - scripts/smoke-react-native-artifact.mjs
+      - pnpm-lock.yaml
+      - .github/workflows/native-artifacts.yml
+  push:
+    branches: [main]
+    paths:
+      - libraries/react-native/**
+      - libraries/ios/**
+      - libraries/android/**
+      - scripts/smoke-react-native-artifact.mjs
+      - pnpm-lock.yaml
+      - .github/workflows/native-artifacts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-artifacts-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Packed SDK (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ios
+            runner: macos-15
+          - platform: android
+            runner: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        if: matrix.platform == 'android'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @voidhash/paywalls build
+      - name: Regenerate, pack, prebuild and compile
+        run: pnpm --dir libraries/react-native test:artifact ${{ matrix.platform }} --compile

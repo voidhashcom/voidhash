@@ -32,6 +32,10 @@ abstract class HybridVoidhashPlatformSpec: HybridObject() {
   @Keep
   abstract fun getInfo(): NativePlatformInfo
 
+  @DoNotStrip
+  @Keep
+  abstract fun randomUUID(): String
+
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {
     return "[HybridObject VoidhashPlatform]"

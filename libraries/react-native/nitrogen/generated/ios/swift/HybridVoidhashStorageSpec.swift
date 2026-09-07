@@ -15,7 +15,7 @@ public protocol HybridVoidhashStorageSpec_protocol: HybridObject {
   // Methods
   func get(key: String) throws -> Promise<String?>
   func set(key: String, value: String) throws -> Promise<Void>
-  func delete(key: String) throws -> Promise<Void>
+  func remove(key: String) throws -> Promise<Void>
 }
 
 public extension HybridVoidhashStorageSpec_protocol {

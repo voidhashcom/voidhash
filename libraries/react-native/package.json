@@ -75,8 +75,9 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "expo-module build && tsc -p tsconfig.metro.json",
+    "build": "expo-module build && tsc -p tsconfig.metro.json && tsc -p plugin/tsconfig.json",
     "test": "vitest --config vitest.unit.mts run",
+    "test:artifact": "node ../../scripts/smoke-react-native-artifact.mjs",
     "test:android-engine": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p ../android :react-native-engine-tests:testDebugUnitTest --no-daemon",
     "test:android-purchase-coordinator": "\"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p android/coordinator-tests test --no-daemon",
     "test:storekit-purchase-coordinator": "swift test --package-path .",
@@ -89,7 +90,6 @@
     "specs": "pnpm run typescript && nitrogen --logLevel=\"debug\""
   },
   "dependencies": {
-    "@expo/require-utils": "^55.0.0",
     "@noble/hashes": "^2.2.0",
     "@voidhash/android": "workspace:*",
     "@voidhash/generated-clients": "workspace:*",

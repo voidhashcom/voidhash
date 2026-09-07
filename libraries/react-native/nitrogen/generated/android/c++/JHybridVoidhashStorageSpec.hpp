@@ -56,7 +56,7 @@ namespace margelo::nitro::voidhash {
     // Methods
     std::shared_ptr<Promise<std::optional<std::string>>> get(const std::string& key) override;
     std::shared_ptr<Promise<void>> set(const std::string& key, const std::string& value) override;
-    std::shared_ptr<Promise<void>> delete(const std::string& key) override;
+    std::shared_ptr<Promise<void>> remove(const std::string& key) override;
 
   private:
     jni::global_ref<JHybridVoidhashStorageSpec::JavaPart> _javaPart;

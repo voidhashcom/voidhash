@@ -39,7 +39,7 @@ abstract class HybridVoidhashStorageSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
-  abstract fun delete(key: String): Promise<Unit>
+  abstract fun remove(key: String): Promise<Unit>
 
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {

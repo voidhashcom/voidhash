@@ -79,8 +79,8 @@ namespace margelo::nitro::voidhash {
       return __promise;
     }();
   }
-  std::shared_ptr<Promise<void>> JHybridVoidhashStorageSpec::delete(const std::string& key) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* key */)>("delete");
+  std::shared_ptr<Promise<void>> JHybridVoidhashStorageSpec::remove(const std::string& key) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* key */)>("remove");
     auto __result = method(_javaPart, jni::make_jstring(key));
     return [&]() {
       auto __promise = Promise<void>::create();

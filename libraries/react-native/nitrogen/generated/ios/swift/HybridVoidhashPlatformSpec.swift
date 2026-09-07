@@ -14,6 +14,7 @@ public protocol HybridVoidhashPlatformSpec_protocol: HybridObject {
 
   // Methods
   func getInfo() throws -> NativePlatformInfo
+  func randomUUID() throws -> String
 }
 
 public extension HybridVoidhashPlatformSpec_protocol {

@@ -434,6 +434,17 @@ createVoidhashClient("vh_pk_...", {
 
 # Contributing
 
+## Native artifact smoke tests
+
+`pnpm test:artifact ios` packs the SDK and its native dependencies, installs them in an isolated
+Expo 55 project, and checks prebuild and Podfile idempotency. Set `EXPO_SMOKE_VERSION` to test
+another Expo version. Add `--compile` to compile the packed Swift and C++ bridges with Xcode
+and CocoaPods. `pnpm test:artifact android --compile` checks the packed Kotlin and JNI/C++
+bridges with the Android SDK and JDK 17. The runner prints its temporary fixture path for inspection.
+
+UUID generation uses native platform APIs and needs no app-owned Web Crypto polyfill. Rebuild
+the native app after updating the SDK so its Nitro specs and native implementation match.
+
 ## Migrating to the offline-first release
 
 Behavior that changed. All of it removes a failure mode; none of it needs a flag.

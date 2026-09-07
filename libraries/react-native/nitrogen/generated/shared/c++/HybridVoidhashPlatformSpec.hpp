@@ -17,6 +17,7 @@
 namespace margelo::nitro::voidhash { struct NativePlatformInfo; }
 
 #include "NativePlatformInfo.hpp"
+#include <string>
 
 namespace margelo::nitro::voidhash {
 
@@ -50,6 +51,7 @@ namespace margelo::nitro::voidhash {
     public:
       // Methods
       virtual NativePlatformInfo getInfo() = 0;
+      virtual std::string randomUUID() = 0;
 
     protected:
       // Hybrid Setup

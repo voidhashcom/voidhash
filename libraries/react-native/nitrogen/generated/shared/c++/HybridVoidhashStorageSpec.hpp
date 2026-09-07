@@ -52,7 +52,7 @@ namespace margelo::nitro::voidhash {
       // Methods
       virtual std::shared_ptr<Promise<std::optional<std::string>>> get(const std::string& key) = 0;
       virtual std::shared_ptr<Promise<void>> set(const std::string& key, const std::string& value) = 0;
-      virtual std::shared_ptr<Promise<void>> delete(const std::string& key) = 0;
+      virtual std::shared_ptr<Promise<void>> remove(const std::string& key) = 0;
 
     protected:
       // Hybrid Setup

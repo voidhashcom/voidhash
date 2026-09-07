@@ -22,6 +22,11 @@ struct NativePlatformSnapshot: Equatable, Sendable {
 /// Kept separate from the hybrid so the React Native Swift package can unit test it without
 /// React Native or Nitro; the hybrid only maps the snapshot into the generated struct.
 enum VoidhashPlatformCore {
+    /// Generates a lowercase UUID v4 using the operating system secure random source.
+    static func randomUUID() -> String {
+        UUID().uuidString.lowercased()
+    }
+
     /// Whether this binary was compiled with the `DEBUG` configuration.
     static var isDebugBuild: Bool {
         #if DEBUG

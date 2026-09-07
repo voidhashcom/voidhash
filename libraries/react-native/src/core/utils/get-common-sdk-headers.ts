@@ -4,8 +4,7 @@ import * as Arr from "effect/Array";
 import { SDK_VERSION } from "../constants";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
-
-const getNonce = () => globalThis.crypto.randomUUID();
+import { getNonce } from "./crypto";
 
 interface ReactNativeSdkHeaders {
   readonly "x-client-bundle-id": string;

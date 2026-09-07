@@ -42,4 +42,6 @@ export interface VoidhashPlatform extends HybridObject<{
 }> {
   /** Reads the metadata of the running app and device. */
   getInfo(): NativePlatformInfo;
+  /** Generates a lowercase UUID v4 using the operating system secure random source. */
+  randomUUID(): string;
 }

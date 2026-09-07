@@ -45,7 +45,7 @@ export const NativeStorageCacheAdapter = Layer.effect(
             key,
             message: `Native storage delete failed for "${key}"`,
           }),
-        try: () => storage.delete(key),
+        try: () => storage.remove(key),
       }),
     get: (key: string) =>
       Effect.tryPromise({

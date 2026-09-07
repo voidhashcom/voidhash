@@ -19,5 +19,5 @@ export interface VoidhashStorage extends HybridObject<{
   /** Stores [value] under [key], replacing anything already there. */
   set(key: string, value: string): Promise<void>;
   /** Removes the entry stored under [key]. */
-  delete(key: string): Promise<void>;
+  remove(key: string): Promise<void>;
 }

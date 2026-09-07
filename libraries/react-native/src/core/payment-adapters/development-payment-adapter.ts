@@ -8,10 +8,9 @@ import { Alert, Platform } from "react-native";
 import { Product, SubscriptionProduct } from "../entities/product";
 import { Transaction } from "../entities/transaction";
 import type { RuntimeProductDefinition } from "../schema/runtime";
+import { getNonce as transactionId } from "../utils/crypto";
 import { FailedToBuyProductError, FailedToGetProductsError, UserCancelledError } from "./errors";
 import { PaymentAdapter } from "./payment-adapter";
-
-const transactionId = () => globalThis.crypto.randomUUID();
 
 const makeProduct = (definition: RuntimeProductDefinition): Option.Option<Product> => {
   const configuration = definition.configuration.providers.development;

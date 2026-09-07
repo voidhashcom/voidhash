@@ -35,6 +35,9 @@ data class NativePlatformSnapshot(
 class VoidhashPlatformCore(
     private val platformInfoProvider: (Context) -> PlatformInfo = PlatformInfo::fromContext,
 ) {
+    /** Generates a lowercase UUID v4 using the platform secure random source. */
+    fun randomUUID(): String = java.util.UUID.randomUUID().toString()
+
     /** Builds the snapshot for the app [context] belongs to. */
     fun snapshot(context: Context): NativePlatformSnapshot =
         snapshot(platformInfoProvider(context), readUrlSchemes(context))

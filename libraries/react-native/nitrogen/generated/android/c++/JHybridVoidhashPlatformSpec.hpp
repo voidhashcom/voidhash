@@ -55,6 +55,7 @@ namespace margelo::nitro::voidhash {
   public:
     // Methods
     NativePlatformInfo getInfo() override;
+    std::string randomUUID() override;
 
   private:
     jni::global_ref<JHybridVoidhashPlatformSpec::JavaPart> _javaPart;

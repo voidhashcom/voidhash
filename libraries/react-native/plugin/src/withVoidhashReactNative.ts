@@ -1,4 +1,5 @@
-import { resolveFrom } from "@expo/require-utils";
+/* oxlint-disable effect/avoid-try-catch, effect/use-path-service, effect/prefer-effect-is, typescript/unbound-method -- Expo plugins run in CommonJS and cannot import the ESM-only Effect runtime. */
+import { dirname, relative, resolve } from "node:path";
 import type { ExpoConfig } from "expo/config";
 import type { ConfigPlugin } from "expo/config-plugins";
 import {
@@ -8,7 +9,6 @@ import {
   withAndroidManifest,
   withPodfile,
 } from "expo/config-plugins";
-import { dirname, relative, resolve } from "pathe";
 
 import pkg from "../../package.json";
 
@@ -25,9 +25,18 @@ const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
  * where the workspace dependency is not installed.
  */
 const resolveCorePodDirectory = (): string => {
-  const installedPackage = resolveFrom(PACKAGE_ROOT, "@voidhash/ios/package.json");
-  if (installedPackage) return dirname(installedPackage);
-  return resolve(PACKAGE_ROOT, "..", "ios");
+  try {
+    return dirname(require.resolve("@voidhash/ios/package.json", { paths: [PACKAGE_ROOT] }));
+  } catch (error) {
+    if (
+      typeof error !== "object" ||
+      error === null ||
+      !("code" in error) ||
+      error.code !== "MODULE_NOT_FOUND"
+    )
+      throw error;
+    return resolve(PACKAGE_ROOT, "..", "ios");
+  }
 };
 
 /**
