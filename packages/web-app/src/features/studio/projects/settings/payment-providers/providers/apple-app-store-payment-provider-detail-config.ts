@@ -41,6 +41,7 @@ export const APPLE_APP_STORE_TABS: AppleAppStorePaymentProviderDetailTab[] = [
     fields: [
       "appStoreConnectApiIssuerId",
       "appStoreConnectApiKeyId",
+      "appStoreConnectApiPrivateKey",
       "appStoreConnectApiVendorNumber",
     ],
     id: "app-store-connect-api",
@@ -73,6 +74,7 @@ export const APPLE_APP_STORE_FIELD_LABELS: Record<keyof AppleAppStoreGlobalConfi
     appAppleId: "App Apple ID",
     appStoreConnectApiIssuerId: "Issuer ID",
     appStoreConnectApiKeyId: "Key ID",
+    appStoreConnectApiPrivateKey: "P8 key file",
     appStoreConnectApiVendorNumber: "Vendor Number",
     appleServerNotificationForwardingUrl: "Apple Server Notification Forwarding URL",
     appleSmallBusinessProgramEndDate: "End date",
@@ -101,6 +103,7 @@ export const APPLE_APP_STORE_FIELD_GUIDES: Partial<
   appAppleId: `${APPLE_APP_STORE_GUIDE_BASE}/app-apple-id`,
   appStoreConnectApiIssuerId: `${APPLE_APP_STORE_GUIDE_BASE}/app-store-connect-api`,
   appStoreConnectApiKeyId: `${APPLE_APP_STORE_GUIDE_BASE}/app-store-connect-api`,
+  appStoreConnectApiPrivateKey: `${APPLE_APP_STORE_GUIDE_BASE}/app-store-connect-api`,
   appStoreConnectApiVendorNumber: `${APPLE_APP_STORE_GUIDE_BASE}/app-store-connect-api`,
   appleServerNotificationForwardingUrl: `${APPLE_APP_STORE_GUIDE_BASE}/apple-server-notifications`,
   appleSmallBusinessProgramEndDate: `${APPLE_APP_STORE_GUIDE_BASE}/apple-small-business-program`,

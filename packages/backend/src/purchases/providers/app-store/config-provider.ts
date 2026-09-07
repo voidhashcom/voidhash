@@ -3,7 +3,7 @@
  * configuration / product flow needs (`PaymentProviderConfigurationService`,
  * `PaymentProviderProductService`): the canonical configuration schema, key
  * derivation, default configuration blobs, and **encrypt-on-write** of the
- * secret Apple PKCS8 in-app-purchase key.
+ * secret Apple PKCS8 private keys.
  *
  * Deliberately separate from the full record engine (`./payment-provider.ts`):
  * validating and persisting a configuration only needs the schema and
@@ -53,6 +53,8 @@ export const globalConfiguration = Schema.Struct({
   inAppPurchasePrivateKey: Schema.String.check(Schema.isMinLength(1)),
   appStoreConnectApiIssuerId: Schema.String.check(Schema.isMinLength(1)),
   appStoreConnectApiKeyId: Schema.String.check(Schema.isMinLength(1)),
+  /** Optional so existing configurations remain valid before an API key is uploaded. */
+  appStoreConnectApiPrivateKey: Schema.optional(Schema.String),
   appStoreConnectApiVendorNumber: Schema.String.check(Schema.isMinLength(1)),
   appleServerNotificationForwardingUrl: Schema.String,
   appleSmallBusinessProgramStartDate: Schema.optional(Schema.String),
@@ -150,6 +152,7 @@ export const makeAppStoreConfigProvider = (
       inAppPurchasePrivateKey: "",
       appStoreConnectApiIssuerId: "",
       appStoreConnectApiKeyId: "",
+      appStoreConnectApiPrivateKey: "",
       appStoreConnectApiVendorNumber: "",
       appleServerNotificationForwardingUrl: "",
       appleSmallBusinessProgramStartDate: "",
@@ -172,16 +175,28 @@ export const makeAppStoreConfigProvider = (
         (error) => new PaymentProviderConfigurationValidationError({ cause: error.message }),
       ),
       Effect.flatMap((parsedConfiguration) =>
-        // Encrypt the Apple PKCS8 key before it is persisted (idempotent — a
+        // Encrypt the Apple PKCS8 keys before persistence (idempotent — a
         // re-validated, already-encrypted value passes through unchanged). A
         // `SecretKeyError` here means the configured encryption key is broken
         // at runtime, not that the operator's configuration is invalid — fail
         // as a defect (500) rather than mislabel it a validation error.
-        secretCrypto.encrypt(parsedConfiguration.inAppPurchasePrivateKey).pipe(
-          Effect.map((inAppPurchasePrivateKey) => ({
+        Effect.all(
+          {
+            inAppPurchasePrivateKey: secretCrypto.encrypt(
+              parsedConfiguration.inAppPurchasePrivateKey,
+            ),
+            appStoreConnectApiPrivateKey: Effect.gen(function* () {
+              const privateKey = parsedConfiguration.appStoreConnectApiPrivateKey;
+              if (!privateKey) return privateKey;
+              return yield* secretCrypto.encrypt(privateKey);
+            }),
+          },
+          { concurrency: 1 },
+        ).pipe(
+          Effect.map((privateKeys) => ({
             parsedConfiguration: encodeGlobalConfiguration({
               ...parsedConfiguration,
-              inAppPurchasePrivateKey,
+              ...privateKeys,
             }),
             paymentProviderKey: `${parsedConfiguration.bundleId}`,
           })),

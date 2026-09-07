@@ -150,6 +150,28 @@ export function AppleAppStorePaymentProviderTabContent({
               placeholder="XXXXXXXXXX"
               title="Key ID"
             />
+            <SettingsRow
+              description="Upload the .p8 private key for the App Store Connect API key above."
+              status={
+                APPLE_APP_STORE_FIELD_GUIDES.appStoreConnectApiPrivateKey ? (
+                  <WhereToFindGuide
+                    fieldLabel="P8 key file"
+                    guide={APPLE_APP_STORE_FIELD_GUIDES.appStoreConnectApiPrivateKey}
+                  />
+                ) : undefined
+              }
+              title="P8 key file"
+            >
+              <P8PrivateKeyField
+                control={form.control}
+                name="appStoreConnectApiPrivateKey"
+                validationIndicator={getAppleFieldValidationIndicator({
+                  errors,
+                  name: "appStoreConnectApiPrivateKey",
+                  value: values.appStoreConnectApiPrivateKey,
+                })}
+              />
+            </SettingsRow>
             <AppleTextFieldRow
               control={form.control}
               description="Find this on the Payments and Financial Reports page in App Store Connect."

@@ -31,6 +31,9 @@ export const appleAppStoreGlobalConfigurationSchema = z.object({
   appStoreConnectApiKeyId: z.string().min(1, {
     message: "Key ID is required",
   }),
+  appStoreConnectApiPrivateKey: z.string().min(1, {
+    message: "Private key is required",
+  }),
   appStoreConnectApiVendorNumber: z.string().min(1, {
     message: "Vendor Number is required",
   }),
@@ -65,6 +68,7 @@ export const appleAppStore = createPaymentProvider({
     inAppPurchasePrivateKey: "",
     appStoreConnectApiIssuerId: "",
     appStoreConnectApiKeyId: "",
+    appStoreConnectApiPrivateKey: "",
     appStoreConnectApiVendorNumber: "",
     appleServerNotificationForwardingUrl: "",
     appleSmallBusinessProgramStartDate: "",

@@ -1,10 +1,10 @@
 ---
 title: Find App Store Connect API values
-description: Find the Issuer ID, Key ID, and Vendor Number that Voidhash asks for.
+description: Find the Issuer ID, Key ID, P8 private key, and Vendor Number that Voidhash asks for.
 ---
 
 Voidhash uses an App Store Connect API team key to read product metadata for your app. You collect
-three values from App Store Connect: the **Issuer ID**, the **Key ID**, and your **Vendor Number**.
+the **Issuer ID**, **Key ID**, **P8 private key**, and **Vendor Number** from App Store Connect.
 
 <Steps>
 
@@ -34,7 +34,8 @@ Generate or select the Team Key that Voidhash will use for product metadata acce
 **Key ID** into Voidhash.
 
 If you generate a new key, Apple offers its `.p8` file for download only once. Store that download
-securely with your team's credentials.
+securely with your team's credentials, then upload it to **P8 key file** in Voidhash's
+**App Store Connect API** tab. This is separate from the key in the **In-app purchase key** tab.
 
 </Step>
 
