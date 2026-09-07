@@ -5,6 +5,8 @@ import { useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { createHeroDistortionPass, perlinWarpShader } from "./hero-shader-distortion";
+
 const SVG_WIDTH = 1654;
 const SVG_HEIGHT = 1053;
 const DEFAULT_ANGLE_DEGREES = 45.08;
@@ -38,6 +40,9 @@ uniform float uTime;
 uniform float uReveal;
 uniform float uSettle;
 uniform float uUsePerlinSource;
+uniform float uUseWarpTexture;
+uniform sampler2D uWarpTexture;
+uniform vec2 uWarpUvTransform;
 
 const vec2 SVG_SIZE = vec2(${SVG_WIDTH.toFixed(1)}, ${SVG_HEIGHT.toFixed(1)});
 const float SVG_BLUR = 83.45;
@@ -65,94 +70,15 @@ float insideView(vec2 uv) {
   return step(0.0, uv.x) * step(0.0, uv.y) * step(uv.x, 1.0) * step(uv.y, 1.0);
 }
 
-vec4 mod289(vec4 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
-
-vec3 mod289(vec3 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
-
-vec4 permute(vec4 x) {
-  return mod289(((x * 34.0) + 10.0) * x);
-}
-
-vec4 taylorInvSqrt(vec4 r) {
-  return 1.79284291400159 - 0.85373472095314 * r;
-}
-
-float snoise(vec3 v) {
-  const vec2 c = vec2(1.0 / 6.0, 1.0 / 3.0);
-  const vec4 d = vec4(0.0, 0.5, 1.0, 2.0);
-
-  vec3 i = floor(v + dot(v, c.yyy));
-  vec3 x0 = v - i + dot(i, c.xxx);
-
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min(g.xyz, l.zxy);
-  vec3 i2 = max(g.xyz, l.zxy);
-
-  vec3 x1 = x0 - i1 + c.xxx;
-  vec3 x2 = x0 - i2 + c.yyy;
-  vec3 x3 = x0 - d.yyy;
-
-  i = mod289(i);
-  vec4 p = permute(permute(permute(
-    i.z + vec4(0.0, i1.z, i2.z, 1.0))
-    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-
-  float n_ = 0.142857142857;
-  vec3 ns = n_ * d.wyz - d.xzx;
-  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_);
-  vec4 x = x_ * ns.x + ns.yyyy;
-  vec4 y = y_ * ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
-  vec4 b0 = vec4(x.xy, y.xy);
-  vec4 b1 = vec4(x.zw, y.zw);
-  vec4 s0 = floor(b0) * 2.0 + 1.0;
-  vec4 s1 = floor(b1) * 2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
-  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
-  vec3 p0 = vec3(a0.xy, h.x);
-  vec3 p1 = vec3(a0.zw, h.y);
-  vec3 p2 = vec3(a1.xy, h.z);
-  vec3 p3 = vec3(a1.zw, h.w);
-  vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
-  p0 *= norm.x;
-  p1 *= norm.y;
-  p2 *= norm.z;
-  p3 *= norm.w;
-  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
-  m = m * m;
-
-  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
-}
-
-float perlinSurface(vec2 uv, float time) {
-  vec2 p = (uv - 0.5) * vec2(3.4, 5.2);
-  float low = snoise(vec3(p * 0.19, time * 0.072));
-  float mid = snoise(vec3(p * 0.8 + vec2(7.4, -3.2), time * 0.1188));
-  float high = snoise(vec3(p * 1.5 + vec2(-2.0, 5.7), time * 0.1728));
-
-  return (low * 0.62 + mid * 0.28 + high * 0.1) * 1.42;
-}
+${perlinWarpShader}
 
 vec3 sampleGradient(vec2 screenUv, vec2 resolution, vec2 drift) {
   vec2 perlinWarp = vec2(0.0);
 
   if (uUsePerlinSource > 0.5) {
-    float epsilon = 0.012;
-    float height = perlinSurface(screenUv, uTime);
-    vec2 slope = vec2(
-      perlinSurface(screenUv + vec2(epsilon, 0.0), uTime) - height,
-      perlinSurface(screenUv + vec2(0.0, epsilon), uTime) - height
-    ) / epsilon;
-    perlinWarp = slope * vec2(0.012, 0.008) + height * vec2(0.006, -0.004);
+    perlinWarp = uUseWarpTexture > 0.5
+      ? texture2D(uWarpTexture, screenUv * uWarpUvTransform.x + uWarpUvTransform.y).xy
+      : samplePerlinWarp(screenUv, uTime);
   }
 
   float canvasAspect = resolution.x / resolution.y;
@@ -229,8 +155,8 @@ void main() {
   vec2 leftUv = mix(screenUv, vec2(0.0, targetY), refractionAmount);
   vec2 rightUv = mix(screenUv, vec2(1.0, targetY), refractionAmount);
   float sideMix = smoothstep(uCenter.x - 0.1, uCenter.x + 0.1, screenUv.x);
-  // Outside the central blend, only one sample contributes. In the Perlin source each
-  // discarded sample would otherwise evaluate nine simplex noise functions per pixel.
+  // Outside the central blend, only one sample contributes. Each direct Perlin sample
+  // would otherwise evaluate nine simplex noise functions per pixel.
   vec3 color;
   if (sideMix == 0.0) {
     color = sampleGradient(leftUv, resolution, drift);
@@ -267,8 +193,9 @@ function HeroShaderPlane({
   settings: Required<LenticularShaderSettings>;
   usePerlinSource: boolean;
 }) {
-  const { gl, size } = useThree();
+  const { gl, size, invalidate } = useThree();
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const distortionRef = useRef<ReturnType<typeof createHeroDistortionPass>>(null);
   const elapsedRef = useRef(0);
   const revealedRef = useRef(false);
 
@@ -285,9 +212,34 @@ function HeroShaderPlane({
       uStrength: { value: 0 },
       uTime: { value: 0 },
       uUsePerlinSource: { value: 0 },
+      uUseWarpTexture: { value: 0 },
+      uWarpTexture: { value: null },
+      uWarpUvTransform: { value: new THREE.Vector2() },
     }),
     [],
   );
+
+  useEffect(() => {
+    const material = materialRef.current;
+    if (!material || !usePerlinSource) {
+      return;
+    }
+    const distortion = createHeroDistortionPass(gl, invalidate);
+    if (!distortion) {
+      return;
+    }
+    distortionRef.current = distortion;
+    material.uniforms.uWarpTexture.value = distortion.texture;
+    material.uniforms.uWarpUvTransform.value.set(distortion.uvScale, distortion.uvOffset);
+    material.uniforms.uUseWarpTexture.value = 1;
+    invalidate();
+    return () => {
+      distortionRef.current = null;
+      material.uniforms.uUseWarpTexture.value = 0;
+      material.uniforms.uWarpTexture.value = null;
+      distortion.dispose();
+    };
+  }, [gl, invalidate, usePerlinSource]);
 
   useEffect(() => {
     const material = materialRef.current;
@@ -335,6 +287,7 @@ function HeroShaderPlane({
     if (animateIdle) {
       material.uniforms.uTime.value = elapsedRef.current;
     }
+    distortionRef.current?.render(material.uniforms.uTime.value);
   });
 
   return (
