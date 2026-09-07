@@ -165,6 +165,12 @@ vec3 sampleGradient(vec2 screenUv, vec2 resolution, vec2 drift) {
   // outside [0,1] and paint a black sliver along the edges.
   vec2 svgPoint = (screenUv - 0.5 + perlinWarp) * viewSize + SVG_SIZE * 0.5 + drift;
 
+  float backgroundMask = ellipseMask(svgPoint, vec2(820.5, -380.0), vec2(1374.5, 1375.0));
+  // An opaque final layer completely hides the other three ellipses.
+  if (backgroundMask == 1.0) {
+    return BACKGROUND;
+  }
+
   vec3 color = vec3(0.035, 0.451, 1.0);
 
   color = composite(
@@ -185,7 +191,7 @@ vec3 sampleGradient(vec2 screenUv, vec2 resolution, vec2 drift) {
   color = composite(
     color,
     BACKGROUND,
-    ellipseMask(svgPoint, vec2(820.5, -380.0), vec2(1374.5, 1375.0))
+    backgroundMask
   );
 
   return mix(BACKGROUND, color, insideView(screenUv));
@@ -223,11 +229,20 @@ void main() {
   vec2 leftUv = mix(screenUv, vec2(0.0, targetY), refractionAmount);
   vec2 rightUv = mix(screenUv, vec2(1.0, targetY), refractionAmount);
   float sideMix = smoothstep(uCenter.x - 0.1, uCenter.x + 0.1, screenUv.x);
-  vec3 color = mix(
-    sampleGradient(leftUv, resolution, drift),
-    sampleGradient(rightUv, resolution, drift),
-    sideMix
-  );
+  // Outside the central blend, only one sample contributes. In the Perlin source each
+  // discarded sample would otherwise evaluate nine simplex noise functions per pixel.
+  vec3 color;
+  if (sideMix == 0.0) {
+    color = sampleGradient(leftUv, resolution, drift);
+  } else if (sideMix == 1.0) {
+    color = sampleGradient(rightUv, resolution, drift);
+  } else {
+    color = mix(
+      sampleGradient(leftUv, resolution, drift),
+      sampleGradient(rightUv, resolution, drift),
+      sideMix
+    );
+  }
 
   gl_FragColor = vec4(mix(BACKGROUND, color, uReveal), 1.0);
 }
@@ -347,7 +362,8 @@ export function HeroShader({
 }) {
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
+  const [documentVisible, setDocumentVisible] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const resolvedSettings = {
     angleDegrees: settings.angleDegrees ?? DEFAULT_ANGLE_DEGREES,
@@ -363,11 +379,16 @@ export function HeroShader({
       return;
     }
 
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
-      rootMargin: "160px",
-    });
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting));
     observer.observe(container);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const updateVisibility = () => setDocumentVisible(!document.hidden);
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
   }, []);
 
   return (
@@ -379,12 +400,12 @@ export function HeroShader({
       <Canvas
         className="h-full w-full"
         dpr={[1, 2]}
-        // The drift is invisible while the canvas is offscreen, so the render loop only runs in
-        // view — pages with two of these shaders would otherwise pay for both on every frame of
-        // the whole scroll. The reveal still runs to completion so a paused canvas never resumes
-        // mid-fade. Antialiasing is off because the scene is a single full-viewport quad — MSAA
-        // only touches geometry edges and there are none to smooth.
-        frameloop={visible || !revealed ? "always" : "never"}
+        // Finish the reveal even offscreen so scrolling doesn't introduce a delayed fade.
+        // Demand mode then preserves resize/settings redraws without continuously rendering
+        // hidden canvases or identical reduced-motion frames.
+        frameloop={
+          documentVisible && (!revealed || (visible && !prefersReducedMotion)) ? "always" : "demand"
+        }
         gl={{ alpha: false, antialias: false, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
