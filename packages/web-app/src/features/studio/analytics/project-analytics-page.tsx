@@ -82,8 +82,6 @@ export const ProjectAnalyticsPage = ({
     );
   }
 
-  if (analyticsQuery.isPending) return <p role="status">Loading analytics...</p>;
-
   const analyticsData = analyticsQuery.data as QueryAnalyticsInsightsResponseType | undefined;
   const resultsByKey = mapAnalyticsResultsByKey(analyticsData?.results ?? []);
   const metricCards: OverviewMetricCardData[] = buildMetricCards(metrics, resultsByKey);
@@ -111,7 +109,11 @@ export const ProjectAnalyticsPage = ({
       <div className="mx-auto w-full max-w-7xl px-4 pt-4">
         <Card>
           <CardContent className="px-0 py-0">
-            <OverviewMetricsGrid columns={columns} metrics={metricCards} />
+            <OverviewMetricsGrid
+              columns={columns}
+              metrics={metricCards}
+              isPending={analyticsQuery.isPending}
+            />
           </CardContent>
         </Card>
       </div>

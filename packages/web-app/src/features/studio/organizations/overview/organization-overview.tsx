@@ -87,8 +87,6 @@ export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewP
               </Button>
             </CardContent>
           </Card>
-        ) : analyticsQuery.isPending ? (
-          <p role="status">Loading analytics...</p>
         ) : (
           <>
             <Card>
@@ -97,6 +95,7 @@ export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewP
               </CardHeader>
               <CardContent className="px-0 py-0">
                 <TodayChart
+                  isPending={analyticsQuery.isPending}
                   grossRevenue={todayChart.grossRevenue}
                   timeSeries={todayChart.timeSeries}
                   yesterdayRevenue={todayChart.yesterdayRevenue}
@@ -105,6 +104,7 @@ export const OrganizationOverview = ({ organizationSlug }: OrganizationOverviewP
             </Card>
             <div className="mt-4">
               <OverviewSection
+                isPending={analyticsQuery.isPending}
                 dateRange={dateRange}
                 granularity={granularity}
                 metrics={metrics}

@@ -198,7 +198,7 @@ const buildPredicate = (
 
 const startOfToday = () => {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 };
 
 const buildYesterdayRange = (): AnalyticsTimeRangeType => {
@@ -211,7 +211,8 @@ const buildYesterdayRange = (): AnalyticsTimeRangeType => {
 };
 
 const buildPreviousRange = (range: DateRange): AnalyticsTimeRangeType => {
-  const now = new Date();
+  // Minute precision keeps comparison keys reusable within the cache freshness window.
+  const now = new Date(Math.floor(Date.now() / 60_000) * 60_000);
   const durationDays = range === "last_7d" ? 7 : range === "last_30d" ? 30 : 90;
   const currentStart = new Date(now.getTime() - durationDays * 24 * 60 * 60 * 1000);
 
@@ -236,6 +237,7 @@ const mapGranularity = (granularity: Granularity): AnalyticsGranularityType => {
 const buildProjectFilter = (projectId?: string): AnalyticsFilterType | undefined =>
   projectId ? buildPredicate("project.id", "eq", projectId) : undefined;
 
+/** Builds current and comparison queries with minute-stable comparison ranges. */
 export const buildMetricsAnalyticsRequest = ({
   dateRange,
   granularity,
@@ -279,6 +281,7 @@ export const buildMetricsAnalyticsRequest = ({
   };
 };
 
+/** Builds the dashboard batch, aligning yesterday with the backend's UTC today. */
 export const buildOverviewAnalyticsRequest = ({
   dateRange,
   granularity,

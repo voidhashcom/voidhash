@@ -67,8 +67,6 @@ export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOvervi
     );
   }
 
-  if (analyticsQuery.isPending) return <p role="status">Loading analytics...</p>;
-
   const analyticsData = analyticsQuery.data as QueryAnalyticsInsightsResponseType | undefined;
   const resultsByKey = mapAnalyticsResultsByKey(analyticsData?.results ?? []);
   const todayChart = buildTodayChartData(resultsByKey);
@@ -83,6 +81,7 @@ export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOvervi
           </CardHeader>
           <CardContent className="px-0 py-0">
             <TodayChart
+              isPending={analyticsQuery.isPending}
               grossRevenue={todayChart.grossRevenue}
               timeSeries={todayChart.timeSeries}
               yesterdayRevenue={todayChart.yesterdayRevenue}
@@ -92,6 +91,7 @@ export const ProjectOverview = ({ organizationSlug, projectSlug }: ProjectOvervi
       </div>
       <div className="mt-4">
         <OverviewSection
+          isPending={analyticsQuery.isPending}
           dateRange={dateRange}
           granularity={granularity}
           metrics={metrics}

@@ -63,7 +63,7 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
               organizationId: query.context.organizationId,
               queries: [{ ...query, breakdowns: toMutableBreakdowns(query.breakdowns) }],
             }),
-          { concurrency: 1 },
+          { concurrency: 4 },
         ).pipe(
           Effect.map((results) => ({ results: results.flat() })),
           Effect.catchTags({

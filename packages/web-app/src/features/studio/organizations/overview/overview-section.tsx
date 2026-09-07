@@ -18,6 +18,7 @@ interface OverviewSectionProps {
   columns?: 2 | 3;
   dateRange: DateRange;
   granularity: Granularity;
+  isPending?: boolean;
   metrics: OverviewMetricCardData[];
   onDateRangeChange: (range: DateRange) => void;
   onGranularityChange: (granularity: Granularity) => void;
@@ -34,10 +35,16 @@ const CHART_COLORS = [
 
 interface OverviewMetricsGridProps {
   columns?: 2 | 3;
+  isPending?: boolean;
   metrics: OverviewMetricCardData[];
 }
 
-export const OverviewMetricsGrid = ({ columns = 3, metrics }: OverviewMetricsGridProps) => (
+/** Renders metric cards or their loading skeletons in the same grid. */
+export const OverviewMetricsGrid = ({
+  columns = 3,
+  metrics,
+  isPending,
+}: OverviewMetricsGridProps) => (
   <div
     className={cn(
       "grid gap-0 py-0",
@@ -47,6 +54,7 @@ export const OverviewMetricsGrid = ({ columns = 3, metrics }: OverviewMetricsGri
     {metrics.map((metric, index) => (
       <MetricCard
         key={metric.id}
+        isPending={isPending}
         chartColor={CHART_COLORS[index % CHART_COLORS.length] ?? CHART_COLORS[0]}
         className={cn(
           "border-border",
@@ -69,11 +77,13 @@ export const OverviewMetricsGrid = ({ columns = 3, metrics }: OverviewMetricsGri
   </div>
 );
 
+/** Renders the overview filters and metric grid. */
 export const OverviewSection = ({
   columns = 3,
   dateRange,
   granularity,
   metrics,
+  isPending,
   onDateRangeChange,
   onGranularityChange,
   title = "Your overview",
@@ -91,7 +101,7 @@ export const OverviewSection = ({
       </CardAction>
     </CardHeader>
     <CardContent className="px-0 py-0">
-      <OverviewMetricsGrid columns={columns} metrics={metrics} />
+      <OverviewMetricsGrid columns={columns} metrics={metrics} isPending={isPending} />
     </CardContent>
   </Card>
 );

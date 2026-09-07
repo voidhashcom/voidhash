@@ -4,6 +4,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   cn,
+  Skeleton,
 } from "@voidhash/ui";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
@@ -11,6 +12,7 @@ import { formatMetricValue, formatPercentChange, type MetricValueFormat } from "
 import type { OverviewTimeSeriesPoint } from "./today-chart";
 
 interface MetricCardProps {
+  isPending?: boolean;
   label: string;
   currentValue: number;
   previousValue: number | null;
@@ -21,8 +23,10 @@ interface MetricCardProps {
   className?: string;
 }
 
+/** Renders an overview metric with a dimension-matched loading state. */
 export const MetricCard = ({
   label,
+  isPending = false,
   currentValue,
   previousValue,
   percentChange,
@@ -31,6 +35,29 @@ export const MetricCard = ({
   className,
   chartColor = "var(--chart-1)",
 }: MetricCardProps) => {
+  if (isPending) {
+    return (
+      <div
+        className={cn("ring-0 rounded-none", className)}
+        aria-busy="true"
+        aria-label={`Loading ${label}`}
+      >
+        <div className="px-4 py-4">
+          <div className="text-muted-foreground text-sm">{label}</div>
+          <div className="mt-1 flex items-baseline gap-3 my-2 pt-1">
+            <Skeleton className="h-6 w-28" />
+          </div>
+          <div className="mt-1">
+            <Skeleton className="h-5 w-40" />
+          </div>
+        </div>
+        <div className="px-4 py-4">
+          <Skeleton className="aspect-video w-full" />
+        </div>
+      </div>
+    );
+  }
+
   const isPositive = percentChange === null ? true : percentChange >= 0;
   const dataKey = "value";
 

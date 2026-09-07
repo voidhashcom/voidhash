@@ -17,6 +17,7 @@ export const queryAnalyticsInsightsOptions = (
           .pipe(RpcClient.withHeaders({ "x-environment": environment })),
       ),
     queryKey: [...queryKeys.analytics.query(options), environment],
+    staleTime: 60_000,
   });
 
 /** Build query options for a project's recent event stream. */
