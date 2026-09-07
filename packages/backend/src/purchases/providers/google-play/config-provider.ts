@@ -32,8 +32,12 @@ const ServiceAccountKey = Schema.Struct({
 });
 
 export const globalConfiguration = Schema.Struct({
-  googleRealTimeDeveloperNotificationForwardingUrl: Schema.String,
-  googleRealTimeDeveloperNotificationTopicName: Schema.String,
+  googleRealTimeDeveloperNotificationForwardingUrl: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("")),
+  ),
+  googleRealTimeDeveloperNotificationTopicName: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("")),
+  ),
   packageName: Schema.String.check(Schema.isPattern(PACKAGE_NAME_PATTERN)),
   serviceAccountKey: Schema.String.check(Schema.isMinLength(1)),
 });
