@@ -25,14 +25,6 @@ interface OverviewSectionProps {
   title?: string;
 }
 
-const CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
-
 interface OverviewMetricsGridProps {
   columns?: 2 | 3;
   isPending?: boolean;
@@ -55,7 +47,6 @@ export const OverviewMetricsGrid = ({
       <MetricCard
         key={metric.id}
         isPending={isPending}
-        chartColor={CHART_COLORS[index % CHART_COLORS.length] ?? CHART_COLORS[0]}
         className={cn(
           "border-border",
           index > 0 && "border-t",

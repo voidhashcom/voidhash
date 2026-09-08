@@ -19,7 +19,6 @@ interface MetricCardProps {
   percentChange: number | null;
   valueFormat: MetricValueFormat;
   timeSeries: OverviewTimeSeriesPoint[];
-  chartColor?: string;
   className?: string;
 }
 
@@ -33,7 +32,6 @@ export const MetricCard = ({
   valueFormat,
   timeSeries,
   className,
-  chartColor = "var(--chart-1)",
 }: MetricCardProps) => {
   if (isPending) {
     return (
@@ -63,7 +61,7 @@ export const MetricCard = ({
 
   const chartConfig = {
     [dataKey]: {
-      color: chartColor,
+      color: "var(--chart-1)",
       label,
     },
   } satisfies ChartConfig;
