@@ -191,6 +191,7 @@ pnpmfileChecksum: sha256-FmQ3RWUsIKZQg8qJsKhZOw8G3ylUwk93HvwW4x5Nr5A=
 
 patchedDependencies:
   '@earendil-works/pi-ai@0.80.7': 3fbb9897213abf111acd834b26232ea390b59077e07751ef66a6e45bd00a4bd3
+  alchemy@2.0.0-beta.70: 510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a
   brace-expansion@5.0.9: f142ba995ebb0372d071486e30b1fb522c19e147dfe3674c8c7dcd9a04308337
   nitrogen@0.35.5: cb06cac2f2af1acb08a1b78a49116c012516ad3de95fe3d9e6fd83609f4169f8
 
@@ -249,7 +250,7 @@ importers:
         version: 0.4.3
       alchemy:
         specifier: 'catalog:'
-        version: 2.0.0-beta.70(37a824057b78b66ca9a88caca025f81d)
+        version: 2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(37a824057b78b66ca9a88caca025f81d)
       dotenv-cli:
         specifier: ^8.0.0
         version: 8.0.0
@@ -309,7 +310,7 @@ importers:
         version: link:../../packages/platform/cloudflare
       alchemy:
         specifier: 'catalog:'
-        version: 2.0.0-beta.70(37a824057b78b66ca9a88caca025f81d)
+        version: 2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(37a824057b78b66ca9a88caca025f81d)
       effect:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
@@ -1102,7 +1103,7 @@ importers:
         version: link:../tsconfig
       alchemy:
         specifier: 'catalog:'
-        version: 2.0.0-beta.70(39543ced3da3557ad2d19db920dbc70e)
+        version: 2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(39543ced3da3557ad2d19db920dbc70e)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1577,7 +1578,7 @@ importers:
         version: link:..
       alchemy:
         specifier: 'catalog:'
-        version: 2.0.0-beta.70(37a824057b78b66ca9a88caca025f81d)
+        version: 2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(37a824057b78b66ca9a88caca025f81d)
       effect:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
@@ -2263,7 +2264,7 @@ importers:
         version: link:../../../../packages/platform/cloudflare
       alchemy:
         specifier: 'catalog:'
-        version: 2.0.0-beta.70(6de8240838e27ce23dc0192c005ccfa3)
+        version: 2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(6de8240838e27ce23dc0192c005ccfa3)
       effect:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
@@ -25560,7 +25561,7 @@ snapshots:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
-  alchemy@2.0.0-beta.70(37a824057b78b66ca9a88caca025f81d):
+  alchemy@2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(37a824057b78b66ca9a88caca025f81d):
     dependencies:
       '@alchemy.run/node-utils': 0.0.5
       '@aws-sdk/credential-providers': 3.1081.0
@@ -25624,7 +25625,7 @@ snapshots:
       - vitest
       - workerd
 
-  alchemy@2.0.0-beta.70(39543ced3da3557ad2d19db920dbc70e):
+  alchemy@2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(39543ced3da3557ad2d19db920dbc70e):
     dependencies:
       '@alchemy.run/node-utils': 0.0.5
       '@aws-sdk/credential-providers': 3.1081.0
@@ -25688,7 +25689,7 @@ snapshots:
       - vitest
       - workerd
 
-  alchemy@2.0.0-beta.70(6de8240838e27ce23dc0192c005ccfa3):
+  alchemy@2.0.0-beta.70(patch_hash=510621fe1db3e23b17b51d212229b05f40d22d7fb16b2374f80b593ff7caf32a)(6de8240838e27ce23dc0192c005ccfa3):
     dependencies:
       '@alchemy.run/node-utils': 0.0.5
       '@aws-sdk/credential-providers': 3.1081.0

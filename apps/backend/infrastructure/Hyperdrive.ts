@@ -39,6 +39,12 @@ const databaseOrigin = Effect.fn("databaseOrigin")(function* () {
  */
 export const DatabaseHyperdrive: Effect.Effect<Cloudflare.Hyperdrive.Connection, never, any> =
   Effect.fn("DatabaseHyperdrive")(function* () {
+    // A composition can share a managed connection instead of owning another origin.
+    const sharedResource = yield* Config.string("VOIDHASH_DATABASE_RESOURCE").pipe(
+      Config.withDefault(""),
+      Effect.orDie,
+    );
+    if (sharedResource !== "") return yield* Cloudflare.Hyperdrive.Connection.ref(sharedResource);
     if (globalThis.__ALCHEMY_RUNTIME__) return yield* runtimeReference;
 
     const context = yield* Effect.serviceOption(Alchemy.AlchemyContext);

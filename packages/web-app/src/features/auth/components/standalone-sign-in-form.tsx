@@ -45,7 +45,7 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
   };
 
   return (
-    <form className="mt-10 flex flex-col gap-6" onSubmit={handleSubmit}>
+    <form className="mt-10 flex flex-col gap-6" method="post" onSubmit={handleSubmit}>
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

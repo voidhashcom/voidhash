@@ -1,4 +1,6 @@
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as Config from "effect/Config";
+import * as Effect from "effect/Effect";
 
 export const PublicFileStorageBucketBinding = "PublicFileStorageBucket";
 
@@ -11,4 +13,11 @@ export const PublicFileStorageBucketBinding = "PublicFileStorageBucket";
  * One bucket per stage (physical name defaults to `${app}-${stage}-${id}`).
  * Alchemy development uses its local R2 simulator under `.alchemy/local/r2`.
  */
-export const PublicFileStorageBucket = Cloudflare.R2.Bucket(PublicFileStorageBucketBinding);
+export const PublicFileStorageBucket = Effect.gen(function* () {
+  const sharedResource = yield* Config.string("VOIDHASH_PUBLIC_FILES_RESOURCE").pipe(
+    Config.withDefault(""),
+  );
+  return sharedResource === ""
+    ? yield* Cloudflare.R2.Bucket(PublicFileStorageBucketBinding)
+    : yield* Cloudflare.R2.Bucket.ref(sharedResource);
+}).pipe(Effect.orDie);

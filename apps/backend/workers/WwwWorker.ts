@@ -18,7 +18,9 @@ export interface CommunityWebsiteConfig {
 /** Deploys the Community TanStack application as an Alchemy-managed Worker. */
 export const CommunityWebsite = Effect.fnUntraced(function* (config: CommunityWebsiteConfig) {
   const path = yield* Path.Path;
-  const wwwRootDir = path.fromFileUrl(new URL("../../../apps/www", import.meta.url));
+  const wwwRootDir = yield* path
+    .fromFileUrl(new URL("../../../apps/www", import.meta.url))
+    .pipe(Effect.orDie);
   const { stage } = yield* Alchemy.Stack;
   const dev = Option.match(yield* Effect.serviceOption(Alchemy.AlchemyContext), {
     onNone: () => false,
@@ -36,7 +38,7 @@ export const CommunityWebsite = Effect.fnUntraced(function* (config: CommunityWe
   const appEnvironment = Match.value(stage).pipe(
     Match.when("production", () => "production"),
     Match.when("preview", () => "preview"),
-    Match.orElse(() => "development"),
+    Match.orElse(() => (dev ? "development" : "preview")),
   );
 
   return yield* Cloudflare.Website.Vite("CommunityWww", {

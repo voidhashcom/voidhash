@@ -1,0 +1,83 @@
+diff --git a/lib/Cloudflare/Workers/Worker.d.ts b/lib/Cloudflare/Workers/Worker.d.ts
+index 36a87494c7c2e073553ad79283ffdb255e09f147..9b68e6ef2e65599c15e3be018423a9b12dbea31b 100644
+--- a/lib/Cloudflare/Workers/Worker.d.ts
++++ b/lib/Cloudflare/Workers/Worker.d.ts
+@@ -1869,7 +1869,7 @@ export declare const Worker: ResourceClassLike<Worker> & Effect.Effect<Worker &
+         };
+     };
+     <Self>(): {
+-        <const Id extends string, Shape extends WorkerShape, Req extends WorkerServices | Container.Application<any> | PlatformServices | Tag>(id: Id, props: InputProps<WorkerProps>, impl: Effect.Effect<Shape, ConfigError, Req>): Effect.Effect<Worker & Rpc<Self>, never, Extract<Req, Container.Application<any>> | Providers> & Named<Id> & {
++        <const Id extends string, Shape extends WorkerShape, PropsReq = never, InitReq extends WorkerServices | Container.Application<any> | PlatformServices | Tag = never>(id: Id, props: InputProps<WorkerProps> | Effect.Effect<InputProps<WorkerProps>, ConfigError, PropsReq>, impl: Effect.Effect<Shape, ConfigError, InitReq>): Effect.Effect<Worker & Rpc<Self>, never, Exclude<PropsReq, Self | WorkerServices | PlatformServices> | Extract<InitReq, Container.Application<any>> | Providers> & Named<Id> & {
+             new (): MakeShape<Shape, WorkerShape> & Named<Id> & Tag;
+         };
+         /**
+@@ -1890,7 +1890,7 @@ export declare const Worker: ResourceClassLike<Worker> & Effect.Effect<Worker &
+     <const Bindings extends WorkerBindingProps = {}, const Assets extends WorkerAssetsConfig | undefined = undefined, Req = never>(id: string, props: InputProps<WorkerProps<Bindings, Assets>> | Effect.Effect<InputProps<WorkerProps<Bindings, Assets>>, ConfigError, Req>): Effect.Effect<Worker<{
+         [binding in keyof NormalizedBindings<Bindings, Assets>]: NormalizedBindings<Bindings, Assets>[binding];
+     }> & Rpc<{}>, never, Req | Providers>;
+-    <const Id extends string, Shape extends WorkerShape, Req extends WorkerServices | Container.Application<any> | PlatformServices>(id: string, props: InputProps<WorkerProps>, impl: Effect.Effect<Shape, ConfigError, Req>): Effect.Effect<Worker & Rpc<Shape>, never, Extract<Req, Container.Application<any>> | Providers> & Named<Id>;
++    <const Id extends string, Shape extends WorkerShape, PropsReq = never, InitReq extends WorkerServices | Container.Application<any> | PlatformServices = never>(id: string, props: InputProps<WorkerProps> | Effect.Effect<InputProps<WorkerProps>, ConfigError, PropsReq>, impl: Effect.Effect<Shape, ConfigError, InitReq>): Effect.Effect<Worker & Rpc<Shape>, never, PropsReq | Extract<InitReq, Container.Application<any>> | Providers> & Named<Id>;
+     /**
+      * The Worker's own public URL, injected as a binding on that same Worker.
+      * Declare it on `env` (`env: { VITE_PUBLIC_URL: Worker.URL }`) or
+diff --git a/src/Cloudflare/Workers/Worker.ts b/src/Cloudflare/Workers/Worker.ts
+index 1fb1a78f7a4b6835a9374c34c5fca2120cb720cd..e7b5efbe91e18c0a95252d5008e72ca74a9a55db 100644
+--- a/src/Cloudflare/Workers/Worker.ts
++++ b/src/Cloudflare/Workers/Worker.ts
+@@ -2121,19 +2121,24 @@ export const Worker: ResourceClassLike<Worker> &
+       <
+         const Id extends string,
+         Shape extends WorkerShape,
+-        Req extends
++        PropsReq = never,
++        InitReq extends
+           | WorkerServices
+           | Container.Application<any>
+           | PlatformServices
+-          | Tag,
++          | Tag = never,
+       >(
+         id: Id,
+-        props: InputProps<WorkerProps>,
+-        impl: Effect.Effect<Shape, ConfigError, Req>,
++        props:
++          | InputProps<WorkerProps>
++          | Effect.Effect<InputProps<WorkerProps>, ConfigError, PropsReq>,
++        impl: Effect.Effect<Shape, ConfigError, InitReq>,
+       ): Effect.Effect<
+         Worker & Rpc<Self>,
+         never,
+-        Extract<Req, Container.Application<any>> | Providers
++        | Exclude<PropsReq, Self | WorkerServices | PlatformServices>
++        | Extract<InitReq, Container.Application<any>>
++        | Providers
+       > &
+         Named<Id> & {
+           new (): MakeShape<Shape, WorkerShape> & Named<Id> & Tag;
+@@ -2186,18 +2191,21 @@ export const Worker: ResourceClassLike<Worker> &
+     <
+       const Id extends string,
+       Shape extends WorkerShape,
+-      Req extends
++      PropsReq = never,
++      InitReq extends
+         | WorkerServices
+         | Container.Application<any>
+-        | PlatformServices,
++        | PlatformServices = never,
+     >(
+       id: string,
+-      props: InputProps<WorkerProps>,
+-      impl: Effect.Effect<Shape, ConfigError, Req>,
++      props:
++        | InputProps<WorkerProps>
++        | Effect.Effect<InputProps<WorkerProps>, ConfigError, PropsReq>,
++      impl: Effect.Effect<Shape, ConfigError, InitReq>,
+     ): Effect.Effect<
+       Worker & Rpc<Shape>,
+       never,
+-      Extract<Req, Container.Application<any>> | Providers
++      PropsReq | Extract<InitReq, Container.Application<any>> | Providers
+     > &
+       Named<Id>;
+     /**

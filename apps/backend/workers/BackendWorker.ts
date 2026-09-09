@@ -43,6 +43,7 @@ import { providePlatformRuntime } from "@voidhash/platform-cloudflare/PlatformRu
 import * as CloudflareWorkflowRunner from "@voidhash/platform-cloudflare/WorkflowRunner";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
+import * as ConfigProvider from "effect/ConfigProvider";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -122,41 +123,67 @@ const analyticsLiveFromConfig = Effect.fn("analyticsLiveFromConfig")(function* (
   return makeClickHouseAnalyticsLive(config);
 })();
 
-const workerEnvironment = (publicBaseUrl: Effect.Effect<Option.Option<string>>) => ({
-  ANALYTICS_CLICKHOUSE_DATABASE: Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
-    Config.withDefault("default"),
-  ),
-  ANALYTICS_CLICKHOUSE_PASSWORD: Config.redacted("ANALYTICS_CLICKHOUSE_PASSWORD").pipe(
-    Config.withDefault(Redacted.make("")),
-  ),
-  ANALYTICS_CLICKHOUSE_URL: Config.string("ANALYTICS_CLICKHOUSE_URL").pipe(
-    Config.withDefault("http://localhost:8123"),
-  ),
-  ANALYTICS_CLICKHOUSE_USERNAME: Config.string("ANALYTICS_CLICKHOUSE_USERNAME").pipe(
-    Config.withDefault("default"),
-  ),
-  ANALYTICS_STORAGE: AnalyticsStorage,
-  APNS_DELIVERY_ENABLED: Config.string("APNS_DELIVERY_ENABLED").pipe(Config.withDefault("false")),
-  ENCRYPTION_KEY: Config.redacted("ENCRYPTION_KEY").pipe(Config.withDefault(Redacted.make(""))),
-  EXCHANGE_RATE_API_KEY: Config.redacted("EXCHANGE_RATE_API_KEY").pipe(
-    Config.withDefault(Redacted.make("")),
-  ),
-  GOOGLE_PUBSUB_PUSH_AUDIENCE: Config.string("GOOGLE_PUBSUB_PUSH_AUDIENCE").pipe(
-    Config.withDefault(""),
-  ),
-  GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL: Config.string(
-    "GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL",
-  ).pipe(Config.withDefault("")),
-  PAYWALL_PUBLIC_BASE_URL: paywallPublicBaseUrl(publicBaseUrl),
-  PUSH_REQUIRE_ENCRYPTION: Config.string("PUSH_REQUIRE_ENCRYPTION").pipe(
-    Config.withDefault("true"),
-  ),
-  SLACK_BOT_TOKEN: Config.redacted("SLACK_BOT_TOKEN").pipe(Config.withDefault(Redacted.make(""))),
-  SLACK_FEEDBACK_CHANNEL_ID: Config.string("SLACK_FEEDBACK_CHANNEL_ID").pipe(
-    Config.withDefault(""),
-  ),
-  VOIDHASH_AUTH_SECRET: Config.redacted("VOIDHASH_AUTH_SECRET"),
-});
+const workerEnvironment = (publicBaseUrl: Effect.Effect<Option.Option<string>>) =>
+  Effect.gen(function* () {
+    const externalAnalytics = yield* Config.boolean("VOIDHASH_ANALYTICS_EXTERNAL_BINDINGS").pipe(
+      Config.withDefault(false),
+    );
+    return {
+      VOIDHASH_DATABASE_RESOURCE: Config.string("VOIDHASH_DATABASE_RESOURCE").pipe(
+        Config.withDefault(""),
+      ),
+      VOIDHASH_PAYWALL_ARTIFACTS_RESOURCE: Config.string(
+        "VOIDHASH_PAYWALL_ARTIFACTS_RESOURCE",
+      ).pipe(Config.withDefault("")),
+      VOIDHASH_PUBLIC_FILES_RESOURCE: Config.string("VOIDHASH_PUBLIC_FILES_RESOURCE").pipe(
+        Config.withDefault(""),
+      ),
+      VOIDHASH_SCHEDULED_WORKFLOWS_ENABLED: Config.string(
+        "VOIDHASH_SCHEDULED_WORKFLOWS_ENABLED",
+      ).pipe(Config.withDefault("true")),
+      ...(externalAnalytics
+        ? {}
+        : {
+            ANALYTICS_CLICKHOUSE_DATABASE: Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
+              Config.withDefault("default"),
+            ),
+            ANALYTICS_CLICKHOUSE_PASSWORD: Config.redacted("ANALYTICS_CLICKHOUSE_PASSWORD").pipe(
+              Config.withDefault(Redacted.make("")),
+            ),
+            ANALYTICS_CLICKHOUSE_URL: Config.string("ANALYTICS_CLICKHOUSE_URL").pipe(
+              Config.withDefault("http://localhost:8123"),
+            ),
+            ANALYTICS_CLICKHOUSE_USERNAME: Config.string("ANALYTICS_CLICKHOUSE_USERNAME").pipe(
+              Config.withDefault("default"),
+            ),
+            ANALYTICS_STORAGE: AnalyticsStorage,
+          }),
+      APNS_DELIVERY_ENABLED: Config.string("APNS_DELIVERY_ENABLED").pipe(
+        Config.withDefault("false"),
+      ),
+      ENCRYPTION_KEY: Config.redacted("ENCRYPTION_KEY").pipe(Config.withDefault(Redacted.make(""))),
+      EXCHANGE_RATE_API_KEY: Config.redacted("EXCHANGE_RATE_API_KEY").pipe(
+        Config.withDefault(Redacted.make("")),
+      ),
+      GOOGLE_PUBSUB_PUSH_AUDIENCE: Config.string("GOOGLE_PUBSUB_PUSH_AUDIENCE").pipe(
+        Config.withDefault(""),
+      ),
+      GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL: Config.string(
+        "GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL",
+      ).pipe(Config.withDefault("")),
+      PAYWALL_PUBLIC_BASE_URL: paywallPublicBaseUrl(publicBaseUrl),
+      PUSH_REQUIRE_ENCRYPTION: Config.string("PUSH_REQUIRE_ENCRYPTION").pipe(
+        Config.withDefault("true"),
+      ),
+      SLACK_BOT_TOKEN: Config.redacted("SLACK_BOT_TOKEN").pipe(
+        Config.withDefault(Redacted.make("")),
+      ),
+      SLACK_FEEDBACK_CHANNEL_ID: Config.string("SLACK_FEEDBACK_CHANNEL_ID").pipe(
+        Config.withDefault(""),
+      ),
+      VOIDHASH_AUTH_SECRET: Config.redacted("VOIDHASH_AUTH_SECRET"),
+    };
+  });
 
 /**
  * Community backend Worker composed from the portable application services and
@@ -164,21 +191,23 @@ const workerEnvironment = (publicBaseUrl: Effect.Effect<Option.Option<string>>) 
  */
 export default Cloudflare.Worker(
   "CommunityBackend",
-  {
-    main: import.meta.filename,
-    domain: backendDeployment.pipe(Effect.map(({ domain }) => domain)),
-    workersDev: {
-      enabled: CommunityWorkersDevEnabled,
-      previewsEnabled: false,
-    },
-    compatibility: { date: "2026-03-17", flags: ["nodejs_compat"] },
-    dev: { host: "0.0.0.0", port: 8787, strictPort: true },
-    env: workerEnvironment(
-      backendDeployment.pipe(
-        Effect.map(({ publicBaseUrl }) => Option.fromNullishOr(publicBaseUrl)),
-      ),
-    ),
-  },
+  Effect.gen(function* () {
+    const deployment = yield* backendDeployment;
+    const env = yield* workerEnvironment(
+      Effect.succeed(Option.fromNullishOr(deployment.publicBaseUrl)),
+    );
+    return {
+      main: import.meta.filename,
+      domain: deployment.domain,
+      workersDev: {
+        enabled: yield* CommunityWorkersDevEnabled,
+        previewsEnabled: false,
+      },
+      compatibility: { date: "2026-03-17", flags: ["nodejs_compat"] },
+      dev: { host: "0.0.0.0", port: 8787, strictPort: true },
+      env,
+    };
+  }).pipe(Effect.orDie),
   Effect.gen(function* () {
     const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
     const environment = Option.getOrUndefined(
@@ -194,7 +223,16 @@ export default Cloudflare.Worker(
     const authContext = yield* Layer.build(StandaloneAuthTokenVerifierLive(authSecret));
     const authTokenVerifier = Context.get(authContext, AuthTokenVerifier);
     const dbConnection = yield* Cloudflare.Hyperdrive.Connect(DatabaseHyperdrive);
-    const AnalyticsLive = yield* analyticsLiveFromConfig;
+    // These values are already declared in env or supplied by the composition.
+    // Read them without Alchemy auto-binding a second copy of each credential.
+    const AnalyticsLive = yield* analyticsLiveFromConfig.pipe(
+      Effect.provideService(
+        ConfigProvider.ConfigProvider,
+        environment === undefined
+          ? ConfigProvider.fromEnv()
+          : ConfigProvider.fromUnknown(environment),
+      ),
+    );
 
     const artifactStore = yield* makePaywallArtifactStoreLive(yield* PaywallArtifactsBucket);
     const publicBaseUrl = yield* Config.string("PAYWALL_PUBLIC_BASE_URL").pipe(
@@ -257,7 +295,10 @@ export default Cloudflare.Worker(
       { concurrency: 1, discard: true },
     ).pipe(Effect.provide(workflowRuntime), Effect.orDie);
 
-    if (!isDev) {
+    const scheduledWorkflowsEnabled = yield* Config.boolean(
+      "VOIDHASH_SCHEDULED_WORKFLOWS_ENABLED",
+    ).pipe(Config.withDefault(true), Effect.orDie);
+    if (!isDev && scheduledWorkflowsEnabled) {
       yield* Effect.forEach(
         backendWorkflows,
         (registration) => {
