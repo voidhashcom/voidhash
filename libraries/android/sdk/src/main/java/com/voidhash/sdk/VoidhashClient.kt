@@ -1,6 +1,7 @@
 package com.voidhash.sdk
 
 import android.app.Activity
+import com.android.billingclient.api.Purchase
 import com.voidhash.sdk.analytics.AnalyticsClient
 import com.voidhash.sdk.analytics.AnalyticsSessionManager
 import com.voidhash.sdk.analytics.AutomaticEvents
@@ -153,6 +154,7 @@ class VoidhashClient internal constructor(
     private val readOnlyFlag = AtomicBoolean(readOnly || !commerceFeaturesEnabled)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
     private val billingReady = AtomicBoolean(false)
+    private val billingConnectionMutex = Mutex()
     private val initMutex = Mutex()
     private var initialized = false
     private val pendingAnalyticsLock = Any()
@@ -243,8 +245,13 @@ class VoidhashClient internal constructor(
     }
 
     private suspend fun connectAndReconcileStore() {
-        runQuietly("connect to the store") {
-            billing.initConnection { purchase ->
+        runQuietly("reconcile observed transactions") { reconcileStore() }
+    }
+
+    private suspend fun ensureBillingConnected() = billingConnectionMutex.withLock {
+        scope.coroutineContext.ensureActive()
+        if (!billingReady.get()) {
+            val connected = billing.initConnection { purchase ->
                 scope.launch {
                     try {
                         val current = schemaRef.get()
@@ -260,16 +267,20 @@ class VoidhashClient internal constructor(
                     }
                 }
             }
+            if (!connected) {
+                throw VoidhashException("BILLING_CONNECTION_FAILED", "Could not connect to Google Play Billing")
+            }
+            billingReady.set(true)
         }
-        billingReady.set(true)
+    }
 
+    private suspend fun reconcileStore() {
+        ensureBillingConnected()
         val current = schemaRef.get()
-        runQuietly("reconcile observed transactions") {
-            orchestrator.reconcileObservedTransactions(
-                current ?: RuntimeSchema.EMPTY,
-                deferStoreFinalization = current == null,
-            )
-        }
+        orchestrator.reconcileObservedTransactions(
+            current ?: RuntimeSchema.EMPTY,
+            deferStoreFinalization = current == null,
+        )
     }
 
     /**
@@ -375,8 +386,69 @@ class VoidhashClient internal constructor(
      * or not the SDK can name the product — so this never fails for want of configuration.
      */
     suspend fun restorePurchases() {
+        syncPurchases()
+    }
+
+    /**
+     * Reports a purchase returned by the host billing SDK, including consumed purchases.
+     * This never connects to Billing, acknowledges or consumes the purchase. Pending
+     * purchases are ignored; report them again when purchased. A valid receipt is persisted
+     * before this method returns, then delivered on the SDK background scope. A network or
+     * backend outage therefore leaves the receipt queued instead of interrupting the host
+     * purchase callback. Only single-product purchases are supported by the endpoint.
+     */
+    suspend fun reportTransaction(purchase: Purchase) {
         if (!enabled) return
-        orchestrator.restorePurchases(schemaRef.get() ?: RuntimeSchema.EMPTY)
+        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
+        val productId = purchase.products.singleOrNull()?.takeIf { it.isNotBlank() }
+            ?: throw VoidhashException("INVALID_TRANSACTION", "Expected one store product in the purchase")
+        if (purchase.purchaseToken.isBlank() || purchase.purchaseTime < 0 || purchase.quantity < 1) {
+            throw VoidhashException("INVALID_TRANSACTION", "Invalid purchase token, date or quantity")
+        }
+        cacheManager.awaitWarm()
+        val transaction = VoidhashTransaction(
+            id = productId,
+            transactionId = purchase.orderId?.takeIf { it.isNotBlank() } ?: purchase.purchaseToken,
+            productId = productId,
+            purchaseDate = purchase.purchaseTime.toDouble(),
+            quantity = purchase.quantity,
+            isAcknowledged = purchase.isAcknowledged,
+            purchaseState = "purchased",
+            purchaseToken = purchase.purchaseToken,
+            appAccountToken = purchase.accountIdentifiers?.obfuscatedAccountId,
+            receipt = purchase.originalJson,
+            isAutoRenewing = purchase.isAutoRenewing,
+            externallyManaged = true,
+        )
+        val schema = schemaRef.get() ?: RuntimeSchema.EMPTY
+        orchestrator.stageReportedTransaction(transaction, schema)
+        scope.launch {
+            runQuietly("deliver reported transaction") {
+                orchestrator.processObservedTransaction(
+                    transaction,
+                    schema,
+                    deferStoreFinalization = true,
+                )
+            }
+        }
+    }
+
+    /**
+     * Reports currently owned purchases to Voidhash and refreshes the person.
+     * Recovery fallback when a host callback exposes no transaction values. Prefer
+     * [reportTransaction] for purchases, especially already consumed products. Observer mode never
+     * acknowledges or consumes purchases. Delivery failures stay queued; returning
+     * successfully does not imply backend acceptance. Store-read failures are thrown.
+     */
+    suspend fun syncPurchases() {
+        if (!enabled) return
+        cacheManager.awaitWarm()
+        ensureBillingConnected()
+        val current = schemaRef.get()
+        orchestrator.restorePurchases(
+            current ?: RuntimeSchema.EMPTY,
+            deferStoreFinalization = current == null,
+        )
     }
 
     /**
@@ -1138,8 +1210,8 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Refreshes person, flags and stale paywalls, and flushes queues, after the app comes
-     * back to the foreground. Debounced to once a minute: tab switches and permission
+     * Rescans purchases, refreshes person, flags and stale paywalls, and flushes queues after
+     * the app comes back to the foreground. Debounced to once a minute: tab switches and permission
      * dialogs produce foreground transitions the user never perceives as a new session.
      */
     internal fun onAppForegrounded() {
@@ -1152,14 +1224,15 @@ class VoidhashClient internal constructor(
         gate?.onNetworkChanged()
         scope.launch {
             if (!probeAuthenticationIfDue()) return@launch
+            runQuietly("reconcile purchases on foreground") { reconcileStore() }
             runQuietly("flush on foreground") { flush() }
             runQuietly("refresh on foreground") { preload(identityStore.getDistinctId()) }
         }
     }
 
     /**
-     * Reacts to the device regaining a network: queues go out first, because they hold data
-     * that only exists on this device, and refreshes follow. Debounced to once a minute
+     * Reacts to the device regaining a network: rescans purchases and sends queued data,
+     * then refreshes cached state. Debounced to once a minute
      * like the foreground refresh: a flapping connection must not turn into a refresh storm.
      */
     internal fun onConnectivityRestored() {
@@ -1172,6 +1245,7 @@ class VoidhashClient internal constructor(
         gate?.onNetworkChanged()
         scope.launch {
             if (!probeAuthenticationIfDue()) return@launch
+            runQuietly("reconcile purchases on reconnect") { reconcileStore() }
             runQuietly("flush on reconnect") { flush() }
             runQuietly("refresh on reconnect") { preload(identityStore.getDistinctId()) }
         }

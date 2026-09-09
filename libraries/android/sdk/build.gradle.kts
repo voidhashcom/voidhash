@@ -29,7 +29,7 @@ kotlin {
 
 dependencies {
     api(project(":core"))
-    implementation("com.android.billingclient:billing-ktx:8.0.0")
+    api("com.android.billingclient:billing-ktx:8.0.0")
     implementation("com.google.android.gms:play-services-base:18.7.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

@@ -32,6 +32,7 @@ private const val PROCESSED_TRANSACTION_TTL_MS = 1000L * 60 * 30
 
 private class InFlightTransaction {
     val deferred = CompletableDeferred<Boolean>()
+    var hostClaimed = false
     var ownerClaimed = false
     var storeFinalizationPending = false
 }
@@ -45,7 +46,7 @@ private class TransactionClaim(val entry: InFlightTransaction, val isOwner: Bool
  *
  * Processing is deduplicated per transaction both in memory (concurrent callers
  * coalesce onto one run) and across restarts (a 30-minute processed-transaction
- * cache entry recording `{backendAccepted, storeFinalized}`). Observer mode
+ * cache entry recording `{backendAccepted, storeFinalized, externallyManaged}`). Observer mode
  * (`readOnly`) syncs but never finishes with the store — except for a purchase
  * this SDK started, whose ownership is pinned when the flow begins so a
  * mid-flight `setReadOnly(true)` can't strand the transaction.
@@ -170,15 +171,15 @@ class PurchaseOrchestrator(
     }
 
     /** Restores purchases: reconciles everything the store still reports, then refreshes. */
-    suspend fun restorePurchases(schema: RuntimeSchema) {
-        reconcileObservedTransactions(schema)
+    @JvmOverloads
+    suspend fun restorePurchases(schema: RuntimeSchema, deferStoreFinalization: Boolean = false) {
+        reconcileObservedTransactions(schema, deferStoreFinalization)
         refreshPerson("a restore")
     }
 
     /**
      * Processes every transaction the store still reports. One-time consumables
-     * are skipped: consuming them here would silently burn an entitlement the
-     * app has already granted. When [deferStoreFinalization] is true, receipts
+     * are captured without finalization in observer mode and skipped in owner mode. When [deferStoreFinalization] is true, receipts
      * are synced but left unfinished until a schema can classify the product.
      */
     suspend fun reconcileObservedTransactions(
@@ -196,14 +197,15 @@ class PurchaseOrchestrator(
 
         val failures = mutableListOf<String>()
         for (transaction in observedByKey.values) {
-            if (resolveProductDefinition(transaction, schema)?.type == "one-time-consumable") {
+            val isConsumable = resolveProductDefinition(transaction, schema)?.type == "one-time-consumable"
+            if (isConsumable && !readOnlyProvider()) {
                 continue
             }
             try {
                 processTransaction(
                     transaction,
                     schema,
-                    if (deferStoreFinalization) true else null,
+                    if (deferStoreFinalization || isConsumable) true else null,
                 )
             } catch (error: CancellationException) {
                 throw error
@@ -240,6 +242,29 @@ class PurchaseOrchestrator(
         ) {
             refreshPerson("an observed transaction")
         }
+    }
+
+    /**
+     * Persists a host-owned receipt before it is delivered in the background.
+     * This never talks to Billing or the backend, and leaves acknowledgment and
+     * consumption with the host app.
+     */
+    suspend fun stageReportedTransaction(
+        transaction: VoidhashTransaction,
+        schema: RuntimeSchema,
+    ) {
+        val processingKey = transaction.processingKey
+        val processedCacheKey = "processed-transaction:$processingKey"
+        if (readProcessedState(processedCacheKey)?.backendAccepted == true) return
+        val distinctId = outbox?.capturedDistinctId(processingKey) ?: identityStore.getDistinctId()
+        outbox?.enqueue(processingKey, distinctId, syncRequest(transaction, schema))
+        writeProcessedState(
+            processedCacheKey,
+            backendAccepted = false,
+            storeFinalized = false,
+            externallyManaged = true,
+        )
+        inFlightMutex.withLock { inFlightTransactions[processingKey]?.hostClaimed = true }
     }
 
     /**
@@ -303,6 +328,7 @@ class PurchaseOrchestrator(
     ): TransactionClaim = inFlightMutex.withLock {
         val existing = inFlightTransactions[processingKey]
         if (existing != null) {
+            if (readOnlyOverride == true) existing.hostClaimed = true
             if (readOnlyOverride == false) {
                 existing.ownerClaimed = true
             }
@@ -310,6 +336,7 @@ class PurchaseOrchestrator(
         }
 
         val entry = InFlightTransaction()
+        entry.hostClaimed = readOnlyOverride == true
         entry.ownerClaimed = readOnlyOverride == false
         inFlightTransactions[processingKey] = entry
         TransactionClaim(entry, isOwner = true)
@@ -331,6 +358,9 @@ class PurchaseOrchestrator(
         processingKey: String,
     ): Boolean {
         val cachedState = readProcessedState(processedCacheKey)
+        if (cachedState?.externallyManaged == true) {
+            inFlightMutex.withLock { entry.hostClaimed = true }
+        }
         if (cachedState?.storeFinalized == true) {
             return true
         }
@@ -343,7 +373,7 @@ class PurchaseOrchestrator(
         }
 
         if (cachedState?.backendAccepted != true) {
-            val distinctId = identityStore.getDistinctId()
+            val distinctId = outbox?.capturedDistinctId(processingKey) ?: identityStore.getDistinctId()
             if (transaction.isDevelopment) {
                 val accepted = try {
                     apiClient.developmentPurchase(
@@ -369,16 +399,7 @@ class PurchaseOrchestrator(
                     return false
                 }
             } else {
-                val request = SyncTransactionRequest(
-                    appAccountToken = transaction.appAccountToken,
-                    providerProductId = transaction.productId,
-                    productSlug = resolveProductSlug(transaction, schema),
-                    purchaseDate = transaction.purchaseDate,
-                    purchaseToken = transaction.purchaseToken ?: "",
-                    quantity = transaction.quantity,
-                    receipt = transaction.receipt,
-                    transactionId = transaction.transactionId,
-                )
+                val request = syncRequest(transaction, schema)
                 // Recorded before the request so a crash, a kill, or an outage between here
                 // and the backend's answer cannot lose a purchase the user already paid for.
                 outbox?.enqueue(processingKey, distinctId, request)
@@ -410,11 +431,12 @@ class PurchaseOrchestrator(
                 processedCacheKey,
                 backendAccepted = true,
                 storeFinalized = transaction.isAcknowledged,
+                externallyManaged = inFlightMutex.withLock { entry.hostClaimed },
             )
         }
 
         val deferFinalization = inFlightMutex.withLock {
-            if (!entry.ownerClaimed && (readOnlyOverride ?: readOnlyProvider())) {
+            if (!entry.ownerClaimed && (entry.hostClaimed || (readOnlyOverride ?: readOnlyProvider()))) {
                 entry.storeFinalizationPending = true
                 true
             } else {
@@ -490,6 +512,20 @@ class PurchaseOrchestrator(
     private fun resolveProductSlug(transaction: VoidhashTransaction, schema: RuntimeSchema): String =
         resolveProductDefinition(transaction, schema)?.slug ?: transaction.productId
 
+    private fun syncRequest(
+        transaction: VoidhashTransaction,
+        schema: RuntimeSchema,
+    ) = SyncTransactionRequest(
+        appAccountToken = transaction.appAccountToken,
+        providerProductId = transaction.productId,
+        productSlug = resolveProductSlug(transaction, schema),
+        purchaseDate = transaction.purchaseDate,
+        purchaseToken = transaction.purchaseToken ?: "",
+        quantity = transaction.quantity,
+        receipt = transaction.receipt,
+        transactionId = transaction.transactionId,
+    )
+
     private fun readProcessedState(cacheKey: String): ProcessedTransactionState? {
         val cached = cacheManager.getObject(cacheKey) ?: return null
         // An expired marker is a miss: the cache serves expired entries for offline reads,
@@ -499,6 +535,7 @@ class PurchaseOrchestrator(
         return ProcessedTransactionState(
             backendAccepted = cached.value.optBoolean("backendAccepted"),
             storeFinalized = cached.value.optBoolean("storeFinalized"),
+            externallyManaged = cached.value.optBoolean("externallyManaged"),
         )
     }
 
@@ -506,12 +543,14 @@ class PurchaseOrchestrator(
         cacheKey: String,
         backendAccepted: Boolean,
         storeFinalized: Boolean,
+        externallyManaged: Boolean = false,
     ) {
         cacheManager.set(
             cacheKey,
             JSONObject()
                 .put("backendAccepted", backendAccepted)
-                .put("storeFinalized", storeFinalized),
+                .put("storeFinalized", storeFinalized)
+                .put("externallyManaged", externallyManaged),
             ttlMs = PROCESSED_TRANSACTION_TTL_MS,
         )
     }
@@ -519,5 +558,6 @@ class PurchaseOrchestrator(
     private data class ProcessedTransactionState(
         val backendAccepted: Boolean,
         val storeFinalized: Boolean,
+        val externallyManaged: Boolean,
     )
 }

@@ -133,13 +133,49 @@ if let product = products.first(where: { $0.slug == "pro-monthly" }) {
     print(product.displayPrice, product.interval ?? "one-time")
 }
 
-// Reads StoreKit history, submits transactions to Voidhash, and refreshes the person.
+// Scans pending transactions and current entitlements, submits them, and refreshes the person.
 try await voidhash.restorePurchases()
 ```
 
 Initialization installs the StoreKit observer and reconciles existing transactions. Observed and
 restored transactions are sent to `sync-transaction` with observer mode enabled, and are left
 unfinished for the host billing integration.
+
+### Report purchases from another billing SDK
+
+Call `reportTransaction(...)` with the store result from each successful host purchase or restore
+callback. Store observers can miss purchases handled by another SDK. Reporting captured values
+works even after the host has finished or consumed the purchase.
+
+```swift
+// verification is the VerificationResult<Transaction> from the host's StoreKit success result.
+try await voidhash.reportTransaction(verification)
+```
+
+Unverified results throw. Hosts exposing plain values can instead pass `VoidhashTransaction`
+with the store transaction ID, product ID, original purchase timestamp in milliseconds, quantity
+and optional signed receipt. Reporting does not need a StoreKit connection. Invalid store values
+throw `INVALID_TRANSACTION`; pending transactions are ignored.
+
+Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
+finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
+before it returns; delivery runs in the background, so an unavailable network or Voidhash service
+cannot interrupt the purchase callback. Keep host finalization and access checks in place.
+
+Only StoreKit verification and invalid input throw. Captured receipts stay queued on delivery
+failure, and duplicate reports retain the first captured identity across retries and relaunches.
+Successful completion means durable capture, not backend acceptance; inspect SDK diagnostics to
+investigate delayed delivery.
+
+Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
+host restore that returns no individual transactions. It scans currently exposed purchases and
+refreshes person state; `restorePurchases()` performs the same scan. Neither opens a restore
+prompt. Store-read failures are surfaced to the caller.
+
+Initialization, foreground and reconnect also perform recovery scans. Foreground/reconnect scans
+are throttled to once a minute per trigger. Scans cannot recover a consumable already
+finished or consumed by the host, or arbitrary expired subscription history. Use explicit reporting
+whenever transaction values are available.
 
 `purchase(product:)` is retained for the upcoming commerce launch but currently throws
 `READ_ONLY_PURCHASE_NOT_ALLOWED` before StoreKit is touched:

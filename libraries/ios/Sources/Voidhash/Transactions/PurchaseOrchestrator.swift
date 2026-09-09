@@ -51,7 +51,8 @@ public struct ReconcileTransactionsError: Error, Sendable, CustomStringConvertib
 ///
 /// Ported from `src/core/transactions/transaction-service.ts`; the in-flight map coalesces
 /// concurrent processing of the same transaction and the processed-transaction cache
-/// (`{backendAccepted, storeFinalized}`, 30 minute TTL) catches duplicates across launches.
+/// (`{backendAccepted, storeFinalized, externallyManaged}`, 30 minute TTL) catches duplicates
+/// across launches.
 public actor PurchaseOrchestrator {
     /// Lifetime of a processed-transaction cache entry.
     public static let processedTransactionTtlMilliseconds: Double = 1000 * 60 * 30
@@ -59,6 +60,17 @@ public actor PurchaseOrchestrator {
     struct TransactionProcessingState: Codable, Sendable, Equatable {
         let backendAccepted: Bool
         let storeFinalized: Bool
+        let externallyManaged: Bool?
+
+        init(
+            backendAccepted: Bool,
+            storeFinalized: Bool,
+            externallyManaged: Bool? = nil
+        ) {
+            self.backendAccepted = backendAccepted
+            self.storeFinalized = storeFinalized
+            self.externallyManaged = externallyManaged
+        }
     }
 
     /// Coalescing entry for one transaction being processed right now.
@@ -71,6 +83,7 @@ public actor PurchaseOrchestrator {
     // Only ever mutated from inside the actor; the `@unchecked` conformance exists so it can be
     // captured by the actor-isolated processing task.
     private final class InFlightTransaction: @unchecked Sendable {
+        var hostClaimed = false
         var ownerClaimed: Bool
         var storeFinalizationPending = false
         var task: Task<Bool, any Error>?
@@ -159,8 +172,8 @@ public actor PurchaseOrchestrator {
 
     /// Syncs pending and still-owned transactions the SDK has not processed yet.
     ///
-    /// One-time consumables are skipped: they are finished by the purchase flow that bought them
-    /// and must not be re-synced from the entitlement stream. A store read that fails fails the
+    /// One-time consumables are captured without finalization in observer mode and skipped in
+    /// owner mode, where the purchase flow is responsible for granting and finishing them. A store read that fails fails the
     /// whole reconciliation — reporting "restored nothing" off an unreadable store would hide a
     /// customer's purchases.
     public func reconcileObservedTransactions(schema: RuntimeSchema) async throws {
@@ -185,11 +198,13 @@ public actor PurchaseOrchestrator {
             }
             let definition = PurchaseOrchestrator.resolveProductDefinition(
                 transaction, products: schema.products)
-            if definition?.type == "one-time-consumable" {
+            let isConsumable = definition?.type == "one-time-consumable"
+            if isConsumable && !isReadOnly() {
                 continue
             }
             do {
-                try await processTransaction(transaction, schema: schema)
+                try await processTransaction(
+                    transaction, schema: schema, readOnlyOverride: isConsumable ? true : nil)
             } catch {
                 failedTransactionIds.append(transaction.transactionId)
             }
@@ -198,6 +213,20 @@ public actor PurchaseOrchestrator {
         if !failedTransactionIds.isEmpty {
             throw ReconcileTransactionsError(transactionIds: failedTransactionIds)
         }
+    }
+
+    /// Reports a host-owned transaction without connecting to or finishing in the store.
+    public func reportTransaction(
+        _ transaction: VoidhashTransaction, schema: RuntimeSchema
+    ) async throws {
+        if try await processTransaction(transaction, schema: schema, readOnlyOverride: true) {
+            await refreshPerson()
+        }
+    }
+
+    /// Preserves host ownership when reporting joins an observed transaction already in flight.
+    func retainHostOwnership(_ transaction: VoidhashTransaction) {
+        inFlightTransactions[PurchaseOrchestrator.processingKey(transaction)]?.hostClaimed = true
     }
 
     /// Processes a transaction reported by the store observer and refreshes the person snapshot.
@@ -229,6 +258,7 @@ public actor PurchaseOrchestrator {
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(key)
 
         if let existing = inFlightTransactions[key] {
+            if readOnlyOverride == true { existing.hostClaimed = true }
             guard readOnlyOverride == false else {
                 return try await existing.task?.value ?? false
             }
@@ -244,6 +274,7 @@ public actor PurchaseOrchestrator {
         }
 
         let entry = InFlightTransaction(ownerClaimed: readOnlyOverride == false)
+        entry.hostClaimed = readOnlyOverride == true
         inFlightTransactions[key] = entry
         let task = Task { [entry] in
             try await self.runProcessing(
@@ -272,6 +303,7 @@ public actor PurchaseOrchestrator {
         let cachedHit = await cacheManager.get(
             processedCacheKey, as: TransactionProcessingState.self)
         let cachedState = cachedHit?.isExpired == true ? nil : cachedHit?.value
+        entry.hostClaimed = entry.hostClaimed || cachedState?.externallyManaged == true
 
         if cachedState?.storeFinalized == true {
             return true
@@ -323,12 +355,15 @@ public actor PurchaseOrchestrator {
             await cacheManager.set(
                 processedCacheKey,
                 value: TransactionProcessingState(
-                    backendAccepted: true, storeFinalized: transaction.isAcknowledged),
+                    backendAccepted: true,
+                    storeFinalized: transaction.isAcknowledged,
+                    externallyManaged: entry.hostClaimed
+                ),
                 ttl: PurchaseOrchestrator.processedTransactionTtlMilliseconds
             )
         }
 
-        if !entry.ownerClaimed && (readOnlyOverride ?? isReadOnly()) {
+        if !entry.ownerClaimed && (entry.hostClaimed || (readOnlyOverride ?? isReadOnly())) {
             entry.storeFinalizationPending = true
             return true
         }

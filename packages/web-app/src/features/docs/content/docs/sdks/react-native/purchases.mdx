@@ -1,11 +1,102 @@
 ---
-title: Make and restore purchases
-description: Build your own purchase screen on top of store-backed products.
+title: Report and restore purchases
+description: Report purchases from your existing billing integration to Voidhash.
 icon: ShoppingBag
 ---
 
-Hosted paywalls handle purchases and restores for you. Use the APIs on this page when you build
-your own purchase screen and need to load products, start a purchase, or restore earlier ones.
+The initial release runs in observer mode. Your existing billing integration starts purchases,
+restores access, and finishes or acknowledges store transactions. Voidhash reports the purchases
+it discovers without taking over those responsibilities. SDK-started purchases and hosted
+paywalls are temporarily unavailable; `purchase()` returns an `Err` with
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before opening a store purchase flow.
+
+## Report a completed purchase or restore
+
+Call `reportTransaction(...)` with the store values returned by your host billing SDK after each
+successful purchase, including purchases made through its paywall. Report each transaction returned
+by a restore callback as well. Automatic store observers can miss purchases handled by another SDK.
+
+Configure Voidhash and identify the purchasing user before starting the host purchase flow. Capture
+the original store identifiers and purchase timestamp; do not substitute the current time or a
+Voidhash product slug. Reporting captured values also works after the host has finished or consumed
+the purchase, because it does not depend on finding the purchase in a store scan.
+
+Wait for `useVoidhash().status === "ready"` before calling the client. Map your billing SDK's
+purchase result into `ReportedTransaction`; field names below are Voidhash's input fields, not an
+assumed third-party SDK response shape.
+
+```tsx
+// iOS: values captured from the host's successful purchase result.
+await voidhash.client.reportTransaction({
+  platform: "ios",
+  transactionId: storeTransactionId,
+  productId: storeProductId,
+  purchaseDate: storePurchaseTimestampMs,
+  quantity: purchasedQuantity,
+  receipt: signedTransaction, // Optional when the host does not expose it.
+});
+```
+
+```tsx
+// Android: retain the purchase token, even after the host consumes the purchase.
+await voidhash.client.reportTransaction({
+  platform: "android",
+  transactionId: storeOrderId || purchaseToken,
+  productId: storeProductId,
+  purchaseDate: storePurchaseTimestampMs,
+  quantity: purchasedQuantity,
+  purchaseToken,
+  purchaseState: "purchased", // Only after the host confirms PURCHASED.
+});
+```
+
+`purchaseDate` is the original timestamp in milliseconds, `quantity` defaults to one, and
+`appAccountToken` is optional. Preserve store transaction IDs as strings. Android requires both a
+purchase token and `purchaseState`; `pending` and `unspecified` reports are ignored. Report the same
+purchase again when it becomes `purchased`. The backend verifies store transactions before granting
+access. Do not replace Android's purchase token with its order ID.
+
+Reporting never finishes, acknowledges or consumes the transaction. A valid report is written to
+the receipt outbox before it resolves; delivery runs in the background, so an unavailable network
+or Voidhash service cannot make the host purchase callback return an error. Keep your host billing
+SDK's finalization and entitlement handling in place. Repeated reports and observer callbacks are
+deduplicated.
+
+### Errors and deferred delivery
+
+`reportTransaction()` and `syncPurchases()` return `Result<void, VoidhashError>`. For reporting,
+an `Err` only means invalid store values or that the client is unavailable; an unreachable network
+or Voidhash service leaves the receipt queued and returns `Ok`. Store connection or query failures
+return `FAILED_TO_SYNC_PURCHASES`. Calling before initialization returns
+`VOIDHASH_CLIENT_NOT_INITIALIZED`.
+
+Captured receipts remain queued when delivery fails. A successful result means durable capture; it
+does not guarantee the purchase is already visible in the dashboard. SDK diagnostics describe deferred
+delivery. While a receipt is queued, duplicate reports retain its first captured identity, including
+across app relaunches.
+
+## Recovery scans and restore callbacks
+
+Use `syncPurchases()` when the host callback exposes no usable store transaction values, or after
+its user-facing restore flow completes. The scan reports purchases the store still exposes and
+refreshes the current person. It does not open a store restore prompt. `restorePurchases()` performs
+the same scan and refresh.
+
+```tsx
+const result = await voidhash.client.syncPurchases();
+if (result.isErr()) console.warn("Voidhash purchase scan failed", result.error);
+```
+
+Initialization installs the observer and scans purchases in the background. Foreground and
+connectivity recovery also scan with a one-minute throttle shared across both triggers.
+In observer mode, scans can report unconsumed or unfinished consumables that remain visible without
+finalizing them. They cannot recover consumed or finished consumables, or arbitrary expired
+subscription history. iOS scans pending transactions and current entitlements; Android queries
+currently owned purchases.
+
+`syncPurchases()` is a fallback, not a delivery guarantee. If the host hides transaction values and
+finishes a consumable before Voidhash captures it, a later callback or scan cannot recover it. Keep
+explicit reporting in the successful purchase callback whenever your host SDK exposes the values.
 
 ## Load products
 
@@ -17,7 +108,7 @@ const { data: products, error, isLoading } = voidhash.useProducts();
 const monthly = products.get("monthly");
 ```
 
-`data` is a `Map` keyed by the project's product slugs. `monthly` is `null` when the store does not
+`data` is a `Map` keyed by the project's product slugs. `monthly` is `undefined` when the store does not
 return that product. That usually means the product is not available in the current sandbox
 account, country, app version, or provider configuration.
 
@@ -29,76 +120,21 @@ if (!monthly) return null;
 return <Text>{monthly.displayPrice}</Text>;
 ```
 
-## Start a purchase
+## Transactions missing from the dashboard
 
-The SDK opens the native store flow and sends the transaction to Voidhash for server validation. On
-success it refreshes the current person, so entitlement grants update without extra work.
-
-`purchase()` resolves to a `Result` from the better-result library and never rejects. Cancellation
-is an `Ok` outcome, not an error.
-
-```tsx
-const { purchase, error, isLoading } = voidhash.usePurchase({
-  onSuccess: () => {
-    navigation.goBack();
-  },
-  onError: (purchaseError) => {
-    console.warn("Purchase failed", purchaseError);
-  },
-});
-
-<Button
-  disabled={!monthly || isLoading}
-  title={isLoading ? "Purchasing…" : `Continue for ${monthly?.displayPrice ?? ""}`}
-  onPress={async () => {
-    if (!monthly) return;
-
-    const result = await purchase(monthly);
-    if (result.isOk() && result.value.status === "cancelled") {
-      // The customer dismissed the store sheet. This is expected, not an error.
-    }
-  }}
-/>;
-```
-
-The `Ok` outcome carries one of these status values:
-
-| Status      | Meaning                                                                |
-| ----------- | ---------------------------------------------------------------------- |
-| `completed` | Voidhash validated the purchase and refreshed the person snapshot.     |
-| `cancelled` | The customer dismissed the native store sheet.                         |
-| `pending`   | The purchase needs external action. Access arrives once it reconciles. |
-| `disabled`  | The client was created with `enabled: false`.                          |
-
-The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors). You will typically
-see `FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` when the SDK runs in observer mode.
-
-<Callout type="warn" title="Grant access from Voidhash state">
-  A successful store dialog is not the entitlement check. Unlock the feature only after the
-  refreshed person contains an active grant.
-</Callout>
-
-## Restore purchases
-
-Give customers a visible restore action. Restore reconciles store transactions with Voidhash and
-refreshes the current person. It never creates a second purchase.
-
-```tsx
-await voidhash.client.restorePurchases();
-```
-
-## Common failure cases
-
-- **Product is missing.** Verify the store product mapping and the current sandbox environment.
-- **Purchase already in progress.** Disable repeated taps while a purchase is running.
-- **Customer cancels.** Handle the `cancelled` outcome as an expected result, not an app crash.
-- **Purchase succeeds but access is absent.** Retry the person fetch, and verify in Studio that the
-  product grants the expected perk.
-- **Restore finds nothing.** Confirm the device uses the same App Store or Google Play account as
-  the original purchase.
+- Confirm successful purchase callbacks call `reportTransaction(...)` with the original store
+  values. Use `syncPurchases()` for restore-only callbacks
+  that expose no transaction values.
+- Verify that Voidhash uses the intended project key and purchasing user, and that the dashboard
+  is showing the matching project, person, and store environment.
+- Check SDK diagnostics for store-read or delivery failures. Analytics events arriving does not
+  prove that a store transaction was discovered or submitted.
+- For scan-only integrations, confirm the purchase is still exposed by the store. A finished or
+  consumed consumable requires captured transaction values; a successful host purchase alone is
+  insufficient for a later scan.
 
 ## Next steps
 
 - [Check active entitlement grants](/sdks/react-native/entitlements)
 - [Structured error codes](/sdks/react-native/errors)
-- [Use observer mode during a migration](/resources/observer-mode)
+- [React Native SDK setup](/sdks/react-native)

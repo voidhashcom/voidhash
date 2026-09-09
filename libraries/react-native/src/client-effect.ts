@@ -1,3 +1,7 @@
+import {
+  fromReportedTransaction,
+  type ReportedTransaction,
+} from "./core/entities/reported-transaction";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -491,6 +495,14 @@ const makeInitializedClient = (options: {
             );
           }
           return yield* paymentAdapter.showManageSubscriptions();
+        }),
+
+      /** Reports a host purchase without querying or finalizing it in the store. */
+      reportTransaction: (report: ReportedTransaction) =>
+        Effect.gen(function* reportTransaction() {
+          const transaction = yield* Effect.try(() => fromReportedTransaction(report));
+          const transactionService = yield* TransactionService;
+          return yield* transactionService.reportTransaction(transaction, getSchema());
         }),
 
       processObservedTransaction: (transaction: Transaction) =>

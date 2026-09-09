@@ -36,6 +36,8 @@ on it.
 | `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry, or render the screen without store metadata.                |
 | `FAILED_TO_PURCHASE`              | `purchase(...)`               | Reserved for the later commerce launch.                            |
 | `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                      |
+| `INVALID_TRANSACTION` | `reportTransaction(...)` | A reported purchase has invalid store values or contains multiple products. |
+| `BILLING_CONNECTION_FAILED` | `syncPurchases()`, `restorePurchases()` | The Play Billing connection did not open. A later sync call retries it. |
 | `FAILED_TO_FLUSH_ANALYTICS`       | `flush()`                     | Nothing to do. Events stay queued and flush later.                 |
 
 ## Client-state codes

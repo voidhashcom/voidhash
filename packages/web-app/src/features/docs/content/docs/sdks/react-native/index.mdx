@@ -90,6 +90,14 @@ Observed and restored transactions are submitted to Voidhash, but the SDK never 
 acknowledges them. `purchase()` returns `READ_ONLY_PURCHASE_NOT_ALLOWED`. Reads,
 `restorePurchases()`, identity, feature flags, and analytics keep working.
 
+After a successful host purchase, call `reportTransaction(...)` with its store transaction values.
+A valid report is persisted before it resolves and delivered in the background, so a network or
+service outage delays reporting without making the purchase flow return an error. Use
+`syncPurchases()` for callbacks without transaction values and for restore recovery. Store observers
+and scans cannot recover a consumable already finished or consumed by the host.
+See [Report and restore purchases](/sdks/react-native/purchases) for callback examples, error
+handling, and scan limits.
+
 ## Provider
 
 Mount `<voidhash.Provider>` once, above the rest of your app. It initializes identity, the schema,

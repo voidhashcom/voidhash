@@ -9,6 +9,7 @@ import * as Exit from "effect/Exit";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableRef from "effect/MutableRef";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 
@@ -31,6 +32,7 @@ import {
   withRequestTimeout,
 } from "../network/policy";
 import { ApiClient } from "../networking/api-client";
+import { SingleFlight } from "../network/single-flight";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
 import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
@@ -42,6 +44,7 @@ import { TransactionOutbox } from "./transaction-outbox";
 const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
 
 interface TransactionProcessingState {
+  readonly externallyManaged?: boolean;
   readonly backendAccepted: boolean;
   readonly storeFinalized: boolean;
 }
@@ -59,6 +62,7 @@ interface TransactionProcessingState {
  */
 interface InFlightTransaction {
   readonly deferred: Deferred.Deferred<boolean, unknown>;
+  externallyManaged: boolean;
   ownerClaimed: boolean;
   storeFinalizationPending: boolean;
 }
@@ -161,6 +165,22 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const diagnostics = yield* Diagnostics;
       const authGate = yield* AuthGate;
       const breaker = yield* CircuitBreaker;
+      const singleFlight = yield* SingleFlight;
+      const storeConnected = MutableRef.make(false);
+      const transactionListener = MutableRef.make(
+        Option.none<(transaction: Transaction) => void>(),
+      );
+      const ensureStoreConnected = () =>
+        singleFlight.run(
+          "transactions:connect",
+          Effect.fn("TransactionService.connectStore")(function* () {
+            if (MutableRef.get(storeConnected)) return;
+            yield* paymentAdapter.initConnection((transaction) =>
+              Option.getOrUndefined(MutableRef.get(transactionListener))?.(transaction),
+            );
+            MutableRef.set(storeConnected, true);
+          })(),
+        );
       const transactionBreakerKey = breakerKey("config", sdkConfiguration.baseUrl);
       // Follow-up refreshes belong to the SDK runtime, so disposing it stops
       // them instead of leaving timers behind.
@@ -276,8 +296,14 @@ export class TransactionService extends Context.Service<TransactionService>()(
           const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
           const existing = MutableHashMap.get(inFlightTransactions, transactionProcessingKey);
           if (Option.isSome(existing)) {
+            existing.value.externallyManaged ||= transaction.externallyManaged === true;
             if (readOnlyOverride !== false) {
-              return Deferred.await(existing.value.deferred);
+              return transaction.externallyManaged
+                ? Effect.andThen(
+                    outbox.retainHostOwnership(transactionProcessingKey),
+                    Deferred.await(existing.value.deferred),
+                  )
+                : Deferred.await(existing.value.deferred);
             }
 
             existing.value.ownerClaimed = true;
@@ -299,6 +325,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
           const deferred = Deferred.makeUnsafe<boolean, unknown>();
           const entry: InFlightTransaction = {
             deferred,
+            externallyManaged: transaction.externallyManaged === true,
             ownerClaimed: readOnlyOverride === false,
             storeFinalizationPending: false,
           };
@@ -320,6 +347,8 @@ export class TransactionService extends Context.Service<TransactionService>()(
                     ? undefined
                     : liveHit.value.value
                 : undefined;
+
+              entry.externallyManaged ||= cachedState?.externallyManaged === true;
 
               if (cachedState?.storeFinalized) {
                 yield* outbox.ack(transactionProcessingKey);
@@ -347,12 +376,22 @@ export class TransactionService extends Context.Service<TransactionService>()(
               }
 
               if (!cachedState?.backendAccepted) {
-                const distinctId = distinctIdOverride ?? (yield* identityManager.getDistinctId());
+                const pending = yield* outbox.pending();
+                const capturedIdentity = pending.find(
+                  (entry) => entry.key === transactionProcessingKey,
+                )?.distinctId;
+                const distinctId =
+                  capturedIdentity ||
+                  distinctIdOverride ||
+                  (yield* identityManager.getDistinctId());
                 // Written before the first network call so a receipt observed
                 // just before the app dies is still delivered next launch.
                 yield* outbox.enqueue(
                   transactionProcessingKey,
-                  toTransactionRecord(transaction),
+                  {
+                    ...toTransactionRecord(transaction),
+                    externallyManaged: entry.externallyManaged,
+                  },
                   distinctId,
                 );
                 const commonHeaders = yield* getCommonSdkHeaders();
@@ -449,6 +488,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 yield* cacheManager.set(
                   processedCacheKey,
                   {
+                    externallyManaged: entry.externallyManaged,
                     backendAccepted: true,
                     storeFinalized:
                       transaction.store === "development" || transaction.isAcknowledged,
@@ -460,7 +500,10 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 yield* outbox.ack(transactionProcessingKey);
               }
 
-              if (!entry.ownerClaimed && (readOnlyOverride ?? sdkConfiguration.readOnly)) {
+              if (
+                !entry.ownerClaimed &&
+                (entry.externallyManaged || (readOnlyOverride ?? sdkConfiguration.readOnly))
+              ) {
                 entry.storeFinalizationPending = true;
                 return true;
               }
@@ -493,6 +536,9 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const reconcileObservedTransactions = Effect.fn(
         "TransactionService.reconcileObservedTransactions",
       )(function* (schema: RuntimeSchema) {
+        // Initialization is local-first; a host callback can arrive while the
+        // background store connection is still opening (or after it failed).
+        yield* ensureStoreConnected();
         const [pendingTransactions, purchasedTransactions] = yield* Effect.all(
           [paymentAdapter.getPendingTransactions(), paymentAdapter.getPurchaseHistory(true)],
           { concurrency: 1 },
@@ -507,13 +553,15 @@ export class TransactionService extends Context.Service<TransactionService>()(
           yield* Effect.forEach(
             HashMap.values(observedTransactionsByKey),
             Effect.fn("TransactionService.reconcileTransaction")(function* (transaction) {
-              if (
+              const isConsumable =
                 resolveTransactionProductDefinition(transaction, schema.products)?.type ===
-                "one-time-consumable"
-              ) {
+                "one-time-consumable";
+              if (isConsumable && !sdkConfiguration.readOnly) {
                 return Option.none();
               }
-              const exit = yield* Effect.exit(processTransaction(transaction, schema));
+              const exit = yield* Effect.exit(
+                processTransaction(transaction, schema, isConsumable ? true : undefined),
+              );
               if (Exit.isSuccess(exit)) return Option.none();
               const error = Cause.squash(exit.cause);
               yield* Effect.logWarning("Failed to process observed transaction", {
@@ -542,6 +590,64 @@ export class TransactionService extends Context.Service<TransactionService>()(
           if (accepted) yield* refreshGrantsAfterPurchase();
         },
       );
+
+      /**
+       * Persists a host-owned receipt before scheduling its delivery. The host
+       * purchase callback returns once the receipt is durable; sync failures
+       * are handled by the outbox rather than reaching the callback.
+       */
+      const reportTransaction = Effect.fn("TransactionService.reportTransaction")(function* (
+        transaction: Transaction,
+        schema: RuntimeSchema,
+      ) {
+        if (transaction.purchaseState !== "purchased") return;
+
+        const transactionProcessingKey = buildTransactionProcessingKey(transaction);
+        const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
+        const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
+          processedCacheKey,
+        );
+        const liveCachedTransaction = Option.filter(cachedTransaction, (hit) => !hit.isExpired);
+        const cachedState = Option.isSome(liveCachedTransaction)
+          ? liveCachedTransaction.value.value === true
+            ? { backendAccepted: true, storeFinalized: true }
+            : liveCachedTransaction.value.value === false
+              ? undefined
+              : liveCachedTransaction.value.value
+          : undefined;
+        if (cachedState?.backendAccepted) return;
+
+        const pending = yield* outbox.pending();
+        const distinctId =
+          pending.find((entry) => entry.key === transactionProcessingKey)?.distinctId ||
+          (yield* identityManager.getDistinctId());
+
+        yield* outbox.enqueue(
+          transactionProcessingKey,
+          { ...toTransactionRecord(transaction), externallyManaged: true },
+          distinctId,
+        );
+        yield* cacheManager.set(
+          processedCacheKey,
+          { externallyManaged: true, backendAccepted: false, storeFinalized: false },
+          { ttl: PROCESSED_TRANSACTION_TTL_MS },
+        );
+        const inFlight = MutableHashMap.get(inFlightTransactions, transactionProcessingKey);
+        if (Option.isSome(inFlight)) {
+          inFlight.value.externallyManaged = true;
+        }
+
+        yield* Effect.forkIn(
+          Effect.ignore(
+            Effect.fn("TransactionService.deliverReportedTransaction")(function* () {
+              const accepted = yield* processTransaction(transaction, schema, true, distinctId);
+              if (accepted) yield* refreshGrantsAfterPurchase();
+            })(),
+          ),
+          serviceScope,
+          { startImmediately: true },
+        );
+      });
 
       const reconcileObservedTransactionsAndRefresh = Effect.fn(
         "TransactionService.reconcileObservedTransactionsAndRefresh",
@@ -582,9 +688,17 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const restorePurchases = reconcileObservedTransactionsAndRefresh;
 
       const startTransactionObserver = (onPurchase?: (transaction: Transaction) => void) =>
-        paymentAdapter.initConnection(onPurchase);
+        Effect.suspend(() => {
+          MutableRef.set(transactionListener, Option.fromUndefinedOr(onPurchase));
+          return ensureStoreConnected();
+        });
 
-      const endConnection = () => paymentAdapter.endConnection();
+      const endConnection = () =>
+        Effect.suspend(() => {
+          MutableRef.set(storeConnected, false);
+          MutableRef.set(transactionListener, Option.none());
+          return paymentAdapter.endConnection();
+        });
 
       /**
        * Re-attempts every receipt whose cool-down has elapsed. Called on boot
@@ -625,6 +739,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
       return {
         endConnection,
+        reportTransaction,
         syncOutbox,
         processObservedTransaction,
         purchase,

@@ -1,11 +1,87 @@
 ---
-title: Make and restore purchases
-description: Build your own purchase screen on top of store-backed products.
+title: Report and restore purchases
+description: Report purchases from your existing billing integration to Voidhash.
 icon: ShoppingBag
 ---
 
-Hosted paywalls handle purchases and restores for you. Use the APIs on this page when you build
-your own purchase screen and need to load products, start a purchase, or restore earlier ones.
+The initial release runs in observer mode. Your existing billing integration starts purchases,
+restores access, and finishes or acknowledges store transactions. Voidhash reports the purchases
+it discovers without taking over those responsibilities. SDK-started purchases and hosted
+paywalls are temporarily unavailable; `purchase(product:)` throws
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before opening a store purchase flow.
+
+## Report a completed purchase or restore
+
+Call `reportTransaction(...)` with the store values returned by your host billing SDK after each
+successful purchase, including purchases made through its paywall. Report each transaction returned
+by a restore callback as well. Automatic store observers can miss purchases handled by another SDK.
+
+Configure Voidhash and identify the purchasing user before starting the host purchase flow. Capture
+the original store identifiers and purchase timestamp; do not substitute the current time or a
+Voidhash product slug. Reporting captured values also works after the host has finished or consumed
+the purchase, because it does not depend on finding the purchase in a store scan.
+
+For StoreKit 2, pass the `VerificationResult<Transaction>` from `Product.PurchaseResult.success`:
+
+```swift
+// verification is the value in the host's .success(verification) purchase result.
+try await voidhash.reportTransaction(verification)
+```
+
+Unverified StoreKit results throw. The SDK extracts the signed transaction and store values from
+verified results. If your billing SDK exposes plain values instead, use `VoidhashTransaction`:
+
+```swift
+try await voidhash.reportTransaction(VoidhashTransaction(
+    transactionId: storeTransactionId,
+    productId: storeProductId,
+    purchaseDate: storePurchaseDate.timeIntervalSince1970 * 1000,
+    quantity: purchasedQuantity,
+    receipt: signedTransaction // Optional when the host does not expose it.
+))
+```
+
+Use the store transaction ID as a string, preserving all digits. The backend verifies the transaction
+with Apple; reporting values is not a substitute for verification. Invalid identifiers, dates or
+quantities throw `INVALID_TRANSACTION`. Pending transactions are ignored.
+
+Reporting never finishes, acknowledges or consumes the transaction. A valid report is written to
+the receipt outbox before it returns; delivery runs in the background, so an unavailable network or
+Voidhash service cannot interrupt the host purchase callback. Keep your host billing SDK's
+finalization and entitlement handling in place. Repeated reports and observer callbacks are deduplicated.
+
+### Errors and deferred delivery
+
+`reportTransaction()` throws only for StoreKit verification or invalid store values. Reporting does
+not require a StoreKit connection, and never throws because delivery cannot reach Voidhash. Scan
+failures from `syncPurchases()` still throw.
+
+Captured receipts remain queued when delivery fails. A successful return means durable capture; it
+does not guarantee the purchase is already visible in the dashboard. SDK diagnostics describe deferred
+delivery. While a receipt is queued, duplicate reports retain its first captured identity, including
+across app relaunches.
+
+## Recovery scans and restore callbacks
+
+Use `syncPurchases()` when the host callback exposes no usable store transaction values, or after
+its user-facing restore flow completes. The scan reports purchases the store still exposes and
+refreshes the current person. It does not open a store restore prompt. `restorePurchases()` performs
+the same scan and refresh.
+
+```swift
+try await voidhash.syncPurchases()
+```
+
+Initialization installs the observer and scans purchases in the background. Foreground and
+connectivity recovery also scan with a one-minute throttle per trigger.
+In observer mode, scans can report unconsumed or unfinished consumables that remain visible without
+finalizing them. They cannot recover consumed or finished consumables, or arbitrary expired
+subscription history. iOS scans pending transactions and current entitlements; Android queries
+currently owned purchases.
+
+`syncPurchases()` is a fallback, not a delivery guarantee. If the host hides transaction values and
+finishes a consumable before Voidhash captures it, a later callback or scan cannot recover it. Keep
+explicit reporting in the successful purchase callback whenever your host SDK exposes the values.
 
 ## Load products
 
@@ -24,63 +100,21 @@ if let monthly {
 If a product is missing from the result, the store did not return it. That happens when the product
 is not available on the current store account, environment, or provider configuration.
 
-## Start a purchase
+## Transactions missing from the dashboard
 
-`purchase(product:)` buys through StoreKit 2 and syncs the transaction to Voidhash for server
-validation. Only after Voidhash accepts the transaction does the SDK finish it with the store. On
-success the SDK refreshes the current person, so entitlement grants update without extra work.
-
-```swift
-do {
-    try await voidhash.purchase(product: monthly)
-    dismiss()
-} catch let error as VoidhashStoreError where error.code == "USER_CANCELLED" {
-    // The customer dismissed the store sheet.
-} catch {
-    reportError(error)
-}
-```
-
-Errors surface as `VoidhashStoreError`. Its string form is `"CODE: message"`. Match known codes such
-as `USER_CANCELLED` and `PURCHASE_PENDING` when recovery differs. See [Errors](/sdks/swift/errors)
-for the full list.
-
-<Callout type="warn" title="Grant access from Voidhash state">
-  A successful store dialog is not the entitlement check. Unlock the feature only after the
-  refreshed person contains an active grant.
-</Callout>
-
-## Restore purchases
-
-Give customers a visible restore action. Restore reconciles every purchase the store still reports
-with Voidhash and refreshes the current person. It never creates a second purchase.
-
-```swift
-try await voidhash.restorePurchases()
-```
-
-## Store sheets
-
-The SDK can also present two StoreKit sheets for you: the code redemption sheet and the manage
-subscriptions screen.
-
-```swift
-try await voidhash.presentCodeRedemptionSheet()
-try await voidhash.showManageSubscriptions()
-```
-
-## Common failure cases
-
-- **Product is missing.** Verify the store product mapping in Studio and the Sandbox environment.
-- **Purchase already in progress.** Disable repeated taps while a purchase is running.
-- **Customer cancels.** Match `USER_CANCELLED` and treat it as an expected result, not an error.
-- **Purchase succeeds but access is absent.** Retry the person fetch, and verify in Studio that the
-  product grants the expected perk.
-- **Restore finds nothing.** Confirm the device uses the same App Store account as the original
-  purchase.
+- Confirm successful purchase callbacks call `reportTransaction(...)` with the original store
+  values. Use `syncPurchases()` for restore-only callbacks
+  that expose no transaction values.
+- Verify that Voidhash uses the intended project key and purchasing user, and that the dashboard
+  is showing the matching project, person, and store environment.
+- Check SDK diagnostics for store-read or delivery failures. Analytics events arriving does not
+  prove that a store transaction was discovered or submitted.
+- For scan-only integrations, confirm the purchase is still exposed by the store. A finished or
+  consumed consumable requires captured transaction values; a successful host purchase alone is
+  insufficient for a later scan.
 
 ## Next steps
 
 - [Check active entitlement grants](/sdks/swift/entitlements)
 - [Structured error codes](/sdks/swift/errors)
-- [Use observer mode during a migration](/resources/observer-mode)
+- [Swift SDK setup](/sdks/swift)

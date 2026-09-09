@@ -1,6 +1,9 @@
 import * as P from "effect/Predicate";
 
+/** A normalized store transaction used by purchase observation and receipt delivery. */
 export class Transaction {
+  /** Whether the host owns store finalization, including deferred retries. */
+  readonly externallyManaged?: boolean;
   readonly id: string;
   readonly transactionId: string;
   readonly productId: string;
@@ -20,6 +23,7 @@ export class Transaction {
   readonly purchaseState: "purchased" | "pending" | "unspecified";
   readonly store: "app-store" | "google-play" | "development";
 
+  /** Creates a transaction from the original store values and optional provider metadata. */
   constructor(
     id: string,
     transactionId: string,
@@ -29,6 +33,7 @@ export class Transaction {
     isAcknowledged: boolean,
     platform: "ios" | "android",
     options?: {
+      externallyManaged?: boolean;
       originalTransactionId?: string;
       originalPurchaseDate?: number;
       expirationDate?: number;
@@ -42,6 +47,7 @@ export class Transaction {
       store?: "app-store" | "google-play" | "development";
     },
   ) {
+    this.externallyManaged = options?.externallyManaged ?? false;
     this.id = id;
     this.transactionId = transactionId;
     this.productId = productId;
@@ -68,6 +74,7 @@ export type TransactionRecord = Record<string, unknown>;
 
 /** Flattens a transaction for storage. */
 export const toTransactionRecord = (transaction: Transaction): TransactionRecord => ({
+  externallyManaged: transaction.externallyManaged,
   appAccountToken: transaction.appAccountToken,
   currency: transaction.currency,
   expirationDate: transaction.expirationDate,
@@ -131,6 +138,7 @@ export const fromTransactionRecord = (record: TransactionRecord): Transaction | 
     isAcknowledged,
     platform,
     {
+      externallyManaged: record.externallyManaged === true,
       appAccountToken: optionalString(record.appAccountToken),
       currency: optionalString(record.currency),
       expirationDate: optionalNumber(record.expirationDate),

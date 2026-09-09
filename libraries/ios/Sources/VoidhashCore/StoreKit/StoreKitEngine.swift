@@ -13,8 +13,9 @@ public protocol StoreKitEngineProtocol: AnyObject, Sendable {
     /// Opens the store connection and returns whether the device can make payments.
     ///
     /// `onTransaction` receives every transaction the store reports for the lifetime of the
-    /// connection — purchases this engine made and purchases made outside it (another SDK,
-    /// renewals, Ask to Buy approvals). The engine only retains and reports; it never finishes.
+    /// connection — purchases this engine made, renewals and Ask to Buy approvals.
+    /// Same-device purchases made by another SDK need host reporting or a store rescan.
+    /// The engine only retains and reports; it never finishes automatically.
     func initConnection(onTransaction: StoreKitTransactionListener?) async throws -> Bool
     /// Tears down the store connection, dropping cached products and retained transactions.
     @discardableResult
@@ -88,13 +89,13 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
     }
 
     /// Subscribes to `Transaction.updates` for the lifetime of the connection so transactions
-    /// that did not go through ``buyProduct(sku:appAccountToken:quantity:)`` — renewals, Ask to
-    /// Buy approvals, purchases made by another SDK in the same app — are retained and reported
-    /// to the listener. Observer-mode hosts rely on this stream to collect anything at all.
+    /// such as renewals and Ask to Buy approvals are retained and reported to the listener.
+    /// A successful same-device purchase is returned directly to the purchasing SDK through
+    /// `Product.PurchaseResult.success`, so hosts must explicitly report it or request a rescan.
     ///
     /// Transactions still unfinished when the connection opens (completed while the app was not
-    /// running, or before the listener attached) are reported first, so nothing that landed in
-    /// the store queue is ever missed.
+    /// running, or before the listener attached) are reported first. Purchases already finished
+    /// by the host are discovered by scanning current entitlements.
     private func startObservingTransactionUpdates() {
         let task = Task { [weak self] in
             for await verification in Transaction.unfinished {

@@ -148,8 +148,54 @@ Observer reconciliation:
 - The SDK attaches the native purchase listener first.
 - Reconciliation runs in the background and does not block `init()`.
 - Reconciliation sources are pending transactions and active purchase history.
+- Foreground and connectivity recovery also rescan the store, at most once a minute.
 - The client-side dedupe key is `platform + transactionId + purchaseDate`.
 - The server endpoint is idempotent by store transaction identity, tolerating retries and duplicates.
+
+### Report purchases from another billing SDK
+
+Call `reportTransaction(...)` with the store result from each successful host purchase or restore
+callback. Store observers can miss purchases handled by another SDK. Reporting captured values
+works even after the host has finished or consumed the purchase.
+
+```ts
+// Map the host callback's actual store values into these Voidhash input fields.
+await client.reportTransaction({
+  platform: "android",
+  transactionId: storeOrderId || purchaseToken,
+  productId: storeProductId,
+  purchaseDate: storePurchaseTimestampMs,
+  purchaseToken,
+  purchaseState: "purchased",
+});
+```
+
+For iOS, use `platform: "ios"` with the store transaction ID, product ID and original timestamp
+in milliseconds. Omit Android's token/state fields; pass the signed transaction as `receipt`
+when available. Both platforms accept optional `quantity` (default one) and `appAccountToken`.
+Keep identifiers as strings. Android pending/unspecified purchases are ignored; report again
+when purchased. Invalid inputs return `FAILED_TO_REPORT_TRANSACTION`.
+
+Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
+finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
+before it resolves; delivery runs in the background, so an unavailable network or Voidhash service
+cannot make the purchase callback return an error. Keep host finalization and access checks in
+place.
+
+An `Err` only reports invalid input or an unavailable client. Captured receipts stay queued on
+delivery failure, and duplicate reports retain the first captured identity across retries and
+relaunches. A successful result means durable capture, not backend acceptance; inspect SDK
+diagnostics to investigate delayed delivery.
+
+Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
+host restore that returns no individual transactions. It scans currently exposed purchases and
+refreshes person state; `restorePurchases()` performs the same scan. Neither opens a restore
+prompt. Store-read failures are surfaced to the caller.
+
+Initialization, foreground and reconnect also perform recovery scans. Foreground/reconnect scans
+are throttled to once a minute across both triggers. Scans cannot recover a consumable already
+finished or consumed by the host, or arbitrary expired subscription history. Use explicit reporting
+whenever transaction values are available.
 
 ## Paywalls
 
@@ -308,7 +354,7 @@ createVoidhashClient("vh_pk_...", {
 ```
 
 Swallowed (warn, return `Result.ok`): `init()`, `end()`, `identify(...)`, `reset()`, `signOut()`,
-`setPersonAttributes(...)`, `restorePurchases()`, `iosPresentCodeRedemptionSheet()`,
+`setPersonAttributes(...)`, `restorePurchases()`, `syncPurchases()`, `iosPresentCodeRedemptionSheet()`,
 `iosShowManageSubscriptions()`. `flush()` is no longer among them: it answers with delivery counts,
 so a failure has to reach the caller.
 

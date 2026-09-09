@@ -33,7 +33,10 @@ on it.
 | `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to your default values.                                 |
 | `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry, or render the screen without store metadata.               |
 | `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                           |
+| `INVALID_TRANSACTION` | `reportTransaction(...)` | Supply the original store identifiers, timestamp and positive quantity. |
 | `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                     |
+
+Passing an unverified StoreKit result to `reportTransaction(...)` throws its verification error.
 
 ## Purchase availability
 

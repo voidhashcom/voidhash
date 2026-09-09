@@ -120,8 +120,7 @@ public actor TransactionOutbox {
 
     /// Persists `body` and immediately attempts to deliver it.
     ///
-    /// Enqueuing the same transaction id twice replaces the pending record rather than adding a
-    /// second one; the backend deduplicates redeliveries anyway.
+    /// Repeated reports preserve the first captured identity and retry schedule.
     @discardableResult
     public func enqueue(_ body: SdkSyncTransactionBody, distinctId: String) async
         -> OutboxDrainResult
@@ -134,9 +133,9 @@ public actor TransactionOutbox {
     /// a batch and drains once.
     public func stage(_ body: SdkSyncTransactionBody, distinctId: String) async {
         await loadIfNeeded()
+        guard !records.contains(where: { $0.transactionId == body.transactionId }) else { return }
         let record = OutboxRecord(
             transactionId: body.transactionId, distinctId: distinctId, body: body)
-        records.removeAll { $0.transactionId == body.transactionId }
         records.append(record)
         if storeReadFailed {
             // The file cannot be rewritten without seeing it, but appending is still safe; the

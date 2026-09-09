@@ -184,13 +184,48 @@ suspending function.
 
 ```kotlin
 val products = voidhash.getProducts()
-// Reads Play history, submits transactions to Voidhash, and refreshes the person.
+// Queries currently owned Play purchases, submits them, and refreshes the person.
 voidhash.restorePurchases()
 ```
 
 Initialization installs the Play purchase observer and reconciles existing transactions. Observed
 and restored transactions are sent to `sync-transaction` with observer mode enabled, and are left
 unacknowledged for the host billing integration.
+
+### Report purchases from another billing SDK
+
+Call `reportTransaction(...)` with the store result from each successful host purchase or restore
+callback. Store observers can miss purchases handled by another SDK. Reporting captured values
+works even after the host has finished or consumed the purchase.
+
+```kotlin
+// purchase is the Google Play Billing Purchase from the host callback.
+voidhash.reportTransaction(purchase)
+```
+
+Pass the original `Purchase`, including its token. Pending purchases are ignored; report again
+when purchased. Missing tokens and multi-product purchases throw `INVALID_TRANSACTION`; the
+current endpoint accepts single-product purchases. Reporting does not need a Billing connection.
+
+Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
+finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
+before it returns; delivery runs in the SDK background scope, so an unavailable network or
+Voidhash service cannot interrupt the purchase callback. Keep host finalization and access checks
+in place.
+
+Only invalid input throws. Captured receipts stay queued on delivery failure, and duplicate reports
+retain the first captured identity across retries and relaunches. Successful completion means
+durable capture, not backend acceptance; inspect SDK diagnostics to investigate delayed delivery.
+
+Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
+host restore that returns no individual transactions. It scans currently exposed purchases and
+refreshes person state; `restorePurchases()` performs the same scan. Neither opens a restore
+prompt. Store-read failures are surfaced to the caller.
+
+Initialization, foreground and reconnect also perform recovery scans. Foreground/reconnect scans
+are throttled to once a minute per trigger. Scans cannot recover a consumable already
+finished or consumed by the host, or arbitrary expired subscription history. Use explicit reporting
+whenever transaction values are available.
 
 `purchase(...)` is retained for the upcoming commerce launch but currently raises
 `READ_ONLY_PURCHASE_NOT_ALLOWED` before Play Billing is touched. Passing `readOnly = false` or

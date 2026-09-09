@@ -1,4 +1,5 @@
 import Foundation
+import StoreKit
 import VoidhashCore
 
 #if canImport(UIKit)
@@ -115,6 +116,8 @@ public actor VoidhashClient {
     private var orchestratorStorage: PurchaseOrchestrator?
     private var paywallCoordinatorStorage: PaywallCoordinator?
     private var initializationTask: Task<RuntimeSchema, any Error>?
+    private var storeConnectionTask: Task<Void, any Error>?
+    private var storeConnected = false
     /// One-time move of the pre-namespace cache entries, started in `init` so no public call can
     /// read identity, session or queue state before it has run. Every such read awaits it.
     private let migrationTask: Task<Void, Never>
@@ -352,10 +355,88 @@ public actor VoidhashClient {
 
     /// Syncs every transaction the store still reports for this customer.
     public func restorePurchases() async throws {
+        try await syncPurchases()
+    }
+
+    /// Reports the verified StoreKit result returned to the host purchase flow.
+    /// Capture the result even when the host has already finished the transaction.
+    /// Unverified results throw; the host remains responsible for finishing.
+    public func reportTransaction(_ result: VerificationResult<StoreKit.Transaction>) async throws {
+        guard options.enabled else { return }
+        let transaction = try result.payloadValue
+        try await reportTransaction(
+            VoidhashTransaction(
+                transactionId: String(transaction.id),
+                productId: transaction.productID,
+                purchaseDate: transaction.purchaseDate.timeIntervalSince1970 * 1000,
+                quantity: Double(transaction.purchasedQuantity),
+                appAccountToken: transaction.appAccountToken?.uuidString.lowercased(),
+                receipt: result.jwsRepresentation
+            ))
+    }
+
+    /// Reports store values supplied by a host billing SDK without scanning or finishing.
+    /// Use the original store identifiers and timestamp. A valid receipt is persisted before this
+    /// method returns; delivery runs in the background, so a network or backend outage cannot
+    /// interrupt the host purchase callback. Pending results are ignored.
+    public func reportTransaction(_ transaction: VoidhashTransaction) async throws {
+        guard options.enabled else { return }
+        guard transaction.purchaseState == .purchased else { return }
+        guard !transaction.transactionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !transaction.productId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            transaction.purchaseDate.isFinite, transaction.purchaseDate >= 0,
+            transaction.quantity.isFinite, transaction.quantity >= 1,
+            transaction.quantity.rounded() == transaction.quantity,
+            !transaction.isDevelopment
+        else {
+            throw VoidhashStoreError(
+                code: "INVALID_TRANSACTION", message: "Invalid store transaction values")
+        }
+        await migrationTask.value
+        guard !isShutDown else { return }
+
+        let schema = currentSchema ?? RuntimeSchema.empty
+        let processingKey = PurchaseOrchestrator.processingKey(transaction)
+        let processedCacheKey = PurchaseOrchestrator.processedCacheKey(processingKey)
+        if let cached = await cacheManager.get(
+            processedCacheKey, as: PurchaseOrchestrator.TransactionProcessingState.self),
+            !cached.isExpired,
+            cached.value.backendAccepted
+        {
+            return
+        }
+        let distinctId = await identityStore.getDistinctId()
+        await outbox.stage(
+            PurchaseOrchestrator.syncPayload(transaction, products: schema.products),
+            distinctId: distinctId
+        )
+        await cacheManager.set(
+            processedCacheKey,
+            value: PurchaseOrchestrator.TransactionProcessingState(
+                backendAccepted: false,
+                storeFinalized: false,
+                externallyManaged: true
+            ),
+            ttl: PurchaseOrchestrator.processedTransactionTtlMilliseconds
+        )
+        await orchestrator().retainHostOwnership(transaction)
+
+        Task { [weak self] in
+            await self?.deliverReportedTransaction(transaction, schema: schema)
+        }
+    }
+
+    /// Reports pending purchases and current store entitlements to Voidhash.
+    /// Recovery fallback when a host callback exposes no transaction values. Prefer
+    /// `reportTransaction` for purchases, especially already finished consumables. In observer mode the host
+    /// retains transaction ownership. Delivery failures stay queued and emit diagnostics;
+    /// returning successfully does not imply server acceptance.
+    public func syncPurchases() async throws {
         guard options.enabled else {
             return
         }
         let schema = try await ensureInitialized()
+        try await ensureStoreConnected()
         try await orchestrator().restorePurchases(schema: schema)
     }
 
@@ -750,6 +831,7 @@ public actor VoidhashClient {
     public func shutdown() async {
         isShutDown = true
         initializationTask?.cancel()
+        storeConnectionTask?.cancel()
         lifecycleSubscription?.cancel()
         lifecycleSubscription = nil
         connectivitySubscription?.cancel()
@@ -1250,22 +1332,47 @@ public actor VoidhashClient {
     private func connectAndReconcileStore() async {
         guard !isShutDown else { return }
         do {
-            _ = try await engine.initConnection(onTransaction: { [weak self] storeTransaction in
-                guard let self else { return }
-                Task { await self.handleObservedTransaction(storeTransaction) }
-            })
+            try await ensureStoreConnected()
         } catch {
             warn("Failed to connect to the store: \(error)")
             diagnostics.emit(
                 .transport, code: "STORE_CONNECTION_FAILED", operation: "client.initialize",
                 retryable: true, message: String(describing: error))
+            return
         }
+        await reconcileStore()
+    }
+
+    private func ensureStoreConnected() async throws {
+        guard !isShutDown else { throw CancellationError() }
+        if storeConnected { return }
+        if let storeConnectionTask {
+            return try await storeConnectionTask.value
+        }
+        let task = Task {
+            _ = try await engine.initConnection(onTransaction: { [weak self] storeTransaction in
+                guard let self else { return }
+                Task { await self.handleObservedTransaction(storeTransaction) }
+            })
+            try Task.checkCancellation()
+            storeConnected = true
+        }
+        storeConnectionTask = task
+        defer { storeConnectionTask = nil }
+        try await task.value
+    }
+
+    private func reconcileStore() async {
         guard !isShutDown else { return }
         do {
+            try await ensureStoreConnected()
             try await orchestrator().reconcileObservedTransactions(
                 schema: currentSchema ?? RuntimeSchema.empty)
         } catch {
             warn("Failed to reconcile observed transactions: \(error)")
+            diagnostics.emit(
+                .transport, code: "STORE_RECONCILIATION_FAILED", operation: "syncPurchases",
+                retryable: true, message: String(describing: error))
         }
     }
 
@@ -1382,6 +1489,29 @@ public actor VoidhashClient {
         } catch {
             warn(
                 "Failed to process the observed transaction \(storeTransaction.transactionId): \(error)"
+            )
+        }
+    }
+
+    /// Delivers a receipt already persisted by ``reportTransaction(_:)`` without letting a
+    /// transport or backend failure escape the host's purchase callback.
+    private func deliverReportedTransaction(
+        _ transaction: VoidhashTransaction,
+        schema: RuntimeSchema
+    ) async {
+        guard !isShutDown else { return }
+        do {
+            try await orchestrator().reportTransaction(transaction, schema: schema)
+        } catch is CancellationError {
+            return
+        } catch {
+            warn("Failed to deliver reported transaction \(transaction.transactionId): \(error)")
+            diagnostics.emit(
+                .transport,
+                code: "TRANSACTION_SYNC_DEFERRED",
+                operation: "reportTransaction",
+                retryable: true,
+                message: "Receipt remains queued: \(error)"
             )
         }
     }
@@ -1661,6 +1791,7 @@ public actor VoidhashClient {
         }
         await breaker.halfOpenAll()
         await probeAuthPauseIfDue()
+        await reconcileStore()
         guard await canReachNetwork() else {
             return
         }
@@ -1705,6 +1836,7 @@ public actor VoidhashClient {
         }
         await breaker.halfOpenAll()
         await probeAuthPauseIfDue()
+        await reconcileStore()
         guard await canReachNetwork() else {
             return
         }

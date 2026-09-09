@@ -37,6 +37,8 @@ data class VoidhashTransaction(
     val isAutoRenewing: Boolean?,
     /** Which provider produced the transaction; `development` marks a simulated one. */
     val store: String = "google-play",
+    /** True when the host app retains acknowledgment and consumption ownership. */
+    val externallyManaged: Boolean = false,
 ) {
     /** Cross-runtime dedup key: `platform:transactionId:purchaseDate`. */
     val processingKey: String get() = "android:$transactionId:${purchaseDate.toLongIfWhole()}"

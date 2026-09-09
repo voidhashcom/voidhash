@@ -133,13 +133,14 @@ class TransactionOutbox(
         get() = synchronized(records) { records.toList() }
 
     /**
-     * Records a receipt for [key], replacing any earlier attempt at the same transaction.
+     * Records a receipt for [key], preserving its first identity and retry state on duplicates.
      * Persisted before returning, so the caller may safely issue the network request next.
      */
     suspend fun enqueue(key: String, distinctId: String, request: SyncTransactionRequest) {
+        restored.await()
         val record = OutboxRecord(key, distinctId, request, availableAt = clock.now())
         val size = synchronized(records) {
-            records.removeAll { it.key == key }
+            if (records.any { it.key == key }) return
             records.add(record)
             records.size
         }
@@ -154,6 +155,12 @@ class TransactionOutbox(
             )
         }
         persistAndAwait(record)
+    }
+
+    /** Identity captured by the first report, retained across duplicate observations. */
+    suspend fun capturedDistinctId(key: String): String? {
+        restored.await()
+        return synchronized(records) { records.firstOrNull { it.key == key }?.distinctId }
     }
 
     /** Removes the record for [key] after the backend accepted it. */

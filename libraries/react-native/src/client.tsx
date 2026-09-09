@@ -1,3 +1,4 @@
+import type { ReportedTransaction } from "./core/entities/reported-transaction";
 import * as P from "effect/Predicate";
 import { Result } from "better-result";
 import * as Arr from "effect/Array";
@@ -672,10 +673,10 @@ export class VoidhashClient {
 
   /**
    * Recovery chain shared by app foreground and connectivity restore:
-   * half-open every tripped host, flush the queues and refresh anything
-   * stale. Debounced to once a minute across both triggers, so a user
-   * flipping between apps or a flapping network does not turn into a
-   * request storm.
+   * half-open every tripped host, rescan store purchases, flush the queues
+   * and refresh anything stale. Debounced to once a minute across both
+   * triggers, so switching apps or a flapping network does not cause a
+   * burst of requests.
    */
   private recover(reason: string) {
     const client = this.initializedClient;
@@ -688,6 +689,7 @@ export class VoidhashClient {
     this.triggerBackgroundFlush(`flush analytics ${reason}`);
     this.runInBackground("refreshAll", client.refreshAll());
     this.runInBackground("syncTransactionOutbox", client.syncTransactionOutbox());
+    this.runInBackground("reconcileObservedTransactions", client.reconcileObservedTransactions());
   }
 
   private handleForeground() {
@@ -1134,6 +1136,41 @@ export class VoidhashClient {
       return this.toResult(
         this.initializedClient.restorePurchases(),
         "FAILED_TO_RESTORE_PURCHASES",
+      );
+    });
+  }
+
+  /**
+   * Reports the store values from another billing SDK's successful purchase or restore.
+   * Does not query, finish, acknowledge or consume the purchase. Pending Android
+   * purchases are ignored; report them again when purchased. Delivery failures
+   * remain queued for retry, so success does not imply server acceptance.
+   */
+  async reportTransaction(transaction: ReportedTransaction): Promise<Result<void, VoidhashError>> {
+    if (!this.enabled) return Result.ok(undefined);
+    return this.runSideEffect("reportTransaction", async () => {
+      if (!this.initializedClient) return Result.err(new NotInitializedError());
+      return this.toResult(
+        this.initializedClient.reportTransaction(transaction),
+        "FAILED_TO_REPORT_TRANSACTION",
+      );
+    });
+  }
+
+  /**
+   * Reports pending purchases and current store entitlements to Voidhash.
+   * Recovery fallback when a host callback exposes no transaction values. Prefer
+   * reportTransaction for purchase results, especially consumables already finalized.
+   * In observer mode transactions are never finished. Delivery failures stay
+   * queued and emit diagnostics; success does not imply server acceptance.
+   */
+  async syncPurchases(): Promise<Result<void, VoidhashError>> {
+    if (!this.enabled) return Result.ok(undefined);
+    return this.runSideEffect("syncPurchases", async () => {
+      if (!this.initializedClient) return Result.err(new NotInitializedError());
+      return this.toResult(
+        this.initializedClient.reconcileObservedTransactions(),
+        "FAILED_TO_SYNC_PURCHASES",
       );
     });
   }

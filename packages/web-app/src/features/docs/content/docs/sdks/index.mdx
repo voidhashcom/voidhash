@@ -10,6 +10,13 @@ In observer mode, the SDK watches the store transactions your existing billing i
 and submits them to Voidhash for revenue analytics. It never takes ownership of billing away from
 your code. All three SDKs talk to the same project schema.
 
+All three expose `reportTransaction(...)` for store values captured from the host billing SDK's
+successful purchase or restore result. `syncPurchases()` provides fallback scans when the host
+exposes no transaction values. Automatic observers and scans can miss purchases, especially
+consumables already finished or consumed by the host. See each SDK's purchase guide for integration
+examples and delivery limits. A valid report is persisted before it returns and delivered in the
+background, so a network or service outage delays reporting without interrupting the purchase flow.
+
 <Callout type="warn" title="The initial release is observer-only">
   SDK-started purchases and hosted paywalls are temporarily unavailable. The commerce
   implementations remain in the packages for a later launch, but the public clients cannot enable or

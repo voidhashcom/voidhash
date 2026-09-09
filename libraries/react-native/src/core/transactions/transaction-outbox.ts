@@ -140,8 +140,27 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
       const now = yield* Clock.currentTimeMillis;
       yield* Ref.update(entriesRef, (entries) =>
         entries.some((entry) => entry.key === key)
-          ? entries
+          ? entries.map((entry) =>
+              entry.key === key && transaction.externallyManaged === true
+                ? { ...entry, transaction: { ...entry.transaction, externallyManaged: true } }
+                : entry,
+            )
           : [...entries, { attempts: 0, availableAt: now, distinctId, key, transaction }],
+      );
+      yield* persistUnlocked();
+    },
+    (effect) => mutationMutex.withPermits(1)(effect),
+  );
+
+  /** Preserves host ownership when a report joins an already queued observer receipt. */
+  const retainHostOwnership = Effect.fn("TransactionOutbox.retainHostOwnership")(
+    function* (key: string) {
+      yield* Ref.update(entriesRef, (entries) =>
+        entries.map((entry) =>
+          entry.key === key
+            ? { ...entry, transaction: { ...entry.transaction, externallyManaged: true } }
+            : entry,
+        ),
       );
       yield* persistUnlocked();
     },
@@ -188,7 +207,7 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
     return Arr.isReadonlyArrayEmpty(entries);
   });
 
-  return { ack, due, enqueue, isEmpty, pending, persist, postpone } as const;
+  return { ack, due, enqueue, isEmpty, pending, persist, postpone, retainHostOwnership } as const;
 });
 
 /**

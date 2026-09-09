@@ -118,6 +118,14 @@ Initialization and restore submit observed StoreKit transactions to Voidhash wit
 them. `purchase(product:)` remains in the SDK for a later commerce launch, but it currently throws
 `READ_ONLY_PURCHASE_NOT_ALLOWED` before it touches StoreKit. SDK-owned store sheets are inert.
 
+After a successful host purchase, call `reportTransaction(...)` with its store transaction values.
+A valid report is persisted before it returns and delivered in the background, so a network or
+service outage delays reporting without failing the purchase flow. Use `syncPurchases()` for
+callbacks without transaction values and for restore recovery. Store observers and scans cannot
+recover a consumable already finished or consumed by the host.
+See [Report and restore purchases](/sdks/swift/purchases) for callback examples, error
+handling, and scan limits.
+
 ## People and entitlements
 
 Read the current person, identify them when they sign in, and reset the client when they sign out.

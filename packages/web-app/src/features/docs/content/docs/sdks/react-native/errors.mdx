@@ -46,6 +46,8 @@ on it.
 | `FAILED_TO_GET_PRODUCTS`                  | `getProducts()`                   | Retry, or render the screen without store metadata.                       |
 | `FAILED_TO_PURCHASE`                      | `purchase()`                      | Reserved for the later commerce launch.                                   |
 | `FAILED_TO_RESTORE_PURCHASES`             | `restorePurchases()`              | Prompt the customer to retry.                                             |
+| `FAILED_TO_REPORT_TRANSACTION` | `reportTransaction(...)` | A host transaction report has invalid store values or the client is unavailable. |
+| `FAILED_TO_SYNC_PURCHASES` | `syncPurchases()` | Inspect the store error and retry. Captured receipts with delivery failures remain queued. |
 | `FAILED_TO_FLUSH_ANALYTICS`               | `flush()`                         | Nothing to do. Events stay queued and flush later.                        |
 | `FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET` | iOS redemption sheet              | iOS only. Verify the offer code configuration.                            |
 | `FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS`     | iOS manage subscriptions          | iOS only. Requires iOS 15 or later.                                       |
