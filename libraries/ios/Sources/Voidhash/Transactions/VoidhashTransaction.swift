@@ -26,7 +26,7 @@ public struct VoidhashTransaction: Sendable, Equatable {
     public let isAcknowledged: Bool
     /// Deterministic account token attached to the purchase, when present.
     public let appAccountToken: String?
-    /// Signed transaction payload forwarded to the backend.
+    /// Optional store receipt. Discarded when reporting to the backend.
     public let receipt: String?
     /// Lifecycle state; only `purchased` transactions are synced.
     public let purchaseState: VoidhashPurchaseState
@@ -34,11 +34,12 @@ public struct VoidhashTransaction: Sendable, Equatable {
     /// recorded through the development gateway instead of `sync-transaction`.
     public let isDevelopment: Bool
 
+    /// Creates a transaction. Reporting requires only the store transaction ID.
     public init(
         transactionId: String,
-        productId: String,
-        purchaseDate: Double,
-        quantity: Double,
+        productId: String = "",
+        purchaseDate: Double = 0,
+        quantity: Double = 1,
         isAcknowledged: Bool = false,
         appAccountToken: String? = nil,
         receipt: String? = nil,

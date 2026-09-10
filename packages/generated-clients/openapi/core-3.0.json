@@ -11457,65 +11457,48 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "appAccountToken": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "platform": {
-                    "type": "string",
-                    "enum": ["ios", "android"]
-                  },
-                  "providerProductId": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "productSlug": {
-                    "type": "string"
-                  },
-                  "purchaseDate": {
-                    "anyOf": [
-                      {
-                        "type": "number"
-                      },
-                      {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "platform": {
                         "type": "string",
-                        "enum": ["Infinity", "-Infinity", "NaN"]
-                      }
-                    ]
-                  },
-                  "purchaseToken": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "anyOf": [
-                      {
-                        "type": "number"
+                        "enum": [
+                          "ios"
+                        ]
                       },
-                      {
+                      "transactionId": {
                         "type": "string",
-                        "enum": ["Infinity", "-Infinity", "NaN"]
+                        "pattern": "\\S"
                       }
-                    ]
+                    },
+                    "required": [
+                      "platform",
+                      "transactionId"
+                    ],
+                    "additionalProperties": false
                   },
-                  "receipt": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "transactionId": {
-                    "type": "string"
+                  {
+                    "type": "object",
+                    "properties": {
+                      "platform": {
+                        "type": "string",
+                        "enum": [
+                          "android"
+                        ]
+                      },
+                      "purchaseToken": {
+                        "type": "string",
+                        "pattern": "\\S"
+                      }
+                    },
+                    "required": [
+                      "platform",
+                      "purchaseToken"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "platform",
-                  "productSlug",
-                  "purchaseDate",
-                  "quantity",
-                  "transactionId"
-                ],
-                "additionalProperties": false
+                ]
               }
             }
           },

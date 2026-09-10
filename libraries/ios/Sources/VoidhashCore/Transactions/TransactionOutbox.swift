@@ -120,7 +120,7 @@ public actor TransactionOutbox {
 
     /// Persists `body` and immediately attempts to deliver it.
     ///
-    /// Repeated reports preserve the first captured identity and retry schedule.
+    /// Redelivery preserves the original identity and retry state of a pending transaction.
     @discardableResult
     public func enqueue(_ body: SdkSyncTransactionBody, distinctId: String) async
         -> OutboxDrainResult
@@ -184,7 +184,7 @@ public actor TransactionOutbox {
         if storeReadFailed {
             await performLoad()
         }
-        guard gate.allowsOutbound() else {
+        guard !storeReadFailed, gate.allowsOutbound() else {
             return OutboxDrainResult(pending: records.count)
         }
 
@@ -304,14 +304,20 @@ public actor TransactionOutbox {
             }
             return record
         }
-        // Anything staged while the read was in flight is newer than what is on disk. A record
-        // appended twice while the store was unreadable collapses onto its last copy.
-        let stagedIds = Set(records.map(\.transactionId))
-        var seen: Set<String> = []
-        let fromDisk = persisted.reversed().filter {
-            !stagedIds.contains($0.transactionId) && seen.insert($0.transactionId).inserted
+        // Retry snapshots may be newer, but ownership belongs to the first capture.
+        var orderedIds: [String] = []
+        var merged: [String: OutboxRecord] = [:]
+        for record in persisted + records {
+            if var first = merged[record.transactionId] {
+                first.attempts = max(first.attempts, record.attempts)
+                first.availableAt = max(first.availableAt, record.availableAt)
+                merged[record.transactionId] = first
+            } else {
+                orderedIds.append(record.transactionId)
+                merged[record.transactionId] = record
+            }
         }
-        records = Array(fromDisk.reversed()) + records
+        records = orderedIds.compactMap { merged[$0] }
     }
 
     private func persist() async {

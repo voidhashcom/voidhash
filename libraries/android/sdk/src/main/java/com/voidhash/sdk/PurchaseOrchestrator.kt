@@ -123,6 +123,7 @@ class PurchaseOrchestrator(
         // the store sheet is open.
         val readOnlyAtPurchaseStart = readOnlyProvider()
         val distinctId = identityStore.getDistinctId()
+        cacheManager.set("transaction-identity:${AccountToken.derive(distinctId)}", distinctId)
 
         val type = if (product.isSubscription) BillingProductType.SUBS else BillingProductType.INAPP
         if (!developmentMode && type == BillingProductType.SUBS && product.googlePlayOfferToken == null) {
@@ -164,7 +165,7 @@ class PurchaseOrchestrator(
             )
         }
 
-        if (processTransaction(transaction, schema, readOnlyAtPurchaseStart)) {
+        if (processTransaction(transaction, schema, readOnlyAtPurchaseStart, distinctId)) {
             refreshPerson("a purchase")
         }
         return transaction
@@ -253,10 +254,11 @@ class PurchaseOrchestrator(
         transaction: VoidhashTransaction,
         schema: RuntimeSchema,
     ) {
+        val capturedDistinctId = identityStore.getDistinctId()
         val processingKey = transaction.processingKey
         val processedCacheKey = "processed-transaction:$processingKey"
         if (readProcessedState(processedCacheKey)?.backendAccepted == true) return
-        val distinctId = outbox?.capturedDistinctId(processingKey) ?: identityStore.getDistinctId()
+        val distinctId = outbox?.capturedDistinctId(processingKey) ?: capturedDistinctId
         outbox?.enqueue(processingKey, distinctId, syncRequest(transaction, schema))
         writeProcessedState(
             processedCacheKey,
@@ -275,6 +277,9 @@ class PurchaseOrchestrator(
      * started; every other caller passes `null` and reads the live flag at the
      * moment the decision is made.
      *
+     * [distinctIdOverride] pins a purchase to the identity that started it. Observations use
+     * the stored account-token identity, or the current identity when no mapping exists.
+     *
      * Returns `true` only after the backend explicitly accepts the receipt. A
      * `false` result leaves the receipt queued and the store transaction unfinished.
      */
@@ -282,11 +287,17 @@ class PurchaseOrchestrator(
         transaction: VoidhashTransaction,
         schema: RuntimeSchema,
         readOnlyOverride: Boolean?,
+        distinctIdOverride: String? = null,
     ): Boolean {
         if (transaction.purchaseState != "purchased") {
             return false
         }
 
+        val distinctId = distinctIdOverride
+            ?: transaction.appAccountToken?.let {
+                cacheManager.getString("transaction-identity:${it.lowercase()}")?.value
+            }
+            ?: identityStore.getDistinctId()
         val processingKey = transaction.processingKey
         val processedCacheKey = "processed-transaction:$processingKey"
 
@@ -309,6 +320,7 @@ class PurchaseOrchestrator(
                 claim.entry,
                 processedCacheKey,
                 processingKey,
+                distinctId,
             )
             claim.entry.deferred.complete(accepted)
             return accepted
@@ -356,8 +368,10 @@ class PurchaseOrchestrator(
         entry: InFlightTransaction,
         processedCacheKey: String,
         processingKey: String,
+        capturedDistinctId: String,
     ): Boolean {
         val cachedState = readProcessedState(processedCacheKey)
+            ?: readProcessedState("processed-transaction:${transaction.legacyProcessingKey}")
         if (cachedState?.externallyManaged == true) {
             inFlightMutex.withLock { entry.hostClaimed = true }
         }
@@ -373,7 +387,7 @@ class PurchaseOrchestrator(
         }
 
         if (cachedState?.backendAccepted != true) {
-            val distinctId = outbox?.capturedDistinctId(processingKey) ?: identityStore.getDistinctId()
+            var distinctId = capturedDistinctId
             if (transaction.isDevelopment) {
                 val accepted = try {
                     apiClient.developmentPurchase(
@@ -402,7 +416,10 @@ class PurchaseOrchestrator(
                 val request = syncRequest(transaction, schema)
                 // Recorded before the request so a crash, a kill, or an outage between here
                 // and the backend's answer cannot lose a purchase the user already paid for.
-                outbox?.enqueue(processingKey, distinctId, request)
+                if (outbox != null) {
+                    distinctId = outbox.enqueue(processingKey, distinctId, request)?.distinctId
+                        ?: return false
+                }
                 val verdict = try {
                     apiClient.syncTransactionVerdict(distinctId, request)
                 } catch (error: CancellationException) {

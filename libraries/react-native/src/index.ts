@@ -3,7 +3,11 @@ export * from "./client-react-native";
 export * from "./core/entities/perk";
 export * from "./core/entities/product";
 export * from "./core/entities/transaction";
-export type { ReportedTransaction } from "./core/entities/reported-transaction";
+export type {
+  ReportedTransaction,
+  StoreTransaction,
+  GooglePlayPurchaseData,
+} from "./core/entities/reported-transaction";
 export * from "./core/schema";
 export * from "./core/types";
 export * from "./core/utils";

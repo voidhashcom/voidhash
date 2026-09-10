@@ -54,6 +54,21 @@ final class SerialTaskQueue: @unchecked Sendable {
     private let lock = NSLock()
     private var last: Task<Void, Never>?
 
+    func submit<Value: Sendable>(
+        _ operation: @escaping @Sendable () async throws -> Value
+    ) -> Task<Value, any Error> {
+        lock.withLock {
+            let previous = last
+            let task = Task {
+                await previous?.value
+                try Task.checkCancellation()
+                return try await operation()
+            }
+            last = Task { _ = try? await task.value }
+            return task
+        }
+    }
+
     func enqueue(_ operation: @escaping @Sendable () async -> Void) {
         lock.withLock {
             let previous = last

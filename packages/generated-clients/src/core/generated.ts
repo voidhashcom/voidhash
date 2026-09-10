@@ -3461,23 +3461,9 @@ export interface SdkSyncTransactionParams {
   readonly "x-environment"?: SdkSyncTransactionParamsXEnvironmentEnum | null | undefined;
 }
 
-export type SdkSyncTransactionRequestPlatform = "ios" | "android";
-
-export type SdkSyncTransactionRequestPurchaseDateEnum = "Infinity" | "-Infinity" | "NaN";
-
-export type SdkSyncTransactionRequestQuantityEnum = "Infinity" | "-Infinity" | "NaN";
-
-export interface SdkSyncTransactionRequest {
-  readonly appAccountToken?: string | null | undefined;
-  readonly platform: SdkSyncTransactionRequestPlatform;
-  readonly providerProductId?: string | null | undefined;
-  readonly productSlug: string;
-  readonly purchaseDate: number | SdkSyncTransactionRequestPurchaseDateEnum;
-  readonly purchaseToken?: string | null | undefined;
-  readonly quantity: number | SdkSyncTransactionRequestQuantityEnum;
-  readonly receipt?: string | null | undefined;
-  readonly transactionId: string;
-}
+export type SdkSyncTransactionRequest =
+  | { readonly platform: "ios"; readonly transactionId: string }
+  | { readonly platform: "android"; readonly purchaseToken: string };
 
 export interface SdkSyncTransactionResponseJsonEncoding {
   readonly accepted: boolean;

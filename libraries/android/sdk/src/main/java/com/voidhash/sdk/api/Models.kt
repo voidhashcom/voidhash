@@ -141,16 +141,18 @@ data class SyncTransactionRequest(
     val receipt: String?,
     val transactionId: String,
 ) {
-    internal fun toJson(): JSONObject = JSONObject().apply {
-        put("appAccountToken", appAccountToken ?: JSONObject.NULL)
-        put("platform", "android")
-        put("providerProductId", providerProductId)
-        put("productSlug", productSlug)
-        put("purchaseDate", purchaseDate)
-        put("purchaseToken", purchaseToken)
-        put("quantity", quantity)
-        put("receipt", receipt ?: JSONObject.NULL)
-        put("transactionId", transactionId)
+    internal fun toJson(): JSONObject = JSONObject()
+        .put("platform", "android")
+        .put("purchaseToken", purchaseToken)
+
+    internal fun toStorageJson(): JSONObject = toJson().apply {
+        if (providerProductId.isNotEmpty()) {
+            put("providerProductId", providerProductId)
+            put("productSlug", productSlug)
+            put("purchaseDate", purchaseDate)
+            put("quantity", quantity)
+            put("transactionId", transactionId)
+        }
     }
 }
 

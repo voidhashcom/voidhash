@@ -43,7 +43,7 @@ data class OutboxRecord(
         put("distinctId", distinctId)
         put("attempts", attempts)
         put("availableAt", availableAt)
-        put("request", request.toJson())
+        put("request", request.toStorageJson())
     }.toString()
 
     internal companion object {
@@ -51,8 +51,10 @@ data class OutboxRecord(
             val json = runCatching { JSONObject(record) }.getOrNull() ?: return null
             val key = json.optString("key").takeIf { it.isNotEmpty() } ?: return null
             val request = json.optJSONObject("request") ?: return null
+            val legacyKey = "${request.optString("transactionId")}:${request.optDouble("purchaseDate")}"
             return OutboxRecord(
-                key = key,
+                key = if ((key.startsWith("android:") || key == legacyKey) && request.optString("purchaseToken").isNotEmpty())
+                    "android:${request.getString("purchaseToken")}" else key,
                 distinctId = json.optString("distinctId"),
                 attempts = json.optInt("attempts"),
                 availableAt = json.optLong("availableAt"),
@@ -66,7 +68,7 @@ data class OutboxRecord(
                     quantity = request.optInt("quantity", 1),
                     receipt = request.optString("receipt")
                         .takeIf { it.isNotEmpty() && !request.isNull("receipt") },
-                    transactionId = request.optString("transactionId"),
+                    transactionId = request.optString("transactionId", request.optString("purchaseToken")),
                 ),
             )
         }
@@ -107,15 +109,19 @@ class TransactionOutbox(
 
     private fun restoreFromStore() {
         val loaded = store.load()
-        storeReadFailed = loaded.readFailed
         val fromDisk = loaded.records.mapNotNull(OutboxRecord::fromRecord)
         synchronized(records) {
-            // Anything enqueued while the load was in flight is newer, so it belongs last
-            // and wins over the stored attempt at the same transaction.
-            val live = records.mapTo(HashSet()) { it.key }
             val deduplicated = LinkedHashMap<String, OutboxRecord>()
-            fromDisk.forEach { deduplicated[it.key] = it }
-            records.addAll(0, deduplicated.values.filter { it.key !in live })
+            (fromDisk + records).forEach { record ->
+                val first = deduplicated[record.key]
+                deduplicated[record.key] = if (first == null) record else first.copy(
+                    attempts = maxOf(first.attempts, record.attempts),
+                    availableAt = maxOf(first.availableAt, record.availableAt),
+                )
+            }
+            records.clear()
+            records.addAll(deduplicated.values)
+            storeReadFailed = loaded.readFailed
         }
         restored.complete(Unit)
     }
@@ -133,17 +139,18 @@ class TransactionOutbox(
         get() = synchronized(records) { records.toList() }
 
     /**
-     * Records a receipt for [key], preserving its first identity and retry state on duplicates.
-     * Persisted before returning, so the caller may safely issue the network request next.
+     * Records a receipt for [key], preserving the identity and retry state of any earlier attempt.
+     * Returns the retained record once persisted ownership is known. A null result keeps
+     * the receipt queued and defers delivery until unreadable storage can be recovered.
      */
-    suspend fun enqueue(key: String, distinctId: String, request: SyncTransactionRequest) {
-        restored.await()
-        val record = OutboxRecord(key, distinctId, request, availableAt = clock.now())
-        val size = synchronized(records) {
-            if (records.any { it.key == key }) return
-            records.add(record)
-            records.size
+    suspend fun enqueue(key: String, distinctId: String, request: SyncTransactionRequest): OutboxRecord? {
+        awaitRestored()
+        reloadAfterFailedRead()
+        val record = synchronized(records) {
+            records.firstOrNull { it.key == key }
+                ?: OutboxRecord(key, distinctId, request, availableAt = clock.now()).also(records::add)
         }
+        val size = pending
         if (size > TRANSACTION_OUTBOX_WARN_THRESHOLD) {
             diagnostics.emit(
                 VoidhashDiagnosticKind.EVICTION,
@@ -155,6 +162,9 @@ class TransactionOutbox(
             )
         }
         persistAndAwait(record)
+        return synchronized(records) {
+            if (storeReadFailed) null else records.firstOrNull { it.key == key }
+        }
     }
 
     /** Identity captured by the first report, retained across duplicate observations. */
@@ -187,6 +197,7 @@ class TransactionOutbox(
         try {
             restored.await()
             reloadAfterFailedRead()
+            if (storeReadFailed) return
             val now = clock.now()
             val due = synchronized(records) { records.filter { it.availableAt <= now } }
             var changed = false

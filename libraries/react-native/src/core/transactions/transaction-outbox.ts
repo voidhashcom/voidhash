@@ -2,12 +2,15 @@ import * as Arr from "effect/Array";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as MutableRef from "effect/MutableRef";
 import * as Option from "effect/Option";
 import * as P from "effect/Predicate";
 import * as Ref from "effect/Ref";
 import * as Semaphore from "effect/Semaphore";
+
+import { fromTransactionRecord, transactionProcessingKey } from "../entities/transaction";
 
 import { type CacheReadFailed } from "../caching/cache-adapter";
 import { CacheManager } from "../caching/cache-manager";
@@ -25,7 +28,7 @@ export interface OutboxEntry {
   readonly availableAt: number;
   /** Identity active when the store transaction was observed. */
   readonly distinctId: string;
-  /** Stable identity of the store transaction (`platform:id:purchaseDate`). */
+  /** Stable identity of the store transaction (`platform:storeIdentifier`). */
   readonly key: string;
   /** The store transaction, as observed. */
   readonly transaction: Record<string, unknown>;
@@ -53,16 +56,43 @@ export const decodeOutboxEntry = (value: unknown): Option.Option<OutboxEntry> =>
           P.hasProperty(value, "distinctId") && P.isString(value.distinctId)
             ? value.distinctId
             : "",
-        key: value.key,
+        key: (() => {
+          const transaction = fromTransactionRecord(value.transaction);
+          return transaction ? transactionProcessingKey(transaction) : value.key;
+        })(),
         transaction: value.transaction,
       })
     : Option.none();
+
+const mergeOutboxEntries = (entries: ReadonlyArray<OutboxEntry>): ReadonlyArray<OutboxEntry> => {
+  const merged = Arr.reduce(entries, HashMap.empty<string, OutboxEntry>(), (result, entry) =>
+    HashMap.set(
+      result,
+      entry.key,
+      Option.match(HashMap.get(result, entry.key), {
+        onNone: () => entry,
+        onSome: (first) => ({
+          ...first,
+          attempts: Math.max(first.attempts, entry.attempts),
+          availableAt: Math.max(first.availableAt, entry.availableAt),
+          transaction:
+            entry.transaction.externallyManaged === true
+              ? { ...first.transaction, externallyManaged: true }
+              : first.transaction,
+        }),
+      }),
+    ),
+  );
+  return Arr.getSomes(
+    Arr.map(Arr.dedupe(Arr.map(entries, (entry) => entry.key)), (key) => HashMap.get(merged, key)),
+  );
+};
 
 const decodeOutbox = (value: unknown): ReadonlyArray<OutboxEntry> =>
   // `getSomes(map(...))`, not `filterMap`: this Effect release's
   // `Array.filterMap` keeps `Result`s, so an `Option` callback would drop
   // every receipt and a restart would come back empty.
-  Array.isArray(value) ? Arr.getSomes(Arr.map(value, decodeOutboxEntry)) : [];
+  Array.isArray(value) ? mergeOutboxEntries(Arr.getSomes(Arr.map(value, decodeOutboxEntry))) : [];
 
 const make = Effect.fn("makeTransactionOutbox")(function* effect() {
   const cacheManager = yield* CacheManager;
@@ -114,10 +144,9 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
       const reloaded = yield* load();
       if (Option.isNone(reloaded)) return;
       MutableRef.set(restoreFailed, false);
-      yield* Ref.update(entriesRef, (entries) => [
-        ...reloaded.value.filter((entry) => !entries.some((held) => held.key === entry.key)),
-        ...entries,
-      ]);
+      yield* Ref.update(entriesRef, (entries) =>
+        mergeOutboxEntries([...reloaded.value, ...entries]),
+      );
     }
     const entries = yield* Ref.get(entriesRef);
     yield* cacheManager.set(TRANSACTION_OUTBOX_STORAGE_KEY, entries);
@@ -133,7 +162,9 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
   /**
    * Records a receipt before any network call, so a transaction observed while
    * the app was about to die is still delivered on the next launch. Writing
-   * the same key twice keeps the earlier attempt count.
+   * the same key twice keeps the earlier identity and attempt count. Returns
+   * the retained identity so immediate delivery uses the same owner as retries.
+   * None defers delivery until unreadable storage can reveal the original owner.
    */
   const enqueue = Effect.fn("TransactionOutbox.enqueue")(
     function* (key: string, transaction: Record<string, unknown>, distinctId = "") {
@@ -148,6 +179,10 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
           : [...entries, { attempts: 0, availableAt: now, distinctId, key, transaction }],
       );
       yield* persistUnlocked();
+      if (MutableRef.get(restoreFailed)) return Option.none<string>();
+      return Option.some(
+        (yield* Ref.get(entriesRef)).find((entry) => entry.key === key)?.distinctId ?? distinctId,
+      );
     },
     (effect) => mutationMutex.withPermits(1)(effect),
   );
@@ -194,11 +229,16 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
   );
 
   /** Receipts whose cool-down has elapsed, oldest first. */
-  const due = Effect.fn("TransactionOutbox.due")(function* () {
-    const now = yield* Clock.currentTimeMillis;
-    const entries = yield* Ref.get(entriesRef);
-    return entries.filter((entry) => entry.availableAt <= now);
-  });
+  const due = Effect.fn("TransactionOutbox.due")(
+    function* () {
+      if (MutableRef.get(restoreFailed)) yield* persistUnlocked();
+      if (MutableRef.get(restoreFailed)) return [];
+      const now = yield* Clock.currentTimeMillis;
+      const entries = yield* Ref.get(entriesRef);
+      return entries.filter((entry) => entry.availableAt <= now);
+    },
+    (effect) => mutationMutex.withPermits(1)(effect),
+  );
 
   const pending = () => Ref.get(entriesRef);
 

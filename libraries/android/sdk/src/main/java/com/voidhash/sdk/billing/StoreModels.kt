@@ -40,8 +40,16 @@ data class VoidhashTransaction(
     /** True when the host app retains acknowledgment and consumption ownership. */
     val externallyManaged: Boolean = false,
 ) {
-    /** Cross-runtime dedup key: `platform:transactionId:purchaseDate`. */
-    val processingKey: String get() = "android:$transactionId:${purchaseDate.toLongIfWhole()}"
+    /** Stable store identity, independent of optional purchase metadata. */
+    val processingKey: String get() = if (isDevelopment) {
+        "android:$transactionId:${purchaseDate.toLongIfWhole()}"
+    } else {
+        "android:${purchaseToken ?: transactionId}"
+    }
+
+    /** Cache key written by releases that included the order ID and purchase timestamp. */
+    internal val legacyProcessingKey: String get() =
+        "android:$transactionId:${purchaseDate.toLongIfWhole()}"
 
     /** True when the transaction came from the development (mock) store. */
     val isDevelopment: Boolean get() = store == "development"

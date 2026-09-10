@@ -1,63 +1,100 @@
+import * as Encoding from "effect/Encoding";
+import * as Result from "effect/Result";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import { Transaction } from "./transaction";
 
-/** Store values captured from the host billing SDK's purchase or restore result. */
+/** Only the store identifier is required. Legacy metadata is accepted but discarded. */
 export type ReportedTransaction = {
-  /** Store transaction/order ID; use the purchase token if Play supplies no order ID. */
-  transactionId: string;
-  /** Store product identifier, not the Voidhash product slug. */
-  productId: string;
-  /** Original store purchase timestamp in milliseconds since the Unix epoch. */
-  purchaseDate: number;
-  /** Purchased quantity; defaults to one. */
+  productId?: string;
+  purchaseDate?: number;
   quantity?: number;
-  /** Signed store receipt, when exposed by the host SDK. */
   receipt?: string;
-  /** Store account token, when present. */
   appAccountToken?: string;
 } & (
-  | { platform: "ios" }
+  | { platform: "ios"; transactionId: string }
   | {
       platform: "android";
-      /** Google Play purchase token; an order ID alone cannot verify a purchase. */
       purchaseToken: string;
-      /** Report again when a pending purchase becomes purchased. */
-      purchaseState: "purchased" | "pending" | "unspecified";
+      transactionId?: string;
+      /** If supplied, pending/unspecified purchases are ignored until reported as purchased. */
+      purchaseState?: "purchased" | "pending" | "unspecified";
     }
 );
 
-/** Validates host-supplied store values and pins finalization to the host. */
-export const fromReportedTransaction = (report: ReportedTransaction): Transaction => {
-  const quantity = report.quantity ?? 1;
-  if (
-    !report.transactionId?.trim() ||
-    !report.productId?.trim() ||
-    !Number.isFinite(report.purchaseDate) ||
-    report.purchaseDate < 0 ||
-    !Number.isSafeInteger(quantity) ||
-    quantity < 1 ||
-    (report.platform !== "ios" && report.platform !== "android") ||
-    (report.platform === "android" &&
-      (!report.purchaseToken?.trim() ||
-        !["purchased", "pending", "unspecified"].includes(report.purchaseState)))
-  ) {
-    throw new TypeError(
-      "A transaction requires valid store identifiers, purchase date, quantity and Android purchase token/state",
-    );
-  }
-  return new Transaction(
-    report.transactionId,
-    report.transactionId,
-    report.productId,
-    report.purchaseDate,
-    quantity,
-    false,
-    report.platform,
-    {
-      externallyManaged: true,
-      receipt: report.receipt,
-      appAccountToken: report.appAccountToken,
-      purchaseToken: report.platform === "android" ? report.purchaseToken : undefined,
-      purchaseState: report.platform === "android" ? report.purchaseState : "purchased",
-    },
+/** Original bridge data accepted as a convenience; only the token and state are read. */
+export interface GooglePlayPurchaseData {
+  readonly originalJson: string;
+  readonly signature?: string;
+}
+
+/** Minimal store identifiers, or original store data from which the SDK extracts them. */
+export type StoreTransaction = ReportedTransaction | string | GooglePlayPurchaseData;
+
+const identifier = Schema.String.check(Schema.isPattern(/\S/));
+const decodeJson = Schema.decodeUnknownSync(Schema.UnknownFromJsonString);
+const decodeReport = Schema.decodeUnknownSync(
+  Schema.Union([
+    Schema.Struct({ platform: Schema.Literal("ios"), transactionId: identifier }),
+    Schema.Struct({
+      platform: Schema.Literal("android"),
+      purchaseToken: identifier,
+      purchaseState: Schema.optional(Schema.Literals(["purchased", "pending", "unspecified"])),
+    }),
+  ]),
+);
+
+// Only the ID is extracted; the server fetches and verifies the transaction with Apple.
+const fromStoreKitJws = (jws: string): ReportedTransaction => {
+  const parts = jws.split(".");
+  if (parts.length !== 3 || !parts[1]) throw new TypeError("Expected a StoreKit transaction JWS");
+  const payload = Schema.decodeUnknownSync(Schema.Struct({ transactionId: identifier }))(
+    Result.match(Encoding.decodeBase64UrlString(parts[1]), {
+      onFailure: () => {
+        throw new TypeError("Invalid StoreKit transaction encoding");
+      },
+      onSuccess: decodeJson,
+    }),
   );
+  return { platform: "ios", transactionId: payload.transactionId };
+};
+
+const fromPlayPurchase = (input: GooglePlayPurchaseData): ReportedTransaction => {
+  const payload = Schema.decodeUnknownSync(
+    Schema.Struct({
+      token: Schema.optional(identifier),
+      purchaseToken: Schema.optional(identifier),
+      purchaseState: Schema.optional(Schema.Literals([0, 1, 4])),
+      productIds: Schema.optional(Schema.Array(Schema.Unknown)),
+    }),
+  )(decodeJson(input.originalJson));
+  if (payload.productIds && payload.productIds.length > 1) {
+    throw new TypeError("Multi-product purchases are not supported");
+  }
+  const token = payload.token ?? payload.purchaseToken;
+  if (!token) throw new TypeError("A Google Play purchase token is required");
+  return {
+    platform: "android",
+    purchaseToken: token,
+    purchaseState: payload.purchaseState === 4 ? "pending" : "purchased",
+  };
+};
+
+/** Extracts only verification identifiers and leaves store finalization with the host. */
+export const fromReportedTransaction = (input: StoreTransaction): Transaction => {
+  const report = decodeReport(
+    P.isString(input)
+      ? fromStoreKitJws(input)
+      : input && "originalJson" in input
+        ? fromPlayPurchase(input)
+        : input,
+  );
+  const id = report.platform === "ios" ? report.transactionId : report.purchaseToken;
+  // The purchase model also serves SDK-owned purchases. These unused defaults never
+  // leave the process: host reports are persisted and sent using store identifiers only.
+  return new Transaction(id, id, "", 0, 1, false, report.platform, {
+    externallyManaged: true,
+    purchaseToken: report.platform === "android" ? report.purchaseToken : undefined,
+    purchaseState: report.platform === "android" ? report.purchaseState : "purchased",
+  });
 };

@@ -168,11 +168,12 @@ public final class DevelopmentStoreEngine: StoreKitEngineProtocol, @unchecked Se
         /// Presents the confirmation sheet above whatever is on screen (including the paywall
         /// WebView) and suspends until the user picks an action.
         @discardableResult
+        @MainActor
         private func presentConfirmationSheet(
             product: String, configuration: RuntimeDevelopmentProductConfiguration
         ) async throws -> Bool {
-            let scene = await windowSceneProvider.currentWindowScene()
-            guard let presenter = await Self.topViewController(from: scene?.keyWindow?.rootViewController)
+            let scene = windowSceneProvider.currentWindowScene()
+            guard let presenter = Self.topViewController(from: scene?.keyWindow?.rootViewController)
             else {
                 throw VoidhashStoreError.windowSceneNotFound
             }
@@ -193,9 +194,7 @@ public final class DevelopmentStoreEngine: StoreKitEngineProtocol, @unchecked Se
                     controller.sheetPresentationController?.detents = [.medium()]
                 }
                 settler.controller = controller
-                Task { @MainActor in
-                    presenter.present(controller, animated: true)
-                }
+                presenter.present(controller, animated: true)
             }
         }
 

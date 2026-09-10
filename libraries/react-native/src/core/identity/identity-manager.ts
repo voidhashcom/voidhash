@@ -45,7 +45,7 @@ export type IdentifyOutcome =
       /** The server confirmed the identity and returned the person. */
       readonly status: "confirmed";
       readonly person: SdkPerson;
-      /** The distinct id the events before the switch belong to. */
+      /** Anonymous source used for the identity link. */
       readonly previousDistinctId: string;
     }
   | {
@@ -71,6 +71,7 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
   const authGate = yield* AuthGate;
   const identifyBreakerKey = breakerKey("config", sdkConfiguration.baseUrl);
   const currentDistinctId = MutableRef.make(Option.none<string>());
+  const lastIdentifiedId = MutableRef.make(Option.none<string>());
   const makeAnonymousDistinctId = Effect.map(
     Random.next,
     (entropy) => `${ANONYMOUS_DISTINCT_ID_PREFIX}${entropy.toString(36).slice(2, 15)}`,
@@ -86,6 +87,8 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
   const getDistinctId = () =>
     Effect.gen(function* getDistinctId() {
       const epoch = identityEpoch.current();
+      const known = MutableRef.get(currentDistinctId);
+      if (epoch > 0 && Option.isSome(known)) return known.value;
       const distinctId = yield* getDistinctIdFromCache();
       const current = MutableRef.get(currentDistinctId);
       if (identityEpoch.current() !== epoch && Option.isSome(current)) {
@@ -115,9 +118,10 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
   const switchLocalIdentity = Effect.fn("IdentityManager.switchLocalIdentity")(function* (
     distinctId: string,
   ) {
-    yield* setDistinctIdInCache(distinctId);
     identityEpoch.bump();
     atomRegistry.set(featureFlagsByKeyAtom, {});
+    atomRegistry.set(currentPersonAtom, Option.none());
+    yield* setDistinctIdInCache(distinctId);
   });
 
   const invalidatePreviousIdentity = Effect.fn("IdentityManager.invalidatePreviousIdentity")(
@@ -213,32 +217,55 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
   ) =>
     Effect.gen(function* identify() {
       const previousDistinctId = yield* getDistinctId();
+      if (
+        previousDistinctId === distinctId &&
+        options.email === undefined &&
+        options.name === undefined
+      ) {
+        const person = yield* personInfoManager.getPerson(distinctId, "cache");
+        if (person !== null) return { person, previousDistinctId, status: "confirmed" as const };
+        if (Option.contains(MutableRef.get(lastIdentifiedId), distinctId)) {
+          return { person, previousDistinctId, status: "deferred" as const };
+        }
+      }
+      // Only anonymous identities may be linked. A fresh source also lets a
+      // direct account switch create a customer the server has not seen yet.
+      const aliasDistinctId = previousDistinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)
+        ? previousDistinctId
+        : yield* makeAnonymousDistinctId;
       const previousFlags = atomRegistry.get(featureFlagsByKeyAtom);
-      yield* switchLocalIdentity(distinctId);
+      const previousPerson = atomRegistry.get(currentPersonAtom);
+      if (previousDistinctId !== distinctId) yield* switchLocalIdentity(distinctId);
 
       const request = yield* Effect.result(
         deferRequest
           ? Effect.succeed(Option.none<SdkPerson>())
-          : requestIdentify(previousDistinctId, distinctId, options),
+          : requestIdentify(aliasDistinctId, distinctId, options),
       );
       if (Result.isFailure(request)) {
         yield* setDistinctIdInCache(previousDistinctId);
         identityEpoch.bump();
         atomRegistry.set(featureFlagsByKeyAtom, previousFlags);
+        atomRegistry.set(currentPersonAtom, previousPerson);
         return yield* Effect.fail(request.failure);
       }
+      MutableRef.set(lastIdentifiedId, Option.some(distinctId));
       yield* invalidatePreviousIdentity(previousDistinctId, distinctId);
       const confirmed = request.success;
 
       if (Option.isSome(confirmed)) {
         yield* personInfoManager.cache(distinctId, confirmed.value);
         atomRegistry.set(currentPersonAtom, Option.some({ ...confirmed.value, distinctId }));
-        return { person: confirmed.value, previousDistinctId, status: "confirmed" as const };
+        return {
+          person: confirmed.value,
+          previousDistinctId: aliasDistinctId,
+          status: "confirmed" as const,
+        };
       }
 
       const cached = yield* personInfoManager.getPerson(distinctId, "cache");
       atomRegistry.set(currentPersonAtom, Option.fromNullOr(cached));
-      return { person: cached, previousDistinctId, status: "deferred" as const };
+      return { person: cached, previousDistinctId: aliasDistinctId, status: "deferred" as const };
     });
 
   /**
@@ -265,8 +292,7 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
    * The next anonymous identity is in memory before the first storage call,
    * so `AnalyticsService.capture` — synchronous, and possibly running while
    * the deletes below are still in flight — always finds an identity to stamp.
-   * The durable cache is left without one on purpose: `getDistinctId()`
-   * writes the anonymous id back the first time it is asked for it.
+   * The fresh identity is also persisted so the next launch resumes it.
    */
   const reset = () =>
     Effect.gen(function* reset() {
@@ -274,7 +300,7 @@ const make = Effect.fn("makeIdentityManager")(function* effect() {
       const anonymousDistinctId = yield* makeAnonymousDistinctId;
       identityEpoch.bump();
       MutableRef.set(currentDistinctId, Option.some(anonymousDistinctId));
-      yield* cacheManager.delete(CACHE_KEY);
+      yield* cacheManager.set(CACHE_KEY, anonymousDistinctId);
       yield* cacheManager.deleteByPrefix(PERSON_CACHE_KEY_PREFIX);
       yield* cacheManager.deleteByPrefix(FEATURE_FLAGS_CACHE_KEY_PREFIX);
       if (Option.isSome(previousDistinctId)) {

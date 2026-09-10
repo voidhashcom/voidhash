@@ -1,0 +1,24 @@
+{
+  "storeKit": {
+    "jws": "eyJhbGciOiJFUzI1NiJ9.eyJ0cmFuc2FjdGlvbklkIjoiMTg0NDY3NDQwNzM3MDk1NTE2MTUiLCJwcm9kdWN0SWQiOiJjb2lucyIsInB1cmNoYXNlRGF0ZSI6MTcwMDAwMDAwMDAwMCwicXVhbnRpdHkiOjMsImFwcEFjY291bnRUb2tlbiI6IjM1MDFlNzUxLTc1ODItNThmOS05YzFkLTUzM2M3NDY2MDQ5ZiJ9.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "expected": {
+      "transactionId": "18446744073709551615",
+      "productId": "coins",
+      "purchaseDate": 1700000000000,
+      "quantity": 3,
+      "appAccountToken": "3501e751-7582-58f9-9c1d-533c7466049f"
+    }
+  },
+  "googlePlay": {
+    "originalJson": "{\"orderId\":\"18446744073709551615\",\"productIds\":[\"coins\"],\"purchaseToken\":\"store-token\",\"purchaseTime\":1700000000000,\"quantity\":3,\"purchaseState\":0,\"obfuscatedAccountId\":\"3501e751-7582-58f9-9c1d-533c7466049f\"}",
+    "signature": "store-signature",
+    "expected": {
+      "transactionId": "18446744073709551615",
+      "productId": "coins",
+      "purchaseDate": 1700000000000,
+      "quantity": 3,
+      "appAccountToken": "3501e751-7582-58f9-9c1d-533c7466049f",
+      "purchaseToken": "store-token"
+    }
+  }
+}

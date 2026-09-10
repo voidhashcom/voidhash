@@ -143,29 +143,28 @@ unfinished for the host billing integration.
 
 ### Report purchases from another billing SDK
 
-Call `reportTransaction(...)` with the store result from each successful host purchase or restore
-callback. Store observers can miss purchases handled by another SDK. Reporting captured values
-works even after the host has finished or consumed the purchase.
+Call `reportTransaction(...)` after each successful host purchase and for each restored transaction.
+Only an Apple transaction ID or Google Play purchase token is required. Voidhash supplies the current
+SDK identity and configured bundle/package; the backend fetches and verifies the store purchase.
 
 ```swift
-// verification is the VerificationResult<Transaction> from the host's StoreKit success result.
-try await voidhash.reportTransaction(verification)
+try await voidhash.reportTransaction(transactionId: transactionId)
 ```
 
-Unverified results throw. Hosts exposing plain values can instead pass `VoidhashTransaction`
-with the store transaction ID, product ID, original purchase timestamp in milliseconds, quantity
-and optional signed receipt. Reporting does not need a StoreKit connection. Invalid store values
-throw `INVALID_TRANSACTION`; pending transactions are ignored.
+The transaction ID is a string; preserve every digit. You can also pass a `StoreKit.Transaction`
+or `VerificationResult<StoreKit.Transaction>` directly to `reportTransaction(...)`. The SDK extracts
+only the ID and discards other fields, raw JSON and signed receipts. The verified-result overload
+rejects unverified results. The direct transaction overload leaves local verification with the host.
+
+Existing `VoidhashTransaction` inputs remain supported; only `transactionId` is required. Other
+metadata is optional and discarded when reporting. Pending results are ignored. Invalid IDs throw
+`INVALID_TRANSACTION`. Reporting does not require a StoreKit connection; delivery failures stay
+queued without throwing into the host purchase callback.
 
 Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
-finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
-before it returns; delivery runs in the background, so an unavailable network or Voidhash service
-cannot interrupt the purchase callback. Keep host finalization and access checks in place.
-
-Only StoreKit verification and invalid input throw. Captured receipts stay queued on delivery
-failure, and duplicate reports retain the first captured identity across retries and relaunches.
-Successful completion means durable capture, not backend acceptance; inspect SDK diagnostics to
-investigate delayed delivery.
+finishes, acknowledges or consumes a transaction. It durably captures the identifier before returning
+and delivers it in the background. Duplicate reports preserve the original captured identity across
+retries and relaunches. SDK diagnostics describe deferred delivery.
 
 Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
 host restore that returns no individual transactions. It scans currently exposed purchases and
@@ -203,7 +202,7 @@ try await voidhash.identify(externalUserId: "user_123", email: "ada@example.com"
 try await voidhash.setPersonAttributes(["plan": .string("pro"), "seats": .number(3)])
 
 let distinctId = await voidhash.getDistinctId()
-await voidhash.reset()  // sign out: clears the identity and every cached response
+await voidhash.signOut()  // starts a fresh anonymous identity
 ```
 
 `getCurrentPerson(forceFetch: true)` bypasses the cached snapshot when the network is usable.

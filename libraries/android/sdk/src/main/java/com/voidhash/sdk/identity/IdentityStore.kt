@@ -22,6 +22,7 @@ class IdentityStore(
      * may only mean the id has not been read from storage yet, and minting on it would give
      * a returning device a second identity.
      */
+    @Synchronized
     fun getDistinctId(): String {
         cacheManager.getString(DISTINCT_ID_CACHE_KEY)?.let { return it.value }
 
@@ -34,6 +35,7 @@ class IdentityStore(
     }
 
     /** Persists [distinctId] as the current identity. */
+    @Synchronized
     fun setDistinctId(distinctId: String) {
         cacheManager.set(DISTINCT_ID_CACHE_KEY, distinctId)
     }
@@ -42,14 +44,16 @@ class IdentityStore(
     fun isAnonymous(): Boolean = getDistinctId().startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)
 
     /**
-     * Drops only the stored identity; the next [getDistinctId] mints a new anonymous id.
+     * Replaces the stored identity with a fresh anonymous id.
      * Shared entries such as the schema and remembered placements are kept.
      */
+    @Synchronized
     fun forgetDistinctId() {
-        cacheManager.delete(DISTINCT_ID_CACHE_KEY)
+        setDistinctId(anonymousIdFactory())
     }
 
     /** Clears the cache, dropping the identity along with everything else. */
+    @Synchronized
     fun reset() {
         cacheManager.clear()
     }

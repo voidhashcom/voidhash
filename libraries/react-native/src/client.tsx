@@ -1,4 +1,4 @@
-import type { ReportedTransaction } from "./core/entities/reported-transaction";
+import type { StoreTransaction } from "./core/entities/reported-transaction";
 import * as P from "effect/Predicate";
 import { Result } from "better-result";
 import * as Arr from "effect/Array";
@@ -419,6 +419,7 @@ export class VoidhashClient {
 
   private unitializedClient: UninitializedEffectClient;
   private initializedClient?: InitializedEffectClient;
+  private identityChangeTail: Promise<void> = Promise.resolve();
 
   constructor(
     initialDistinctId: unknown,
@@ -523,6 +524,21 @@ export class VoidhashClient {
     }
 
     return result;
+  }
+
+  private enqueueIdentityChange<T>(
+    operation: () => Promise<Result<T, VoidhashError>>,
+  ): Promise<Result<T, VoidhashError>> {
+    const next = this.identityChangeTail.then(async () => {
+      const initialized = await this.init();
+      if (initialized.isErr()) return Result.err(initialized.error);
+      return operation();
+    });
+    this.identityChangeTail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   /**
@@ -933,7 +949,9 @@ export class VoidhashClient {
    * Identifies the user by switching the current distinct id. The switch
    * happens locally first; when the server is unreachable it is queued as a
    * `$identify` event and delivered later rather than failing. Use
-   * {@link identifySync} to learn which of the two happened.
+   * {@link identifySync} to learn which of the two happened. Identity calls
+   * wait for initialization and run in invocation order. Repeating the same
+   * ID without profile changes preserves the session and cached state.
    */
   async identify(
     externalUserId: string,
@@ -946,16 +964,18 @@ export class VoidhashClient {
       return Result.ok(undefined);
     }
 
-    return this.runSideEffect("identify", async () => {
-      if (!this.initializedClient) {
-        return Result.err(new NotInitializedError());
-      }
-      const result = await this.toResult(
-        this.initializedClient.identify(externalUserId, options),
-        "FAILED_TO_IDENTIFY",
-      );
-      return result.map(() => undefined);
-    });
+    return this.enqueueIdentityChange(() =>
+      this.runSideEffect("identify", async () => {
+        if (!this.initializedClient) {
+          return Result.err(new NotInitializedError());
+        }
+        const result = await this.toResult(
+          this.initializedClient.identify(externalUserId, options),
+          "FAILED_TO_IDENTIFY",
+        );
+        return result.map(() => undefined);
+      }),
+    );
   }
 
   /**
@@ -976,19 +996,21 @@ export class VoidhashClient {
       return Result.ok({ person: null, status: "disabled" });
     }
 
-    if (!this.initializedClient) {
-      return Result.err(new NotInitializedError());
-    }
-    const result = await this.toResult(
-      this.initializedClient.identify(externalUserId, options),
-      "FAILED_TO_IDENTIFY",
-    );
-    return result.map(
-      (outcome): IdentifyResult =>
-        outcome.status === "confirmed"
-          ? { person: outcome.person, status: "confirmed" }
-          : { person: outcome.person, status: "deferred" },
-    );
+    return this.enqueueIdentityChange(async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      const result = await this.toResult(
+        this.initializedClient.identify(externalUserId, options),
+        "FAILED_TO_IDENTIFY",
+      );
+      return result.map(
+        (outcome): IdentifyResult =>
+          outcome.status === "confirmed"
+            ? { person: outcome.person, status: "confirmed" }
+            : { person: outcome.person, status: "deferred" },
+      );
+    });
   }
 
   /**
@@ -999,12 +1021,14 @@ export class VoidhashClient {
       return Result.ok(undefined);
     }
 
-    return this.runSideEffect("reset", async () => {
-      if (!this.initializedClient) {
-        return Result.err(new NotInitializedError());
-      }
-      return this.toResult(this.initializedClient.reset(), "FAILED_TO_RESET");
-    });
+    return this.enqueueIdentityChange(() =>
+      this.runSideEffect("reset", async () => {
+        if (!this.initializedClient) {
+          return Result.err(new NotInitializedError());
+        }
+        return this.toResult(this.initializedClient.reset(), "FAILED_TO_RESET");
+      }),
+    );
   }
 
   /**
@@ -1017,12 +1041,14 @@ export class VoidhashClient {
       return Result.ok(undefined);
     }
 
-    return this.runSideEffect("signOut", async () => {
-      if (!this.initializedClient) {
-        return Result.err(new NotInitializedError());
-      }
-      return this.toResult(this.initializedClient.signOut(), "FAILED_TO_SIGN_OUT");
-    });
+    return this.enqueueIdentityChange(() =>
+      this.runSideEffect("signOut", async () => {
+        if (!this.initializedClient) {
+          return Result.err(new NotInitializedError());
+        }
+        return this.toResult(this.initializedClient.signOut(), "FAILED_TO_SIGN_OUT");
+      }),
+    );
   }
 
   /**
@@ -1141,12 +1167,13 @@ export class VoidhashClient {
   }
 
   /**
-   * Reports the store values from another billing SDK's successful purchase or restore.
+   * Reports a successful host purchase using only its Apple transaction ID or Play token.
+   * Other purchase metadata is optional and discarded.
    * Does not query, finish, acknowledge or consume the purchase. Pending Android
    * purchases are ignored; report them again when purchased. Delivery failures
    * remain queued for retry, so success does not imply server acceptance.
    */
-  async reportTransaction(transaction: ReportedTransaction): Promise<Result<void, VoidhashError>> {
+  async reportTransaction(transaction: StoreTransaction): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) return Result.ok(undefined);
     return this.runSideEffect("reportTransaction", async () => {
       if (!this.initializedClient) return Result.err(new NotInitializedError());

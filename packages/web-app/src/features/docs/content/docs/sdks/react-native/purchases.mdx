@@ -12,68 +12,47 @@ paywalls are temporarily unavailable; `purchase()` returns an `Err` with
 
 ## Report a completed purchase or restore
 
-Call `reportTransaction(...)` with the store values returned by your host billing SDK after each
-successful purchase, including purchases made through its paywall. Report each transaction returned
-by a restore callback as well. Automatic store observers can miss purchases handled by another SDK.
+Call `reportTransaction(...)` after each successful purchase, including purchases from another SDK's
+paywall. Report each transaction returned by a restore callback as well. Configure Voidhash and
+identify the purchasing user before starting the host purchase flow.
 
-Configure Voidhash and identify the purchasing user before starting the host purchase flow. Capture
-the original store identifiers and purchase timestamp; do not substitute the current time or a
-Voidhash product slug. Reporting captured values also works after the host has finished or consumed
-the purchase, because it does not depend on finding the purchase in a store scan.
-
-Wait for `useVoidhash().status === "ready"` before calling the client. Map your billing SDK's
-purchase result into `ReportedTransaction`; field names below are Voidhash's input fields, not an
-assumed third-party SDK response shape.
+Only the store identifier is required: an Apple transaction ID or a Google Play purchase token.
+Voidhash supplies its configured bundle/package and captures the current SDK identity automatically.
+The backend fetches and verifies the purchase with the store; timestamps, quantities, product
+metadata, receipts, signatures and purchaser arguments are unnecessary.
 
 ```tsx
-// iOS: values captured from the host's successful purchase result.
-await voidhash.client.reportTransaction({
-  platform: "ios",
-  transactionId: storeTransactionId,
-  productId: storeProductId,
-  purchaseDate: storePurchaseTimestampMs,
-  quantity: purchasedQuantity,
-  receipt: signedTransaction, // Optional when the host does not expose it.
-});
+// Apple: keep the transaction ID as a string, preserving every digit.
+await voidhash.client.reportTransaction({ platform: "ios", transactionId });
+
+// Google Play: the purchase token, not the order ID.
+await voidhash.client.reportTransaction({ platform: "android", purchaseToken });
 ```
 
-```tsx
-// Android: retain the purchase token, even after the host consumes the purchase.
-await voidhash.client.reportTransaction({
-  platform: "android",
-  transactionId: storeOrderId || purchaseToken,
-  productId: storeProductId,
-  purchaseDate: storePurchaseTimestampMs,
-  quantity: purchasedQuantity,
-  purchaseToken,
-  purchaseState: "purchased", // Only after the host confirms PURCHASED.
-});
-```
+Wait for `useVoidhash().status === "ready"` before calling the client. If the host exposes original
+store data instead, the same method accepts a StoreKit JWS string or a Play bridge object with
+`originalJson`. Voidhash extracts the identifier internally and discards the remaining payload;
+no receipt-decoding dependency is needed in your application.
 
-`purchaseDate` is the original timestamp in milliseconds, `quantity` defaults to one, and
-`appAccountToken` is optional. Preserve store transaction IDs as strings. Android requires both a
-purchase token and `purchaseState`; `pending` and `unspecified` reports are ignored. Report the same
-purchase again when it becomes `purchased`. The backend verifies store transactions before granting
-access. Do not replace Android's purchase token with its order ID.
+Legacy `ReportedTransaction` metadata such as `productId`, `purchaseDate`, `quantity`, `receipt`
+and `appAccountToken` is optional and discarded. Android's optional `purchaseState` can mark a
+report as `pending` or `unspecified`; those reports are ignored until reported as `purchased`.
+The original Play JSON's pending state is converted internally. Multi-product bridge purchases
+are rejected because the current purchase processing supports one product per purchase.
 
-Reporting never finishes, acknowledges or consumes the transaction. A valid report is written to
-the receipt outbox before it resolves; delivery runs in the background, so an unavailable network
-or Voidhash service cannot make the host purchase callback return an error. Keep your host billing
-SDK's finalization and entitlement handling in place. Repeated reports and observer callbacks are
-deduplicated.
+`reportTransaction()` returns `Result<void, VoidhashError>`. Missing or malformed required
+identifiers return `FAILED_TO_REPORT_TRANSACTION`; an unavailable client returns
+`VOIDHASH_CLIENT_NOT_INITIALIZED`. Network and delivery failures leave the report queued and
+return `Ok`.
 
-### Errors and deferred delivery
+Reporting works after the host has finished or consumed a purchase because it does not scan the
+store. It never finishes, acknowledges or consumes transactions. Keep your billing integration's
+finalization and access checks in place.
 
-`reportTransaction()` and `syncPurchases()` return `Result<void, VoidhashError>`. For reporting,
-an `Err` only means invalid store values or that the client is unavailable; an unreachable network
-or Voidhash service leaves the receipt queued and returns `Ok`. Store connection or query failures
-return `FAILED_TO_SYNC_PURCHASES`. Calling before initialization returns
-`VOIDHASH_CLIENT_NOT_INITIALIZED`.
-
-Captured receipts remain queued when delivery fails. A successful result means durable capture; it
-does not guarantee the purchase is already visible in the dashboard. SDK diagnostics describe deferred
-delivery. While a receipt is queued, duplicate reports retain its first captured identity, including
-across app relaunches.
+A successful report is captured in the durable outbox before returning; delivery runs in the
+background. Success does not imply immediate backend acceptance. SDK diagnostics describe deferred
+delivery. Duplicate reports and observer callbacks use the same store identifier and retain the
+original captured identity through retries and app relaunches.
 
 ## Recovery scans and restore callbacks
 

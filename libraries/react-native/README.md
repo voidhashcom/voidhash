@@ -149,43 +149,43 @@ Observer reconciliation:
 - Reconciliation runs in the background and does not block `init()`.
 - Reconciliation sources are pending transactions and active purchase history.
 - Foreground and connectivity recovery also rescan the store, at most once a minute.
-- The client-side dedupe key is `platform + transactionId + purchaseDate`.
+- Deduplication uses the store transaction ID on Apple and the purchase token on Google Play.
 - The server endpoint is idempotent by store transaction identity, tolerating retries and duplicates.
 
 ### Report purchases from another billing SDK
 
-Call `reportTransaction(...)` with the store result from each successful host purchase or restore
-callback. Store observers can miss purchases handled by another SDK. Reporting captured values
-works even after the host has finished or consumed the purchase.
+Call `reportTransaction(...)` after each successful host purchase and for each restored transaction.
+Only an Apple transaction ID or Google Play purchase token is required. Voidhash supplies the current
+SDK identity and configured bundle/package; the backend fetches and verifies the store purchase.
 
-```ts
-// Map the host callback's actual store values into these Voidhash input fields.
-await client.reportTransaction({
-  platform: "android",
-  transactionId: storeOrderId || purchaseToken,
-  productId: storeProductId,
-  purchaseDate: storePurchaseTimestampMs,
-  purchaseToken,
-  purchaseState: "purchased",
-});
+```tsx
+// Apple: keep the transaction ID as a string, preserving every digit.
+await client.reportTransaction({ platform: "ios", transactionId });
+
+// Google Play: the purchase token, not the order ID.
+await client.reportTransaction({ platform: "android", purchaseToken });
 ```
 
-For iOS, use `platform: "ios"` with the store transaction ID, product ID and original timestamp
-in milliseconds. Omit Android's token/state fields; pass the signed transaction as `receipt`
-when available. Both platforms accept optional `quantity` (default one) and `appAccountToken`.
-Keep identifiers as strings. Android pending/unspecified purchases are ignored; report again
-when purchased. Invalid inputs return `FAILED_TO_REPORT_TRANSACTION`.
+Wait for `useVoidhash().status === "ready"` before calling the client. If the host exposes original
+store data instead, the same method accepts a StoreKit JWS string or a Play bridge object with
+`originalJson`. Voidhash extracts the identifier internally and discards the remaining payload;
+no receipt-decoding dependency is needed in your application.
+
+Legacy `ReportedTransaction` metadata such as `productId`, `purchaseDate`, `quantity`, `receipt`
+and `appAccountToken` is optional and discarded. Android's optional `purchaseState` can mark a
+report as `pending` or `unspecified`; those reports are ignored until reported as `purchased`.
+The original Play JSON's pending state is converted internally. Multi-product bridge purchases
+are rejected because the current purchase processing supports one product per purchase.
+
+`reportTransaction()` returns `Result<void, VoidhashError>`. Missing or malformed required
+identifiers return `FAILED_TO_REPORT_TRANSACTION`; an unavailable client returns
+`VOIDHASH_CLIENT_NOT_INITIALIZED`. Network and delivery failures leave the report queued and
+return `Ok`.
 
 Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
-finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
-before it resolves; delivery runs in the background, so an unavailable network or Voidhash service
-cannot make the purchase callback return an error. Keep host finalization and access checks in
-place.
-
-An `Err` only reports invalid input or an unavailable client. Captured receipts stay queued on
-delivery failure, and duplicate reports retain the first captured identity across retries and
-relaunches. A successful result means durable capture, not backend acceptance; inspect SDK
-diagnostics to investigate delayed delivery.
+finishes, acknowledges or consumes a transaction. It durably captures the identifier before returning
+and delivers it in the background. Duplicate reports preserve the original captured identity across
+retries and relaunches. SDK diagnostics describe deferred delivery.
 
 Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
 host restore that returns no individual transactions. It scans currently exposed purchases and

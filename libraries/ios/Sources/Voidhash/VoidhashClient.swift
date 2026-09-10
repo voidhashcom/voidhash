@@ -121,6 +121,9 @@ public actor VoidhashClient {
     /// One-time move of the pre-namespace cache entries, started in `init` so no public call can
     /// read identity, session or queue state before it has run. Every such read awaits it.
     private let migrationTask: Task<Void, Never>
+    private let identityInitializationTask: Task<Void, Never>
+    private let identityChanges = SerialTaskQueue()
+    private var lastIdentifiedId: String?
     /// Set by ``shutdown()``; an initialization still running past it must not subscribe to
     /// lifecycle or connectivity, or start the flush loop, on a client that has been replaced.
     private var isShutDown = false
@@ -199,6 +202,14 @@ public actor VoidhashClient {
         cacheManager = CacheManager(
             adapter: adapter, now: dependencies.analyticsNow, diagnostics: diagnostics)
         identityStore = IdentityStore(cacheManager: cacheManager)
+        identityInitializationTask = Task { [migrationTask, identityStore] in
+            await migrationTask.value
+            guard options.enabled else { return }
+            if let distinctId = options.distinctId {
+                await identityStore.identify(distinctId: distinctId)
+            }
+            _ = await identityStore.getDistinctId()
+        }
         apiClient = VoidhashApiClient(baseUrl: options.baseUrl, session: dependencies.session)
         engine =
             dependencies.engine ?? (developmentMode ? DevelopmentStoreEngine() : StoreKitEngine())
@@ -358,43 +369,44 @@ public actor VoidhashClient {
         try await syncPurchases()
     }
 
-    /// Reports the verified StoreKit result returned to the host purchase flow.
-    /// Capture the result even when the host has already finished the transaction.
+    /// Reports a verified StoreKit result. Only its transaction ID is retained.
     /// Unverified results throw; the host remains responsible for finishing.
     public func reportTransaction(_ result: VerificationResult<StoreKit.Transaction>) async throws {
         guard options.enabled else { return }
-        let transaction = try result.payloadValue
-        try await reportTransaction(
-            VoidhashTransaction(
-                transactionId: String(transaction.id),
-                productId: transaction.productID,
-                purchaseDate: transaction.purchaseDate.timeIntervalSince1970 * 1000,
-                quantity: Double(transaction.purchasedQuantity),
-                appAccountToken: transaction.appAccountToken?.uuidString.lowercased(),
-                receipt: result.jwsRepresentation
-            ))
+        try await reportTransaction(transactionId: String(try result.payloadValue.id))
     }
 
-    /// Reports store values supplied by a host billing SDK without scanning or finishing.
-    /// Use the original store identifiers and timestamp. A valid receipt is persisted before this
-    /// method returns; delivery runs in the background, so a network or backend outage cannot
-    /// interrupt the host purchase callback. Pending results are ignored.
-    public func reportTransaction(_ transaction: VoidhashTransaction) async throws {
+    /// Reports a StoreKit transaction. The host owns local verification and finishing.
+    /// Only the transaction ID is needed for server verification.
+    public func reportTransaction(_ transaction: StoreKit.Transaction) async throws {
+        try await reportTransaction(transactionId: String(transaction.id))
+    }
+
+    /// Reports a store transaction ID, using the current SDK identity automatically.
+    /// Capture is durable before return; delivery failures stay queued in the background.
+    public func reportTransaction(transactionId: String) async throws {
+        try await reportTransaction(
+            VoidhashTransaction(
+                transactionId: transactionId, productId: "", purchaseDate: 0, quantity: 1))
+    }
+
+    /// Reports an existing normalized transaction. Optional purchase metadata is discarded.
+    /// Pending transactions are ignored and the host retains store finalization.
+    public func reportTransaction(_ input: VoidhashTransaction) async throws {
         guard options.enabled else { return }
-        guard transaction.purchaseState == .purchased else { return }
-        guard !transaction.transactionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !transaction.productId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            transaction.purchaseDate.isFinite, transaction.purchaseDate >= 0,
-            transaction.quantity.isFinite, transaction.quantity >= 1,
-            transaction.quantity.rounded() == transaction.quantity,
-            !transaction.isDevelopment
+        guard input.purchaseState == .purchased else { return }
+        guard !input.transactionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !input.isDevelopment
         else {
             throw VoidhashStoreError(
-                code: "INVALID_TRANSACTION", message: "Invalid store transaction values")
+                code: "INVALID_TRANSACTION", message: "A store transaction ID is required")
         }
-        await migrationTask.value
+        let transaction = VoidhashTransaction(
+            transactionId: input.transactionId, productId: "", purchaseDate: 0, quantity: 1)
+        await identityInitializationTask.value
         guard !isShutDown else { return }
 
+        let distinctId = await identityStore.getDistinctId()
         let schema = currentSchema ?? RuntimeSchema.empty
         let processingKey = PurchaseOrchestrator.processingKey(transaction)
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(processingKey)
@@ -405,7 +417,6 @@ public actor VoidhashClient {
         {
             return
         }
-        let distinctId = await identityStore.getDistinctId()
         await outbox.stage(
             PurchaseOrchestrator.syncPayload(transaction, products: schema.products),
             distinctId: distinctId
@@ -461,7 +472,7 @@ public actor VoidhashClient {
         guard options.enabled else {
             return Stale(value: nil)
         }
-        await migrationTask.value
+        await identityInitializationTask.value
 
         let distinctId = await identityStore.getDistinctId()
         let cacheKey = VoidhashClient.personCacheKey(distinctId)
@@ -495,7 +506,7 @@ public actor VoidhashClient {
     /// Fetches and caches the person for the current identity, single-flighted.
     @discardableResult
     private func refreshPerson() async throws -> SdkPerson? {
-        await migrationTask.value
+        await identityInitializationTask.value
         let distinctId = await identityStore.getDistinctId()
         return try await personFlight.run(key: distinctId) { [weak self] in
             guard let self else {
@@ -548,9 +559,35 @@ public actor VoidhashClient {
         guard options.enabled else {
             return PersonWriteResult(status: .deferred, person: nil)
         }
-        await migrationTask.value
+        let task = identityChanges.submit {
+            try await self.performIdentify(externalUserId: externalUserId, email: email, name: name)
+        }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func performIdentify(
+        externalUserId: String, email: String?, name: String?
+    ) async throws -> PersonWriteResult {
+        await identityInitializationTask.value
 
         let currentDistinctId = await identityStore.getDistinctId()
+        if currentDistinctId == externalUserId && email == nil && name == nil {
+            let person = await cacheManager.get(
+                Self.personCacheKey(externalUserId), as: SdkPerson.self)?
+                .value
+            if person != nil || lastIdentifiedId == externalUserId {
+                return PersonWriteResult(
+                    status: person == nil ? .deferred : .confirmed, person: person)
+            }
+        }
+        let aliasDistinctId =
+            IdentityStore.isAnonymous(currentDistinctId)
+            ? currentDistinctId
+            : IdentityStore.anonymousDistinctIdPrefix + UUID().uuidString.lowercased()
         // Local first: the app asked to be this user, and that must hold regardless of the
         // network. Anything evaluated for the previous id would otherwise leak into the
         // identified session — flags in particular are per person.
@@ -559,11 +596,14 @@ public actor VoidhashClient {
         do {
             let person = try await guarded("person.identify") { [apiClient, headerFactory] in
                 try await apiClient.identify(
-                    headers: headerFactory.build(distinctId: currentDistinctId),
+                    headers: headerFactory.build(distinctId: aliasDistinctId),
                     body: SdkIdentifyBody(distinctId: externalUserId, email: email, name: name)
                 )
             }
-            await invalidatePerIdentityCache(previousDistinctId: currentDistinctId)
+            if currentDistinctId != externalUserId {
+                await invalidatePerIdentityCache(previousDistinctId: currentDistinctId)
+            }
+            lastIdentifiedId = externalUserId
             await cachePerson(person, distinctId: externalUserId)
             Task { [weak self] in
                 _ = try? await self?.refreshFlags(keys: nil)
@@ -577,11 +617,13 @@ public actor VoidhashClient {
             await identityStore.identify(distinctId: currentDistinctId)
             throw error
         } catch {
-            await invalidatePerIdentityCache(previousDistinctId: currentDistinctId)
+            if currentDistinctId != externalUserId {
+                await invalidatePerIdentityCache(previousDistinctId: currentDistinctId)
+            }
             // The alias rides the analytics queue, which is durable and already retried; the
             // backend applies it when the batch lands.
             var properties: [String: JSONValue] = [
-                "$anon_distinct_id": .string(currentDistinctId),
+                "$anon_distinct_id": .string(aliasDistinctId),
                 "$distinct_id": .string(externalUserId),
                 "$process_person_profile": .bool(true),
             ]
@@ -592,6 +634,7 @@ public actor VoidhashClient {
                 properties["$name"] = .string(name)
             }
             await analytics.capture(AutomaticEvents.identify, properties: properties)
+            lastIdentifiedId = externalUserId
             return PersonWriteResult(status: .deferred, person: nil)
         }
     }
@@ -607,7 +650,7 @@ public actor VoidhashClient {
         guard options.enabled else {
             return PersonWriteResult(status: .deferred, person: nil)
         }
-        await migrationTask.value
+        await identityInitializationTask.value
 
         let distinctId = await identityStore.getDistinctId()
         do {
@@ -649,8 +692,8 @@ public actor VoidhashClient {
     /// Clears the persisted identity and everything cached for it, and starts a new analytics
     /// session.
     ///
-    /// Captures `$sign_out` under the identity and session being cleared, then the next
-    /// ``getDistinctId()`` allocates a fresh anonymous distinct id. State that is not tied to a
+    /// Captures `$sign_out` under the identity and session being cleared, then persists a
+    /// fresh anonymous distinct id. State that is not tied to a
     /// person — the schema, remembered placements, the install marker — stays cached, so a
     /// sign-out offline does not turn the next launch into a cold start or re-report
     /// `$app_installed`.
@@ -658,7 +701,16 @@ public actor VoidhashClient {
         guard options.enabled else {
             return
         }
-        await migrationTask.value
+        _ = try? await identityChanges.submit { await self.performReset() }.value
+    }
+
+    /// Signs out and starts a fresh anonymous identity and analytics session.
+    public func signOut() async {
+        await reset()
+    }
+
+    private func performReset() async {
+        await identityInitializationTask.value
         if options.automaticLifecycleEvents {
             await analytics.capture(AutomaticEvents.signOut)
         }
@@ -672,7 +724,7 @@ public actor VoidhashClient {
 
     /// Returns the current distinct id, allocating an anonymous one when needed.
     public func getDistinctId() async -> String {
-        await migrationTask.value
+        await identityInitializationTask.value
         return await identityStore.getDistinctId()
     }
 
@@ -681,7 +733,7 @@ public actor VoidhashClient {
     /// Sessions end after 30 minutes without a capture and on ``reset()``; reading the id does
     /// not extend the session.
     public func sessionId() async -> String {
-        await migrationTask.value
+        await identityInitializationTask.value
         return await sessionManager.peek()
     }
 
@@ -718,7 +770,7 @@ public actor VoidhashClient {
         guard options.enabled else {
             return Stale(value: [])
         }
-        await migrationTask.value
+        await identityInitializationTask.value
 
         let distinctId = await identityStore.getDistinctId()
         let cacheKey = VoidhashClient.flagsCacheKey(distinctId: distinctId, keys: keys)
@@ -761,7 +813,7 @@ public actor VoidhashClient {
 
     @discardableResult
     private func refreshFlags(keys: [String]?) async throws -> [SdkFeatureFlagResult] {
-        await migrationTask.value
+        await identityInitializationTask.value
         let distinctId = await identityStore.getDistinctId()
         let cacheKey = VoidhashClient.flagsCacheKey(distinctId: distinctId, keys: keys)
         return try await flagsFlight.run(key: cacheKey) { [weak self] in
@@ -793,7 +845,7 @@ public actor VoidhashClient {
         guard options.enabled else {
             return
         }
-        await migrationTask.value
+        await identityInitializationTask.value
         await analytics.capture(eventName, properties: properties)
     }
 
@@ -806,7 +858,7 @@ public actor VoidhashClient {
         guard options.enabled else {
             return FlushStatus(flushed: 0, pending: 0)
         }
-        await migrationTask.value
+        await identityInitializationTask.value
         return await analytics.flush()
     }
 
@@ -849,7 +901,7 @@ public actor VoidhashClient {
         else {
             return
         }
-        await migrationTask.value
+        await identityInitializationTask.value
         await analytics.capture(
             AutomaticEvents.screen,
             properties: properties.merging(screenProperties) { _, reserved in reserved })
@@ -940,7 +992,7 @@ public actor VoidhashClient {
             return Stale(value: nil)
         }
         _ = try await ensureInitialized()
-        await migrationTask.value
+        await identityInitializationTask.value
         let distinctId = await identityStore.getDistinctId()
 
         let unassigned = await cacheManager.get(
@@ -1177,7 +1229,7 @@ public actor VoidhashClient {
         _ body: SdkSyncTransactionBody,
         distinctId: String
     ) async throws -> Bool {
-        await migrationTask.value
+        await identityInitializationTask.value
         let result = await outbox.enqueue(body, distinctId: distinctId)
         // Strictly this transaction: a drain that happened to deliver an older receipt says
         // nothing about the one the caller just handed over.
@@ -1190,7 +1242,7 @@ public actor VoidhashClient {
 
     /// Receipts still waiting for a backend acknowledgement.
     public func pendingTransactionCount() async -> Int {
-        await migrationTask.value
+        await identityInitializationTask.value
         return await outbox.pendingCount()
     }
 
@@ -1199,7 +1251,7 @@ public actor VoidhashClient {
     /// Called on foreground, on connectivity restore and by hosts that want to force a sync.
     @discardableResult
     public func syncPendingWork() async -> FlushStatus {
-        await migrationTask.value
+        await identityInitializationTask.value
         await outbox.drain()
         return await analytics.flush()
     }
@@ -1272,15 +1324,11 @@ public actor VoidhashClient {
     }
 
     private func runInitialization() async throws -> RuntimeSchema {
-        await migrationTask.value
+        await identityInitializationTask.value
         // A shutdown that landed while this was suspended means the client was replaced; it
         // must not come back to life on its own (see `start()`).
         guard !isShutDown else {
             throw CancellationError()
-        }
-
-        if let distinctId = options.distinctId {
-            await identityStore.identify(distinctId: distinctId)
         }
 
         // Analytics, lifecycle observation and connectivity come up first and unconditionally.

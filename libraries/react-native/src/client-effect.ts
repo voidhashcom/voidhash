@@ -1,6 +1,6 @@
 import {
   fromReportedTransaction,
-  type ReportedTransaction,
+  type StoreTransaction,
 } from "./core/entities/reported-transaction";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -9,6 +9,7 @@ import * as Result from "effect/Result";
 import * as Arr from "effect/Array";
 import * as MutableRef from "effect/MutableRef";
 import * as Option from "effect/Option";
+import * as Semaphore from "effect/Semaphore";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
@@ -71,13 +72,15 @@ const captureDeferredIdentify = (
   distinctId: string,
   options: IdentifyOptions,
 ) =>
-  analyticsService.capture(AUTOMATIC_EVENTS.IDENTIFY, {
-    $anon_distinct_id: outcome.previousDistinctId,
-    $distinct_id: distinctId,
-    ...(options.email !== undefined ? { $email: options.email } : {}),
-    ...(options.name !== undefined ? { $name: options.name } : {}),
-    $process_person_profile: true,
-  });
+  outcome.previousDistinctId === distinctId
+    ? Effect.void
+    : analyticsService.capture(AUTOMATIC_EVENTS.IDENTIFY, {
+        $anon_distinct_id: outcome.previousDistinctId,
+        $distinct_id: distinctId,
+        ...(options.email !== undefined ? { $email: options.email } : {}),
+        ...(options.name !== undefined ? { $name: options.name } : {}),
+        $process_person_profile: true,
+      });
 
 interface InitOptions {
   readonly distinctId?: string;
@@ -248,6 +251,7 @@ const makeInitializedClient = (options: {
   Effect.gen(function* () {
     const analyticsService = yield* AnalyticsService;
     const sessionManager = yield* AnalyticsSessionManager;
+    const identityChanges = yield* Semaphore.make(1);
     const identityEpoch = yield* IdentityEpoch;
     const atomRegistry = yield* AtomRegistry.AtomRegistry;
     const getSchema = () => Option.getOrElse(atomRegistry.get(schemaAtom), () => options.schema);
@@ -469,7 +473,7 @@ const makeInitializedClient = (options: {
             yield* captureDeferredIdentify(analyticsService, outcome, distinctId, identifyOptions);
           }
           return outcome;
-        }),
+        }).pipe(identityChanges.withPermits(1)),
 
       iosPresentCodeRedemptionSheet: () =>
         Effect.gen(function* iosPresentCodeRedemptionSheet() {
@@ -498,7 +502,7 @@ const makeInitializedClient = (options: {
         }),
 
       /** Reports a host purchase without querying or finalizing it in the store. */
-      reportTransaction: (report: ReportedTransaction) =>
+      reportTransaction: (report: StoreTransaction) =>
         Effect.gen(function* reportTransaction() {
           const transaction = yield* Effect.try(() => fromReportedTransaction(report));
           const transactionService = yield* TransactionService;
@@ -595,7 +599,7 @@ const makeInitializedClient = (options: {
           // cycle (`AnalyticsService` depends on `IdentityManager`).
           yield* flushWithinBudget(analyticsService);
           return yield* identityManager.reset();
-        }),
+        }).pipe(identityChanges.withPermits(1)),
 
       /**
        * Captures the built-in `$sign_out` event, flushes within the identify
@@ -613,7 +617,7 @@ const makeInitializedClient = (options: {
           // starts a fresh session and the new id is what ends up persisted.
           yield* sessionManager.rotate();
           return person;
-        }),
+        }).pipe(identityChanges.withPermits(1)),
 
       /**
        * Boot and foreground refresh chain: schema, then person, flags and the

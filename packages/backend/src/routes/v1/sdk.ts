@@ -1,3 +1,4 @@
+import { mapSdkTransactionSubmission } from "./sdk-transaction";
 import {
   RegisterDeviceResponse,
   SdkCurrentSubscription,
@@ -50,7 +51,6 @@ import { getDevelopmentPrice } from "@voidhash/core-v2";
 import { Db } from "@voidhash/db";
 import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
-import { constant } from "@voidhash/lib/lang";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Inspectable from "effect/Inspectable";
@@ -158,48 +158,6 @@ const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
       ),
     },
   });
-
-/** Maps the public SDK transaction payload to the provider-specific service input. */
-export const mapSdkTransactionSubmission = (
-  payload: {
-    readonly platform: "ios" | "android";
-    readonly appAccountToken?: string;
-    readonly providerProductId?: string;
-    readonly productSlug: string;
-    readonly purchaseDate: number;
-    readonly purchaseToken?: string;
-    readonly quantity: number;
-    readonly receipt?: string;
-    readonly transactionId: string;
-  },
-  clientBundleId: string,
-) => {
-  // The advisory fields (`appAccountToken`, `purchaseDate`, `quantity`,
-  // `receipt`) travel with both providers so the service can record them for
-  // observability instead of silently discarding them; the store-verified
-  // transaction remains authoritative.
-  const advisory = {
-    appAccountToken: payload.appAccountToken,
-    purchaseDate: payload.purchaseDate,
-    quantity: payload.quantity,
-    receipt: payload.receipt,
-  };
-  if (payload.platform === "android") {
-    return {
-      ...advisory,
-      packageName: clientBundleId,
-      productId: payload.providerProductId ?? payload.productSlug,
-      providerId: constant("google-play"),
-      purchaseToken: payload.purchaseToken,
-    };
-  }
-  return {
-    ...advisory,
-    bundleId: clientBundleId,
-    providerId: constant("apple-app-store"),
-    transactionId: payload.transactionId,
-  };
-};
 
 /** Returns whether an SDK request is allowed to write development purchase data. */
 export const isDevelopmentPurchaseRequest = (headers: {

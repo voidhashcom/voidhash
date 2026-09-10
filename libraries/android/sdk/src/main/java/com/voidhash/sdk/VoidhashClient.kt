@@ -154,8 +154,9 @@ class VoidhashClient internal constructor(
     private val readOnlyFlag = AtomicBoolean(readOnly || !commerceFeaturesEnabled)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
     private val billingReady = AtomicBoolean(false)
+    private val identityMutex = Mutex()
+    private var lastIdentifiedId: String? = null
     private val billingConnectionMutex = Mutex()
-    private val initMutex = Mutex()
     private var initialized = false
     private val pendingAnalyticsLock = Any()
     private val pendingAnalytics = ArrayDeque<PendingAnalyticsCapture>()
@@ -210,7 +211,7 @@ class VoidhashClient internal constructor(
     suspend fun initialize() {
         if (!enabled) return
 
-        initMutex.withLock {
+        identityMutex.withLock {
             if (initialized) return
 
             // The identity and the last-seen app release live in the cache, and reading them
@@ -390,34 +391,41 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Reports a purchase returned by the host billing SDK, including consumed purchases.
-     * This never connects to Billing, acknowledges or consumes the purchase. Pending
-     * purchases are ignored; report them again when purchased. A valid receipt is persisted
-     * before this method returns, then delivered on the SDK background scope. A network or
-     * backend outage therefore leaves the receipt queued instead of interrupting the host
-     * purchase callback. Only single-product purchases are supported by the endpoint.
+     * Reports the host's purchase without connecting, acknowledging or consuming it.
+     * Only the token is retained. Pending purchases are ignored; report them again when purchased.
      */
     suspend fun reportTransaction(purchase: Purchase) {
         if (!enabled) return
+        if (purchase.products.size > 1) {
+            throw VoidhashException("INVALID_TRANSACTION", "Multi-product purchases are not supported")
+        }
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
-        val productId = purchase.products.singleOrNull()?.takeIf { it.isNotBlank() }
-            ?: throw VoidhashException("INVALID_TRANSACTION", "Expected one store product in the purchase")
-        if (purchase.purchaseToken.isBlank() || purchase.purchaseTime < 0 || purchase.quantity < 1) {
-            throw VoidhashException("INVALID_TRANSACTION", "Invalid purchase token, date or quantity")
+        reportTransaction(purchase.purchaseToken)
+    }
+
+    /**
+     * Reports a Google Play purchase token; no other purchase metadata is required.
+     * The current SDK identity is captured before delivery. The server verifies the purchase
+     * with Google Play. Delivery failures stay queued and never fail the host purchase callback.
+     */
+    suspend fun reportTransaction(purchaseToken: String) {
+        if (!enabled) return
+        if (purchaseToken.isBlank()) {
+            throw VoidhashException("INVALID_TRANSACTION", "A Google Play purchase token is required")
         }
         cacheManager.awaitWarm()
         val transaction = VoidhashTransaction(
-            id = productId,
-            transactionId = purchase.orderId?.takeIf { it.isNotBlank() } ?: purchase.purchaseToken,
-            productId = productId,
-            purchaseDate = purchase.purchaseTime.toDouble(),
-            quantity = purchase.quantity,
-            isAcknowledged = purchase.isAcknowledged,
+            id = purchaseToken,
+            transactionId = purchaseToken,
+            productId = "",
+            purchaseDate = 0.0,
+            quantity = 1,
+            isAcknowledged = false,
             purchaseState = "purchased",
-            purchaseToken = purchase.purchaseToken,
-            appAccountToken = purchase.accountIdentifiers?.obfuscatedAccountId,
-            receipt = purchase.originalJson,
-            isAutoRenewing = purchase.isAutoRenewing,
+            purchaseToken = purchaseToken,
+            appAccountToken = null,
+            receipt = null,
+            isAutoRenewing = null,
             externallyManaged = true,
         )
         val schema = schemaRef.get() ?: RuntimeSchema.EMPTY
@@ -518,15 +526,28 @@ class VoidhashClient internal constructor(
         externalUserId: String,
         email: String? = null,
         name: String? = null,
-    ): PersonWriteResult {
-        if (!enabled) return PersonWriteResult(WriteStatus.CONFIRMED, null)
+    ): PersonWriteResult = identityMutex.withLock {
+        if (!enabled) return@withLock PersonWriteResult(WriteStatus.CONFIRMED, null)
 
         cacheManager.awaitWarm()
         val previousDistinctId = identityStore.getDistinctId()
+        if (previousDistinctId == externalUserId && email == null && name == null) {
+            val person = cachedPerson(externalUserId)
+            if (person != null || lastIdentifiedId == externalUserId) {
+                return@withLock PersonWriteResult(
+                    if (person == null) WriteStatus.DEFERRED else WriteStatus.CONFIRMED, person,
+                )
+            }
+        }
+        val aliasDistinctId = if (previousDistinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)) {
+            previousDistinctId
+        } else {
+            ANONYMOUS_DISTINCT_ID_PREFIX + java.util.UUID.randomUUID()
+        }
         enableAnalyticsCapture()
         val write = PersonWrite(
             kind = PersonWriteKind.IDENTIFY,
-            distinctId = previousDistinctId,
+            distinctId = aliasDistinctId,
             externalUserId = externalUserId,
             email = email,
             name = name,
@@ -537,17 +558,18 @@ class VoidhashClient internal constructor(
         identityStore.setDistinctId(externalUserId)
 
         val person = try {
-            apiClient.identify(previousDistinctId, externalUserId, email, name)
+            apiClient.identify(aliasDistinctId, externalUserId, email, name)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
             if (isTransportFailure(error)) {
                 personWrites.enqueue(write)
-                invalidateIdentityState(previousDistinctId)
+                lastIdentifiedId = externalUserId
+                if (previousDistinctId != externalUserId) invalidateIdentityState(previousDistinctId)
                 onWarning("Queued identify for $externalUserId: ${error.message}")
-                return PersonWriteResult(
+                return@withLock PersonWriteResult(
                     WriteStatus.DEFERRED,
-                    cachedPerson(externalUserId) ?: cachedPerson(previousDistinctId),
+                    cachedPerson(externalUserId),
                 )
             }
             identityStore.setDistinctId(previousDistinctId)
@@ -556,12 +578,13 @@ class VoidhashClient internal constructor(
 
         // Flags and the person snapshot are evaluated per identity; without this the ones
         // computed for the anonymous visitor keep answering reads.
-        invalidateIdentityState(previousDistinctId)
+        if (previousDistinctId != externalUserId) invalidateIdentityState(previousDistinctId)
+        lastIdentifiedId = externalUserId
         cachePerson(externalUserId, person)
         scope.launch {
             runQuietly("refresh flags after identify") { refreshFlags(externalUserId, emptyList()) }
         }
-        return PersonWriteResult(WriteStatus.CONFIRMED, person)
+        return@withLock PersonWriteResult(WriteStatus.CONFIRMED, person)
     }
 
     /**
@@ -599,12 +622,12 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Clears the local identity; the next call generates a new anonymous id.
+     * Replaces the local identity with a fresh anonymous id.
      * Captures `$sign_out` for the identity and session being cleared first,
      * then starts a new analytics session.
      */
-    suspend fun reset() {
-        if (!enabled) return
+    suspend fun reset() = identityMutex.withLock {
+        if (!enabled) return@withLock
         cacheManager.awaitWarm()
         val previousDistinctId = identityStore.getDistinctId()
         enableAnalyticsCapture()
@@ -613,6 +636,9 @@ class VoidhashClient internal constructor(
         invalidateIdentityState(previousDistinctId)
         sessionManager.rotate()
     }
+
+    /** Signs out and starts a fresh anonymous identity and analytics session. */
+    suspend fun signOut() = reset()
 
     /**
      * Whether [error] means "the server did not answer" rather than "the server said no".
@@ -1027,13 +1053,12 @@ class VoidhashClient internal constructor(
         distinctId: String,
         request: SyncTransactionRequest,
     ): TransactionSyncResult {
-        val key = "${request.transactionId}:${request.purchaseDate}"
-        // A receipt already on disk for this transaction must be replaced, not duplicated.
-        outbox.awaitRestored()
-        outbox.enqueue(key, distinctId, request)
+        val key = "android:${request.purchaseToken.ifEmpty { request.transactionId }}"
+        val retained = outbox.enqueue(key, distinctId, request)
+            ?: return TransactionSyncResult(WriteStatus.DEFERRED, accepted = false)
 
         val verdict = try {
-            apiClient.syncTransactionVerdict(distinctId, request)
+            apiClient.syncTransactionVerdict(retained.distinctId, retained.request)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {

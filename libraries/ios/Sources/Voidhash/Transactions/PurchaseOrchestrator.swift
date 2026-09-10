@@ -146,6 +146,9 @@ public actor PurchaseOrchestrator {
     func purchase(product: VoidhashProduct, schema: RuntimeSchema) async throws {
         let readOnlyAtPurchaseStart = isReadOnly()
         let distinctId = await distinctIdProvider()
+        await cacheManager.set(
+            "transaction-identity:\(AccountToken.derive(distinctId: distinctId))", value: distinctId
+        )
         let storeTransaction = try await engine.buyProduct(
             sku: product.id,
             appAccountToken: AccountToken.derive(distinctId: distinctId),
@@ -158,7 +161,8 @@ public actor PurchaseOrchestrator {
             isAcknowledgedOverride: isDevelopmentMode
         )
         let accepted = try await processTransaction(
-            transaction, schema: schema, readOnlyOverride: readOnlyAtPurchaseStart)
+            transaction, schema: schema, readOnlyOverride: readOnlyAtPurchaseStart,
+            distinctIdOverride: distinctId)
         if accepted {
             await refreshPerson()
         }
@@ -242,18 +246,30 @@ public actor PurchaseOrchestrator {
     ///
     /// - Parameter readOnlyOverride: Pins the ownership decision for a purchase this SDK started.
     ///   Every other caller omits it and reads the live flag when the decision is made.
+    /// - Parameter distinctIdOverride: Identity that started a purchase. Observations use the
+    ///   stored account-token identity, or the identity at observation when no mapping exists.
     /// - Returns: `true` only after the backend explicitly accepts the receipt. `false` leaves the
     ///   receipt queued and the store transaction unfinished.
     @discardableResult
     public func processTransaction(
         _ transaction: VoidhashTransaction,
         schema: RuntimeSchema,
-        readOnlyOverride: Bool? = nil
+        readOnlyOverride: Bool? = nil,
+        distinctIdOverride: String? = nil
     ) async throws -> Bool {
         guard transaction.purchaseState == .purchased else {
             return false
         }
 
+        let currentDistinctId = await distinctIdProvider()
+        var distinctId = distinctIdOverride ?? currentDistinctId
+        if distinctIdOverride == nil, let token = transaction.appAccountToken,
+            let cached = await cacheManager.get(
+                "transaction-identity:\(token.lowercased())", as: String.self)
+        {
+            distinctId = cached.value
+        }
+        let capturedDistinctId = distinctId
         let key = PurchaseOrchestrator.processingKey(transaction)
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(key)
 
@@ -282,7 +298,8 @@ public actor PurchaseOrchestrator {
                 schema: schema,
                 entry: entry,
                 readOnlyOverride: readOnlyOverride,
-                processedCacheKey: processedCacheKey
+                processedCacheKey: processedCacheKey,
+                distinctId: capturedDistinctId
             )
         }
         entry.task = task
@@ -296,12 +313,19 @@ public actor PurchaseOrchestrator {
         schema: RuntimeSchema,
         entry: InFlightTransaction,
         readOnlyOverride: Bool?,
-        processedCacheKey: String
+        processedCacheKey: String,
+        distinctId: String
     ) async throws -> Bool {
         // An expired marker is a miss: the cache serves expired entries for offline reads, but a
         // processed-transaction record past its lifetime must not stop a receipt from syncing.
-        let cachedHit = await cacheManager.get(
+        var cachedHit = await cacheManager.get(
             processedCacheKey, as: TransactionProcessingState.self)
+        if cachedHit == nil || cachedHit?.isExpired == true {
+            cachedHit = await cacheManager.get(
+                Self.processedCacheKey(
+                    "ios:\(transaction.transactionId):\(Self.formatNumber(transaction.purchaseDate))"),
+                as: TransactionProcessingState.self)
+        }
         let cachedState = cachedHit?.isExpired == true ? nil : cachedHit?.value
         entry.hostClaimed = entry.hostClaimed || cachedState?.externallyManaged == true
 
@@ -311,7 +335,7 @@ public actor PurchaseOrchestrator {
 
         if cachedState?.backendAccepted != true {
             var headers = await headersProvider()
-            headers["x-distinct-id"] = await distinctIdProvider()
+            headers["x-distinct-id"] = distinctId
 
             if transaction.isDevelopment {
                 guard let developmentApi else {
@@ -403,7 +427,9 @@ public actor PurchaseOrchestrator {
     }
 
     static func processingKey(_ transaction: VoidhashTransaction) -> String {
-        return "ios:\(transaction.transactionId):\(formatNumber(transaction.purchaseDate))"
+        return transaction.isDevelopment
+            ? "ios:\(transaction.transactionId):\(formatNumber(transaction.purchaseDate))"
+            : "ios:\(transaction.transactionId)"
     }
 
     static func processedCacheKey(_ processingKey: String) -> String {
@@ -442,17 +468,7 @@ public actor PurchaseOrchestrator {
         _ transaction: VoidhashTransaction,
         products: [String: RuntimeProductDefinition]
     ) -> SdkSyncTransactionBody {
-        return SdkSyncTransactionBody(
-            appAccountToken: transaction.appAccountToken,
-            platform: "ios",
-            providerProductId: transaction.productId,
-            productSlug: resolveProductSlug(transaction, products: products),
-            purchaseDate: transaction.purchaseDate,
-            purchaseToken: nil,
-            quantity: transaction.quantity,
-            receipt: transaction.receipt,
-            transactionId: transaction.transactionId
-        )
+        return SdkSyncTransactionBody(platform: "ios", transactionId: transaction.transactionId)
     }
 
     // The processing key is compared against the TypeScript SDK's, which formats whole numbers

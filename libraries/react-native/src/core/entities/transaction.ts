@@ -69,31 +69,47 @@ export class Transaction {
   }
 }
 
+/** Store identity is stable across reports that omit purchase metadata. */
+export const transactionProcessingKey = (transaction: Transaction): string =>
+  transaction.store === "development"
+    ? `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`
+    : transaction.platform === "ios"
+      ? `ios:${transaction.transactionId}`
+      : `android:${transaction.purchaseToken ?? transaction.transactionId}`;
+
 /** Plain-object form of a {@link Transaction}, as persisted in the outbox. */
 export type TransactionRecord = Record<string, unknown>;
 
 /** Flattens a transaction for storage. */
-export const toTransactionRecord = (transaction: Transaction): TransactionRecord => ({
-  externallyManaged: transaction.externallyManaged,
-  appAccountToken: transaction.appAccountToken,
-  currency: transaction.currency,
-  expirationDate: transaction.expirationDate,
-  id: transaction.id,
-  isAcknowledged: transaction.isAcknowledged,
-  isAutoRenewing: transaction.isAutoRenewing,
-  originalPurchaseDate: transaction.originalPurchaseDate,
-  originalTransactionId: transaction.originalTransactionId,
-  platform: transaction.platform,
-  price: transaction.price,
-  productId: transaction.productId,
-  purchaseDate: transaction.purchaseDate,
-  purchaseState: transaction.purchaseState,
-  purchaseToken: transaction.purchaseToken,
-  quantity: transaction.quantity,
-  receipt: transaction.receipt,
-  store: transaction.store,
-  transactionId: transaction.transactionId,
-});
+export const toTransactionRecord = (transaction: Transaction): TransactionRecord =>
+  transaction.externallyManaged
+    ? {
+        externallyManaged: true,
+        platform: transaction.platform,
+        transactionId: transaction.transactionId,
+        purchaseToken: transaction.purchaseToken,
+      }
+    : {
+        externallyManaged: transaction.externallyManaged,
+        appAccountToken: transaction.appAccountToken,
+        currency: transaction.currency,
+        expirationDate: transaction.expirationDate,
+        id: transaction.id,
+        isAcknowledged: transaction.isAcknowledged,
+        isAutoRenewing: transaction.isAutoRenewing,
+        originalPurchaseDate: transaction.originalPurchaseDate,
+        originalTransactionId: transaction.originalTransactionId,
+        platform: transaction.platform,
+        price: transaction.price,
+        productId: transaction.productId,
+        purchaseDate: transaction.purchaseDate,
+        purchaseState: transaction.purchaseState,
+        purchaseToken: transaction.purchaseToken,
+        quantity: transaction.quantity,
+        receipt: transaction.receipt,
+        store: transaction.store,
+        transactionId: transaction.transactionId,
+      };
 
 // oxlint-disable-next-line effect/prefer-option-over-null -- reading an optional field out of an untyped storage record; `undefined` is what the record itself carries.
 const optionalString = (value: unknown): string | undefined =>
@@ -114,6 +130,17 @@ const optionalBoolean = (value: unknown): boolean | undefined =>
  */
 // oxlint-disable-next-line effect/prefer-option-over-null -- internal storage decoder kept `undefined`-shaped to match the plain records it reads.
 export const fromTransactionRecord = (record: TransactionRecord): Transaction | undefined => {
+  if (
+    record.externallyManaged === true &&
+    (record.platform === "ios" || record.platform === "android")
+  ) {
+    const id = record.platform === "ios" ? record.transactionId : record.purchaseToken;
+    if (!P.isString(id) || !id.trim()) return undefined;
+    return new Transaction(id, id, "", 0, 1, false, record.platform, {
+      externallyManaged: true,
+      purchaseToken: record.platform === "android" ? id : undefined,
+    });
+  }
   const { id, transactionId, productId, purchaseDate, quantity, isAcknowledged, platform } = record;
   if (
     !P.isString(id) ||

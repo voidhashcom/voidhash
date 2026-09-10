@@ -18,6 +18,7 @@ import { Diagnostics, DIAGNOSTIC_CODES } from "../diagnostics/diagnostics";
 import type { Product } from "../entities/product";
 import {
   fromTransactionRecord,
+  transactionProcessingKey,
   toTransactionRecord,
   type Transaction,
 } from "../entities/transaction";
@@ -67,8 +68,7 @@ interface InFlightTransaction {
   storeFinalizationPending: boolean;
 }
 
-const buildTransactionProcessingKey = (transaction: Transaction) =>
-  `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`;
+const buildTransactionProcessingKey = transactionProcessingKey;
 
 const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
   `processed-transaction:${transactionProcessingKey}`;
@@ -114,34 +114,11 @@ const resolveTransactionProductDefinition = (
 
 const mapTransactionToSyncPayload = (
   transaction: Transaction,
-  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+  _productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
 ) => {
-  const productSlug = resolveTransactionProductSlug(transaction, productDefinitions);
-
-  if (transaction.platform === "ios") {
-    return {
-      appAccountToken: transaction.appAccountToken,
-      platform: "ios" as const,
-      providerProductId: transaction.productId,
-      productSlug,
-      purchaseDate: transaction.purchaseDate,
-      quantity: transaction.quantity,
-      receipt: transaction.receipt,
-      transactionId: transaction.transactionId,
-    };
-  }
-
-  return {
-    appAccountToken: transaction.appAccountToken,
-    platform: "android" as const,
-    providerProductId: transaction.productId,
-    productSlug,
-    purchaseDate: transaction.purchaseDate,
-    purchaseToken: transaction.purchaseToken ?? "",
-    quantity: transaction.quantity,
-    receipt: transaction.receipt,
-    transactionId: transaction.transactionId,
-  };
+  return transaction.platform === "ios"
+    ? { platform: "ios" as const, transactionId: transaction.transactionId }
+    : { platform: "android" as const, purchaseToken: transaction.purchaseToken ?? "" };
 };
 
 /**
@@ -292,6 +269,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
             );
           }
 
+          const capturedDistinctId = distinctIdOverride ?? identityManager.getDistinctIdUnsafe();
           const transactionProcessingKey = buildTransactionProcessingKey(transaction);
           const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
           const existing = MutableHashMap.get(inFlightTransactions, transactionProcessingKey);
@@ -333,9 +311,19 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
           const execution = Effect.fn("TransactionService.processTransactionExecution")(
             function* () {
-              const cachedTransaction = yield* cacheManager.get<
-                boolean | TransactionProcessingState
-              >(processedCacheKey);
+              const cachedTransaction = yield* cacheManager
+                .get<boolean | TransactionProcessingState>(processedCacheKey)
+                .pipe(
+                  Effect.flatMap((hit) =>
+                    Option.isSome(hit) && !hit.value.isExpired
+                      ? Effect.succeed(hit)
+                      : cacheManager.get<boolean | TransactionProcessingState>(
+                          getProcessedTransactionCacheKey(
+                            `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`,
+                          ),
+                        ),
+                  ),
+                );
               // An expired marker is a miss: the cache serves expired entries
               // for offline reads, but a processed-transaction record past its
               // lifetime must not stop a receipt from syncing again.
@@ -376,27 +364,31 @@ export class TransactionService extends Context.Service<TransactionService>()(
               }
 
               if (!cachedState?.backendAccepted) {
-                const pending = yield* outbox.pending();
-                const capturedIdentity = pending.find(
-                  (entry) => entry.key === transactionProcessingKey,
-                )?.distinctId;
-                const distinctId =
-                  capturedIdentity ||
-                  distinctIdOverride ||
-                  (yield* identityManager.getDistinctId());
+                const accountIdentity = transaction.appAccountToken
+                  ? yield* cacheManager.get<string>(
+                      `transaction-identity:${transaction.appAccountToken.toLowerCase()}`,
+                    )
+                  : Option.none();
+                const requestedDistinctId =
+                  distinctIdOverride ??
+                  Option.match(accountIdentity, {
+                    onNone: () => capturedDistinctId,
+                    onSome: (entry) => entry.value,
+                  });
                 // Written before the first network call so a receipt observed
                 // just before the app dies is still delivered next launch.
-                yield* outbox.enqueue(
+                const distinctId = yield* outbox.enqueue(
                   transactionProcessingKey,
                   {
                     ...toTransactionRecord(transaction),
                     externallyManaged: entry.externallyManaged,
                   },
-                  distinctId,
+                  requestedDistinctId,
                 );
+                if (Option.isNone(distinctId)) return false;
                 const commonHeaders = yield* getCommonSdkHeaders();
 
-                const headers = { ...commonHeaders, "x-distinct-id": distinctId };
+                const headers = { ...commonHeaders, "x-distinct-id": distinctId.value };
                 const authProbe = authGate.isPaused() ? yield* authGate.probe() : false;
                 if (authGate.isPaused() && !authProbe) {
                   yield* outbox.postpone(transactionProcessingKey);
@@ -602,6 +594,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
       ) {
         if (transaction.purchaseState !== "purchased") return;
 
+        const capturedDistinctId = identityManager.getDistinctIdUnsafe();
         const transactionProcessingKey = buildTransactionProcessingKey(transaction);
         const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
         const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
@@ -620,7 +613,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
         const pending = yield* outbox.pending();
         const distinctId =
           pending.find((entry) => entry.key === transactionProcessingKey)?.distinctId ||
-          (yield* identityManager.getDistinctId());
+          capturedDistinctId;
 
         yield* outbox.enqueue(
           transactionProcessingKey,
@@ -670,6 +663,10 @@ export class TransactionService extends Context.Service<TransactionService>()(
         // while the store sheet is open.
         const readOnlyAtPurchaseStart = sdkConfiguration.readOnly;
         const distinctId = yield* identityManager.getDistinctId();
+        yield* cacheManager.set(
+          `transaction-identity:${deriveAccountToken(distinctId)}`,
+          distinctId,
+        );
         const transaction = yield* paymentAdapter.buyProduct(
           product,
           undefined,

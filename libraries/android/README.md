@@ -194,28 +194,28 @@ unacknowledged for the host billing integration.
 
 ### Report purchases from another billing SDK
 
-Call `reportTransaction(...)` with the store result from each successful host purchase or restore
-callback. Store observers can miss purchases handled by another SDK. Reporting captured values
-works even after the host has finished or consumed the purchase.
+Call `reportTransaction(...)` after each successful host purchase and for each restored transaction.
+Only an Apple transaction ID or Google Play purchase token is required. Voidhash supplies the current
+SDK identity and configured bundle/package; the backend fetches and verifies the store purchase.
 
 ```kotlin
-// purchase is the Google Play Billing Purchase from the host callback.
-voidhash.reportTransaction(purchase)
+// In an app-owned coroutine; use the purchase token, not the order ID.
+voidhash.reportTransaction(purchaseToken)
 ```
 
-Pass the original `Purchase`, including its token. Pending purchases are ignored; report again
-when purchased. Missing tokens and multi-product purchases throw `INVALID_TRANSACTION`; the
-current endpoint accepts single-product purchases. Reporting does not need a Billing connection.
+You can also pass a Google Play Billing `Purchase` directly. Voidhash reads its token and purchase
+state, then discards other fields, original JSON and signature. Pending purchases are ignored;
+report them again when purchased. A token-only report from a completed callback needs no purchase
+time, quantity, product ID or order ID. The server verifies the current state with Google Play.
+
+Blank tokens and multi-product `Purchase` objects throw `INVALID_TRANSACTION`. Reporting does
+not require a Billing connection; delivery failures stay queued without throwing into the host
+purchase callback.
 
 Initialize Voidhash and identify the buyer before starting the purchase flow. Reporting never
-finishes, acknowledges or consumes a transaction. A valid report is written to the receipt outbox
-before it returns; delivery runs in the SDK background scope, so an unavailable network or
-Voidhash service cannot interrupt the purchase callback. Keep host finalization and access checks
-in place.
-
-Only invalid input throws. Captured receipts stay queued on delivery failure, and duplicate reports
-retain the first captured identity across retries and relaunches. Successful completion means
-durable capture, not backend acceptance; inspect SDK diagnostics to investigate delayed delivery.
+finishes, acknowledges or consumes a transaction. It durably captures the identifier before returning
+and delivers it in the background. Duplicate reports preserve the original captured identity across
+retries and relaunches. SDK diagnostics describe deferred delivery.
 
 Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
 host restore that returns no individual transactions. It scans currently exposed purchases and
@@ -239,7 +239,7 @@ voidhash.identify(externalUserId = "user-123", email = "a@b.co", name = "Ada")
 voidhash.setPersonAttributes(mapOf("plan" to "pro"))
 val person = voidhash.getCurrentPerson(forceFetch = true)
 person?.activePerkIds
-voidhash.reset()
+voidhash.signOut()
 ```
 
 ### Feature flags

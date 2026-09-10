@@ -22,16 +22,30 @@ the primary identifier.
 When an anonymous customer signs in, Voidhash moves their purchase history and entitlements to the
 identified person. Events captured before the switch stay attributed to the anonymous identity.
 
+## Follow authentication state
+
+Wait until your authentication system has finished loading. Then call `identify(user.id)` for a
+signed-in user, or `signOut()` once sign-out is confirmed. A loading session is not a signed-out
+session; resetting during startup discards the persisted identity before authentication restores it.
+
+Identity changes are ordered by the SDK, including calls during initialization. Repeating
+`identify()` for the same ID without profile changes leaves the session and cached state intact.
+Switching directly between accounts does not merge them. Events and queued transactions retain
+the identity that captured them, and purchases retain the identity that started them.
+
+No declarative identity prop, additional provider, or app-side identity queue is needed.
+
 ## Sign out
 
-Reset Voidhash after your own sign-out completes:
+Sign out of Voidhash after your own sign-out completes:
 
 ```swift
-await voidhash.reset()
+await voidhash.signOut()
 ```
 
-This clears the persisted identity and every cached response. The next call to `getDistinctId()`
-allocates a fresh anonymous distinct ID.
+This records a sign-out event when automatic lifecycle events are enabled, then starts a fresh
+anonymous identity and session. Shared caches and pending deliveries survive. `reset()` remains
+available with the same behavior.
 
 ## Set customer attributes
 

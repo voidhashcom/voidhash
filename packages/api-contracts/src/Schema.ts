@@ -360,23 +360,17 @@ export class SendNotificationResponse extends Schema.Class<SendNotificationRespo
   unresolvedDistinctIds: Schema.Array(Schema.String),
 }) {}
 
-export const SdkSyncTransactionBody = Schema.Struct({
-  // The deterministic account token (UUIDv5 of the distinctId) the client set
-  // as Apple's `appAccountToken` / Google's `obfuscatedAccountId`. Optional and
-  // advisory only — the server re-fetches and verifies the JWS from the store,
-  // so this is observability/diagnostics, never trusted for authorization.
-  appAccountToken: Schema.optional(Schema.String),
-  platform: Schema.Literals(["ios", "android"]),
-  // Native store identifier used for canonical verification. Kept separate
-  // from the Voidhash product slug because they are not generally equal.
-  providerProductId: Schema.optional(Schema.String),
-  productSlug: Schema.String,
-  purchaseDate: Schema.Number,
-  purchaseToken: Schema.optional(Schema.String),
-  quantity: Schema.Number,
-  receipt: Schema.optional(Schema.String),
-  transactionId: Schema.String,
-});
+/** Store identifiers are sufficient; legacy metadata is accepted and discarded. */
+export const SdkSyncTransactionBody = Schema.Union([
+  Schema.Struct({
+    platform: Schema.Literal("ios"),
+    transactionId: Schema.String.check(Schema.isPattern(/\S/)),
+  }),
+  Schema.Struct({
+    platform: Schema.Literal("android"),
+    purchaseToken: Schema.String.check(Schema.isPattern(/\S/)),
+  }),
+]);
 export type SdkSyncTransactionBody = typeof SdkSyncTransactionBody.Type;
 
 export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionResponse>(

@@ -191,10 +191,10 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
     public let appAccountToken: String?
     public let platform: String
     public let providerProductId: String?
-    public let productSlug: String
-    public let purchaseDate: Double
+    public let productSlug: String?
+    public let purchaseDate: Double?
     public let purchaseToken: String?
-    public let quantity: Double
+    public let quantity: Double?
     public let receipt: String?
     public let transactionId: String
 
@@ -202,10 +202,10 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
         appAccountToken: String? = nil,
         platform: String,
         providerProductId: String? = nil,
-        productSlug: String,
-        purchaseDate: Double,
+        productSlug: String? = nil,
+        purchaseDate: Double? = nil,
         purchaseToken: String? = nil,
-        quantity: Double,
+        quantity: Double? = nil,
         receipt: String? = nil,
         transactionId: String
     ) {

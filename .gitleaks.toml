@@ -2,6 +2,17 @@
 useDefault = true
 
 [[allowlists]]
+description = "Synthetic store transaction fixture with a deliberately invalid all-zero signature"
+condition = "AND"
+targetRules = ["jwt", "generic-api-key"]
+regexTarget = "secret"
+regexes = [
+  '''^3501e751-7582-58f9-9c1d-533c7466049f$''',
+  '''^eyJhbGciOiJFUzI1NiJ9\.[A-Za-z0-9_-]+\.A{86}$''',
+]
+paths = ['''(?:^|/)libraries/test-fixtures/store-transactions\.json$''']
+
+[[allowlists]]
 description = "UUID-shaped App Store and mobile SDK test tokens"
 condition = "AND"
 targetRules = ["generic-api-key"]

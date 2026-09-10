@@ -8999,36 +8999,56 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "appAccountToken": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-                  "platform": { "type": "string", "enum": ["ios", "android"] },
-                  "providerProductId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-                  "productSlug": { "type": "string" },
-                  "purchaseDate": {
-                    "anyOf": [
-                      { "type": "number" },
-                      { "type": "string", "enum": ["Infinity", "-Infinity", "NaN"] }
-                    ]
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "platform": {
+                        "type": "string",
+                        "enum": [
+                          "ios"
+                        ]
+                      },
+                      "transactionId": {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "pattern": "\\S"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "platform",
+                      "transactionId"
+                    ],
+                    "additionalProperties": false
                   },
-                  "purchaseToken": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-                  "quantity": {
-                    "anyOf": [
-                      { "type": "number" },
-                      { "type": "string", "enum": ["Infinity", "-Infinity", "NaN"] }
-                    ]
-                  },
-                  "receipt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-                  "transactionId": { "type": "string" }
-                },
-                "required": [
-                  "platform",
-                  "productSlug",
-                  "purchaseDate",
-                  "quantity",
-                  "transactionId"
-                ],
-                "additionalProperties": false
+                  {
+                    "type": "object",
+                    "properties": {
+                      "platform": {
+                        "type": "string",
+                        "enum": [
+                          "android"
+                        ]
+                      },
+                      "purchaseToken": {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "pattern": "\\S"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "platform",
+                      "purchaseToken"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
               }
             }
           },

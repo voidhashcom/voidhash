@@ -16,6 +16,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
+    sourceSets.getByName("test").resources.srcDir("../../test-fixtures")
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }

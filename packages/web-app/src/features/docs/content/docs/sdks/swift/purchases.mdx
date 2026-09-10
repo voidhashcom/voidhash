@@ -12,54 +12,37 @@ paywalls are temporarily unavailable; `purchase(product:)` throws
 
 ## Report a completed purchase or restore
 
-Call `reportTransaction(...)` with the store values returned by your host billing SDK after each
-successful purchase, including purchases made through its paywall. Report each transaction returned
-by a restore callback as well. Automatic store observers can miss purchases handled by another SDK.
+Call `reportTransaction(...)` after each successful purchase, including purchases from another SDK's
+paywall. Report each transaction returned by a restore callback as well. Configure Voidhash and
+identify the purchasing user before starting the host purchase flow.
 
-Configure Voidhash and identify the purchasing user before starting the host purchase flow. Capture
-the original store identifiers and purchase timestamp; do not substitute the current time or a
-Voidhash product slug. Reporting captured values also works after the host has finished or consumed
-the purchase, because it does not depend on finding the purchase in a store scan.
-
-For StoreKit 2, pass the `VerificationResult<Transaction>` from `Product.PurchaseResult.success`:
+Only the store identifier is required: an Apple transaction ID or a Google Play purchase token.
+Voidhash supplies its configured bundle/package and captures the current SDK identity automatically.
+The backend fetches and verifies the purchase with the store; timestamps, quantities, product
+metadata, receipts, signatures and purchaser arguments are unnecessary.
 
 ```swift
-// verification is the value in the host's .success(verification) purchase result.
-try await voidhash.reportTransaction(verification)
+try await voidhash.reportTransaction(transactionId: transactionId)
 ```
 
-Unverified StoreKit results throw. The SDK extracts the signed transaction and store values from
-verified results. If your billing SDK exposes plain values instead, use `VoidhashTransaction`:
+The transaction ID is a string; preserve every digit. You can also pass a `StoreKit.Transaction`
+or `VerificationResult<StoreKit.Transaction>` directly to `reportTransaction(...)`. The SDK extracts
+only the ID and discards other fields, raw JSON and signed receipts. The verified-result overload
+rejects unverified results. The direct transaction overload leaves local verification with the host.
 
-```swift
-try await voidhash.reportTransaction(VoidhashTransaction(
-    transactionId: storeTransactionId,
-    productId: storeProductId,
-    purchaseDate: storePurchaseDate.timeIntervalSince1970 * 1000,
-    quantity: purchasedQuantity,
-    receipt: signedTransaction // Optional when the host does not expose it.
-))
-```
+Existing `VoidhashTransaction` inputs remain supported; only `transactionId` is required. Other
+metadata is optional and discarded when reporting. Pending results are ignored. Invalid IDs throw
+`INVALID_TRANSACTION`. Reporting does not require a StoreKit connection; delivery failures stay
+queued without throwing into the host purchase callback.
 
-Use the store transaction ID as a string, preserving all digits. The backend verifies the transaction
-with Apple; reporting values is not a substitute for verification. Invalid identifiers, dates or
-quantities throw `INVALID_TRANSACTION`. Pending transactions are ignored.
+Reporting works after the host has finished or consumed a purchase because it does not scan the
+store. It never finishes, acknowledges or consumes transactions. Keep your billing integration's
+finalization and access checks in place.
 
-Reporting never finishes, acknowledges or consumes the transaction. A valid report is written to
-the receipt outbox before it returns; delivery runs in the background, so an unavailable network or
-Voidhash service cannot interrupt the host purchase callback. Keep your host billing SDK's
-finalization and entitlement handling in place. Repeated reports and observer callbacks are deduplicated.
-
-### Errors and deferred delivery
-
-`reportTransaction()` throws only for StoreKit verification or invalid store values. Reporting does
-not require a StoreKit connection, and never throws because delivery cannot reach Voidhash. Scan
-failures from `syncPurchases()` still throw.
-
-Captured receipts remain queued when delivery fails. A successful return means durable capture; it
-does not guarantee the purchase is already visible in the dashboard. SDK diagnostics describe deferred
-delivery. While a receipt is queued, duplicate reports retain its first captured identity, including
-across app relaunches.
+A successful report is captured in the durable outbox before returning; delivery runs in the
+background. Success does not imply immediate backend acceptance. SDK diagnostics describe deferred
+delivery. Duplicate reports and observer callbacks use the same store identifier and retain the
+original captured identity through retries and app relaunches.
 
 ## Recovery scans and restore callbacks
 

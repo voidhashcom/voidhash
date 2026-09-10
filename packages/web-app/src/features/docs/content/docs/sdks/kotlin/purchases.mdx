@@ -12,44 +12,37 @@ paywalls are temporarily unavailable; `purchase(...)` throws
 
 ## Report a completed purchase or restore
 
-Call `reportTransaction(...)` with the store values returned by your host billing SDK after each
-successful purchase, including purchases made through its paywall. Report each transaction returned
-by a restore callback as well. Automatic store observers can miss purchases handled by another SDK.
+Call `reportTransaction(...)` after each successful purchase, including purchases from another SDK's
+paywall. Report each transaction returned by a restore callback as well. Configure Voidhash and
+identify the purchasing user before starting the host purchase flow.
 
-Configure Voidhash and identify the purchasing user before starting the host purchase flow. Capture
-the original store identifiers and purchase timestamp; do not substitute the current time or a
-Voidhash product slug. Reporting captured values also works after the host has finished or consumed
-the purchase, because it does not depend on finding the purchase in a store scan.
-
-`reportTransaction` accepts a Google Play Billing `Purchase`. Call it from an app-owned coroutine:
+Only the store identifier is required: an Apple transaction ID or a Google Play purchase token.
+Voidhash supplies its configured bundle/package and captures the current SDK identity automatically.
+The backend fetches and verifies the purchase with the store; timestamps, quantities, product
+metadata, receipts, signatures and purchaser arguments are unnecessary.
 
 ```kotlin
-// purchase is the Purchase returned by the host billing SDK.
-voidhash.reportTransaction(purchase)
+// In an app-owned coroutine; use the purchase token, not the order ID.
+voidhash.reportTransaction(purchaseToken)
 ```
 
-The SDK reads the purchase token, product ID, order ID, timestamp, quantity and account identifiers
-from the purchase. A missing order ID falls back to the purchase token. Pending purchases are
-ignored; call again when their state becomes `PURCHASED`. An order ID alone cannot verify an Android
-purchase. The current reporting endpoint supports single-product purchases; invalid or multi-product
-results throw `INVALID_TRANSACTION`.
+You can also pass a Google Play Billing `Purchase` directly. Voidhash reads its token and purchase
+state, then discards other fields, original JSON and signature. Pending purchases are ignored;
+report them again when purchased. A token-only report from a completed callback needs no purchase
+time, quantity, product ID or order ID. The server verifies the current state with Google Play.
 
-Reporting never finishes, acknowledges or consumes the transaction. A valid report is written to
-the receipt outbox before it returns; delivery runs in the SDK background scope, so an unavailable
-network or Voidhash service cannot interrupt the host purchase callback. Keep your host billing
-SDK's finalization and entitlement handling in place. Repeated reports and observer callbacks are
-deduplicated.
+Blank tokens and multi-product `Purchase` objects throw `INVALID_TRANSACTION`. Reporting does
+not require a Billing connection; delivery failures stay queued without throwing into the host
+purchase callback.
 
-### Errors and deferred delivery
+Reporting works after the host has finished or consumed a purchase because it does not scan the
+store. It never finishes, acknowledges or consumes transactions. Keep your billing integration's
+finalization and access checks in place.
 
-Store connection and query failures from `syncPurchases()` throw. `BILLING_CONNECTION_FAILED` means
-the billing connection did not open; a later scan retries it. `reportTransaction()` does not require
-a Billing connection and throws only for invalid store values.
-
-Captured receipts remain queued when delivery fails. A successful return means durable capture; it
-does not guarantee the purchase is already visible in the dashboard. SDK diagnostics describe deferred
-delivery. While a receipt is queued, duplicate reports retain its first captured identity, including
-across app relaunches.
+A successful report is captured in the durable outbox before returning; delivery runs in the
+background. Success does not imply immediate backend acceptance. SDK diagnostics describe deferred
+delivery. Duplicate reports and observer callbacks use the same store identifier and retain the
+original captured identity through retries and app relaunches.
 
 ## Recovery scans and restore callbacks
 
