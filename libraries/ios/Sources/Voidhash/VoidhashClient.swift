@@ -364,9 +364,15 @@ public actor VoidhashClient {
         try await orchestrator().purchase(product: product, schema: schema)
     }
 
-    /// Syncs every transaction the store still reports for this customer.
+    /// Restores purchases for the current identity, refreshing App Store history and revalidating
+    /// transactions with Voidhash. Call only after a user action; StoreKit may request sign-in.
+    /// Throws if any eligible transaction cannot be accepted. Check person entitlements for access.
     public func restorePurchases() async throws {
-        try await syncPurchases()
+        guard options.enabled else { return }
+        let schema = try await ensureInitialized()
+        let distinctId = await identityStore.getDistinctId()
+        try await ensureStoreConnected()
+        try await orchestrator().restorePurchases(schema: schema, distinctId: distinctId)
     }
 
     /// Reports a verified StoreKit result. Only its transaction ID is retained.
@@ -448,7 +454,7 @@ public actor VoidhashClient {
         }
         let schema = try await ensureInitialized()
         try await ensureStoreConnected()
-        try await orchestrator().restorePurchases(schema: schema)
+        try await orchestrator().syncPurchases(schema: schema)
     }
 
     // MARK: - Identity
@@ -2032,6 +2038,14 @@ final class FirstAcrossTheLine<Value: Sendable>: @unchecked Sendable {
 /// transaction over and the backend recording it costs a retry, never the purchase.
 struct OutboxTransactionSync: TransactionSyncing {
     let outbox: TransactionOutbox
+
+    func restoreTransaction(headers: [String: String], body: SdkSyncTransactionBody) async throws
+        -> SdkSyncTransactionResponse
+    {
+        let distinctId = headers.first { $0.key.caseInsensitiveCompare("x-distinct-id") == .orderedSame }?.value ?? ""
+        let result = await outbox.restore(body, distinctId: distinctId)
+        return SdkSyncTransactionResponse(accepted: result.didAcknowledge(body.transactionId))
+    }
 
     func syncTransaction(headers: [String: String], body: SdkSyncTransactionBody) async throws
         -> SdkSyncTransactionResponse

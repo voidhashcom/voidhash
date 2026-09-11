@@ -37,10 +37,13 @@ data class OutboxRecord(
     val request: SyncTransactionRequest,
     val attempts: Int = 0,
     val availableAt: Long = 0L,
+    /** Explicit restore waiting behind the original capture, until accepted. */
+    val restoreDistinctId: String? = null,
 ) {
     internal fun toRecord(): String = JSONObject().apply {
         put("key", key)
         put("distinctId", distinctId)
+        put("restoreDistinctId", restoreDistinctId)
         put("attempts", attempts)
         put("availableAt", availableAt)
         put("request", request.toStorageJson())
@@ -56,6 +59,7 @@ data class OutboxRecord(
                 key = if ((key.startsWith("android:") || key == legacyKey) && request.optString("purchaseToken").isNotEmpty())
                     "android:${request.getString("purchaseToken")}" else key,
                 distinctId = json.optString("distinctId"),
+                restoreDistinctId = json.optString("restoreDistinctId").takeIf { it.isNotEmpty() && !json.isNull("restoreDistinctId") },
                 attempts = json.optInt("attempts"),
                 availableAt = json.optLong("availableAt"),
                 request = SyncTransactionRequest(
@@ -117,6 +121,7 @@ class TransactionOutbox(
                 deduplicated[record.key] = if (first == null) record else first.copy(
                     attempts = maxOf(first.attempts, record.attempts),
                     availableAt = maxOf(first.availableAt, record.availableAt),
+                    restoreDistinctId = record.restoreDistinctId ?: first.restoreDistinctId,
                 )
             }
             records.clear()
@@ -143,12 +148,17 @@ class TransactionOutbox(
      * Returns the retained record once persisted ownership is known. A null result keeps
      * the receipt queued and defers delivery until unreadable storage can be recovered.
      */
-    suspend fun enqueue(key: String, distinctId: String, request: SyncTransactionRequest): OutboxRecord? {
+    suspend fun enqueue(key: String, distinctId: String, request: SyncTransactionRequest, restoreDistinctId: String? = null): OutboxRecord? {
         awaitRestored()
         reloadAfterFailedRead()
         val record = synchronized(records) {
-            records.firstOrNull { it.key == key }
-                ?: OutboxRecord(key, distinctId, request, availableAt = clock.now()).also(records::add)
+            val index = records.indexOfFirst { it.key == key }
+            if (index >= 0) {
+                records[index].copy(restoreDistinctId = restoreDistinctId ?: records[index].restoreDistinctId)
+                    .also { records[index] = it }
+            } else {
+                OutboxRecord(key, distinctId, request, availableAt = clock.now(), restoreDistinctId = restoreDistinctId).also(records::add)
+            }
         }
         val size = pending
         if (size > TRANSACTION_OUTBOX_WARN_THRESHOLD) {
@@ -173,10 +183,30 @@ class TransactionOutbox(
         return synchronized(records) { records.firstOrNull { it.key == key }?.distinctId }
     }
 
-    /** Removes the record for [key] after the backend accepted it. */
-    fun acknowledge(key: String) {
-        val removed = synchronized(records) { records.removeAll { it.key == key } }
-        if (removed) persist()
+    /** Identity of an explicit restore still waiting for acceptance. */
+    suspend fun pendingRestoreDistinctId(key: String): String? {
+        restored.await()
+        return synchronized(records) { records.firstOrNull { it.key == key }?.restoreDistinctId }
+    }
+
+    /** Acknowledges one owner and promotes a waiting restore. Returns true when complete. */
+    fun acknowledge(key: String, distinctId: String? = null): Boolean {
+        val complete = synchronized(records) {
+            val index = records.indexOfFirst { it.key == key }
+            if (index < 0) return@synchronized true
+            val record = records[index]
+            if (distinctId != null && record.distinctId != distinctId) return@synchronized false
+            val restoreId = record.restoreDistinctId
+            if (restoreId != null && restoreId != record.distinctId) {
+                records[index] = record.copy(distinctId = restoreId, attempts = 0, availableAt = clock.now())
+                false
+            } else {
+                records.removeAt(index)
+                true
+            }
+        }
+        persist()
+        return complete
     }
 
     /** Schedules the receipt for a backed-off retry after an unconfirmed direct attempt. */
@@ -199,10 +229,12 @@ class TransactionOutbox(
             reloadAfterFailedRead()
             if (storeReadFailed) return
             val now = clock.now()
-            val due = synchronized(records) { records.filter { it.availableAt <= now } }
+            val due = synchronized(records) { records.filter { it.availableAt <= now }.toMutableList() }
             var changed = false
 
-            for (record in due) {
+            var next = 0
+            while (next < due.size) {
+                val record = due[next++]
                 val verdict = try {
                     sync(record.distinctId, record.request)
                 } catch (error: CancellationException) {
@@ -222,8 +254,15 @@ class TransactionOutbox(
                 }
 
                 when (verdict) {
-                    TransactionSyncVerdict.ACCEPTED ->
-                        synchronized(records) { records.removeAll { it.key == record.key } }
+                    TransactionSyncVerdict.ACCEPTED -> {
+                        if (!acknowledge(record.key, record.distinctId)) {
+                            val promoted = synchronized(records) { records.firstOrNull { it.key == record.key } }
+                            if (promoted != null) {
+                                persistAndAwait(promoted)
+                                due.add(promoted)
+                            }
+                        }
+                    }
 
                     TransactionSyncVerdict.REJECTED -> {
                         diagnostics.emit(
@@ -266,8 +305,8 @@ class TransactionOutbox(
         synchronized(records) {
             val index = records.indexOfFirst { it.key == record.key }
             if (index >= 0) {
-                records[index] = record.copy(
-                    attempts = record.attempts + 1,
+                records[index] = records[index].copy(
+                    attempts = records[index].attempts + 1,
                     availableAt = clock.now() + delay,
                 )
             }

@@ -92,6 +92,14 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
+    inline std::shared_ptr<Promise<void>> syncStore() override {
+      auto __result = _swiftPart.syncStore();
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+      auto __value = std::move(__result.value());
+      return __value;
+    }
     inline std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>> getPurchasedItems(bool onlyIncludeActiveItems) override {
       auto __result = _swiftPart.getPurchasedItems(std::forward<decltype(onlyIncludeActiveItems)>(onlyIncludeActiveItems));
       if (__result.hasError()) [[unlikely]] {

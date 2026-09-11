@@ -12,6 +12,7 @@ import * as MutableHashMap from "effect/MutableHashMap";
 import * as MutableRef from "effect/MutableRef";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
+import * as Semaphore from "effect/Semaphore";
 
 import { CacheManager } from "../caching/cache-manager";
 import { Diagnostics, DIAGNOSTIC_CODES } from "../diagnostics/diagnostics";
@@ -35,11 +36,12 @@ import {
 import { ApiClient } from "../networking/api-client";
 import { SingleFlight } from "../network/single-flight";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
+import type { PlatformProvider } from "../platform/platform-provider";
 import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 import { deriveAccountToken } from "../utils/account-token";
-import { ReconcileTransactionsError } from "./errors";
+import { ReconcileTransactionsError, TransactionDeliveryDeferredError } from "./errors";
 import { TransactionOutbox } from "./transaction-outbox";
 
 const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
@@ -72,6 +74,13 @@ const buildTransactionProcessingKey = transactionProcessingKey;
 
 const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
   `processed-transaction:${transactionProcessingKey}`;
+
+const getRestoredIdentityCacheKey = (transaction: Transaction) =>
+  `restored-transaction-identity:${
+    transaction.platform === "ios"
+      ? `ios:${transaction.originalTransactionId ?? transaction.transactionId}`
+      : buildTransactionProcessingKey(transaction)
+  }`;
 
 const resolveTransactionProductSlug = (
   transaction: Transaction,
@@ -143,6 +152,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const authGate = yield* AuthGate;
       const breaker = yield* CircuitBreaker;
       const singleFlight = yield* SingleFlight;
+      const restoreMutex = yield* Semaphore.make(1);
       const storeConnected = MutableRef.make(false);
       const transactionListener = MutableRef.make(
         Option.none<(transaction: Transaction) => void>(),
@@ -257,7 +267,8 @@ export class TransactionService extends Context.Service<TransactionService>()(
         schema: RuntimeSchema,
         readOnlyOverride?: boolean,
         distinctIdOverride?: string,
-      ) =>
+        restoring = false,
+      ): Effect.Effect<boolean, unknown, SdkConfiguration | PlatformProvider> =>
         Effect.suspend(() => {
           if (transaction.purchaseState !== "purchased") {
             return Effect.as(
@@ -274,6 +285,20 @@ export class TransactionService extends Context.Service<TransactionService>()(
           const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
           const existing = MutableHashMap.get(inFlightTransactions, transactionProcessingKey);
           if (Option.isSome(existing)) {
+            if (restoring) {
+              return Deferred.await(existing.value.deferred).pipe(
+                Effect.flatMap(() => Effect.yieldNow),
+                Effect.flatMap(() =>
+                  processTransaction(
+                    transaction,
+                    schema,
+                    readOnlyOverride,
+                    capturedDistinctId,
+                    true,
+                  ),
+                ),
+              );
+            }
             existing.value.externallyManaged ||= transaction.externallyManaged === true;
             if (readOnlyOverride !== false) {
               return transaction.externallyManaged
@@ -311,6 +336,11 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
           const execution = Effect.fn("TransactionService.processTransactionExecution")(
             function* () {
+              const pendingRestore = (yield* outbox.pending()).find(
+                (entry) => entry.key === transactionProcessingKey,
+              )?.restoreDistinctId;
+              const restoreIdentity = restoring ? capturedDistinctId : pendingRestore;
+              const revalidating = restoreIdentity !== undefined;
               const cachedTransaction = yield* cacheManager
                 .get<boolean | TransactionProcessingState>(processedCacheKey)
                 .pipe(
@@ -338,12 +368,12 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
               entry.externallyManaged ||= cachedState?.externallyManaged === true;
 
-              if (cachedState?.storeFinalized) {
+              if (cachedState?.backendAccepted && cachedState.storeFinalized && !revalidating) {
                 yield* outbox.ack(transactionProcessingKey);
                 return true;
               }
 
-              if (cachedState?.backendAccepted) {
+              if (cachedState?.backendAccepted && !revalidating) {
                 yield* outbox.ack(transactionProcessingKey);
               }
 
@@ -363,134 +393,168 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 return false;
               }
 
-              if (!cachedState?.backendAccepted) {
-                const accountIdentity = transaction.appAccountToken
-                  ? yield* cacheManager.get<string>(
-                      `transaction-identity:${transaction.appAccountToken.toLowerCase()}`,
-                    )
-                  : Option.none();
-                const requestedDistinctId =
-                  distinctIdOverride ??
-                  Option.match(accountIdentity, {
-                    onNone: () => capturedDistinctId,
-                    onSome: (entry) => entry.value,
-                  });
-                // Written before the first network call so a receipt observed
-                // just before the app dies is still delivered next launch.
-                const distinctId = yield* outbox.enqueue(
-                  transactionProcessingKey,
-                  {
-                    ...toTransactionRecord(transaction),
-                    externallyManaged: entry.externallyManaged,
-                  },
-                  requestedDistinctId,
-                );
-                if (Option.isNone(distinctId)) return false;
-                const commonHeaders = yield* getCommonSdkHeaders();
-
-                const headers = { ...commonHeaders, "x-distinct-id": distinctId.value };
-                const authProbe = authGate.isPaused() ? yield* authGate.probe() : false;
-                if (authGate.isPaused() && !authProbe) {
-                  yield* outbox.postpone(transactionProcessingKey);
-                  return false;
-                }
-                const allowed = yield* breaker.canAttempt(transactionBreakerKey, "syncTransaction");
-                if (!allowed) {
-                  if (authProbe) yield* authGate.completeProbe(false);
-                  yield* outbox.postpone(transactionProcessingKey);
-                  return false;
-                }
-
-                // Bounded like every other request: a receipt sync that hangs
-                // stays queued rather than wedging the purchase flow.
-                const syncAttempt: Effect.Effect<boolean, unknown> =
-                  transaction.store === "development"
-                    ? Effect.map(
-                        withRequestTimeout(
-                          "developmentPurchase",
-                          apiClient.sdk.developmentPurchase({
-                            headers,
-                            payload: {
-                              devTransactionId: transaction.transactionId,
-                              productSlug: resolveTransactionProductSlug(
-                                transaction,
-                                schema.products,
-                              ),
-                              purchaseDate: transaction.purchaseDate,
-                              quantity: transaction.quantity,
-                            },
-                          }),
-                        ),
-                        (response) => response.accepted,
-                      )
-                    : Effect.map(
-                        withRequestTimeout(
-                          "syncTransaction",
-                          apiClient.sdk.syncTransaction({
-                            headers,
-                            payload: mapTransactionToSyncPayload(transaction, schema.products),
-                          }),
-                        ),
-                        (response) => response.accepted,
-                      );
-                const outcome = yield* Effect.result(syncAttempt);
-
-                if (Result.isFailure(outcome)) {
-                  const status = httpStatusOf(outcome.failure);
-                  const statusCode = Option.getOrUndefined(status);
-                  if (authProbe) {
-                    yield* authGate.completeProbe(
-                      statusCode !== undefined && !isAuthStatus(statusCode),
+              if (!cachedState?.backendAccepted || revalidating) {
+                const delivery = yield* Effect.fn("TransactionService.deliverReceipt")(
+                  function* () {
+                    const restoredIdentity = yield* cacheManager.get<string>(
+                      getRestoredIdentityCacheKey(transaction),
                     );
-                  }
-                  if (statusCode !== undefined && isAuthStatus(statusCode)) {
-                    yield* breaker.releaseProbe(transactionBreakerKey);
-                    yield* authGate.pause("syncTransaction", statusCode);
-                  } else if (statusCode === undefined || countsTowardsBreaker(statusCode)) {
-                    yield* breaker.recordFailure(transactionBreakerKey);
-                  } else {
-                    yield* breaker.releaseProbe(transactionBreakerKey);
-                  }
-                  yield* diagnostics.emit({
-                    code: DIAGNOSTIC_CODES.TRANSACTION_SYNC_DEFERRED,
-                    httpStatus: Option.getOrUndefined(status),
-                    kind: "transport",
-                    message: `Receipt for "${transaction.transactionId}" stays queued because the backend could not confirm it`,
-                    operation: "syncTransaction",
-                    retryable: true,
-                  });
-                  yield* outbox.postpone(transactionProcessingKey);
-                  return false;
-                }
+                    const accountIdentity = transaction.appAccountToken
+                      ? yield* cacheManager.get<string>(
+                          `transaction-identity:${transaction.appAccountToken.toLowerCase()}`,
+                        )
+                      : Option.none();
+                    const requestedDistinctId =
+                      restoreIdentity ??
+                      distinctIdOverride ??
+                      Option.getOrUndefined(Option.map(restoredIdentity, (entry) => entry.value)) ??
+                      Option.match(accountIdentity, {
+                        onNone: () => capturedDistinctId,
+                        onSome: (entry) => entry.value,
+                      });
+                    // Written before the first network call so a receipt observed
+                    // just before the app dies is still delivered next launch.
+                    const distinctId = yield* outbox.enqueue(
+                      transactionProcessingKey,
+                      {
+                        ...toTransactionRecord(transaction),
+                        externallyManaged: entry.externallyManaged,
+                      },
+                      requestedDistinctId,
+                      restoreIdentity,
+                    );
+                    if (Option.isNone(distinctId)) return "deferred" as const;
+                    if (restoreIdentity !== undefined && distinctId.value === restoreIdentity) {
+                      yield* cacheManager.set(
+                        processedCacheKey,
+                        {
+                          ...cachedState,
+                          backendAccepted: false,
+                          storeFinalized: cachedState?.storeFinalized ?? false,
+                        },
+                        { ttl: PROCESSED_TRANSACTION_TTL_MS },
+                      );
+                      yield* cacheManager.set(
+                        getRestoredIdentityCacheKey(transaction),
+                        restoreIdentity,
+                      );
+                    }
+                    const commonHeaders = yield* getCommonSdkHeaders();
 
-                if (authProbe) yield* authGate.completeProbe(true);
-                yield* breaker.recordSuccess(transactionBreakerKey);
-                if (outcome.success !== true) {
-                  yield* diagnostics.emit({
-                    code: DIAGNOSTIC_CODES.TRANSACTION_SYNC_DEFERRED,
-                    kind: "transport",
-                    message: `Receipt for "${transaction.transactionId}" stays queued because the backend did not accept it`,
-                    operation: "syncTransaction",
-                    retryable: true,
-                  });
-                  yield* outbox.postpone(transactionProcessingKey);
-                  return false;
-                }
+                    const headers = { ...commonHeaders, "x-distinct-id": distinctId.value };
+                    const authProbe = authGate.isPaused() ? yield* authGate.probe() : false;
+                    if (authGate.isPaused() && !authProbe) {
+                      yield* outbox.postpone(transactionProcessingKey);
+                      return "deferred" as const;
+                    }
+                    const allowed = yield* breaker.canAttempt(
+                      transactionBreakerKey,
+                      "syncTransaction",
+                    );
+                    if (!allowed) {
+                      if (authProbe) yield* authGate.completeProbe(false);
+                      yield* outbox.postpone(transactionProcessingKey);
+                      return "deferred" as const;
+                    }
 
-                yield* cacheManager.set(
-                  processedCacheKey,
-                  {
-                    externallyManaged: entry.externallyManaged,
-                    backendAccepted: true,
-                    storeFinalized:
-                      transaction.store === "development" || transaction.isAcknowledged,
+                    // Bounded like every other request: a receipt sync that hangs
+                    // stays queued rather than wedging the purchase flow.
+                    const syncAttempt: Effect.Effect<boolean, unknown> =
+                      transaction.store === "development"
+                        ? Effect.map(
+                            withRequestTimeout(
+                              "developmentPurchase",
+                              apiClient.sdk.developmentPurchase({
+                                headers,
+                                payload: {
+                                  devTransactionId: transaction.transactionId,
+                                  productSlug: resolveTransactionProductSlug(
+                                    transaction,
+                                    schema.products,
+                                  ),
+                                  purchaseDate: transaction.purchaseDate,
+                                  quantity: transaction.quantity,
+                                },
+                              }),
+                            ),
+                            (response) => response.accepted,
+                          )
+                        : Effect.map(
+                            withRequestTimeout(
+                              "syncTransaction",
+                              apiClient.sdk.syncTransaction({
+                                headers,
+                                payload: mapTransactionToSyncPayload(transaction, schema.products),
+                              }),
+                            ),
+                            (response) => response.accepted,
+                          );
+                    const outcome = yield* Effect.result(syncAttempt);
+
+                    if (Result.isFailure(outcome)) {
+                      const status = httpStatusOf(outcome.failure);
+                      const statusCode = Option.getOrUndefined(status);
+                      if (authProbe) {
+                        yield* authGate.completeProbe(
+                          statusCode !== undefined && !isAuthStatus(statusCode),
+                        );
+                      }
+                      if (statusCode !== undefined && isAuthStatus(statusCode)) {
+                        yield* breaker.releaseProbe(transactionBreakerKey);
+                        yield* authGate.pause("syncTransaction", statusCode);
+                      } else if (statusCode === undefined || countsTowardsBreaker(statusCode)) {
+                        yield* breaker.recordFailure(transactionBreakerKey);
+                      } else {
+                        yield* breaker.releaseProbe(transactionBreakerKey);
+                      }
+                      yield* diagnostics.emit({
+                        code: DIAGNOSTIC_CODES.TRANSACTION_SYNC_DEFERRED,
+                        httpStatus: Option.getOrUndefined(status),
+                        kind: "transport",
+                        message: `Receipt for "${transaction.transactionId}" stays queued because the backend could not confirm it`,
+                        operation: "syncTransaction",
+                        retryable: true,
+                      });
+                      yield* outbox.postpone(transactionProcessingKey);
+                      return "deferred" as const;
+                    }
+
+                    if (authProbe) yield* authGate.completeProbe(true);
+                    yield* breaker.recordSuccess(transactionBreakerKey);
+                    if (outcome.success !== true) {
+                      yield* diagnostics.emit({
+                        code: DIAGNOSTIC_CODES.TRANSACTION_SYNC_DEFERRED,
+                        kind: "transport",
+                        message: `Receipt for "${transaction.transactionId}" stays queued because the backend did not accept it`,
+                        operation: "syncTransaction",
+                        retryable: true,
+                      });
+                      yield* outbox.postpone(transactionProcessingKey);
+                      return "deferred" as const;
+                    }
+
+                    // The ack durably promotes any restore waiting behind the original capture.
+                    const completed = yield* outbox.ack(transactionProcessingKey, distinctId.value);
+                    if (!completed) return "retry" as const;
+                    yield* cacheManager.set(
+                      processedCacheKey,
+                      {
+                        externallyManaged: entry.externallyManaged,
+                        backendAccepted: true,
+                        storeFinalized:
+                          cachedState?.storeFinalized ||
+                          transaction.store === "development" ||
+                          transaction.isAcknowledged,
+                      },
+                      { ttl: PROCESSED_TRANSACTION_TTL_MS },
+                    );
+                    return "accepted" as const;
                   },
-                  { ttl: PROCESSED_TRANSACTION_TTL_MS },
-                );
-                // Acked only now: the receipt leaves the outbox once the
-                // server has taken responsibility for it.
-                yield* outbox.ack(transactionProcessingKey);
+                )().pipe(Effect.repeat({ while: (status) => status === "retry" }));
+                if (delivery !== "accepted") return false;
               }
+
+              if (cachedState?.storeFinalized) return true;
 
               if (
                 !entry.ownerClaimed &&
@@ -527,12 +591,18 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
       const reconcileObservedTransactions = Effect.fn(
         "TransactionService.reconcileObservedTransactions",
-      )(function* (schema: RuntimeSchema) {
+      )(function* (schema: RuntimeSchema, restoreDistinctId?: string) {
         // Initialization is local-first; a host callback can arrive while the
         // background store connection is still opening (or after it failed).
         yield* ensureStoreConnected();
+        if (restoreDistinctId !== undefined) yield* paymentAdapter.restorePurchases();
         const [pendingTransactions, purchasedTransactions] = yield* Effect.all(
-          [paymentAdapter.getPendingTransactions(), paymentAdapter.getPurchaseHistory(true)],
+          [
+            restoreDistinctId === undefined
+              ? paymentAdapter.getPendingTransactions()
+              : Effect.succeed([]),
+            paymentAdapter.getPurchaseHistory(restoreDistinctId === undefined),
+          ],
           { concurrency: 1 },
         );
 
@@ -545,17 +615,32 @@ export class TransactionService extends Context.Service<TransactionService>()(
           yield* Effect.forEach(
             HashMap.values(observedTransactionsByKey),
             Effect.fn("TransactionService.reconcileTransaction")(function* (transaction) {
+              if (transaction.purchaseState !== "purchased") return Option.none();
               const isConsumable =
                 resolveTransactionProductDefinition(transaction, schema.products)?.type ===
                 "one-time-consumable";
-              if (isConsumable && !sdkConfiguration.readOnly) {
+              if (isConsumable && (restoreDistinctId !== undefined || !sdkConfiguration.readOnly)) {
                 return Option.none();
               }
               const exit = yield* Effect.exit(
-                processTransaction(transaction, schema, isConsumable ? true : undefined),
+                processTransaction(
+                  transaction,
+                  schema,
+                  isConsumable ? true : undefined,
+                  restoreDistinctId,
+                  restoreDistinctId !== undefined,
+                ),
               );
-              if (Exit.isSuccess(exit)) return Option.none();
-              const error = Cause.squash(exit.cause);
+              if (Exit.isSuccess(exit) && (exit.value || restoreDistinctId === undefined)) {
+                return Option.none();
+              }
+              const error = Exit.isFailure(exit)
+                ? Cause.squash(exit.cause)
+                : new TransactionDeliveryDeferredError({
+                    message:
+                      "The backend has not accepted the restored transaction; delivery remains queued",
+                    transactionId: transaction.transactionId,
+                  });
               yield* Effect.logWarning("Failed to process observed transaction", {
                 error,
                 transactionId: transaction.transactionId,
@@ -682,7 +767,16 @@ export class TransactionService extends Context.Service<TransactionService>()(
         return accepted;
       });
 
-      const restorePurchases = reconcileObservedTransactionsAndRefresh;
+      /** Revalidates store history for the identity that requested the restore. */
+      const restorePurchases = Effect.fn("TransactionService.restorePurchases")(function* (
+        schema: RuntimeSchema,
+      ) {
+        const distinctId = yield* identityManager.getDistinctId();
+        yield* Effect.andThen(
+          reconcileObservedTransactions(schema, distinctId),
+          refreshPerson(),
+        ).pipe(restoreMutex.withPermits(1));
+      });
 
       const startTransactionObserver = (onPurchase?: (transaction: Transaction) => void) =>
         Effect.suspend(() => {

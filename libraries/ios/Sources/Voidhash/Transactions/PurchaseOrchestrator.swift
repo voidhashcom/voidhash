@@ -6,6 +6,18 @@ public protocol TransactionSyncing: Sendable {
     /// `POST /api/v1/sdk/sync-transaction`
     func syncTransaction(headers: [String: String], body: SdkSyncTransactionBody) async throws
         -> SdkSyncTransactionResponse
+    /// Revalidates a transaction for the requesting identity after delivering any older capture.
+    func restoreTransaction(headers: [String: String], body: SdkSyncTransactionBody) async throws
+        -> SdkSyncTransactionResponse
+}
+
+extension TransactionSyncing {
+    /// Revalidates directly when the implementation has no delivery outbox.
+    public func restoreTransaction(headers: [String: String], body: SdkSyncTransactionBody) async throws
+        -> SdkSyncTransactionResponse
+    {
+        try await syncTransaction(headers: headers, body: body)
+    }
 }
 
 extension VoidhashApiClient: TransactionSyncing {}
@@ -106,6 +118,7 @@ public actor PurchaseOrchestrator {
     private let refreshPerson: @Sendable () async -> Void
 
     private var inFlightTransactions: [String: InFlightTransaction] = [:]
+    private var restoreTask: (id: UUID, task: Task<Void, any Error>)?
 
     /// - Parameters:
     ///   - engine: Store engine used to buy and finish transactions.
@@ -168,8 +181,36 @@ public actor PurchaseOrchestrator {
         }
     }
 
-    /// Reconciles every observed transaction and refreshes the person snapshot.
-    public func restorePurchases(schema: RuntimeSchema) async throws {
+    /// Refreshes App Store history and revalidates it for the requesting identity.
+    /// May prompt for authentication; deferred delivery fails the explicit restore.
+    public func restorePurchases(schema: RuntimeSchema, distinctId: String? = nil) async throws {
+        let requestedDistinctId: String
+        if let distinctId {
+            requestedDistinctId = distinctId
+        } else {
+            requestedDistinctId = await distinctIdProvider()
+        }
+        let previous = restoreTask?.task
+        let id = UUID()
+        let task = Task {
+            _ = try? await previous?.value
+            try Task.checkCancellation()
+            try await self.engine.syncStore()
+            try await self.reconcileObservedTransactions(
+                schema: schema, restoreDistinctId: requestedDistinctId)
+            await self.refreshPerson()
+        }
+        restoreTask = (id, task)
+        defer { if restoreTask?.id == id { restoreTask = nil } }
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    /// Silently reconciles current purchases; deferred delivery remains queued.
+    public func syncPurchases(schema: RuntimeSchema) async throws {
         try await reconcileObservedTransactions(schema: schema)
         await refreshPerson()
     }
@@ -180,9 +221,11 @@ public actor PurchaseOrchestrator {
     /// owner mode, where the purchase flow is responsible for granting and finishing them. A store read that fails fails the
     /// whole reconciliation — reporting "restored nothing" off an unreadable store would hide a
     /// customer's purchases.
-    public func reconcileObservedTransactions(schema: RuntimeSchema) async throws {
-        let pending = try engine.getPendingTransactions()
-        let purchased = try await engine.getPurchasedItems(onlyIncludeActiveItems: true)
+    public func reconcileObservedTransactions(
+        schema: RuntimeSchema, restoreDistinctId: String? = nil
+    ) async throws {
+        let pending = restoreDistinctId == nil ? try engine.getPendingTransactions() : []
+        let purchased = try await engine.getPurchasedItems(onlyIncludeActiveItems: restoreDistinctId == nil)
 
         var observedByKey: [String: VoidhashTransaction] = [:]
         var orderedKeys: [String] = []
@@ -200,15 +243,22 @@ public actor PurchaseOrchestrator {
             guard let transaction = observedByKey[key] else {
                 continue
             }
+            guard transaction.purchaseState == .purchased else { continue }
             let definition = PurchaseOrchestrator.resolveProductDefinition(
                 transaction, products: schema.products)
             let isConsumable = definition?.type == "one-time-consumable"
-            if isConsumable && !isReadOnly() {
+            if isConsumable && (restoreDistinctId != nil || !isReadOnly()) {
                 continue
             }
             do {
-                try await processTransaction(
-                    transaction, schema: schema, readOnlyOverride: isConsumable ? true : nil)
+                let accepted = try await processTransaction(
+                    transaction, schema: schema, readOnlyOverride: isConsumable ? true : nil,
+                    distinctIdOverride: restoreDistinctId, restoring: restoreDistinctId != nil)
+                if restoreDistinctId != nil && !accepted {
+                    failedTransactionIds.append(transaction.transactionId)
+                }
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 failedTransactionIds.append(transaction.transactionId)
             }
@@ -255,7 +305,8 @@ public actor PurchaseOrchestrator {
         _ transaction: VoidhashTransaction,
         schema: RuntimeSchema,
         readOnlyOverride: Bool? = nil,
-        distinctIdOverride: String? = nil
+        distinctIdOverride: String? = nil,
+        restoring: Bool = false
     ) async throws -> Bool {
         guard transaction.purchaseState == .purchased else {
             return false
@@ -263,7 +314,11 @@ public actor PurchaseOrchestrator {
 
         let currentDistinctId = await distinctIdProvider()
         var distinctId = distinctIdOverride ?? currentDistinctId
-        if distinctIdOverride == nil, let token = transaction.appAccountToken,
+        if distinctIdOverride == nil, let restored = await cacheManager.get(
+            Self.restoredIdentityCacheKey(transaction), as: String.self)
+        {
+            distinctId = restored.value
+        } else if distinctIdOverride == nil, let token = transaction.appAccountToken,
             let cached = await cacheManager.get(
                 "transaction-identity:\(token.lowercased())", as: String.self)
         {
@@ -274,6 +329,14 @@ public actor PurchaseOrchestrator {
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(key)
 
         if let existing = inFlightTransactions[key] {
+            if restoring {
+                // A restore needs its own submission after the shared scan releases the receipt.
+                _ = try await existing.task?.value
+                await Task.yield()
+                return try await processTransaction(
+                    transaction, schema: schema, readOnlyOverride: readOnlyOverride,
+                    distinctIdOverride: capturedDistinctId, restoring: true)
+            }
             if readOnlyOverride == true { existing.hostClaimed = true }
             guard readOnlyOverride == false else {
                 return try await existing.task?.value ?? false
@@ -299,7 +362,8 @@ public actor PurchaseOrchestrator {
                 entry: entry,
                 readOnlyOverride: readOnlyOverride,
                 processedCacheKey: processedCacheKey,
-                distinctId: capturedDistinctId
+                distinctId: capturedDistinctId,
+                restoring: restoring
             )
         }
         entry.task = task
@@ -314,7 +378,8 @@ public actor PurchaseOrchestrator {
         entry: InFlightTransaction,
         readOnlyOverride: Bool?,
         processedCacheKey: String,
-        distinctId: String
+        distinctId: String,
+        restoring: Bool
     ) async throws -> Bool {
         // An expired marker is a miss: the cache serves expired entries for offline reads, but a
         // processed-transaction record past its lifetime must not stop a receipt from syncing.
@@ -329,11 +394,20 @@ public actor PurchaseOrchestrator {
         let cachedState = cachedHit?.isExpired == true ? nil : cachedHit?.value
         entry.hostClaimed = entry.hostClaimed || cachedState?.externallyManaged == true
 
-        if cachedState?.storeFinalized == true {
+        if cachedState?.backendAccepted == true && cachedState?.storeFinalized == true && !restoring {
             return true
         }
 
-        if cachedState?.backendAccepted != true {
+        if cachedState?.backendAccepted != true || restoring {
+            if restoring {
+                await cacheManager.set(
+                    processedCacheKey,
+                    value: TransactionProcessingState(
+                        backendAccepted: false, storeFinalized: cachedState?.storeFinalized ?? false,
+                        externallyManaged: cachedState?.externallyManaged),
+                    ttl: Self.processedTransactionTtlMilliseconds)
+                await cacheManager.set(Self.restoredIdentityCacheKey(transaction), value: distinctId)
+            }
             var headers = await headersProvider()
             headers["x-distinct-id"] = distinctId
 
@@ -362,11 +436,10 @@ public actor PurchaseOrchestrator {
             } else {
                 let response: SdkSyncTransactionResponse
                 do {
-                    response = try await api.syncTransaction(
-                        headers: headers,
-                        body: PurchaseOrchestrator.syncPayload(
-                            transaction, products: schema.products)
-                    )
+                    let body = PurchaseOrchestrator.syncPayload(transaction, products: schema.products)
+                    response = restoring
+                        ? try await api.restoreTransaction(headers: headers, body: body)
+                        : try await api.syncTransaction(headers: headers, body: body)
                 } catch is VoidhashApiError {
                     return false
                 }
@@ -380,12 +453,14 @@ public actor PurchaseOrchestrator {
                 processedCacheKey,
                 value: TransactionProcessingState(
                     backendAccepted: true,
-                    storeFinalized: transaction.isAcknowledged,
+                    storeFinalized: cachedState?.storeFinalized == true || transaction.isAcknowledged,
                     externallyManaged: entry.hostClaimed
                 ),
                 ttl: PurchaseOrchestrator.processedTransactionTtlMilliseconds
             )
         }
+
+        if cachedState?.storeFinalized == true { return true }
 
         if !entry.ownerClaimed && (entry.hostClaimed || (readOnlyOverride ?? isReadOnly())) {
             entry.storeFinalizationPending = true
@@ -424,6 +499,10 @@ public actor PurchaseOrchestrator {
             value: TransactionProcessingState(backendAccepted: true, storeFinalized: true),
             ttl: PurchaseOrchestrator.processedTransactionTtlMilliseconds
         )
+    }
+
+    private static func restoredIdentityCacheKey(_ transaction: VoidhashTransaction) -> String {
+        "restored-transaction-identity:ios:\(transaction.originalTransactionId ?? transaction.transactionId)"
     }
 
     static func processingKey(_ transaction: VoidhashTransaction) -> String {

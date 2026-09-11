@@ -550,7 +550,23 @@ const make = Effect.fn("make")(function* () {
       })(),
   );
 
+  /** Whether an accepted transaction still has a refund to reconcile with verified store history. */
+  const hasRefundedTransaction = Effect.fn("hasRefundedTransaction")(function* (input: {
+    readonly transactionId: string;
+    readonly paymentProviderConfigurationProductId: string;
+  }) {
+    const transaction = yield* db.query.transactions.findFirst({
+      columns: { refundedAt: true },
+      where: {
+        id: input.transactionId,
+        paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
+      },
+    });
+    return transaction?.refundedAt != null;
+  });
+
   return constant({
+    hasRefundedTransaction,
     createExternalIdentifier,
     expireStaleParkedSdkConfirmationRows,
     findDistinctIdForPerson,

@@ -381,13 +381,20 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Reconciles every purchase the store still reports and refreshes the person.
+     * Revalidates owned, restorable purchases for the requesting user and refreshes the person.
+     * Bypasses accepted-receipt caching and skips known consumables. Deferred delivery throws
+     * and stays queued; success does not imply an active entitlement.
      *
      * With no schema yet the store is still reconciled — a receipt is worth syncing whether
      * or not the SDK can name the product — so this never fails for want of configuration.
      */
     suspend fun restorePurchases() {
-        syncPurchases()
+        if (!enabled) return
+        cacheManager.awaitWarm()
+        val distinctId = identityStore.getDistinctId()
+        ensureBillingConnected()
+        val current = schemaRef.get()
+        orchestrator.restorePurchases(current ?: RuntimeSchema.EMPTY, deferStoreFinalization = current == null, distinctId = distinctId)
     }
 
     /**
@@ -453,7 +460,7 @@ class VoidhashClient internal constructor(
         cacheManager.awaitWarm()
         ensureBillingConnected()
         val current = schemaRef.get()
-        orchestrator.restorePurchases(
+        orchestrator.syncPurchases(
             current ?: RuntimeSchema.EMPTY,
             deferStoreFinalization = current == null,
         )

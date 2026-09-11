@@ -16,6 +16,7 @@ namespace margelo::nitro::voidhash {
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("initConnection", &HybridStorekitSpec::initConnection);
       prototype.registerHybridMethod("endConnection", &HybridStorekitSpec::endConnection);
+      prototype.registerHybridMethod("syncStore", &HybridStorekitSpec::syncStore);
       prototype.registerHybridMethod("getPurchasedItems", &HybridStorekitSpec::getPurchasedItems);
       prototype.registerHybridMethod("getItems", &HybridStorekitSpec::getItems);
       prototype.registerHybridMethod("buyProduct", &HybridStorekitSpec::buyProduct);

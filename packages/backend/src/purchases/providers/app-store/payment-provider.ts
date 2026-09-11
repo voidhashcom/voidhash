@@ -59,6 +59,7 @@ import {
 import {
   type AppStorePurchaseProcessingEventType,
   buildAppStoreWebhookAnonymousDistinctId,
+  classifyAppStoreRevocation,
   getAppStorePersonIdentifier,
   getAppStorePurchaseProcessingIdempotencyKey,
   getAppStoreProviderSubscriptionId,
@@ -501,7 +502,7 @@ const make = Effect.fn("make")(function* () {
                * and the rebind completes. On transfer failure the rebind is
                * skipped so a later delivery retries the whole sequence.
                */
-              const transferred = yield* Effect.fn("transferred")(function* () {
+              const ownerId = yield* Effect.fn("resolveRestoredOwner")(function* () {
                 // Look the entitlement up by its real store keys, NOT by
                 // `personIdentifier`: with account tokens the identifier is the
                 // derived UUID (never a store key), so keying the lookups on it
@@ -514,7 +515,7 @@ const make = Effect.fn("make")(function* () {
                   storeSubscriptionId: input.providerSubscriptionId ?? input.personIdentifier,
                 });
                 if (Option.isSome(subscription)) {
-                  yield* purchaseProcessingService.transferSubscription({
+                  const result = yield* purchaseProcessingService.transferSubscription({
                     fromPersonId: existingExternal.value.personId,
                     occurredAt: input.occurredAt,
                     organizationId: input.organizationId,
@@ -527,13 +528,13 @@ const make = Effect.fn("make")(function* () {
                     transferMode: input.transferMode,
                     triggerReason: "appstore_restore",
                   });
-                  return true;
+                  return result.personId;
                 }
                 const purchase = yield* queries.findPurchaseByProviderKey({
                   providerKey: input.providerTransactionId,
                 });
                 if (Option.isSome(purchase) && purchase.value.type === PurchaseType.OneTime) {
-                  yield* purchaseProcessingService.transferPurchase({
+                  const result = yield* purchaseProcessingService.transferPurchase({
                     fromPersonId: existingExternal.value.personId,
                     occurredAt: input.occurredAt,
                     organizationId: input.organizationId,
@@ -546,11 +547,12 @@ const make = Effect.fn("make")(function* () {
                     transferMode: input.transferMode,
                     triggerReason: "appstore_restore",
                   });
+                  return result.personId;
                 }
                 // Consumable → no transfer (Apple never restores consumables).
                 // Nothing found → first-seen; the identifier rebind alone
                 // suffices.
-                return true;
+                return sdkPersonId;
               })().pipe(
                 Effect.catch((error: unknown) =>
                   Effect.logWarning(
@@ -561,10 +563,11 @@ const make = Effect.fn("make")(function* () {
                       previousPersonId: existingExternal.value.personId,
                       sdkPersonId,
                     },
-                  ).pipe(Effect.as(false)),
+                  ).pipe(Effect.as(existingExternal.value.personId)),
                 ),
               );
-              if (transferred) {
+              resolvedSdkPersonId = ownerId;
+              if (ownerId === sdkPersonId) {
                 yield* queries.rebindExternalIdentifier({
                   id: existingExternal.value.id,
                   newPersonId: sdkPersonId,
@@ -572,9 +575,9 @@ const make = Effect.fn("make")(function* () {
               }
               yield* Effect.annotateCurrentSpan({
                 "app_store.identity_result": pick(
-                  transferred,
+                  ownerId === sdkPersonId,
                   "cross_owner_transfer",
-                  "cross_owner_transfer_failed",
+                  "previous_owner_retained",
                 ),
               });
             }
@@ -939,7 +942,8 @@ const make = Effect.fn("make")(function* () {
    * consumable charges (Apple `ONE_TIME_CHARGE`), plus the SDK path where the
    * client just observed a successful StoreKit transaction. Routes to
    * `startSubscription`, `renewSubscription`, or `completeOneTimePurchase`
-   * depending on the decoded transaction shape.
+   * depending on the decoded transaction shape. SDK submissions also apply verified
+   * refunds and revocations before acknowledging historical purchases.
    */
   const recordPurchase = Effect.fn("recordPurchase")(function* (input: RecordTransactionInput) {
     const isRenewal = isAppStoreRenewalTransaction({
@@ -957,48 +961,84 @@ const make = Effect.fn("make")(function* () {
       (type) => type === "Auto-Renewable Subscription",
     );
 
-    if (isAutoRenewableSubscription) {
-      const startsAt = Option.match(ctx.decodedTransaction.originalPurchaseDate, {
-        onNone: () => ctx.occurredAt,
-        onSome: (ms) => dateFromMillis(ms),
-      });
-      const isTrial = Option.exists(
-        ctx.decodedTransaction.offerDiscountType,
-        (offer) => offer === "FREE_TRIAL",
-      );
-      const expiresAt = Option.map(ctx.decodedTransaction.expiresDate, (ms) => dateFromMillis(ms));
+    const result = yield* Effect.gen(function* () {
+      if (isAutoRenewableSubscription) {
+        const startsAt = Option.match(ctx.decodedTransaction.originalPurchaseDate, {
+          onNone: () => ctx.occurredAt,
+          onSome: (ms) => dateFromMillis(ms),
+        });
+        const isTrial = Option.exists(
+          ctx.decodedTransaction.offerDiscountType,
+          (offer) => offer === "FREE_TRIAL",
+        );
+        const expiresAt = Option.map(ctx.decodedTransaction.expiresDate, (ms) =>
+          dateFromMillis(ms),
+        );
 
-      if (isRenewal) {
-        return yield* purchaseProcessingService.renewSubscription({
+        if (isRenewal) {
+          return yield* purchaseProcessingService.renewSubscription({
+            ...ctx.base,
+            expiresAt,
+            isTrial,
+            money: ctx.money,
+            renewedAt: ctx.occurredAt,
+            startsAt,
+          });
+        }
+
+        return yield* purchaseProcessingService.startSubscription({
           ...ctx.base,
           expiresAt,
           isTrial,
           money: ctx.money,
-          renewedAt: ctx.occurredAt,
+          purchasedAt: ctx.occurredAt,
           startsAt,
         });
       }
 
-      return yield* purchaseProcessingService.startSubscription({
+      const isConsumable = Option.exists(
+        ctx.decodedTransaction.type,
+        (type) => type === "Consumable",
+      );
+      return yield* purchaseProcessingService.completeOneTimePurchase({
         ...ctx.base,
-        expiresAt,
-        isTrial,
         money: ctx.money,
+        purchaseType: pick(isConsumable, constant("consumable"), constant("one-time")),
         purchasedAt: ctx.occurredAt,
-        startsAt,
       });
-    }
-
-    const isConsumable = Option.exists(
-      ctx.decodedTransaction.type,
-      (type) => type === "Consumable",
-    );
-    return yield* purchaseProcessingService.completeOneTimePurchase({
-      ...ctx.base,
-      money: ctx.money,
-      purchaseType: pick(isConsumable, constant("consumable"), constant("one-time")),
-      purchasedAt: ctx.occurredAt,
     });
+
+    // A verified historical transaction can already be refunded or revoked. SDK restores
+    // must apply that state before acknowledging it, even if the webhook never arrived.
+    if (input.source === "sdk" && Option.isSome(ctx.decodedTransaction.revocationDate)) {
+      if (classifyAppStoreRevocation(ctx.decodedTransaction) === "family_revoke") {
+        yield* recordEntitlementRevoked(input);
+      } else {
+        yield* recordRefund(input);
+        if (isAutoRenewableSubscription) {
+          // The refund already reverses revenue. Expire access without a second monetary revocation.
+          yield* recordSubscriptionExpired({
+            ...input,
+            decodedTransaction: {
+              ...input.decodedTransaction,
+              expiresDate: ctx.decodedTransaction.revocationDate,
+            },
+          });
+        }
+      }
+    } else if (
+      input.source === "sdk" &&
+      result.idempotent &&
+      Option.isSome(result.transactionId) &&
+      (yield* queries.hasRefundedTransaction({
+        transactionId: result.transactionId.value,
+        paymentProviderConfigurationProductId: ctx.base.paymentProviderConfigurationProductId,
+      }))
+    ) {
+      // Fresh verification with no revocation can recover a missed REFUND_REVERSED webhook.
+      yield* recordRefundReversed(input);
+    }
+    return result;
   }, _withRecordTransactionObservability);
 
   /**
@@ -1143,6 +1183,12 @@ const make = Effect.fn("make")(function* () {
     return yield* purchaseProcessingService.reverseRefund({
       ...ctx.base,
       reversedAt,
+      ...(Option.exists(
+        ctx.decodedTransaction.type,
+        (type) => type === "Auto-Renewable Subscription",
+      ) && Option.isSome(ctx.decodedTransaction.expiresDate)
+        ? { subscriptionExpiresAt: dateFromMillis(ctx.decodedTransaction.expiresDate.value) }
+        : {}),
     });
   }, _withRecordTransactionObservability);
 

@@ -106,6 +106,8 @@ export type RevokePurchaseInput = typeof RevokePurchaseInput.Type;
 export const ReverseRefundInput = Schema.Struct({
   ...purchaseActionFields,
   reversedAt: Schema.Date,
+  /** Verified end of the refunded subscription period, when access must be restored. */
+  subscriptionExpiresAt: Schema.optional(Schema.Date),
 });
 export type ReverseRefundInput = typeof ReverseRefundInput.Type;
 

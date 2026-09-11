@@ -15,6 +15,7 @@ public protocol HybridStorekitSpec_protocol: HybridObject {
   // Methods
   func initConnection(onTransaction: ((_ transaction: (any HybridStorekitTransactionSpec)) -> Void)?) throws -> Promise<Bool>
   func endConnection() throws -> Promise<Bool>
+  func syncStore() throws -> Promise<Void>
   func getPurchasedItems(onlyIncludeActiveItems: Bool) throws -> Promise<[(any HybridStorekitTransactionSpec)]>
   func getItems(skus: [String]) throws -> Promise<[(any HybridStorekitProductSpec)]>
   func buyProduct(sku: String, appAccountToken: String, quantity: Double) throws -> Promise<(any HybridStorekitTransactionSpec)>

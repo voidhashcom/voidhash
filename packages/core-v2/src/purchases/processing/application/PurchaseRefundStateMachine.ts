@@ -1,3 +1,4 @@
+import { SubscriptionStatus } from "@voidhash/lib";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -372,6 +373,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
                 "reverseRefund: no providerTransactionId; skipping transaction row update",
               );
             }
+            let transactionUpdated = false;
             if (transaction !== undefined) {
               const transactionUpdate = yield* txRepository.updateTransactionIfFresher({
                 id: transaction.id,
@@ -379,6 +381,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
                 refundReason: null,
                 refundedAt: null,
               });
+              transactionUpdated = transactionUpdate.affectedRows > 0;
               if (
                 transactionUpdate.affectedRows === 0 &&
                 Option.isSome(input.providerTransactionId)
@@ -420,8 +423,39 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
               yield* ledger.finalize({ reservation: claim.reservation, result });
               return result;
             }
+            let restoredSubscriptionId = Option.none<string>();
+            if (
+              transactionUpdated &&
+              transaction?.refundedAt != null &&
+              input.subscriptionExpiresAt !== undefined &&
+              Option.isSome(input.providerSubscriptionId)
+            ) {
+              const subscription = yield* txRepository.findSubscriptionSeries({
+                paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+                paymentProviderConfigurationProductId: context.configurationProduct.id,
+                storeSubscriptionId: input.providerSubscriptionId.value,
+              });
+              // Only undo the expiry caused by this refund, never a later renewal or expiry.
+              if (
+                subscription?.latestTransactionId === transaction.storeTransactionId &&
+                subscription.expiresAt?.getTime() === transaction.refundedAt.getTime()
+              ) {
+                const updated = yield* txRepository.updateSubscriptionIfFresher({
+                  id: subscription.id,
+                  occurredAt: input.occurredAt,
+                  expiresAt: input.subscriptionExpiresAt,
+                  status:
+                    input.subscriptionExpiresAt.getTime() > input.reversedAt.getTime()
+                      ? SubscriptionStatus.Active
+                      : SubscriptionStatus.Canceled,
+                });
+                if (updated.affectedRows > 0) {
+                  restoredSubscriptionId = Option.some(subscription.id);
+                }
+              }
+            }
             let changedGrantIds: ReadonlyArray<string> = [];
-            if (purchaseUpdated) {
+            if (purchaseUpdated || Option.isSome(restoredSubscriptionId)) {
               changedGrantIds = yield* entitlements.syncUnlockedPerks(context.personId);
             }
             const money = storedMoney(transaction);
@@ -440,7 +474,7 @@ const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine
                   idempotent: false,
                   personId: context.personId,
                   purchaseId: Option.none(),
-                  subscriptionId: Option.none(),
+                  subscriptionId: restoredSubscriptionId,
                   transactionId: Option.none(),
                 }),
               context,

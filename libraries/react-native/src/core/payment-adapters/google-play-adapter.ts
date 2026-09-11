@@ -283,6 +283,8 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
     })();
   },
 
+  restorePurchases: () => Effect.void,
+
   getPurchaseHistory(
     onlyIncludeActiveItems = false,
   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {

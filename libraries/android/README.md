@@ -217,10 +217,23 @@ finishes, acknowledges or consumes a transaction. It durably captures the identi
 and delivers it in the background. Duplicate reports preserve the original captured identity across
 retries and relaunches. SDK diagnostics describe deferred delivery.
 
-Use `syncPurchases()` when a callback exposes no usable store transaction values, and after a
-host restore that returns no individual transactions. It scans currently exposed purchases and
-refreshes person state; `restorePurchases()` performs the same scan. Neither opens a restore
-prompt. Store-read failures are surfaced to the caller.
+Use `syncPurchases()` for a silent recovery scan when a host callback exposes no usable store
+transaction values. It scans currently exposed purchases, skips receipts already accepted by
+Voidhash, and refreshes person state. Store-read failures reach the caller; delivery failures stay
+queued for retry. It does not prompt for store authentication.
+
+Connect your Restore Purchases button to `restorePurchases()`. It revalidates restorable purchases
+for the identity that requested the restore, including receipts already accepted for another user.
+The project's transfer policy determines ownership. Previously queued purchases retain their
+original identity and are delivered before a restore can request a different owner.
+
+Restore queries currently owned Play purchases. Google Play has no separate restore prompt and
+does not return consumed purchases or arbitrary expired subscription history.
+Known consumables are excluded from explicit restoration. A store error or a receipt that cannot
+be accepted fails the restore; deferred receipts remain queued. An empty store can restore
+successfully. Check the refreshed person's entitlements to decide whether to unlock access.
+Use silent sync after a host restore for discovery; call explicit restore when Voidhash must
+revalidate cached receipts or apply its ownership policy for the current user.
 
 Initialization, foreground and reconnect also perform recovery scans. Foreground/reconnect scans
 are throttled to once a minute per trigger. Scans cannot recover a consumable already

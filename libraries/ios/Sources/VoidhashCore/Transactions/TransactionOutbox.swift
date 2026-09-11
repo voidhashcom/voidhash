@@ -6,6 +6,8 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
     public let transactionId: String
     /// Distinct id the receipt was captured under.
     public let distinctId: String
+    /// Explicit restore waiting behind this capture; retained until that identity is accepted.
+    public var restoreDistinctId: String?
     /// The sync payload, persisted verbatim so a relaunch needs nothing from the store.
     public let body: SdkSyncTransactionBody
     /// Send attempts so far, driving the backoff.
@@ -13,7 +15,7 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
     /// Millisecond epoch before which the record is not retried.
     public var availableAt: Double
     private enum CodingKeys: String, CodingKey {
-        case transactionId, distinctId, body, attempts, availableAt
+        case transactionId, distinctId, restoreDistinctId, body, attempts, availableAt
     }
 
     public init(
@@ -21,10 +23,12 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
         distinctId: String,
         body: SdkSyncTransactionBody,
         attempts: Int = 0,
-        availableAt: Double = 0
+        availableAt: Double = 0,
+        restoreDistinctId: String? = nil
     ) {
         self.transactionId = transactionId
         self.distinctId = distinctId
+        self.restoreDistinctId = restoreDistinctId
         self.body = body
         self.attempts = attempts
         self.availableAt = availableAt
@@ -34,6 +38,7 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         transactionId = try container.decode(String.self, forKey: .transactionId)
         distinctId = try container.decode(String.self, forKey: .distinctId)
+        restoreDistinctId = try container.decodeIfPresent(String.self, forKey: .restoreDistinctId)
         body = try container.decode(SdkSyncTransactionBody.self, forKey: .body)
         attempts = try container.decode(Int.self, forKey: .attempts)
         availableAt = try container.decode(Double.self, forKey: .availableAt)
@@ -129,14 +134,27 @@ public actor TransactionOutbox {
         return await drain()
     }
 
+    /// Delivers an older capture before submitting an explicit restore for `distinctId`.
+    /// A failed older delivery keeps its original identity and postpones the restore.
+    public func restore(_ body: SdkSyncTransactionBody, distinctId: String) async -> OutboxDrainResult {
+        await stage(body, distinctId: distinctId, restoreDistinctId: distinctId)
+        return await drain()
+    }
+
     /// Enqueues `body` without attempting delivery. Used by launch reconciliation, which enqueues
     /// a batch and drains once.
-    public func stage(_ body: SdkSyncTransactionBody, distinctId: String) async {
+    public func stage(_ body: SdkSyncTransactionBody, distinctId: String, restoreDistinctId: String? = nil) async {
         await loadIfNeeded()
-        guard !records.contains(where: { $0.transactionId == body.transactionId }) else { return }
-        let record = OutboxRecord(
-            transactionId: body.transactionId, distinctId: distinctId, body: body)
-        records.append(record)
+        let record: OutboxRecord
+        if let index = records.firstIndex(where: { $0.transactionId == body.transactionId }) {
+            guard let restoreDistinctId else { return }
+            records[index].restoreDistinctId = restoreDistinctId
+            record = records[index]
+        } else {
+            record = OutboxRecord(transactionId: body.transactionId, distinctId: distinctId,
+                                  body: body, restoreDistinctId: restoreDistinctId)
+            records.append(record)
+        }
         if storeReadFailed {
             // The file cannot be rewritten without seeing it, but appending is still safe; the
             // duplicate of an already-present record is collapsed by the next successful load.
@@ -193,7 +211,11 @@ public actor TransactionOutbox {
         // Whether the drain changed what the file should hold. An idle drain — or one that
         // only probed a paused gate or an open breaker — must not rewrite the file.
         var mutated = false
-        for record in records where record.availableAt <= timestamp {
+        var due = records.filter { $0.availableAt <= timestamp }
+        var next = 0
+        while next < due.count {
+            let record = due[next]
+            next += 1
             let permit: CircuitBreakerPermit?
             if let breaker, let breakerHost {
                 guard let acquired = await breaker.acquire(host: breakerHost) else {
@@ -240,8 +262,18 @@ public actor TransactionOutbox {
             }
 
             if accepted {
-                records.removeAll { $0.transactionId == record.transactionId }
-                acknowledgedIds.insert(record.transactionId)
+                if let index = records.firstIndex(where: { $0.transactionId == record.transactionId }),
+                   let restoreId = records[index].restoreDistinctId, restoreId != record.distinctId {
+                    let restored = OutboxRecord(transactionId: record.transactionId, distinctId: restoreId,
+                                                body: record.body, restoreDistinctId: restoreId)
+                    records[index] = restored
+                    // Persist the promotion before attempting it, including across process death.
+                    await persist()
+                    due.append(restored)
+                } else {
+                    records.removeAll { $0.transactionId == record.transactionId }
+                    acknowledgedIds.insert(record.transactionId)
+                }
                 mutated = true
             } else {
                 postpone(record, error: nil)
@@ -311,6 +343,7 @@ public actor TransactionOutbox {
             if var first = merged[record.transactionId] {
                 first.attempts = max(first.attempts, record.attempts)
                 first.availableAt = max(first.availableAt, record.availableAt)
+                first.restoreDistinctId = record.restoreDistinctId ?? first.restoreDistinctId
                 merged[record.transactionId] = first
             } else {
                 orderedIds.append(record.transactionId)

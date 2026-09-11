@@ -1147,8 +1147,10 @@ export class VoidhashClient {
   }
 
   /**
-   * Restores purchases by reconciling pending/past store transactions and
-   * refreshing person state.
+   * Revalidates restorable purchases for the user who requested the restore, then
+   * refreshes person state. Call from a user action: iOS may prompt for App Store
+   * authentication. Known consumables are excluded. Deferred delivery returns an
+   * error and stays queued; success does not imply an active entitlement.
    */
   async restorePurchases(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {

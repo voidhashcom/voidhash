@@ -7,6 +7,8 @@ import type { StorekitTransaction } from "./StorekitTransaction.nitro";
 export interface Storekit extends HybridObject<{ ios: "swift" }> {
   initConnection(onTransaction?: (transaction: StorekitTransaction) => void): Promise<boolean>;
   endConnection(): Promise<boolean>;
+  /** Refreshes transactions from the App Store following an explicit user action. */
+  syncStore(): Promise<void>;
   getPurchasedItems(onlyIncludeActiveItems: boolean): Promise<StorekitTransaction[]>;
   getItems(skus: string[]): Promise<StorekitProduct[]>;
   buyProduct(

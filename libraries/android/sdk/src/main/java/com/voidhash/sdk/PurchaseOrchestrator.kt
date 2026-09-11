@@ -26,6 +26,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import org.json.JSONObject
 
 private const val PROCESSED_TRANSACTION_TTL_MS = 1000L * 60 * 30
@@ -70,6 +71,7 @@ class PurchaseOrchestrator(
     // registry and the entry flags are reached from several threads; both the
     // lookups and the check-then-act flag transitions run under this mutex.
     private val inFlightMutex = Mutex()
+    private val restoreMutex = Mutex()
 
     /** Queries the store for every product configured in [schema]. */
     suspend fun getProducts(schema: RuntimeSchema): List<VoidhashProduct> {
@@ -171,11 +173,23 @@ class PurchaseOrchestrator(
         return transaction
     }
 
-    /** Restores purchases: reconciles everything the store still reports, then refreshes. */
+    /** Revalidates owned purchases for the requesting identity; deferred delivery fails the restore. */
     @JvmOverloads
-    suspend fun restorePurchases(schema: RuntimeSchema, deferStoreFinalization: Boolean = false) {
+    suspend fun restorePurchases(
+        schema: RuntimeSchema,
+        deferStoreFinalization: Boolean = false,
+        distinctId: String = identityStore.getDistinctId(),
+    ) {
+        restoreMutex.withLock {
+            reconcileObservedTransactions(schema, deferStoreFinalization, distinctId)
+            refreshPerson("a restore")
+        }
+    }
+
+    /** Silently reconciles owned purchases, retaining deferred deliveries for retry. */
+    suspend fun syncPurchases(schema: RuntimeSchema, deferStoreFinalization: Boolean = false) {
         reconcileObservedTransactions(schema, deferStoreFinalization)
-        refreshPerson("a restore")
+        refreshPerson("a sync")
     }
 
     /**
@@ -186,6 +200,7 @@ class PurchaseOrchestrator(
     suspend fun reconcileObservedTransactions(
         schema: RuntimeSchema,
         deferStoreFinalization: Boolean = false,
+        restoreDistinctId: String? = null,
     ) {
         val purchases = billing.getAvailableItemsByType(BillingProductType.INAPP) +
             billing.getAvailableItemsByType(BillingProductType.SUBS)
@@ -198,16 +213,20 @@ class PurchaseOrchestrator(
 
         val failures = mutableListOf<String>()
         for (transaction in observedByKey.values) {
+            if (transaction.purchaseState != "purchased") continue
             val isConsumable = resolveProductDefinition(transaction, schema)?.type == "one-time-consumable"
-            if (isConsumable && !readOnlyProvider()) {
+            if (isConsumable && (restoreDistinctId != null || !readOnlyProvider())) {
                 continue
             }
             try {
-                processTransaction(
+                val accepted = processTransaction(
                     transaction,
                     schema,
                     if (deferStoreFinalization || isConsumable) true else null,
+                    restoreDistinctId,
+                    restoring = restoreDistinctId != null,
                 )
+                if (restoreDistinctId != null && !accepted) failures.add(transaction.transactionId)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -277,8 +296,9 @@ class PurchaseOrchestrator(
      * started; every other caller passes `null` and reads the live flag at the
      * moment the decision is made.
      *
-     * [distinctIdOverride] pins a purchase to the identity that started it. Observations use
-     * the stored account-token identity, or the current identity when no mapping exists.
+     * [distinctIdOverride] pins a purchase or restore to the identity that started it.
+     * Observations prefer the restored owner, then the original account-token mapping.
+     * [restoring] revalidates the receipt even when a previous submission was accepted.
      *
      * Returns `true` only after the backend explicitly accepts the receipt. A
      * `false` result leaves the receipt queued and the store transaction unfinished.
@@ -288,12 +308,14 @@ class PurchaseOrchestrator(
         schema: RuntimeSchema,
         readOnlyOverride: Boolean?,
         distinctIdOverride: String? = null,
+        restoring: Boolean = false,
     ): Boolean {
         if (transaction.purchaseState != "purchased") {
             return false
         }
 
         val distinctId = distinctIdOverride
+            ?: cacheManager.getString("restored-transaction-identity:${transaction.processingKey}")?.value
             ?: transaction.appAccountToken?.let {
                 cacheManager.getString("transaction-identity:${it.lowercase()}")?.value
             }
@@ -303,6 +325,14 @@ class PurchaseOrchestrator(
 
         val claim = claimTransaction(processingKey, readOnlyOverride)
         if (!claim.isOwner) {
+            if (restoring) {
+                // A restore needs its own submission after the shared scan releases the receipt.
+                claim.entry.deferred.await()
+                yield()
+                return processTransaction(
+                    transaction, schema, readOnlyOverride, distinctId, restoring = true,
+                )
+            }
             // Rethrows the owner's failure: a joiner must never read a failed —
             // or cancelled — run as a synced, finished transaction.
             val accepted = claim.entry.deferred.await()
@@ -321,6 +351,7 @@ class PurchaseOrchestrator(
                 processedCacheKey,
                 processingKey,
                 distinctId,
+                restoring,
             )
             claim.entry.deferred.complete(accepted)
             return accepted
@@ -369,13 +400,16 @@ class PurchaseOrchestrator(
         processedCacheKey: String,
         processingKey: String,
         capturedDistinctId: String,
+        restoring: Boolean,
     ): Boolean {
+        val restoreIdentity = if (restoring) capturedDistinctId else outbox?.pendingRestoreDistinctId(processingKey)
+        val revalidating = restoreIdentity != null
         val cachedState = readProcessedState(processedCacheKey)
             ?: readProcessedState("processed-transaction:${transaction.legacyProcessingKey}")
         if (cachedState?.externallyManaged == true) {
             inFlightMutex.withLock { entry.hostClaimed = true }
         }
-        if (cachedState?.storeFinalized == true) {
+        if (cachedState?.backendAccepted == true && cachedState.storeFinalized && !revalidating) {
             return true
         }
 
@@ -386,8 +420,8 @@ class PurchaseOrchestrator(
             return false
         }
 
-        if (cachedState?.backendAccepted != true) {
-            var distinctId = capturedDistinctId
+        while (cachedState?.backendAccepted != true || revalidating) {
+            var distinctId = restoreIdentity ?: capturedDistinctId
             if (transaction.isDevelopment) {
                 val accepted = try {
                     apiClient.developmentPurchase(
@@ -417,8 +451,16 @@ class PurchaseOrchestrator(
                 // Recorded before the request so a crash, a kill, or an outage between here
                 // and the backend's answer cannot lose a purchase the user already paid for.
                 if (outbox != null) {
-                    distinctId = outbox.enqueue(processingKey, distinctId, request)?.distinctId
+                    distinctId = outbox.enqueue(processingKey, distinctId, request, restoreIdentity)?.distinctId
                         ?: return false
+                }
+                if (restoreIdentity != null) {
+                    writeProcessedState(
+                        processedCacheKey, backendAccepted = false,
+                        storeFinalized = cachedState?.storeFinalized == true,
+                        externallyManaged = cachedState?.externallyManaged == true,
+                    )
+                    cacheManager.set("restored-transaction-identity:$processingKey", restoreIdentity)
                 }
                 val verdict = try {
                     apiClient.syncTransactionVerdict(distinctId, request)
@@ -433,7 +475,9 @@ class PurchaseOrchestrator(
                     return false
                 }
                 when (verdict) {
-                    TransactionSyncVerdict.ACCEPTED -> outbox?.acknowledge(processingKey)
+                    TransactionSyncVerdict.ACCEPTED -> {
+                        if (outbox?.acknowledge(processingKey, distinctId) == false) continue
+                    }
                     TransactionSyncVerdict.REJECTED,
                     TransactionSyncVerdict.INDETERMINATE,
                     -> {
@@ -447,10 +491,13 @@ class PurchaseOrchestrator(
             writeProcessedState(
                 processedCacheKey,
                 backendAccepted = true,
-                storeFinalized = transaction.isAcknowledged,
+                storeFinalized = cachedState?.storeFinalized == true || transaction.isAcknowledged,
                 externallyManaged = inFlightMutex.withLock { entry.hostClaimed },
             )
+            break
         }
+
+        if (cachedState?.storeFinalized == true) return true
 
         val deferFinalization = inFlightMutex.withLock {
             if (!entry.ownerClaimed && (entry.hostClaimed || (readOnlyOverride ?: readOnlyProvider()))) {

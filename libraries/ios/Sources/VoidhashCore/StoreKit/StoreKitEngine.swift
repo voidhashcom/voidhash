@@ -24,6 +24,9 @@ public protocol StoreKitEngineProtocol: AnyObject, Sendable {
     func getItems(skus: [String]) async throws -> [StoreKitProductInfo]
     /// Returns the customer's purchases, optionally limited to currently active entitlements.
     func getPurchasedItems(onlyIncludeActiveItems: Bool) async throws -> [StoreKitTransactionInfo]
+    /// Refreshes transactions from the App Store. Only call after an explicit user action;
+    /// StoreKit may ask the user to authenticate.
+    func syncStore() async throws
     /// Buys a product previously fetched via ``getItems(skus:)``.
     func buyProduct(sku: String, appAccountToken: String, quantity: Double) async throws
         -> StoreKitTransactionInfo
@@ -136,6 +139,11 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
         return products.map { StoreKitProductInfo(product: $0) }
     }
 
+    /// Refreshes App Store data for an explicit user action; may prompt for authentication.
+    public func syncStore() async throws {
+        try await AppStore.sync()
+    }
+
     public func getPurchasedItems(onlyIncludeActiveItems: Bool) async throws
         -> [StoreKitTransactionInfo]
     {
@@ -165,19 +173,10 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
                 }
 
                 switch transaction.productType {
-                case .nonConsumable, .autoRenewable:
+                case .nonConsumable, .autoRenewable, .nonRenewable:
                     addTransaction(transaction: transaction)
                 case .consumable:
                     continue
-                case .nonRenewable:
-                    let currentDate = Date()
-                    let expirationDate = Calendar(identifier: .gregorian).date(
-                        byAdding: DateComponents(year: 1),
-                        to: transaction.purchaseDate
-                    )!
-                    if currentDate < expirationDate {
-                        addTransaction(transaction: transaction)
-                    }
                 default:
                     break
                 }

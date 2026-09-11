@@ -28,6 +28,8 @@ export interface OutboxEntry {
   readonly availableAt: number;
   /** Identity active when the store transaction was observed. */
   readonly distinctId: string;
+  /** Latest explicit restore waiting behind the original capture, retained until accepted. */
+  readonly restoreDistinctId?: string;
   /** Stable identity of the store transaction (`platform:storeIdentifier`). */
   readonly key: string;
   /** The store transaction, as observed. */
@@ -56,6 +58,9 @@ export const decodeOutboxEntry = (value: unknown): Option.Option<OutboxEntry> =>
           P.hasProperty(value, "distinctId") && P.isString(value.distinctId)
             ? value.distinctId
             : "",
+        ...(P.hasProperty(value, "restoreDistinctId") && P.isString(value.restoreDistinctId)
+          ? { restoreDistinctId: value.restoreDistinctId }
+          : {}),
         key: (() => {
           const transaction = fromTransactionRecord(value.transaction);
           return transaction ? transactionProcessingKey(transaction) : value.key;
@@ -73,6 +78,7 @@ const mergeOutboxEntries = (entries: ReadonlyArray<OutboxEntry>): ReadonlyArray<
         onNone: () => entry,
         onSome: (first) => ({
           ...first,
+          restoreDistinctId: entry.restoreDistinctId ?? first.restoreDistinctId,
           attempts: Math.max(first.attempts, entry.attempts),
           availableAt: Math.max(first.availableAt, entry.availableAt),
           transaction:
@@ -167,16 +173,31 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
    * None defers delivery until unreadable storage can reveal the original owner.
    */
   const enqueue = Effect.fn("TransactionOutbox.enqueue")(
-    function* (key: string, transaction: Record<string, unknown>, distinctId = "") {
+    function* (
+      key: string,
+      transaction: Record<string, unknown>,
+      distinctId = "",
+      restoreDistinctId?: string,
+    ) {
       const now = yield* Clock.currentTimeMillis;
       yield* Ref.update(entriesRef, (entries) =>
         entries.some((entry) => entry.key === key)
           ? entries.map((entry) =>
-              entry.key === key && transaction.externallyManaged === true
-                ? { ...entry, transaction: { ...entry.transaction, externallyManaged: true } }
+              entry.key === key
+                ? {
+                    ...entry,
+                    restoreDistinctId: restoreDistinctId ?? entry.restoreDistinctId,
+                    transaction:
+                      transaction.externallyManaged === true
+                        ? { ...entry.transaction, externallyManaged: true }
+                        : entry.transaction,
+                  }
                 : entry,
             )
-          : [...entries, { attempts: 0, availableAt: now, distinctId, key, transaction }],
+          : [
+              ...entries,
+              { attempts: 0, availableAt: now, distinctId, restoreDistinctId, key, transaction },
+            ],
       );
       yield* persistUnlocked();
       if (MutableRef.get(restoreFailed)) return Option.none<string>();
@@ -202,11 +223,27 @@ const make = Effect.fn("makeTransactionOutbox")(function* effect() {
     (effect) => mutationMutex.withPermits(1)(effect),
   );
 
-  /** Removes a receipt the server accepted. */
+  /** Acknowledges one owner, promoting a waiting restore atomically. Returns true when complete. */
   const ack = Effect.fn("TransactionOutbox.ack")(
-    function* (key: string) {
-      yield* Ref.update(entriesRef, (entries) => entries.filter((entry) => entry.key !== key));
+    function* (key: string, distinctId?: string) {
+      const now = yield* Clock.currentTimeMillis;
+      yield* Ref.update(entriesRef, (entries) =>
+        entries.flatMap((entry) => {
+          if (entry.key !== key || (distinctId !== undefined && entry.distinctId !== distinctId))
+            return [entry];
+          if (
+            entry.restoreDistinctId !== undefined &&
+            entry.restoreDistinctId !== entry.distinctId
+          ) {
+            return [
+              { ...entry, distinctId: entry.restoreDistinctId, attempts: 0, availableAt: now },
+            ];
+          }
+          return [];
+        }),
+      );
       yield* persistUnlocked();
+      return !(yield* Ref.get(entriesRef)).some((entry) => entry.key === key);
     },
     (effect) => mutationMutex.withPermits(1)(effect),
   );

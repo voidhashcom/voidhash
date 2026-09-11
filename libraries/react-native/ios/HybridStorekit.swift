@@ -47,6 +47,14 @@ class HybridStorekit: HybridStorekitSpec {
         }
     }
 
+    func syncStore() throws -> Promise<Void> {
+        Promise.async {
+            try await mappingStoreErrors {
+                try await self.engine.syncStore()
+            }
+        }
+    }
+
     func getItems(skus: [String]) throws -> Promise<[any HybridStorekitProductSpec]> {
         return Promise.async {
             let products = try await mappingStoreErrors {

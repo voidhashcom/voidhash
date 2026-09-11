@@ -16,6 +16,8 @@ public enum VoidhashPurchaseState: String, Sendable, Equatable {
 public struct VoidhashTransaction: Sendable, Equatable {
     /// Store transaction identifier.
     public let transactionId: String
+    /// Original transaction identifying the subscription series across renewals.
+    public let originalTransactionId: String?
     /// App Store product identifier the transaction belongs to.
     public let productId: String
     /// Purchase timestamp in milliseconds since the epoch.
@@ -44,9 +46,11 @@ public struct VoidhashTransaction: Sendable, Equatable {
         appAccountToken: String? = nil,
         receipt: String? = nil,
         purchaseState: VoidhashPurchaseState = .purchased,
-        isDevelopment: Bool = false
+        isDevelopment: Bool = false,
+        originalTransactionId: String? = nil
     ) {
         self.transactionId = transactionId
+        self.originalTransactionId = originalTransactionId
         self.productId = productId
         self.purchaseDate = purchaseDate
         self.quantity = quantity
@@ -72,7 +76,8 @@ public struct VoidhashTransaction: Sendable, Equatable {
             appAccountToken: storeTransaction.appAccountToken,
             receipt: storeTransaction.transactionReceipt,
             purchaseState: .purchased,
-            isDevelopment: isDevelopment
+            isDevelopment: isDevelopment,
+            originalTransactionId: storeTransaction.originalTransactionIdentifierIos
         )
     }
 }

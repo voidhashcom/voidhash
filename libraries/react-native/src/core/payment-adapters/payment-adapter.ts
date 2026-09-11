@@ -64,6 +64,9 @@ export class PaymentAdapter extends Context.Service<
 
     getPendingTransactions(): Effect.Effect<Transaction[], GetPendingTransactionsError, never>;
 
+    /** Refreshes store state for an explicit restore; may prompt for App Store authentication. */
+    restorePurchases(): Effect.Effect<void, GetPurchaseHistoryError>;
+
     // Platform specific methods
     presentCodeRedemptionSheet?(): Effect.Effect<
       void,

@@ -60,6 +60,7 @@ namespace margelo::nitro::voidhash {
       // Methods
       virtual std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>& onTransaction) = 0;
       virtual std::shared_ptr<Promise<bool>> endConnection() = 0;
+      virtual std::shared_ptr<Promise<void>> syncStore() = 0;
       virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>> getPurchasedItems(bool onlyIncludeActiveItems) = 0;
       virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>> getItems(const std::vector<std::string>& skus) = 0;
       virtual std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>> buyProduct(const std::string& sku, const std::string& appAccountToken, double quantity) = 0;

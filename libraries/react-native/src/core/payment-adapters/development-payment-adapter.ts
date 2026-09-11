@@ -102,5 +102,6 @@ export const DevelopmentPaymentAdapter = Layer.succeed(PaymentAdapter, {
         new FailedToGetProductsError({ cause, message: "Failed to build development products" }),
     }),
   getPurchaseHistory: () => Effect.succeed([]),
+  restorePurchases: () => Effect.void,
   initConnection: () => Effect.void,
 });

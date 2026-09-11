@@ -66,6 +66,9 @@ public final class DevelopmentStoreEngine: StoreKitEngineProtocol, @unchecked Se
         }
     }
 
+    /// The development store has no external account state to refresh.
+    public func syncStore() async throws {}
+
     public func getPurchasedItems(onlyIncludeActiveItems: Bool) async throws
         -> [StoreKitTransactionInfo]
     {

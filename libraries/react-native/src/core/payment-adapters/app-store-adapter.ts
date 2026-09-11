@@ -260,6 +260,20 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     })();
   },
 
+  restorePurchases() {
+    const storekit = Storekit;
+    if (!storekit) {
+      return Effect.fail(
+        new GetPurchaseHistoryError({ message: "StoreKit is not available on this platform" }),
+      );
+    }
+    return Effect.tryPromise({
+      try: () => storekit.syncStore(),
+      catch: (cause) =>
+        new GetPurchaseHistoryError({ cause, message: "Failed to restore App Store purchases" }),
+    });
+  },
+
   getPurchaseHistory(
     onlyIncludeActiveItems = false,
   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {

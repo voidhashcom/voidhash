@@ -56,10 +56,10 @@ original captured identity through retries and app relaunches.
 
 ## Recovery scans and restore callbacks
 
-Use `syncPurchases()` when the host callback exposes no usable store transaction values, or after
-its user-facing restore flow completes. The scan reports purchases the store still exposes and
-refreshes the current person. It does not open a store restore prompt. `restorePurchases()` performs
-the same scan and refresh.
+Use `syncPurchases()` for silent recovery when the host callback exposes no usable store
+transaction values, including after its restore flow. It reports purchases the store still exposes,
+skips receipts already accepted by Voidhash, and refreshes the current person. It does not prompt
+for store authentication. Store-read failures reach the caller; delivery failures remain queued.
 
 ```tsx
 const result = await voidhash.client.syncPurchases();
@@ -76,6 +76,30 @@ currently owned purchases.
 `syncPurchases()` is a fallback, not a delivery guarantee. If the host hides transaction values and
 finishes a consumable before Voidhash captures it, a later callback or scan cannot recover it. Keep
 explicit reporting in the successful purchase callback whenever your host SDK exposes the values.
+
+## Explicit restoration
+
+Connect your Restore Purchases button to `restorePurchases()`. It revalidates restorable purchases
+for the identity that requested the restore, even when Voidhash already accepted those receipts.
+The project's transfer policy controls whether ownership changes. A queued purchase retains its
+original buyer and must be delivered before the restore can request another owner.
+
+```tsx
+const result = await voidhash.client.restorePurchases();
+if (result.isErr()) console.warn("Voidhash restore failed", result.error);
+```
+
+On iOS, this calls `AppStore.sync()` and reads verified non-consumable transaction history,
+including expired or revoked transactions. App Store authentication may appear, so call it only
+from a user action. Android queries currently owned Play purchases; it cannot retrieve consumed
+purchases or arbitrary expired subscription history.
+Known consumables are excluded from explicit restoration. A store error or a receipt that cannot
+be accepted fails the restore; deferred receipts stay queued for retry. An empty store can restore
+successfully. Success does not imply an active entitlement: use the person's current grants to
+decide whether to unlock access.
+
+Reporting and silent sync after a host restore discover purchases. Use explicit restoration when
+Voidhash must revalidate cached receipts or apply its ownership policy for the current user.
 
 ## Load products
 

@@ -13,3 +13,9 @@ export class ReconcileTransactionsError extends Schema.TaggedErrorClass<Reconcil
     message: Schema.String,
   },
 ) {}
+
+/** A restored receipt remains queued because the server has not accepted it. */
+export class TransactionDeliveryDeferredError extends Schema.TaggedErrorClass<TransactionDeliveryDeferredError>()(
+  "TransactionDeliveryDeferredError",
+  { message: Schema.String, transactionId: Schema.String },
+) {}
