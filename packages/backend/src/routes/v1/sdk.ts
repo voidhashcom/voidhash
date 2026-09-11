@@ -1,4 +1,4 @@
-import { mapSdkTransactionSubmission } from "./sdk-transaction";
+import { mapSdkTransactionSubmission } from "./sdk-transaction.ts";
 import {
   RegisterDeviceResponse,
   SdkCurrentSubscription,
