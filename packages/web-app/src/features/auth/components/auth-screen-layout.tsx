@@ -32,11 +32,7 @@ export function AuthScreenLayout({ children }: { children: ReactNode }) {
                 className="mb-8 flex w-fit rounded-sm outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
                 to="/"
               >
-                <Logo
-                  className="h-[17px] w-[119px]"
-                  preserveAspectRatio="none"
-                  viewBox="0 8.5 409.159 61"
-                />
+                <Logo className="h-[17px] w-auto" />
               </Link>
               {children}
             </div>
