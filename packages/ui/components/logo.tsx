@@ -2,10 +2,12 @@ import type { SVGProps } from "react";
 
 import { cn } from "../lib/utils";
 
+/** Renders the Voidhash symbol or full wordmark. */
 export const Logo = ({
   className,
   variant = "default",
   color = "mono",
+  ...props
 }: SVGProps<SVGSVGElement> & {
   variant?: "default" | "short" | "symbol";
   color?: "dual-tone" | "mono";
@@ -19,6 +21,7 @@ export const Logo = ({
         fill="none"
         viewBox="0 0 120 61"
         xmlns="http://www.w3.org/2000/svg"
+        {...props}
       >
         <title>Voidhash</title>
         <path
@@ -36,6 +39,7 @@ export const Logo = ({
       fill="none"
       viewBox="0 0 414 78"
       xmlns="http://www.w3.org/2000/svg"
+      {...props}
     >
       <title>Voidhash</title>
       <path

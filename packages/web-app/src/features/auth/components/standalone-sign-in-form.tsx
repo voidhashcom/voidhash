@@ -45,7 +45,7 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
   };
 
   return (
-    <form className="mt-10 flex flex-col gap-6" method="post" onSubmit={handleSubmit}>
+    <form className="mt-8 flex flex-col gap-5" method="post" onSubmit={handleSubmit}>
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -54,9 +54,11 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
         </Alert>
       )}
 
-      <div className="grid gap-6">
+      <div className="grid gap-5">
         <div className="grid gap-2">
-          <Label htmlFor="username">Username</Label>
+          <Label className="text-sm leading-4.5" htmlFor="username">
+            Username
+          </Label>
           <Input
             autoComplete="username"
             autoFocus
@@ -64,27 +66,22 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
             name="username"
             placeholder="root"
             required
-            size={"lg"}
             type="text"
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
+          <Label className="text-sm leading-4.5" htmlFor="password">
+            Password
+          </Label>
           <Input
             autoComplete="current-password"
             id="password"
             name="password"
             required
-            size={"lg"}
             type="password"
           />
         </div>
-        <Button
-          className="w-full cursor-pointer"
-          disabled={signInMutation.isPending}
-          size={"lg"}
-          type="submit"
-        >
+        <Button className="w-full cursor-pointer" disabled={signInMutation.isPending} type="submit">
           {signInMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Continue
         </Button>

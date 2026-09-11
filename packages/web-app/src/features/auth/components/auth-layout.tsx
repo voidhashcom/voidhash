@@ -10,8 +10,8 @@ export type AuthLayoutProps = {
 
 /**
  * Shared shell for the auth surfaces. Renders the lenticular Voidhash gradient
- * behind a backdrop-blurred form column with the logo (linking home), matching
- * the sign-in / sign-up layout. Page content is centred in a `max-w-sm` column.
+ * behind a form column with the logo linking home. Page content is centred
+ * in a `max-w-sm` column.
  */
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (

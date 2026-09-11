@@ -5,9 +5,9 @@ import { StandaloneSignInForm } from "./standalone-sign-in-form";
 export function StandaloneLoginScreen({ next }: { next?: string | undefined }) {
   return (
     <AuthScreenLayout>
-      <div className="flex flex-col items-start gap-2 text-left">
-        <h1 className="text-3xl">Welcome back!</h1>
-      </div>
+      <h1 className="text-3xl font-medium leading-[43px] tracking-[-0.03em] sm:text-4xl">
+        Welcome back!
+      </h1>
       <StandaloneSignInForm next={next} />
     </AuthScreenLayout>
   );
