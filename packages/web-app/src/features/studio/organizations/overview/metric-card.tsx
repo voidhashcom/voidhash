@@ -113,7 +113,7 @@ export const MetricCard = ({
               dot={false}
               stroke={`var(--color-${dataKey})`}
               strokeWidth={2}
-              type="natural"
+              type="monotone"
             />
           </LineChart>
         </ChartContainer>
