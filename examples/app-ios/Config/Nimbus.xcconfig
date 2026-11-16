@@ -1,0 +1,18 @@
+// Build settings shared by every configuration of the Nimbus example.
+//
+// VOIDHASH_PUBLISHABLE_KEY is copied into Info.plist as VoidhashPublishableKey and read at
+// launch by NimbusConfiguration. Leave it empty here: put your own key in
+// Config/Secrets.xcconfig, which is git-ignored and included below when it exists.
+// Start from Config/Secrets.xcconfig.example.
+
+VOIDHASH_PUBLISHABLE_KEY =
+
+// API origin, for pointing Nimbus at a local backend; empty uses the production API. `//` starts
+// a comment in an xcconfig, so write `http:/$()/127.0.0.1:8788`.
+VOIDHASH_API_BASE_URL =
+
+// YES runs the SDK in development mode (debug builds only): products come from the dashboard's
+// development prices instead of the App Store, so a simulator shows them without App Store setup.
+VOIDHASH_DEVELOPMENT_MODE = NO
+
+#include? "Secrets.xcconfig"

@@ -1,0 +1,142 @@
+{
+  "name": "@voidhash/react-native",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Voidhash React Native SDK for in-app purchases.",
+  "keywords": [
+    "expo",
+    "nitro",
+    "payments",
+    "react-native",
+    "sdk",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/react-native"
+  },
+  "source": "src/index",
+  "files": [
+    "*.podspec",
+    "app.plugin.js",
+    "build",
+    "nitrogen",
+    "plugin/build",
+    "react-native.config.js",
+    "README.md",
+    "src",
+    "android/build.gradle",
+    "android/CMakeLists.txt",
+    "android/consumer-rules.pro",
+    "android/gradle.properties",
+    "android/src",
+    "ios/**/*.cpp",
+    "ios/**/*.h",
+    "ios/**/*.m",
+    "ios/**/*.mm",
+    "ios/**/*.swift"
+  ],
+  "main": "build/index",
+  "module": "build/index",
+  "types": "build/index.d.ts",
+  "react-native": "src/index",
+  "exports": {
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json",
+    "./expo-router": {
+      "types": "./build/expo-router.d.ts",
+      "react-native": "./src/expo-router.tsx",
+      "default": "./build/expo-router.js"
+    },
+    "./metro": {
+      "types": "./build/metro/index.d.ts",
+      "node": "./build/metro/index.js"
+    },
+    "./react-navigation": {
+      "types": "./build/react-navigation.d.ts",
+      "react-native": "./src/react-navigation.tsx",
+      "default": "./build/react-navigation.js"
+    },
+    ".": {
+      "types": "./build/index.d.ts",
+      "react-native": "./src/index.ts",
+      "default": "./build/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit -p tsconfig.json",
+    "test:types": "tsrs -p tests/types/tsconfig.sdk.json && tsrs --noEmit -p tests/types/tsconfig.json && tsrs --noEmit -p tests/types/untyped/tsconfig.json",
+    "build": "expo-module build && tsrs -p tsconfig.metro.json && tsrs -p plugin/tsconfig.json && vp fmt plugin/build",
+    "test": "vp test run -c vitest.unit.mts && pnpm run test:types",
+    "test:artifact": "node ../../scripts/smoke-react-native-artifact.mjs",
+    "test:android-engine": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p ../android :react-native-engine-tests:testDebugUnitTest --no-daemon",
+    "test:android-purchase-coordinator": "\"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p android/coordinator-tests test --no-daemon",
+    "test:storekit-purchase-coordinator": "swift test --package-path .",
+    "test:storekit-simulator": "bash ios-storekit-tests/run-tests.sh",
+    "clean": "rm -rf android/build node_modules/**/android/build lib",
+    "lint": "vp check",
+    "lint-ci": "vp check",
+    "format": "vp check --fix",
+    "typescript": "tsrs -p tsconfig.test.json --noEmit",
+    "specs": "pnpm run typescript && nitrogen --logLevel=\"debug\""
+  },
+  "dependencies": {
+    "@voidhash/android": "workspace:*",
+    "@voidhash/ios": "workspace:*",
+    "better-result": "3.0.1",
+    "pathe": "^2.0.3"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@react-navigation/native": "^7.3.17",
+    "@srsholmes/vitest-react-native": "^0.1.5",
+    "@types/node": "^24.0.12",
+    "@types/react": "~19.1.10",
+    "@vitejs/plugin-react": "catalog:",
+    "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/shared": "workspace:*",
+    "expo": "54.0.33",
+    "expo-module-scripts": "^5.0.8",
+    "expo-router": "~55.0.18",
+    "nitrogen": "0.37.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-nitro-modules": "0.37.1",
+    "typescript": "5.9.3",
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@react-navigation/native": "*",
+    "effect": "catalog:",
+    "expo": "*",
+    "expo-router": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "^0.37.1"
+  },
+  "peerDependenciesMeta": {
+    "@react-navigation/native": {
+      "optional": true
+    },
+    "expo": {
+      "optional": true
+    },
+    "expo-router": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@10.19.0"
+}

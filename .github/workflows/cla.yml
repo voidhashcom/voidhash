@@ -1,0 +1,47 @@
+# Asks contributors to sign the CLA and records signatures in
+# signatures/cla.json on this repository's cla-signatures branch, which its first
+# run creates. main is published by automation and never holds them.
+name: CLA
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Create the signatures branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/branches/cla-signatures" --silent 2> /dev/null; then
+            exit 0
+          fi
+          tree=$(gh api "repos/${GITHUB_REPOSITORY}/git/trees" \
+            -f 'tree[][path]=README.md' -f 'tree[][mode]=100644' -f 'tree[][type]=blob' \
+            -f 'tree[][content]=Signatures of the Contributor License Agreement, recorded by the CLA workflow.' \
+            --jq .sha)
+          commit=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits" \
+            -f message="chore: store CLA signatures" -f "tree=${tree}" --jq .sha)
+          # A run that started at the same time may have created it first.
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref=refs/heads/cla-signatures -f "sha=${commit}" --silent ||
+            gh api "repos/${GITHUB_REPOSITORY}/branches/cla-signatures" --silent
+
+      - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          path-to-signatures: signatures/cla.json
+          path-to-document: https://github.com/${{ github.repository }}/blob/main/CONTRIBUTOR_LICENSE_AGREEMENT.md
+          branch: cla-signatures
+          allowlist: voidhash-bot,dependabot[bot]

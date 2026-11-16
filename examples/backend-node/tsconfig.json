@@ -1,0 +1,8 @@
+{
+  "extends": "@voidhash/tsconfig/base.json",
+  "include": ["src"],
+  "exclude": ["**/node_modules/**"],
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}

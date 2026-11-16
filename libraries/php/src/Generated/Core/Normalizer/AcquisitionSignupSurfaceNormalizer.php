@@ -1,0 +1,83 @@
+<?php
+
+namespace Voidhash\Generated\Core\Normalizer;
+
+use Jane\Component\JsonSchemaRuntime\Reference;
+use Voidhash\Generated\Core\Runtime\Normalizer\CheckArray;
+use Voidhash\Generated\Core\Runtime\Normalizer\ValidatorTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+class AcquisitionSignupSurfaceNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+{
+    use DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use CheckArray;
+    use ValidatorTrait;
+    public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
+    {
+        return $type === \Voidhash\Generated\Core\Model\AcquisitionSignupSurface::class;
+    }
+    public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
+    {
+        return is_object($data) && get_class($data) === \Voidhash\Generated\Core\Model\AcquisitionSignupSurface::class;
+    }
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
+    {
+        $object = new \Voidhash\Generated\Core\Model\AcquisitionSignupSurface();
+        if (null === $data || false === \is_array($data)) {
+            return $object;
+        }
+        if (isset($data['$ref']) && !isset($data['type']) && !isset($data['properties']) && !isset($data['allOf'])) {
+            return new Reference($data['$ref'], $context['document-origin']);
+        }
+        if (isset($data['$recursiveRef'])) {
+            return new Reference($data['$recursiveRef'], $context['document-origin']);
+        }
+        if (\array_key_exists('surface', $data)) {
+            $object->setSurface($data['surface']);
+        }
+        if (\array_key_exists('peopleAcquired', $data)) {
+            $object->setPeopleAcquired($data['peopleAcquired']);
+        }
+        if (\array_key_exists('appInstalls', $data)) {
+            $object->setAppInstalls($data['appInstalls']);
+        }
+        if (\array_key_exists('trialStarters', $data)) {
+            $object->setTrialStarters($data['trialStarters']);
+        }
+        if (\array_key_exists('payingPeople', $data)) {
+            $object->setPayingPeople($data['payingPeople']);
+        }
+        if (\array_key_exists('grossRevenue', $data)) {
+            $object->setGrossRevenue($data['grossRevenue']);
+        }
+        if (\array_key_exists('refunds', $data)) {
+            $object->setRefunds($data['refunds']);
+        }
+        if (\array_key_exists('netRevenue', $data)) {
+            $object->setNetRevenue($data['netRevenue']);
+        }
+        return $object;
+    }
+    public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
+    {
+        $dataArray = [];
+        $dataArray['surface'] = $data->getSurface();
+        $dataArray['peopleAcquired'] = $data->getPeopleAcquired();
+        $dataArray['appInstalls'] = $data->getAppInstalls();
+        $dataArray['trialStarters'] = $data->getTrialStarters();
+        $dataArray['payingPeople'] = $data->getPayingPeople();
+        $dataArray['grossRevenue'] = $data->getGrossRevenue();
+        $dataArray['refunds'] = $data->getRefunds();
+        $dataArray['netRevenue'] = $data->getNetRevenue();
+        return $dataArray;
+    }
+    public function getSupportedTypes(?string $format = null): array
+    {
+        return [\Voidhash\Generated\Core\Model\AcquisitionSignupSurface::class => false];
+    }
+}

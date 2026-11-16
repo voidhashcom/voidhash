@@ -1,0 +1,68 @@
+{
+  "name": "voidhash-cli",
+  "version": "0.0.1-alpha.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "apps/cli"
+  },
+  "bin": {
+    "voidhash": "./dist/bin.cjs",
+    "voidhash-cli": "./dist/bin.cjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "start": "dotenv -- tsx ./src/index.ts",
+    "build": "rm -rf ./dist && tsx build.ts && cp package.json dist/ && chmod +x ./dist/bin.cjs",
+    "build:dev": "rm -rf ./dist && tsx build.dev.ts && chmod +x ./dist/index.cjs",
+    "dev:set-local-urls": "npx voidhash-cli config set api_url http://localhost:8787 && npx voidhash-cli config set web_url https://voidhash.localhost",
+    "typecheck": "tsrs --noEmit",
+    "test": "vp test run -c vitest.unit.mts",
+    "test:watch": "vp test -c vitest.unit.mts"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.10"
+  },
+  "devDependencies": {
+    "@better-auth/api-key": "catalog:",
+    "@effect/language-service": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@voidhash/api-contracts": "workspace:*",
+    "@voidhash/component-build": "workspace:*",
+    "@voidhash/component-definition": "workspace:*",
+    "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/lib": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv-cli": "^10.0.0",
+    "effect": "catalog:",
+    "esbuild-register": "^3.6.0",
+    "nanoid": "^5.1.5",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^4.1.11"
+  }
+}

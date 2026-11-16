@@ -1,0 +1,100 @@
+{
+  "name": "@voidhash/web",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Browser-first Voidhash SDK.",
+  "keywords": [
+    "browser",
+    "payments",
+    "react",
+    "sdk",
+    "voidhash",
+    "web"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/web"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/voidhash.global.js"
+  ],
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/react.d.ts"
+      ]
+    }
+  },
+  "unpkg": "./dist/voidhash.global.js",
+  "jsdelivr": "./dist/voidhash.global.js",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts",
+    "./voidhash.global.js": "./dist/voidhash.global.js"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "./react": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.mjs"
+      },
+      "./voidhash.global.js": "./dist/voidhash.global.js"
+    },
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "rm -rf ./dist && tsx build.ts",
+    "typecheck": "tsrs --noEmit",
+    "test": "vp test run -c vitest.unit.mts && size-limit && pnpm run test:types",
+    "test:types": "tsrs --noEmit -p tests/types/tsconfig.json && tsrs --noEmit -p tests/types/untyped/tsconfig.json",
+    "test:watch": "vp test -c vitest.unit.mts",
+    "size": "size-limit"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@size-limit/esbuild": "catalog:",
+    "@size-limit/file": "catalog:",
+    "@types/node": "^24.0.12",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "effect": "catalog:",
+    "jsdom": "^20.0.3",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "size-limit": "catalog:",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.3",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

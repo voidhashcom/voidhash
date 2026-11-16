@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Compose draws the whole UI, so the platform theme only has to stay out of
+      the way. It must not be an AppCompat theme: the SDK presents its paywall
+      and its development-mode purchase sheet with framework dialogs.
+    -->
+    <style name="Theme.Nimbus" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

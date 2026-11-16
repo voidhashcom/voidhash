@@ -1,0 +1,29 @@
+{
+  "name": "@voidhash/example-app-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nimbus reference website for the @voidhash/web browser SDK.",
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "examples/app-web"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@voidhash/web": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.8.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

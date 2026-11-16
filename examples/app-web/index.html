@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nimbus</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0 auto;
+        max-width: 40rem;
+        padding: 2rem;
+      }
+      nav a {
+        margin-right: 1rem;
+      }
+      #consent {
+        border: 1px solid #ccc;
+        border-radius: 0.5rem;
+        padding: 1rem;
+      }
+      code {
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" data-link>Home</a>
+      <a href="/pricing" data-link>Pricing</a>
+    </nav>
+    <main id="page"></main>
+    <aside id="consent" hidden>
+      <p>Nimbus uses analytics to learn which campaigns bring people here.</p>
+      <button type="button" data-consent="granted">Accept</button>
+      <button type="button" data-consent="denied">Decline</button>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

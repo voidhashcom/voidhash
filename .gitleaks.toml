@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public UUIDv5 namespace used for deterministic account tokens"
+condition = "AND"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = ['''^3919eb4e-3466-593c-8c1e-84554e13a0a6$''']
+paths = ['''(?:^|/)libraries/react-native/src/core/utils/account-token\.ts$''']

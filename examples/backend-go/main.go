@@ -1,0 +1,169 @@
+// Command backend-go is the Nimbus reference backend for the Voidhash Go SDK.
+//
+// Nimbus is a notes app with a Pro tier: free accounts keep three notes, Pro is
+// unlimited and can export. That is enough of a product to exercise identity,
+// entitlement checks, analytics capture and webhooks against a real project.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	voidhash "github.com/voidhashcom/voidhash-go"
+)
+
+const (
+	defaultPort            = "8080"
+	defaultPaymentSource   = "nimbus-billing"
+	shutdownGracePeriod    = 10 * time.Second
+	voidhashRequestTimeout = 10 * time.Second
+)
+
+type config struct {
+	SecretKey     string
+	WebhookSecret string
+	BaseURL       string
+	IngestURL     string
+	Port          string
+	// PaymentSource is the slug of the payment source Nimbus's own billing
+	// reports to, which its provider endpoint answers for; ProviderSecret
+	// signs Voidhash's calls to that endpoint. PaymentSourceID is the same
+	// source's id, which payments are reported to.
+	PaymentSource        string
+	PaymentSourceID      string
+	ProviderSecret       string
+	BillingWebhookSecret string
+}
+
+// loadConfig reads the process environment and rejects anything the server
+// cannot start without.
+func loadConfig() (config, error) {
+	cfg := config{
+		SecretKey:     strings.TrimSpace(os.Getenv("VOIDHASH_SECRET_KEY")),
+		WebhookSecret: strings.TrimSpace(os.Getenv("VOIDHASH_WEBHOOK_SECRET")),
+		BaseURL:       strings.TrimSpace(os.Getenv("VOIDHASH_BASE_URL")),
+		IngestURL:     strings.TrimSpace(os.Getenv("VOIDHASH_INGEST_URL")),
+		Port:          strings.TrimSpace(os.Getenv("PORT")),
+
+		PaymentSource:        strings.TrimSpace(os.Getenv("VOIDHASH_PAYMENT_SOURCE")),
+		PaymentSourceID:      strings.TrimSpace(os.Getenv("VOIDHASH_PAYMENT_SOURCE_ID")),
+		ProviderSecret:       strings.TrimSpace(os.Getenv("VOIDHASH_PROVIDER_SECRET")),
+		BillingWebhookSecret: strings.TrimSpace(os.Getenv("BILLING_WEBHOOK_SECRET")),
+	}
+	if cfg.SecretKey == "" {
+		return config{}, errors.New(
+			"VOIDHASH_SECRET_KEY is required: copy the vh_sk_… key from Studio → Project settings → API keys",
+		)
+	}
+	if !strings.HasPrefix(cfg.SecretKey, "vh_sk_") {
+		return config{}, errors.New(
+			"VOIDHASH_SECRET_KEY must be a secret key (vh_sk_…); publishable keys (vh_pk_…) belong in the mobile apps",
+		)
+	}
+	if cfg.IngestURL == "" {
+		cfg.IngestURL = voidhash.DefaultIngestURL
+	}
+	if cfg.Port == "" {
+		cfg.Port = defaultPort
+	}
+	if cfg.PaymentSource == "" {
+		cfg.PaymentSource = defaultPaymentSource
+	}
+	return cfg, nil
+}
+
+func newVoidhashClient(cfg config) (*voidhash.Client, error) {
+	options := []voidhash.Option{
+		voidhash.WithHTTPClient(&http.Client{Timeout: voidhashRequestTimeout}),
+	}
+	if cfg.BaseURL != "" {
+		options = append(options, voidhash.WithBaseURL(cfg.BaseURL))
+	}
+	if cfg.IngestURL != "" {
+		options = append(options, voidhash.WithIngestURL(cfg.IngestURL))
+	}
+	client, err := voidhash.New(cfg.SecretKey, options...)
+	if err != nil {
+		return nil, fmt.Errorf("creating voidhash client: %w", err)
+	}
+	return client, nil
+}
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	if err := run(logger); err != nil {
+		logger.Error("nimbus exited", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(logger *slog.Logger) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	client, err := newVoidhashClient(cfg)
+	if err != nil {
+		return err
+	}
+	if cfg.WebhookSecret == "" {
+		logger.Warn("VOIDHASH_WEBHOOK_SECRET is not set; POST /webhooks/voidhash will refuse deliveries")
+	}
+
+	if cfg.ProviderSecret == "" {
+		logger.Warn("VOIDHASH_PROVIDER_SECRET is not set; POST /voidhash/provider will refuse requests")
+	}
+	if cfg.BillingWebhookSecret == "" {
+		logger.Warn("BILLING_WEBHOOK_SECRET is not set; POST /webhooks/billing will refuse deliveries")
+	}
+	if cfg.PaymentSourceID == "" {
+		logger.Warn("VOIDHASH_PAYMENT_SOURCE_ID is not set; POST /webhooks/billing will refuse deliveries")
+	}
+
+	srv, err := newServer(client, cfg, logger)
+	if err != nil {
+		return err
+	}
+	httpServer := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           srv.routes(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	listenErr := make(chan error, 1)
+	go func() {
+		logger.Info("nimbus listening", "addr", httpServer.Addr, "baseUrl", srv.baseURL())
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			listenErr <- fmt.Errorf("http server: %w", err)
+			return
+		}
+		listenErr <- nil
+	}()
+
+	select {
+	case err := <-listenErr:
+		return err
+	case <-ctx.Done():
+		logger.Info("shutting down")
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGracePeriod)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("graceful shutdown: %w", err)
+	}
+	return <-listenErr
+}

@@ -1,0 +1,34 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- What the shared SDK sources need, declared here because their manifest is not merged:
+         requests, the reconnect that resends queued data, and keeping the purchase check below
+         scheduled across reboots. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Meta's apps, whose install referrer providers the shared SDK sources ask when `metaAppId`
+         is set. -->
+    <queries>
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.facebook.lite" />
+    </queries>
+
+    <application>
+        <!-- Asks for a runtime permission a presented flow requested, and reports the answer. The
+             shared SDK sources are compiled into this module without their own manifest. -->
+        <activity
+            android:name="com.voidhash.sdk.paywall.VoidhashPermissionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Finishes purchases the SDK started before Google Play refunds them, when Voidhash
+             could not record them in time. Started only by JobScheduler; declared here because
+             the shared core's own manifest is not merged into this module. -->
+        <service
+            android:name="com.voidhash.core.billing.PlayFinishJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+    </application>
+</manifest>

@@ -1,0 +1,79 @@
+<?php
+
+namespace Voidhash\Generated\Core\Normalizer;
+
+use Jane\Component\JsonSchemaRuntime\Reference;
+use Voidhash\Generated\Core\Runtime\Normalizer\CheckArray;
+use Voidhash\Generated\Core\Runtime\Normalizer\ValidatorTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+class SdkPersonJsonEncodingSubscriptionsNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+{
+    use DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use CheckArray;
+    use ValidatorTrait;
+    public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
+    {
+        return $type === \Voidhash\Generated\Core\Model\SdkPersonJsonEncodingSubscriptions::class;
+    }
+    public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
+    {
+        return is_object($data) && get_class($data) === \Voidhash\Generated\Core\Model\SdkPersonJsonEncodingSubscriptions::class;
+    }
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
+    {
+        $object = new \Voidhash\Generated\Core\Model\SdkPersonJsonEncodingSubscriptions();
+        if (null === $data || false === \is_array($data)) {
+            return $object;
+        }
+        if (isset($data['$ref']) && !isset($data['type']) && !isset($data['properties']) && !isset($data['allOf'])) {
+            return new Reference($data['$ref'], $context['document-origin']);
+        }
+        if (isset($data['$recursiveRef'])) {
+            return new Reference($data['$recursiveRef'], $context['document-origin']);
+        }
+        if (\array_key_exists('all', $data)) {
+            $values = [];
+            foreach ($data['all'] as $value) {
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\SdkSubscriptionJsonEncoding::class, 'json', $context);
+            }
+            $object->setAll($values);
+        }
+        if (\array_key_exists('current', $data)) {
+            $object->setCurrent($this->denormalizer->denormalize($data['current'], \Voidhash\Generated\Core\Model\SdkSubscriptionJsonEncoding::class, 'json', $context));
+        }
+        if (\array_key_exists('history', $data)) {
+            $values_1 = [];
+            foreach ($data['history'] as $value_1) {
+                $values_1[] = $this->denormalizer->denormalize($value_1, \Voidhash\Generated\Core\Model\SdkSubscriptionHistoryEntryJsonEncoding::class, 'json', $context);
+            }
+            $object->setHistory($values_1);
+        }
+        return $object;
+    }
+    public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
+    {
+        $dataArray = [];
+        $values = [];
+        foreach ($data->getAll() as $value) {
+            $values[] = $this->normalizer->normalize($value, 'json', $context);
+        }
+        $dataArray['all'] = $values;
+        $dataArray['current'] = $this->normalizer->normalize($data->getCurrent(), 'json', $context);
+        $values_1 = [];
+        foreach ($data->getHistory() as $value_1) {
+            $values_1[] = $this->normalizer->normalize($value_1, 'json', $context);
+        }
+        $dataArray['history'] = $values_1;
+        return $dataArray;
+    }
+    public function getSupportedTypes(?string $format = null): array
+    {
+        return [\Voidhash\Generated\Core\Model\SdkPersonJsonEncodingSubscriptions::class => false];
+    }
+}

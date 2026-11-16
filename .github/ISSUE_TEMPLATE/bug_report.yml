@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a reproducible defect in an SDK, the CLI or an example.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities here. Follow SECURITY.md and use the private reporting channel.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected package
+      options:
+        - React Native SDK
+        - iOS SDK
+        - Android SDK
+        - Web SDK
+        - Node.js SDK
+        - Go SDK
+        - PHP SDK
+        - Rust SDK
+        - CLI
+        - Examples
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: The exact version you installed
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest reproducible sequence, project, or repository.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the OS, runtime (Node, Xcode, Android Gradle Plugin, ...) and framework versions, and the store involved.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostics
+      description: Remove credentials, personal data, API keys, and customer content.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this on the latest release of the package.
+          required: true
+        - label: This report does not contain a vulnerability or sensitive data.
+          required: true

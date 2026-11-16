@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Keeps the purchase check scheduled across reboots. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application>
+        <!-- Finishes purchases the SDK started before Google Play refunds them, when Voidhash
+             could not record them in time. Started only by JobScheduler. -->
+        <service
+            android:name="com.voidhash.core.billing.PlayFinishJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+    </application>
+</manifest>

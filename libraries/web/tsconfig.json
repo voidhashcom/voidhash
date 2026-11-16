@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/tsconfig/react-library.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "tests", "build.ts", "vitest.unit.mts"],
+  // Compiled on their own (`pnpm test:types`): their declaration file
+  // augments the package, which the rest must compile without.
+  "exclude": ["tests/types"]
+}

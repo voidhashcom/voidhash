@@ -1,0 +1,8 @@
+# Dependencies are resolved by `composer install`, never committed.
+# The repository root ignores `vendor/` too; this keeps the example standalone.
+/vendor/
+
+# An example is not a deployable, so it does not pin a dependency tree.
+/composer.lock
+
+/.env
