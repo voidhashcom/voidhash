@@ -1,6 +1,6 @@
 {
   "name": "@voidhash/node",
-  "version": "0.0.1-alpha.1",
+  "version": "0.1.0",
   "private": false,
   "description": "Fetch-compatible Voidhash Node SDK.",
   "keywords": [
