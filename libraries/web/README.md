@@ -8,17 +8,11 @@ behavior most often asked about while integrating.
 ## Install
 
 ```sh
-npm install @voidhash/web@https://pkg.voidha.sh/@voidhash/web/branch:main effect@^4.0.3
+npm install @voidhash/web effect@^4.0.3
 ```
 
 `effect` is a peer dependency: the SDK needs 4.0.3 or a later 4.x release. If your app already uses
 `effect` 4, keep the version you have.
-
-Builds are published to `pkg.voidha.sh` from every change to main, and `branch:main` names the
-newest. An installed build's version ends with `-g<short-sha>`;
-`https://pkg.voidha.sh/@voidhash/web/<short-sha>` pins that build. Each build stays installable for
-three weeks after it is published, so move a pin to a newer build before then. The package on npm is
-an early preview that predates this README.
 
 The package is ES modules only. A site without a bundler loads the script-tag build, which
 includes `effect`, from `https://cdn.voidhash.com/web/latest/voidhash.global.js` instead; see

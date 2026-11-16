@@ -7,15 +7,8 @@ This package is for **backends only** — it authenticates with a secret key.
 Client apps use `@voidhash/react-native` instead.
 
 ```sh
-npm install @voidhash/node@https://pkg.voidha.sh/@voidhash/node/branch:main
+npm install @voidhash/node
 ```
-
-Builds are published to `pkg.voidha.sh` from every change to main, and
-`branch:main` names the newest. An installed build's version ends with
-`-g<short-sha>`; `https://pkg.voidha.sh/@voidhash/node/<short-sha>` pins that
-build. Each build stays installable for three weeks after it is published, so
-move a pin to a newer build before then. The package on npm is an early preview
-that predates this README.
 
 Requires Node 18+ (a global `fetch` must be available).
 
