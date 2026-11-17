@@ -1,0 +1,25 @@
+Set a CLI setting: api_url (the API server), web_url (the dashboard) or default_project (a project
+id; 'voidhash switch' sets it by name).
+
+With --profile the value is stored in that profile and overrides the base setting while the profile
+is active.
+
+Usage:
+  voidhash config set <key> <value> [flags]
+
+Arguments:
+  key    The setting: api_url, web_url or default_project
+  value  Its new value
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash config set api_url http://localhost:8787
+  voidhash config set web_url https://voidhash.localhost --profile local

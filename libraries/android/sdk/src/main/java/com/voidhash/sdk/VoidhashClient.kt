@@ -130,11 +130,11 @@ private const val PAYWALL_CACHE_STALE_TIME_MS = 1000L * 60 * 60
 /** 90 days — a flow's saved variables outlive any break between two presentations. */
 private const val FLOW_STATE_TTL_MS = 1000L * 60 * 60 * 24 * 90
 
-/** How many placements this device remembers for preloading on the next launch. */
-private const val KNOWN_PLACEMENTS_LIMIT = 20
+/** How many locations this device remembers for preloading on the next launch. */
+private const val KNOWN_LOCATIONS_LIMIT = 20
 
-/** Cache key of the placements this device has resolved before. */
-private const val KNOWN_PLACEMENTS_CACHE_KEY = "paywall:placements"
+/** Cache key of the locations this device has resolved before; the name is the stored format's. */
+private const val KNOWN_LOCATIONS_CACHE_KEY = "paywall:placements"
 
 /**
  * Ceiling on a read that has nothing cached to serve.
@@ -463,7 +463,9 @@ class VoidhashClient internal constructor(
     private val singleFlight: SingleFlight = SingleFlight(),
     private val outbox: TransactionOutbox = TransactionOutbox(clock = sdkClock),
     private val personWrites: PersonWriteOutbox = PersonWriteOutbox(clock = sdkClock),
-    private val preloadPlacements: List<String> = emptyList(),
+    private val preloadLocations: List<String> = emptyList(),
+    /** The interface revision the app was built against, by location slug. */
+    private val flowRevisions: Map<String, Int> = emptyMap(),
     private val featureFlagOptions: FeatureFlagOptions = FeatureFlagOptions(),
     /** Builds the flow coordinator around the client; `null` when the app configured no renderer. */
     flowCoordinatorFactory: ((FlowHost) -> PaywallCoordinator)? = null,
@@ -724,6 +726,9 @@ class VoidhashClient internal constructor(
 
     /** Presents flows; `null` when the app configured no renderer, so no flow can show. */
     private val flowCoordinator: PaywallCoordinator? = flowCoordinatorFactory?.invoke(flowHost)
+
+    /** The interface revision each location was last presented with in this process. */
+    private val presentedRevisions = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Whether paywalls are resolved at all: only a configured renderer can present them. */
     private val flowsEnabled: Boolean get() = flowCoordinator != null
@@ -1163,11 +1168,11 @@ class VoidhashClient internal constructor(
 
     /**
      * Refreshes everything a launch needs, off the initialization path: the person, all
-     * flags, and the paywall configuration for every placement this device knows about.
+     * flags, and the paywall configuration for every location this device knows about.
      *
      * Preloading is what makes the first `presentFlow` of a session instant and lets it work
-     * offline at all: a placement whose configuration was never fetched has nothing to fall
-     * back to. Each placement's flow package is downloaded too. Without a renderer no flow can
+     * offline at all: a location whose configuration was never fetched has nothing to fall
+     * back to. Each location's flow package is downloaded too. Without a renderer no flow can
      * be presented, so none is resolved.
      */
     private suspend fun preload(distinctId: String) {
@@ -1190,15 +1195,16 @@ class VoidhashClient internal constructor(
         }
 
         if (!flowsEnabled) return
-        for (placement in (preloadPlacements + knownPlacements()).distinct()) {
-            runQuietly("preload the paywall for $placement") {
-                refreshPaywall(distinctId, placement)
+        for (location in (preloadLocations + knownLocations()).distinct()) {
+            val revision = knownRevision(location)
+            runQuietly("preload the paywall for $location") {
+                refreshPaywall(distinctId, location, revision)
             }
-            val cacheKey = paywallCacheKey(distinctId, placement, flowEngine())
+            val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), revision)
             val cached = cacheManager.get(cacheKey)?.value as? JSONObject
             val resolved = cached?.let { decodeCached(cacheKey, it, ResolvedPaywall::fromJson) }?.value
             if (resolved == null) continue
-            runQuietly("preload the flow package for $placement") { flowCoordinator?.preload(placement, resolved) }
+            runQuietly("preload the flow package for $location") { flowCoordinator?.preload(location, resolved) }
         }
     }
 
@@ -3477,73 +3483,94 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Presents the flow assigned to [placement] above [activity] and returns how it ended.
+     * Presents the flow assigned to [location] above [activity] and returns how it ended.
      *
-     * A placement with a cached configuration and package presents immediately, without waiting
+     * [input] are the inputs the app passes the flow, by name: each a [String], a [Number] or a
+     * [Boolean]; anything else is dropped with a warning. An input that is not passed keeps its
+     * default. [actions] are the handlers of the app actions the flow may call, by name. A call
+     * to an action without a handler, and a handler that throws, fail that call in the flow,
+     * which then carries on as it was designed to; a debug build logs the missing handler.
+     * Handlers still running when the flow ends are cancelled.
+     *
+     * [revision] is the revision of the location's interface the app was built against, so it is
+     * shown only a flow it can answer. Left out, it is the location's entry in
+     * [VoidhashOptions.flowRevisions], or 0 without one.
+     *
+     * The result says how the flow ended ([FlowResult.outcome]) and carries its outputs
+     * ([FlowResult.output]) whichever way that was.
+     *
+     * A location with a cached configuration and package presents immediately, without waiting
      * on the API, which is what makes a flow work on a cold or offline start. Presenting a flow
-     * while another is on screen closes that one, whose call returns [FlowResult.Closed].
-     * Cancelling the calling coroutine dismisses the flow, and so does [dismissFlow], from the
-     * moment this is called.
+     * while another is on screen closes that one, whose call returns the outcome
+     * [FlowResult.DISMISSED]. So does [dismissFlow], from the moment this is called. Cancelling
+     * the calling coroutine closes the flow too.
      *
-     * A flow that is not on its way to the screen within 15 seconds of this call, because its
-     * paywall is still being resolved or its package downloaded, is not shown any more: the call
-     * returns [FlowResult.Failed] with [FlowFailure.UNAVAILABLE], and what was being fetched is
-     * cached for the next call. Once shown, a flow stays for as long as the user takes. Never throws for a flow that cannot
-     * show: that is a [FlowResult.Failed].
+     * @throws FlowException when the flow cannot be shown, or stops because it can no longer be
+     *   drawn; [FlowException.reason] says why. A flow that is not on its way to the screen within
+     *   15 seconds of this call, because its paywall is still being resolved or its package
+     *   downloaded, is not shown any more: that is [FlowFailure.UNAVAILABLE], and what was being
+     *   fetched is cached for the next call. Once shown, a flow stays for as long as the user takes.
      */
-    suspend fun presentFlow(activity: Activity, placement: String): FlowResult {
-        takenOverBy?.let { return it.presentFlow(activity, placement) }
+    suspend fun presentFlow(
+        activity: Activity,
+        location: String,
+        revision: Int? = null,
+        input: Map<String, Any> = emptyMap(),
+        actions: Map<String, FlowActionHandler> = emptyMap(),
+    ): FlowResult {
+        takenOverBy?.let { return it.presentFlow(activity, location, revision, input, actions) }
         if (untilUnlock != null) {
-            return FlowResult.Failed(
-                FlowException(
-                    FlowFailure.UNAVAILABLE,
-                    "The flow for \"$placement\" cannot be shown before the device was unlocked for the first " +
-                        "time since it started: the app's storage is not available yet",
-                ),
+            throw FlowException(
+                FlowFailure.UNAVAILABLE,
+                "The flow for \"$location\" cannot be shown before the device was unlocked for the first " +
+                    "time since it started: the app's storage is not available yet",
             )
         }
         if (!enabled || closed.get()) {
-            return FlowResult.Failed(FlowException(FlowFailure.DISABLED, "Voidhash is disabled or was shut down"))
+            throw FlowException(FlowFailure.DISABLED, "Voidhash is disabled or was shut down")
         }
-        val coordinator = flowCoordinator ?: return FlowResult.Failed(
-            FlowException(
-                FlowFailure.RENDERER_MISSING,
-                "No flow renderer is configured: add the Voidhash `ui` module and pass " +
-                    "VoidhashOptions(paywallRenderer = VoidhashUiPaywallRenderer())",
-            ),
+        val coordinator = flowCoordinator ?: throw FlowException(
+            FlowFailure.RENDERER_MISSING,
+            "No flow renderer is configured: add the Voidhash `ui` module and pass " +
+                "VoidhashOptions(paywallRenderer = VoidhashUiPaywallRenderer())",
         )
+        val interfaceRevision = (revision ?: flowRevisions[location] ?: 0).coerceAtLeast(0)
+        // What a refresh of the location asks for from now on, when the options name no revision.
+        presentedRevisions[location] = interfaceRevision
 
         // From here on `dismissFlow()` cancels the presentation, also while it is being resolved,
         // and its deadline runs.
-        val presentation = coordinator.beginPresentation(placement)
+        val presentation = coordinator.beginPresentation(location)
         try {
             // The refresh behind a read runs on the SDK's scope, so a dismissal or the deadline
             // ends only the wait.
             val resolved = (
-                presentation.unlessEnded { resolvePaywallState(placement) }
-                    ?: return presentation.ending ?: FlowResult.Closed
+                presentation.unlessEnded { resolvePaywallState(location, interfaceRevision) }
+                    ?: return presentation.ending?.getOrThrow() ?: FlowResult(FlowResult.DISMISSED)
                 ).value
             val paywall = resolved.value
             if (resolved.isStale) {
                 val distinctId = identityStore.getDistinctId()
                 scope.launch {
-                    runQuietly("refresh the paywall for $placement") { refreshPaywall(distinctId, placement) }
+                    runQuietly("refresh the paywall for $location") {
+                        refreshPaywall(distinctId, location, interfaceRevision)
+                    }
                 }
             }
             if (paywall == null) {
                 // A cold failed read is unavailable. A fresh or cached negative answer means the
                 // backend deliberately assigned no flow to this person.
-                return if (resolved.isStale && resolved.isExpired) {
-                    FlowResult.Failed(FlowException(FlowFailure.UNAVAILABLE, "The flow for \"$placement\" could not be resolved"))
+                throw if (resolved.isStale && resolved.isExpired) {
+                    FlowException(FlowFailure.UNAVAILABLE, "The flow for \"$location\" could not be resolved")
                 } else {
-                    FlowResult.Failed(FlowException(FlowFailure.NOT_ASSIGNED, "No flow is assigned to \"$placement\""))
+                    FlowException(FlowFailure.NOT_ASSIGNED, "No flow is assigned to \"$location\"")
                 }
             }
 
             // The store sheet of a purchase started from the flow launches from this activity.
             activitySink(activity)
             try {
-                return coordinator.present(activity, placement, paywall, presentation)
+                return coordinator.present(activity, location, paywall, presentation, input, actions)
             } finally {
                 // A flow presented in this one's place keeps the activity it was presented from.
                 if (!coordinator.isPresenting) activitySink(null)
@@ -3554,9 +3581,37 @@ class VoidhashClient internal constructor(
     }
 
     /**
+     * Presents the flow assigned to a typed [location] above [activity], as the untyped
+     * [presentFlow] does, with the location's revision, and returns how it ended in the
+     * location's types.
+     *
+     * @throws FlowException when the flow cannot be shown, or stops because it can no longer be
+     *   drawn.
+     */
+    suspend fun <Input : FlowInput, Output, Outcome, Actions : FlowActions> presentFlow(
+        activity: Activity,
+        location: FlowLocation<Input, Output, Outcome, Actions>,
+        input: Input,
+        actions: Actions,
+    ): TypedFlowResult<Output, Outcome> {
+        val result = presentFlow(activity, location.slug, location.revision, input.toFlowValues(), actions.flowHandlers())
+        return TypedFlowResult(location.outcome(result.outcome), location.output(result.output), result.productId)
+    }
+
+    /**
+     * Changes inputs of the flow on screen: [values] by name, each a [String], a [Number] or a
+     * [Boolean]. Inputs it does not name keep their values. Does nothing when no flow is on
+     * screen.
+     */
+    fun updateFlowInput(values: Map<String, Any>) {
+        takenOverBy?.let { return it.updateFlowInput(values) }
+        flowCoordinator?.updateInput(values)
+    }
+
+    /**
      * Closes the flow on screen, if any, and cancels a flow that is still being resolved or
-     * downloaded, so it does not appear later; either way its [presentFlow] returns
-     * [FlowResult.Closed]. A download already under way finishes, and the flow is cached.
+     * downloaded, so it does not appear later; either way its [presentFlow] returns the outcome
+     * [FlowResult.DISMISSED]. A download already under way finishes, and the flow is cached.
      */
     fun dismissFlow() {
         takenOverBy?.let { return it.dismissFlow() }
@@ -3745,15 +3800,20 @@ class VoidhashClient internal constructor(
     suspend fun resolvePaywall(location: String): ResolvedPaywall? =
         resolvePaywallState(location).value
 
-    /** [resolvePaywall] with the freshness of the returned configuration attached. */
-    suspend fun resolvePaywallState(location: String): Stale<ResolvedPaywall?> {
-        takenOverBy?.let { return it.resolvePaywallState(location) }
+    /**
+     * [resolvePaywall] with the freshness of the returned configuration attached. [revision] is
+     * the revision of the location's interface the answer is for; left out, the one the app
+     * configured or last presented the location with.
+     */
+    suspend fun resolvePaywallState(location: String, revision: Int? = null): Stale<ResolvedPaywall?> {
+        takenOverBy?.let { return it.resolvePaywallState(location, revision) }
         if (untilUnlock != null) return Stale(null, isStale = true, isExpired = true)
         if (!enabled || !flowsEnabled) return Stale(null)
 
         cacheManager.awaitWarm()
         val distinctId = identityStore.getDistinctId()
-        val cacheKey = paywallCacheKey(distinctId, location, flowEngine())
+        val interfaceRevision = revision ?: knownRevision(location)
+        val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), interfaceRevision)
         val cached = cacheManager.get(cacheKey)?.let { hit ->
             val raw = hit.value as? JSONObject
             if (raw == null) {
@@ -3769,14 +3829,14 @@ class VoidhashClient internal constructor(
             cached = cached?.second,
             isStale = cached?.first?.isStale != false,
             isExpired = cached?.first?.isExpired == true,
-        ) { refreshPaywall(distinctId, location) }
+        ) { refreshPaywall(distinctId, location, interfaceRevision) }
             .value
 
-        if (state.value?.paywall != null) rememberPlacement(location)
+        if (state.value?.paywall != null) rememberLocation(location)
         return Stale(state.value?.paywall, state.isStale, state.isExpired)
     }
 
-    /** The server's answer for a placement as it is cached: its JSON, or `null` for no paywall. */
+    /** The server's answer for a location as it is cached: its JSON, or `null` for no paywall. */
     private class PaywallJson(val raw: JSONObject?)
 
     /**
@@ -3791,48 +3851,51 @@ class VoidhashClient internal constructor(
         if (!enabled) return "null"
         cacheManager.awaitWarm()
         val distinctId = identityStore.getDistinctId()
-        val cacheKey = paywallCacheKey(distinctId, location, flowEngine())
+        val revision = knownRevision(location)
+        val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), revision)
         val cached = cacheManager.get(cacheKey)?.let { hit -> hit to PaywallJson(hit.value as? JSONObject) }
         val read = readThrough(
             key = cacheKey,
             cached = cached?.second,
             isStale = cached?.first?.isStale != false,
             isExpired = cached?.first?.isExpired == true,
-        ) { PaywallJson(fetchPaywall(distinctId, location)) }
+        ) { PaywallJson(fetchPaywall(distinctId, location, revision)) }
         surfaceAuthenticationFailure(answeredWithNothing = read.value.value == null)
         val answer = read.value.value
             ?: throw VoidhashException("PAYWALL_UNAVAILABLE", "The paywall for \"$location\" could not be resolved")
-        if (answer.raw?.let(ResolvedPaywall::fromJson) != null) rememberPlacement(location)
+        if (answer.raw?.let(ResolvedPaywall::fromJson) != null) rememberLocation(location)
         return answer.raw?.toString() ?: "null"
     }
 
-    private suspend fun refreshPaywall(distinctId: String, location: String): PaywallRefresh {
+    private suspend fun refreshPaywall(distinctId: String, location: String, revision: Int): PaywallRefresh {
         if (!flowsEnabled) return PaywallRefresh(null)
-        return PaywallRefresh(fetchPaywall(distinctId, location)?.let(ResolvedPaywall::fromJson))
+        return PaywallRefresh(fetchPaywall(distinctId, location, revision)?.let(ResolvedPaywall::fromJson))
     }
 
     /**
-     * Asks the server which paywall [location] shows and caches its answer, `null` for none, unless
-     * the identity switched while the request was under way. Checked and cached under
-     * [identityMutex]: a switch drops the previous identity's paywalls under it, and an answer
-     * cached after that would stay on the device for a user who signed out.
+     * Asks the server which paywall [location] shows an app built against [revision] of its
+     * interface and caches its answer, `null` for none, unless the identity switched while the
+     * request was under way. Checked and cached under [identityMutex]: a switch drops the
+     * previous identity's paywalls under it, and an answer cached after that would stay on the
+     * device for a user who signed out.
      */
-    private suspend fun fetchPaywall(distinctId: String, location: String): JSONObject? {
+    private suspend fun fetchPaywall(distinctId: String, location: String, revision: Int): JSONObject? {
         val epoch = identityEpoch.get()
         val engine = flowEngine()
-        val raw = apiClient.resolvePaywallRaw(distinctId, location, engine)
+        val raw = apiClient.resolvePaywallRaw(distinctId, location, engine, revision)
         identityMutex.withLock {
             if (isCurrentIdentity(distinctId, epoch)) {
-                // Stored under the engine the request reported, the one the answer was decided for.
+                // Stored under the engine and the revision the request reported, the ones the
+                // answer was decided for.
                 cacheManager.set(
-                    paywallCacheKey(distinctId, location, engine),
+                    paywallCacheKey(distinctId, location, engine, revision),
                     raw,
                     ttlMs = PAYWALL_CACHE_TTL_MS,
                     staleTimeMs = PAYWALL_CACHE_STALE_TIME_MS,
                 )
             }
         }
-        rememberPlacement(location)
+        rememberLocation(location)
         return raw
     }
 
@@ -4374,24 +4437,31 @@ class VoidhashClient internal constructor(
         }
     }
 
-    /** Placements this device has resolved before, newest last. */
-    private fun knownPlacements(): List<String> {
-        val stored = cacheManager.getArray(KNOWN_PLACEMENTS_CACHE_KEY)?.value ?: return emptyList()
+    /** Locations this device has resolved before, newest last. */
+    private fun knownLocations(): List<String> {
+        val stored = cacheManager.getArray(KNOWN_LOCATIONS_CACHE_KEY)?.value ?: return emptyList()
         return (0 until stored.length())
             .mapNotNull { (stored.opt(it) as? String)?.takeIf(String::isNotEmpty) }
-            .fold(emptyList()) { placements, placement ->
-                (placements - placement + placement).takeLast(KNOWN_PLACEMENTS_LIMIT)
+            .fold(emptyList()) { locations, location ->
+                (locations - location + location).takeLast(KNOWN_LOCATIONS_LIMIT)
             }
     }
 
-    private fun rememberPlacement(placement: String) {
+    private fun rememberLocation(location: String) {
         if (!flowsEnabled) return
-        val known = knownPlacements()
-        if (known.lastOrNull() == placement) return
-        val updated = (known - placement + placement).takeLast(KNOWN_PLACEMENTS_LIMIT)
+        val known = knownLocations()
+        if (known.lastOrNull() == location) return
+        val updated = (known - location + location).takeLast(KNOWN_LOCATIONS_LIMIT)
         if (updated == known) return
-        cacheManager.set(KNOWN_PLACEMENTS_CACHE_KEY, JSONArray(updated))
+        cacheManager.set(KNOWN_LOCATIONS_CACHE_KEY, JSONArray(updated))
     }
+
+    /**
+     * The interface revision to resolve [location] for when no presentation names one: the one
+     * the app configured, else the one it last presented the location with, else 0.
+     */
+    private fun knownRevision(location: String): Int =
+        (flowRevisions[location] ?: presentedRevisions[location] ?: 0).coerceAtLeast(0)
 
     private fun flagsCacheKey(distinctId: String, keys: List<String>): String {
         val scope = if (keys.isEmpty()) {
@@ -4407,12 +4477,21 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Paywall answers are cached per identity, per engine and per placement: the backend answers
-     * by what the engine can run (see [FlowEngineCapabilities.cacheKey]), so an app update that
-     * brings a newer engine starts from a fresh answer instead of one cached for the old engine.
+     * Paywall answers are cached per identity, per engine, per location and per revision of the
+     * location's interface: the backend answers by what the engine can run (see
+     * [FlowEngineCapabilities.cacheKey]) and by what the app can answer, so an app update that
+     * brings a newer engine or a newer revision starts from a fresh answer instead of one cached
+     * for the old one. Revision 0 keeps the key answers were cached under before revisions.
      */
-    private fun paywallCacheKey(distinctId: String, location: String, engine: FlowEngineCapabilities?): String =
-        "paywall:$distinctId:${engine?.cacheKey ?: "none"}:$location"
+    private fun paywallCacheKey(
+        distinctId: String,
+        location: String,
+        engine: FlowEngineCapabilities?,
+        revision: Int,
+    ): String {
+        val key = "paywall:$distinctId:${engine?.cacheKey ?: "none"}:$location"
+        return if (revision > 0) "$key@r$revision" else key
+    }
 
     /** Where the variables of the flow [key] names are saved for [distinctId]. */
     private fun flowStateCacheKey(distinctId: String, key: String): String = "flow-state:$distinctId:$key"

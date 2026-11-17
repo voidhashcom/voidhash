@@ -1,0 +1,35 @@
+A/B tests of paywalls and feature flags: set up arms, start, follow the results, and conclude with a
+winner.
+
+An experiment splits end users between arms. Each arm shows a paywall at its paywall locations,
+gives feature flags a value, or both. What counts as a conversion is fixed once it starts, and the
+arms are locked while it runs.
+
+Usage:
+  voidhash experiment <command> [flags]
+
+Aliases:
+  experiment, experiments
+
+Commands:
+  list       List the project's experiments with their status and arms.
+  view       Show an experiment: its status, metric and what each arm does.
+  create     Set up an experiment as a draft, optionally with its arms.
+  edit       Change an experiment's name, hypothesis, metrics or arms.
+  start      Start or resume an experiment.
+  pause      Pause an experiment: everyone sees the control arm until it resumes.
+  results    Show how each arm converts, with an honest verdict.
+  conclude   End an experiment for good with a winner.
+  archive    Archive a draft or concluded experiment.
+  restore    Bring back an archived experiment.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash experiment <command> --help' for more about a command.

@@ -1,0 +1,25 @@
+Yank a version for good: it can no longer be installed, inserted or published. Paywalls already
+published with it keep working. To discourage a version without closing it, use 'voidhash registry
+deprecate'.
+
+Usage:
+  voidhash registry yank <component> <version> [flags]
+
+Arguments:
+  component  The registry component's id, such as acme/wheel-picker
+  version    The version to yank
+
+Flags:
+  -h, --help               Show help for this command
+      --message <message>  Why, shown wherever the component is used
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry yank acme/wheel-picker 1.2.0 --message "Crashes on small screens"

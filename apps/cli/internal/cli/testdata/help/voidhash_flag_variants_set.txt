@@ -1,0 +1,27 @@
+Set exactly the values a flag hands out, split evenly. A value you keep keeps its end users.
+Removing one asks first, since its end users move to the other variants; --yes skips that.
+
+Usage:
+  voidhash flag variants set [flag] [value...] [flags]
+
+Arguments:
+  flag   The flag's key or id
+  value  Every value the flag should hand out
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag variants set button-color red blue green
+  voidhash flag variants set button-color red green --yes

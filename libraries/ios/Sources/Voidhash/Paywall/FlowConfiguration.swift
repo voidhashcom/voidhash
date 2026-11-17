@@ -29,6 +29,8 @@ struct FlowSavedState: Codable, Sendable, Equatable {
 struct FlowConfiguration: Codable, Sendable, Equatable {
     var products: [FlowConfigurationProduct]
     var variables: [String: JSONValue]
+    /// The app's inputs by name.
+    var input: [String: FlowValue]
     var locale: String?
     var platform: String?
     var defaultSelectedProductId: String?
@@ -40,6 +42,7 @@ struct FlowConfiguration: Codable, Sendable, Equatable {
     static func make(
         products: [VoidhashProduct],
         capabilities: Set<FlowCapability>,
+        input: [String: FlowValue] = [:],
         savedVariables: [String: JSONValue]?,
         platform: String?,
         locale: String?
@@ -62,6 +65,7 @@ struct FlowConfiguration: Codable, Sendable, Equatable {
         return FlowConfiguration(
             products: configured,
             variables: [:],
+            input: input,
             locale: locale,
             platform: platform,
             defaultSelectedProductId: configured.first?.id,

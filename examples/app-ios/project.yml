@@ -47,7 +47,7 @@ targets:
         product: Voidhash
       - package: Voidhash
         product: VoidhashCore
-      # Shows paywalls and flows natively; without it `presentFlow` fails with `.rendererMissing`.
+      # Shows paywalls and flows natively; without it `presentFlow` throws `FlowError.rendererMissing`.
       - package: VoidhashUI
         product: VoidhashUI
     settings:

@@ -24,6 +24,16 @@ apply from: '../nitrogen/generated/android/NitroVoidhash+autolinking.gradle'
 
 if (isNewArchitectureEnabled()) {
   apply plugin: "com.facebook.react"
+
+  // The module's native interface comes from Nitro, not React Native codegen. Codegen's default
+  // input is the package folder, which in a checkout with its own node_modules includes a copy of
+  // React Native: it would compile that copy's core module specs into this library, and they
+  // would replace the app's own React Native classes at runtime (a newer app then reads
+  // StatusBarManager's constants as undefined and fails at launch). Point it at the specs folder,
+  // which holds no codegen specs.
+  react {
+    jsRootDir = file("../src/specs")
+  }
 }
 
 def getExtOrDefault(name) {

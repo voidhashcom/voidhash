@@ -1,0 +1,20 @@
+Meta's Conversions API and install referrer key: what Voidhash tells Meta, separate from what it
+reads. Purchases go to Meta only for people whose $ad_data_sharing trait is true.
+
+Usage:
+  voidhash ads measurement <command> [flags]
+
+Commands:
+  view       Show how purchases reach Meta's Conversions API, and what keeps them from going.
+  edit       Set how purchases reach Meta's Conversions API, and the install referrer key.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash ads measurement <command> --help' for more about a command.

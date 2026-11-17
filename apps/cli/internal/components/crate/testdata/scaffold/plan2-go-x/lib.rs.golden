@@ -1,0 +1,45 @@
+//! Plan 2 go: a Voidhash paywall component with its editor panel.
+
+#![no_std]
+
+use voidhash_ui::prelude::*;
+
+mod panel;
+
+/// The badge's outline. The component and its editor panel share this type.
+#[derive(Clone, Copy, Debug, PartialEq, PropEnum)]
+pub enum Shape {
+    /// Fully rounded ends.
+    Pill,
+    /// Slightly rounded corners.
+    Square,
+}
+
+/// A label on an accent-colored badge.
+// The id is `project/plan2-go-x`, after the component's directory;
+// `#[panel(for = …)]` in src/panel.rs names the same id.
+#[component(
+    id = "project/plan2-go-x",
+    title = "Plan 2 go",
+    traits(frame(resize = "both"), appearance, effects),
+    size(width = "hug", height = "hug")
+)]
+pub fn Plan2GoX(
+    _cx: Cx,
+    #[prop(default = "New")] label: String,
+    #[prop(default = "#7c3aed")] accent: Color,
+    shape: Shape,
+    #[prop(default = 12, min = 0, max = 32, step = 1, unit = "px")] padding: f64,
+) -> View {
+    text(label)
+        .color(Color::WHITE)
+        .padding_x(padding)
+        .padding_y(6)
+        .corner_radius(match shape {
+            Shape::Pill => 999,
+            Shape::Square => 6,
+        })
+        .background(accent)
+}
+
+voidhash_ui::export_panels!(PLAN2_GO_X => panel::SETTINGS);

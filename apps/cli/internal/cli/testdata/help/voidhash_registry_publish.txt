@@ -1,0 +1,44 @@
+Publish a component to your organization's registry, where every project of the organization can
+install it.
+
+A bundle directory holds:
+  component.json           the definition to publish (required)
+  module.wasm              the module; or, in a crate, what 'voidhash test' built into target/voidhash/
+  panel.wasm               its editor panel module, which a module that declares a panel needs
+  icon.(png|svg|webp)      optional
+  thumbnails/<state>.png   optional, one per preview state (png, jpg or webp)
+  README.md, agent.md      optional
+
+With --from-project, a ready version of one of the project's own components is published instead.
+The server runs every publish check.
+
+Usage:
+  voidhash registry publish [path] [flags]
+
+Arguments:
+  path  A bundle directory with component.json (the current directory by default)
+
+Flags:
+      --category <category>  Editor category (with --from-project)
+      --from-project <<slug>@<version>>
+                             Publish a ready project component version instead, as <slug>@<version>
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --name <name>          Registry name (with --from-project; defaults to the slug)
+      --project <project>    Project to act on: its id, slug, organization/slug or name (default:
+                             this directory's project, then your default project)
+  -q, --quiet                Print only ids, one per line
+      --title <title>        Display title (with --from-project)
+      --version <version>    Semantic version to publish a project component as (with
+                             --from-project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry publish
+  voidhash registry publish ./wheel-picker --project acme/app
+  voidhash registry publish --from-project plan-picker@3 --version 1.0.0

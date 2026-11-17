@@ -61,6 +61,7 @@ namespace margelo::nitro::voidhash {
       prototype.registerHybridMethod("flush", &HybridVoidhashNativeClientSpec::flush);
       prototype.registerHybridMethod("getSessionId", &HybridVoidhashNativeClientSpec::getSessionId);
       prototype.registerHybridMethod("presentFlow", &HybridVoidhashNativeClientSpec::presentFlow);
+      prototype.registerHybridMethod("updateFlowInput", &HybridVoidhashNativeClientSpec::updateFlowInput);
       prototype.registerHybridMethod("dismissFlow", &HybridVoidhashNativeClientSpec::dismissFlow);
     });
   }

@@ -18,8 +18,12 @@ namespace margelo::nitro::voidhash { struct NativeClientConfiguration; }
 namespace margelo::nitro::voidhash { enum class NativeAnalyticsConsent; }
 // Forward declaration of `NativePendingAnalytics` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativePendingAnalytics; }
+// Forward declaration of `NativeFlowRevision` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowRevision; }
 // Forward declaration of `NativeFlowCapability` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
+// Forward declaration of `NativeFlowRuntime` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeFlowRuntime; }
 // Forward declaration of `NativeAppStoreMessages` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeAppStoreMessages; }
 // Forward declaration of `NativePurchaseIntents` to properly resolve imports.
@@ -118,6 +122,8 @@ namespace margelo::nitro::voidhash { enum class NativeAppStoreSubscriptionState;
 namespace margelo::nitro::voidhash { struct NativeInAppMessageResult; }
 // Forward declaration of `NativeInAppMessageStatus` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeInAppMessageStatus; }
+// Forward declaration of `NativeFlowPresentation` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowPresentation; }
 
 #include "NativeClientConfiguration.hpp"
 #include <string>
@@ -125,7 +131,9 @@ namespace margelo::nitro::voidhash { enum class NativeInAppMessageStatus; }
 #include "NativeAnalyticsConsent.hpp"
 #include "NativePendingAnalytics.hpp"
 #include <vector>
+#include "NativeFlowRevision.hpp"
 #include "NativeFlowCapability.hpp"
+#include "NativeFlowRuntime.hpp"
 #include <unordered_map>
 #include "NativeAppStoreMessages.hpp"
 #include "NativePurchaseIntents.hpp"
@@ -178,6 +186,7 @@ namespace margelo::nitro::voidhash { enum class NativeInAppMessageStatus; }
 #include "NativeAppStoreSubscriptionState.hpp"
 #include "NativeInAppMessageResult.hpp"
 #include "NativeInAppMessageStatus.hpp"
+#include "NativeFlowPresentation.hpp"
 
 #include "NitroVoidhash-Swift-Cxx-Umbrella.hpp"
 
@@ -375,8 +384,8 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<std::string>> getPaywall(const std::string& placement) override {
-      auto __result = _swiftPart.getPaywall(placement);
+    inline std::shared_ptr<Promise<std::string>> getPaywall(const std::string& location) override {
+      auto __result = _swiftPart.getPaywall(location);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }
@@ -581,8 +590,16 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<std::string>> presentFlow(const std::string& placement) override {
-      auto __result = _swiftPart.presentFlow(placement);
+    inline std::shared_ptr<Promise<std::string>> presentFlow(const std::string& location, const NativeFlowPresentation& presentation, const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>& onAction) override {
+      auto __result = _swiftPart.presentFlow(location, std::forward<decltype(presentation)>(presentation), onAction);
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+      auto __value = std::move(__result.value());
+      return __value;
+    }
+    inline std::shared_ptr<Promise<void>> updateFlowInput(const std::string& valuesJson) override {
+      auto __result = _swiftPart.updateFlowInput(valuesJson);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

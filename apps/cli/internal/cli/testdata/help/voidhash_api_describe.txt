@@ -1,0 +1,20 @@
+Show what an operation takes and answers, as JSON: its path and query parameters, the schemas of its
+body and response, the errors it can answer, and every schema those refer to.
+
+Usage:
+  voidhash api describe <operation> [flags]
+
+Arguments:
+  operation  The operation's id from 'voidhash api list', such as webhooks.list
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash api describe webhooks.create

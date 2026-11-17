@@ -1,0 +1,30 @@
+Remove a store product's mapping to a product made by mistake. Asks first when the mapping is
+active; --yes skips that. A mapping purchases were recorded under stays; move it with 'voidhash
+provider map' instead.
+
+Usage:
+  voidhash provider unmap [store-product] [flags]
+
+Arguments:
+  store-product  The store's id for it, as 'provider products' lists it
+
+Flags:
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --product <product>    The product to unmap it from, when it has mappings to several
+      --project <project>    Project to act on: its id, slug, organization/slug or name (default:
+                             this directory's project, then your default project)
+      --provider <provider>  The provider selling it (app-store, google-play, stripe, a payment
+                             source's slug); needed only when several do
+  -q, --quiet                Print only ids, one per line
+  -y, --yes                  Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider unmap com.acme.pro.monthly --yes
+  voidhash provider unmap prod_123:price_456 --provider stripe --product pro-annual

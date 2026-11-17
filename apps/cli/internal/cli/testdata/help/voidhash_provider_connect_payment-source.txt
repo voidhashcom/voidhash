@@ -1,0 +1,31 @@
+Add a payment source: payments taken outside the stores, such as another payment provider, bank
+transfers or vouchers, reported by your backend.
+
+Each endpoint gets a signing secret, shown once: with --json or --quiet it goes to standard error.
+
+Usage:
+  voidhash provider connect payment-source [flags]
+
+Flags:
+      --endpoint <url>       The HTTPS endpoint url of its server's Voidhash provider handler, for
+                             product lists, history imports, refunds and cancellations
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --name <name>          What people see, such as Paddle or Bank transfer
+      --project <project>    Project to act on: its id, slug, organization/slug or name (default:
+                             this directory's project, then your default project)
+  -q, --quiet                Print only ids, one per line
+      --slug <slug>          How webhooks, analytics and the API name it (default: made from the
+                             name); it cannot change
+      --test-endpoint <url>  Another endpoint url for test requests only, such as a staging
+                             server's; without it test requests go to --endpoint
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider connect payment-source --name "Bank transfer"
+  voidhash provider connect payment-source --name Paddle --endpoint https://pay.example.com/voidhash

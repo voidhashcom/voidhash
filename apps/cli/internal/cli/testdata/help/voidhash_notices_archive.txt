@@ -1,0 +1,22 @@
+Archive notices, which also marks them read.
+
+Usage:
+  voidhash notices archive [notice...] [flags]
+
+Arguments:
+  notice  A notice's id, as 'voidhash notices list' shows; repeat for each
+
+Flags:
+  -h, --help       Show help for this command
+      --json       Print the API objects as JSON, for scripts
+      --org <org>  Organization to act on: its slug, name or id (default: the organization of this
+                   directory's or your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash notices archive notice_123 notice_456

@@ -1,0 +1,46 @@
+Add a rule: who it matches, and the share of them who get the flag. It matches the end users it
+names, and with --when everyone all its conditions hold for (their country, platform, app version, a
+trait).
+
+A condition is written '<what> <how> [<values>]': what is platform, app_version, os_version,
+country, locale or trait:<key>; how is in, not in, >=, <, is set or is not set; values are separated
+by commas.
+
+Rules are read in order after overrides; the first matching an end user decides.
+
+Usage:
+  voidhash flag rule add [flag] [person...] [flags]
+
+Arguments:
+  flag    The flag's key or id
+  person  The end users the rule names: emails, distinct ids or person ids; prefix email:,
+          distinct_id:, person_id: or external_id: to say which
+
+Flags:
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+      --first                  Read it before the other rules, not after them
+  -h, --help                   Show help for this command
+      --id <id>                The rule's id (default: made from the name)
+      --json                   Print the API objects as JSON, for scripts
+      --name <name>            A name for the rule, such as Beta testers
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+      --rollout <share>        The share of them who get the flag, such as 100%; 0% keeps them out
+      --variant <variant>      The variant they get (its value, label or id); left out, they are
+                               split across the variants
+      --when <condition>       A condition the rule also matches everyone by, such as 'country in
+                               DE,AT' or 'trait:beta is set'; all must hold (can be repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag rule add new-checkout alice@example.com device-1234 --rollout 100% --name "Beta testers"
+  voidhash flag rule add new-checkout --when 'country in DE,AT' --when 'app_version >= 2.4' --rollout 50%
+  voidhash flag rule add button-color --when 'trait:plan in pro' --rollout 100% --variant blue --first
+  voidhash flag rule add new-checkout --when 'trait:beta is set' --rollout 100% --env test

@@ -1,0 +1,26 @@
+Keep the project's components in the working copy .voidhash/, build each with the local Rust
+toolchain and rebuild it on every change, and serve the builds on 127.0.0.1.
+
+While it runs, a dev session tells the paywall editor of the signed-in person where the builds are,
+so an editor of this project that you have open shows them on its own. Every 15 seconds newer
+catalog versions are merged into the working copy. Press Ctrl+C to stop; that ends the session.
+
+Run it in your project's root, where voidhash.json is. Building needs Rust with the
+wasm32-unknown-unknown target (https://rustup.rs, then 'rustup target add wasm32-unknown-unknown').
+
+Usage:
+  voidhash dev [flags]
+
+Flags:
+  -h, --help         Show help for this command
+      --port <port>  Port on 127.0.0.1
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash dev
+  voidhash dev --port 4400

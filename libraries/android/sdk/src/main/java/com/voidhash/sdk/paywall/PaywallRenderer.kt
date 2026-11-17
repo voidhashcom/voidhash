@@ -1,6 +1,7 @@
 package com.voidhash.sdk.paywall
 
 import android.app.Activity
+import com.voidhash.sdk.api.FlowPackageReference
 
 /**
  * Draws flows natively. The optional `ui` module provides one, `VoidhashUiPaywallRenderer`;
@@ -41,6 +42,30 @@ interface PaywallRenderer {
         flowPackage: ByteArray,
         host: PaywallRendererHost,
     ): PaywallRendererSession
+
+    /**
+     * Whether this renderer can draw the release whose package [reference] describes. A renderer
+     * running the flow runtime as a downloaded module draws any release naming a runtime module;
+     * by default, whether it reads the package's format. May be called on any thread.
+     */
+    fun supports(reference: FlowPackageReference): Boolean = supportsAbiVersion(reference.abiVersion)
+
+    /**
+     * Gets what the renderer needs, beyond the package, to draw [reference] above [activity]: in
+     * module mode the runtime module the release names. Called off the main thread before
+     * [present]; nothing to do by default.
+     *
+     * @throws Exception when the flow cannot be drawn; the SDK then reports it unavailable.
+     */
+    suspend fun prepare(activity: Activity, reference: FlowPackageReference) {}
+
+    /** Presents [flowPackage], described by [reference]; see [present], which it calls by default. */
+    fun present(
+        activity: Activity,
+        flowPackage: ByteArray,
+        reference: FlowPackageReference,
+        host: PaywallRendererHost,
+    ): PaywallRendererSession = present(activity, flowPackage, host)
 }
 
 /** Receives what a presented paywall reports. Called on the main thread. */

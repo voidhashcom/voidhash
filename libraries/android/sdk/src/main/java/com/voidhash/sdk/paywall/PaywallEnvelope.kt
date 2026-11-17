@@ -4,6 +4,8 @@ import com.voidhash.core.paywall.PaywallBridge
 import com.voidhash.sdk.VoidhashException
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.util.TimeZone
+import kotlin.random.Random
 
 /** A message a flow sent to the SDK. */
 data class PaywallInboundEnvelope(
@@ -40,6 +42,7 @@ object PaywallEnvelope {
         "track",
         "screen",
         "state",
+        "appAction",
     )
 
     /** Types whose payload carries required fields, so an absent payload is invalid. */
@@ -53,6 +56,7 @@ object PaywallEnvelope {
         "track",
         "screen",
         "state",
+        "appAction",
     )
 
     private val LOG_LEVELS = setOf("debug", "info", "warn", "warning", "error")
@@ -152,6 +156,12 @@ object PaywallEnvelope {
             "finish" -> {
                 if (payload.opt("result") !is String) throw invalidPayload(type, "'result' must be a string")
                 requireOptionalObject(payload, "variables", type)
+                requireOptionalObject(payload, "output", type)
+            }
+            "close" -> requireOptionalObject(payload, "output", type)
+            "appAction" -> {
+                requireNonEmptyString(payload, "name", type)
+                requireOptionalObject(payload, "args", type)
             }
             "requestPermission" -> requireNonEmptyString(payload, "permission", type)
             "setAttribute" -> {
@@ -168,6 +178,7 @@ object PaywallEnvelope {
             }
             "state" -> {
                 if (payload.opt("variables") !is JSONObject) throw invalidPayload(type, "'variables' must be an object")
+                requireOptionalObject(payload, "output", type)
             }
         }
 
@@ -232,9 +243,37 @@ object PaywallEnvelope {
         return envelope("response", requestId, payload)
     }
 
-    /** Serializes the `configure` envelope a flow receives once it is on screen. */
-    fun configureMessage(config: PaywallRuntimeConfig, requestId: String? = null): String =
-        envelope("configure", requestId, config.toJson())
+    /** Serializes the app's reply to the `appAction` the flow sent as [requestId]. */
+    fun appActionReply(requestId: String, value: JSONObject): String =
+        envelope("response", requestId, JSONObject().put("ok", true).put("value", value))
+
+    /** Serializes the failure of the `appAction` the flow sent as [requestId]. */
+    fun appActionFailure(requestId: String, error: String): String =
+        envelope("response", requestId, JSONObject().put("ok", false).put("error", error))
+
+    /** Serializes the `input` message, which changes the inputs of a flow that is shown. */
+    fun inputMessage(values: JSONObject): String = envelope("input", null, JSONObject().put("values", values))
+
+    /**
+     * The `configure` envelope a flow receives once it is on screen, with the device's clock as
+     * it is when sent (`now`, milliseconds since 1970 UTC, and `utcOffset`, minutes ahead of UTC),
+     * which the flow's logic reads as today's date, and the seed its random numbers are drawn
+     * from (`randomSeed`, a whole number below 2^53, fresh for each presentation).
+     */
+    fun configureMessage(
+        config: PaywallRuntimeConfig,
+        requestId: String? = null,
+        now: Long = System.currentTimeMillis(),
+        timeZone: TimeZone = TimeZone.getDefault(),
+        randomSeed: Long = Random.nextLong(0, 1L shl 53),
+    ): String = envelope(
+        "configure",
+        requestId,
+        config.toJson()
+            .put("now", now)
+            .put("utcOffset", timeZone.getOffset(now) / 60_000)
+            .put("randomSeed", randomSeed),
+    )
 
     private fun envelope(type: String, requestId: String?, payload: JSONObject): String {
         val json = JSONObject()

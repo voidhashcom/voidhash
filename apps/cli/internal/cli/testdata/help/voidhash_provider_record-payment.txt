@@ -1,0 +1,39 @@
+Record a payment a payment source took by hand, such as a bank transfer that arrived, or with
+--refunds a refund of one, which asks first.
+
+An id is recorded once: running it again with the same --id changes nothing. Correct a payment with
+a refund.
+
+Usage:
+  voidhash provider record-payment [source] [flags]
+
+Arguments:
+  source  The payment source: its slug, name or id
+
+Flags:
+      --amount <amount>    The amount, tax included, as people write it: 49.00
+      --at <time>          When it happened, as an ISO 8601 time (default: now)
+      --currency <code>    ISO 4217 code, such as EUR
+      --customer <id>      The source's id for the buyer, when there is no distinct id
+      --distinct-id <id>   The buyer's distinct id in your app
+  -h, --help               Show help for this command
+      --id <id>            The transaction's id at the source (default: a new manual-... id)
+      --json               Print the API objects as JSON, for scripts
+      --product <key>      The source's product key it pays for
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --refunds <id>       Record a refund of this charge id instead of a charge
+      --test               A test payment, such as a staging server's; it stays out of production
+                           revenue
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider record-payment bank-transfer --amount 49.00 --currency EUR --product pro-annual --distinct-id user-42
+  voidhash provider record-payment bank-transfer --amount 49.00 --currency EUR --refunds manual-1234 --yes

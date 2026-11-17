@@ -1,0 +1,42 @@
+Change a webhook's name, URL, events, description or environment. Asks on a terminal when no flag is
+given. Moving a webhook to test asks first; --yes skips that.
+
+A production webhook receives the purchase events of production keys; a test webhook those of store
+sandbox and test purchases. Person events reach both.
+
+Events: purchase.completed, purchase.refunded, purchase.revoked, subscription.created,
+subscription.renewed, subscription.product_changed, subscription.cancelled, subscription.expired,
+person.deleted. purchase.*, subscription.* and person.* name a group, and all every event that is
+sent.
+
+Usage:
+  voidhash webhook edit [webhook] [flags]
+
+Arguments:
+  webhook  The webhook's name, URL or id
+
+Flags:
+      --description <description>  Its new note; "" removes it
+      --environment <production|test>
+                                   Which purchase events it receives from now on: production or test
+      --event <event>              Every event it should receive from now on; repeat for each (can
+                                   be repeated)
+  -h, --help                       Show help for this command
+      --json                       Print the API objects as JSON, for scripts
+      --name <name>                Its new name
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+  -q, --quiet                      Print only ids, one per line
+      --url <url>                  Its new URL
+  -y, --yes                        Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash webhook edit "Orders backend" --url https://example.com/v2/webhooks
+  voidhash webhook edit "Orders backend" --event purchase.* --event subscription.*
+  voidhash webhook edit "Orders backend" --description ""

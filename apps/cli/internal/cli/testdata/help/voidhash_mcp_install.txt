@@ -1,0 +1,22 @@
+Add the Voidhash MCP server to the AI agents found on this computer: Claude Code, Cursor, Codex, VS
+Code and Claude Desktop. It asks which, unless --yes.
+
+No key is written anywhere. The first time an agent uses Voidhash, your browser opens to sign in,
+and the agent then acts as you.
+
+Usage:
+  voidhash mcp install [flags]
+
+Flags:
+  -h, --help  Show help for this command
+  -y, --yes   Add it to every agent found, without asking
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash mcp install
+  voidhash mcp install --yes

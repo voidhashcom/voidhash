@@ -1,0 +1,31 @@
+List the store products the App Store, Google Play, Stripe or a payment source sells, with the
+product each is mapped to and the purchases waiting for one.
+
+--quiet prints the store product keys, which 'voidhash provider map' takes.
+
+Usage:
+  voidhash provider products [provider] [flags]
+
+Arguments:
+  provider  The provider: app-store, google-play, stripe, a payment source's slug or name, or its id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --mapped             Only store products mapped to a product
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --refresh            Read the stores again instead of Voidhash's copy, up to an hour old
+      --unmapped           Only store products not mapped to a product yet
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider products
+  voidhash provider products stripe --unmapped
+  voidhash provider products app-store --refresh --json

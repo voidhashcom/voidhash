@@ -1,34 +1,22 @@
-import type { FlowResult } from "@voidhash/react-native";
-
-export interface PaywallOutcome {
-  /** Present the app-owned Upgrade screen instead of the hosted paywall. */
-  fallback: boolean;
-  /** One sentence explaining the outcome, safe to show a user. */
+export interface PaywallFailure {
+  /** One sentence explaining why the hosted paywall did not appear, safe to show a user. */
   reason: string;
 }
 
 /**
- * Turns a `present()` result into a decision. `present()` never rejects: it
- * resolves once the paywall is gone with how it ended, and a paywall that
- * could not appear is `failed` with an error code saying why. Every failure
- * means "show your own screen".
+ * Turns a rejected `present()` into a decision. `present()` resolves once the
+ * paywall is gone with how it ended, and rejects when the paywall could not
+ * appear, with an error whose `code` says why. Every rejection means "show
+ * your own screen".
  *
  * `FLOW_NOT_ASSIGNED` is the state every project is in before the first
  * paywall is published, so a Nimbus with no dashboard configuration still
  * sells Pro.
  */
-export function describePaywallOutcome(result: FlowResult): PaywallOutcome {
-  switch (result.status) {
-    case "purchased":
-      return { fallback: false, reason: "The user bought Pro from the paywall." };
-    case "restored":
-      return { fallback: false, reason: "The user restored their purchases from the paywall." };
-    case "finished":
-    case "closed":
-      return { fallback: false, reason: "The user saw the paywall and left it." };
-    case "failed":
-      return { fallback: true, reason: describeFailure(result.error.code, result.error.message) };
-  }
+export function describePaywallFailure(error: unknown): PaywallFailure {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = error instanceof Error && "code" in error ? String(error.code) : "";
+  return { reason: describeFailure(code, message) };
 }
 
 function describeFailure(code: string, message: string): string {

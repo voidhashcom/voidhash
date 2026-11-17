@@ -1,0 +1,19 @@
+Show or claim the namespace your organization publishes components under.
+
+Usage:
+  voidhash registry publisher <command> [flags]
+
+Commands:
+  show       Show the organization's component namespace.
+  claim      Claim the organization's component namespace.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash registry publisher <command> --help' for more about a command.

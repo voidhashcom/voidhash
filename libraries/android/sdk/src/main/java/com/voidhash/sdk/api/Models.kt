@@ -365,6 +365,11 @@ data class FlowPackageReference(
     val productIds: List<String>,
     val kind: String = "paywall",
     val shouldEndFlowOnPurchase: Boolean = true,
+    /**
+     * The flow runtime module the release needs, for a renderer that runs the flow runtime as a
+     * downloaded module; `null` from older backends and when none is offered.
+     */
+    val runtime: RuntimeModuleReference? = null,
 ) {
     companion object {
         internal fun fromJson(json: JSONObject): FlowPackageReference? {
@@ -381,7 +386,29 @@ data class FlowPackageReference(
                 productIds = (0 until productIds.length()).mapNotNull { productIds.opt(it) as? String },
                 kind = json.optStringOrNull("kind") ?: "paywall",
                 shouldEndFlowOnPurchase = json.opt("shouldEndFlowOnPurchase") as? Boolean ?: true,
+                runtime = json.optJSONObject("runtime")?.let(RuntimeModuleReference::fromJson),
             )
+        }
+    }
+}
+
+/**
+ * A flow runtime module: what a renderer in module mode downloads, verifies by [sha256] and
+ * caches to show a flow.
+ *
+ * @property version the runtime version, `major.minor.patch`.
+ * @property sha256 lowercase hex SHA-256 of the module bytes.
+ * @property url where the module is downloaded from.
+ */
+data class RuntimeModuleReference(val version: String, val sha256: String, val url: String) {
+    companion object {
+        internal fun fromJson(json: JSONObject): RuntimeModuleReference? {
+            val version = json.optStringOrNull("version")?.takeIf(String::isNotEmpty) ?: return null
+            val sha256 = json.optStringOrNull("sha256")?.lowercase()
+                ?.takeIf { it.length == 64 && it.all { char -> char in '0'..'9' || char in 'a'..'f' } }
+                ?: return null
+            val url = json.optStringOrNull("url")?.takeIf(String::isNotEmpty) ?: return null
+            return RuntimeModuleReference(version, sha256, url)
         }
     }
 }

@@ -1,0 +1,26 @@
+Rename a project or change its logo. Its slug never changes, so apps and links keep working.
+
+Usage:
+  voidhash project edit [project] [flags]
+
+Arguments:
+  project  The project's slug, organization/slug, name or id (default: this directory's project,
+           then your default project)
+
+Flags:
+  -h, --help         Show help for this command
+      --json         Print the API objects as JSON, for scripts
+      --logo <file>  A PNG, JPEG or WebP image file of up to 2 MB to use as the logo
+      --name <name>  Its new name
+  -q, --quiet        Print only ids, one per line
+      --remove-logo  Remove the logo
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash project edit app --name "My App"
+  voidhash project edit --logo icon.png

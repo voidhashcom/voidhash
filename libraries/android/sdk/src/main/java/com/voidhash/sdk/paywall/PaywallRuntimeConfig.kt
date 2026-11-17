@@ -87,6 +87,7 @@ data class PaywallRuntimeConfigProduct(
  * @property capabilities wire names of the capabilities the app granted.
  * @property state variables saved from an earlier presentation of the same flow; `null` when
  *   none are saved.
+ * @property input the inputs the app passes the flow, by name.
  */
 data class PaywallRuntimeConfig(
     val products: List<PaywallRuntimeConfigProduct>,
@@ -95,6 +96,7 @@ data class PaywallRuntimeConfig(
     val defaultSelectedProductId: String?,
     val capabilities: List<String>,
     val state: JSONObject?,
+    val input: JSONObject = JSONObject(),
 ) {
     internal fun toJson(): JSONObject = JSONObject().apply {
         put("products", JSONArray(products.map { it.toJson() }))
@@ -105,6 +107,7 @@ data class PaywallRuntimeConfig(
         defaultSelectedProductId?.let { put("defaultSelectedProductId", it) }
         put("capabilities", JSONArray(capabilities))
         state?.let { put("state", JSONObject().put("variables", it)) }
+        put("input", input)
     }
 }
 
@@ -120,6 +123,7 @@ fun buildPaywallRuntimeConfig(
     locale: String?,
     capabilities: List<String> = emptyList(),
     state: JSONObject? = null,
+    input: JSONObject = JSONObject(),
     onSkippedProduct: (String) -> Unit = {},
 ): PaywallRuntimeConfig {
     val configured = productIds.mapNotNull { reference ->
@@ -147,6 +151,7 @@ fun buildPaywallRuntimeConfig(
         defaultSelectedProductId = configured.firstOrNull()?.id,
         capabilities = capabilities,
         state = state,
+        input = input,
     )
 }
 

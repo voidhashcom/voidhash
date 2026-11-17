@@ -31,6 +31,7 @@ class SdkResolvePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
      *    "x-ui-package-abi"?: string, //The newest flow package format version the SDK's paywall engine reads.
      *    "x-ui-guest-abi"?: string, //The newest component guest ABI version the SDK's paywall engine runs. Without it the other engine headers are ignored and only releases a guest ABI 1 engine without native components can show are served.
      *    "x-ui-native-components"?: string, //The native components the SDK's paywall engine provides, as comma-separated `id@version` entries.
+     *    "x-ui-runtime-bridge"?: string, //The newest runtime bridge version the SDK's paywall engine hosts, sent only when it runs the flow runtime as a downloaded module. Such an engine reads no package format itself: a release is served when a runtime module for it exists on a bridge the engine hosts, and `x-ui-package-abi` is not checked.
      * } $headerParameters
      */
     public function __construct(\Voidhash\Generated\Core\Model\SdkResolvePaywallBodyJsonEncoding $requestBody, array $headerParameters = [])
@@ -61,7 +62,7 @@ class SdkResolvePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
     protected function getHeadersOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
     {
         $optionsResolver = parent::getHeadersOptionsResolver();
-        $optionsResolver->setDefined(['x-distinct-id', 'x-distinct-id-encoding', 'x-publishable-key', 'x-client-bundle-id', 'x-client-locale', 'x-client-version', 'x-is-backgrounded', 'x-is-debug-build', 'x-nonce', 'x-observer-mode', 'x-platform', 'x-platform-brand', 'x-platform-device', 'x-platform-flavor', 'x-platform-flavor-version', 'x-platform-version', 'x-preferred-locales', 'x-sdk', 'x-sdk-version', 'x-storefront', 'x-ui-package-abi', 'x-ui-guest-abi', 'x-ui-native-components']);
+        $optionsResolver->setDefined(['x-distinct-id', 'x-distinct-id-encoding', 'x-publishable-key', 'x-client-bundle-id', 'x-client-locale', 'x-client-version', 'x-is-backgrounded', 'x-is-debug-build', 'x-nonce', 'x-observer-mode', 'x-platform', 'x-platform-brand', 'x-platform-device', 'x-platform-flavor', 'x-platform-flavor-version', 'x-platform-version', 'x-preferred-locales', 'x-sdk', 'x-sdk-version', 'x-storefront', 'x-ui-package-abi', 'x-ui-guest-abi', 'x-ui-native-components', 'x-ui-runtime-bridge']);
         $optionsResolver->setRequired(['x-distinct-id', 'x-publishable-key', 'x-client-bundle-id', 'x-is-backgrounded', 'x-is-debug-build', 'x-observer-mode', 'x-platform', 'x-platform-flavor', 'x-sdk', 'x-sdk-version']);
         $optionsResolver->setDefaults([]);
         $optionsResolver->addAllowedTypes('x-distinct-id', ['string']);
@@ -87,6 +88,7 @@ class SdkResolvePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
         $optionsResolver->addAllowedTypes('x-ui-package-abi', ['string']);
         $optionsResolver->addAllowedTypes('x-ui-guest-abi', ['string']);
         $optionsResolver->addAllowedTypes('x-ui-native-components', ['string']);
+        $optionsResolver->addAllowedTypes('x-ui-runtime-bridge', ['string']);
         return $optionsResolver;
     }
     /**

@@ -172,7 +172,7 @@ final class AppModel: ObservableObject {
     /// Presents the flow assigned to `onboarding` and reacts to how it ended, falling back to
     /// the Upgrade tab when there is nothing to present.
     ///
-    /// A project without a published flow answers `.failed(.notAssigned)`, so it is the
+    /// A project without a published flow throws `FlowError.notAssigned`, so it is the
     /// *normal* answer, not an error. Treating it as one is the most common way to ship an
     /// integration that looks broken on day one.
     func presentUpgrade(reason: String) async {
@@ -184,33 +184,39 @@ final class AppModel: ObservableObject {
             ]
         )
 
-        switch await client.presentFlow(placement: Nimbus.paywallLocation) {
-        case .purchased(let productSlug):
-            notice = Notice(kind: .success, text: "Purchased \(productSlug).")
-            await refreshPerson()
-        case .restored:
-            notice = Notice(kind: .success, text: "Purchases restored.")
-            await refreshPerson()
-        case .finished(let result, let variables):
-            let answers = variables.keys.sorted().joined(separator: ", ")
-            notice = Notice(
-                kind: .info,
-                text: answers.isEmpty
-                    ? "Flow finished: \(result)." : "Flow finished: \(result) (\(answers)).")
-            await refreshPerson()
-        case .closed:
-            break
-        case .failed(.notAssigned):
+        do {
+            let result = try await client.presentFlow(location: Nimbus.paywallLocation)
+            switch result.outcome {
+            case FlowResult.purchased:
+                notice = Notice(
+                    kind: .success, text: "Purchased \(result.productId ?? "a product").")
+                await refreshPerson()
+            case FlowResult.restored:
+                notice = Notice(kind: .success, text: "Purchases restored.")
+                await refreshPerson()
+            case FlowResult.dismissed:
+                break
+            default:
+                // The outcome the flow finished with, and the outputs it left for the app.
+                let answers = result.output.keys.sorted().joined(separator: ", ")
+                notice = Notice(
+                    kind: .info,
+                    text: answers.isEmpty
+                        ? "Flow finished: \(result.outcome)."
+                        : "Flow finished: \(result.outcome) (\(answers)).")
+                await refreshPerson()
+            }
+        } catch FlowError.notAssigned {
             fallBackToUpgradeTab(
                 "No paywall is available for “\(Nimbus.paywallLocation)”. "
                     + "Showing the app's own upgrade screen."
             )
-        case .failed(.unavailable):
+        } catch FlowError.unavailable {
             fallBackToUpgradeTab(
                 "Voidhash is unreachable and this paywall was never loaded on this device. "
                     + "Showing the app's own upgrade screen."
             )
-        case .failed(let error):
+        } catch {
             fallBackToUpgradeTab(
                 "The paywall could not be presented (\(error)). "
                     + "Showing the app's own upgrade screen.")

@@ -1,0 +1,32 @@
+Connect Google Play: the app's package name and a service account key, read from its JSON file. Asks
+for what is missing in a terminal; run it again to change them.
+
+The key is read from the file and sent to Voidhash, which stores it encrypted; it is never printed.
+
+Usage:
+  voidhash provider connect google-play [flags]
+
+Flags:
+      --forward-notifications-to <url>
+                                     Also forward the store's notifications to this HTTPS url, such
+                                     as your own server
+  -h, --help                         Show help for this command
+      --json                         Print the API objects as JSON, for scripts
+      --notifications-topic <topic>  The Pub/Sub topic of its real-time developer notifications,
+                                     projects/<project>/topics/<topic>
+      --package-name <name>          The app's package name, such as com.acme.app
+      --project <project>            Project to act on: its id, slug, organization/slug or name
+                                     (default: this directory's project, then your default project)
+  -q, --quiet                        Print only ids, one per line
+      --service-account-key <file>   The JSON key file of a Google Cloud service account with access
+                                     to the app in Play Console
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider connect google-play
+  voidhash provider connect google-play --package-name com.acme.app --service-account-key service-account.json

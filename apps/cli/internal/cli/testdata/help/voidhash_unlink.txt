@@ -1,0 +1,14 @@
+Remove the link 'voidhash link' made for this directory, or for the nearest linked directory above
+it. Commands here then act on your default project.
+
+Usage:
+  voidhash unlink [flags]
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)

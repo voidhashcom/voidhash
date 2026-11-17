@@ -1,0 +1,29 @@
+Explain why a person has or lacks a perk: their access, the products that grant the perk, the store
+products that sell those, and the person's purchases. It shows where the chain breaks and how to fix
+it.
+
+With --json it prints the person, the perk, hasAccess, the chain (each link's name, ok and detail;
+ok is null when your access does not let it be checked) and the fix.
+
+Usage:
+  voidhash person why [person] [perk] [flags]
+
+Arguments:
+  person  The person's email, distinct id (the id your app identifies them by) or id
+  perk    The perk's slug (what your app checks), name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person why ada@example.com premium
+  voidhash person why user-42 premium --json

@@ -1,0 +1,32 @@
+Make a paywall's design live: build it, wait for the build, and deploy it to every location that
+shows the paywall. --build deploys an existing build instead, such as an older one to roll back.
+
+Asks first when a location shows the paywall, because end users see the change on their next visit;
+--yes skips that. Without a terminal and without --yes, nothing is built.
+
+Usage:
+  voidhash paywall deploy [paywall] [flags]
+
+Arguments:
+  paywall  The paywall's slug, name or id
+
+Flags:
+      --build <number>     Deploy this existing build, by number or id, such as an older one to roll
+                           back (default: build the current design)
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --timeout <seconds>  How many seconds to wait for the build (default: 300)
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall deploy pro
+  voidhash paywall deploy pro --build 3 --yes

@@ -22,30 +22,13 @@ public enum FlowPermission: String, Sendable, Equatable {
     case tracking
 }
 
-/// How a presented flow ended.
-public enum FlowResult: Sendable, Equatable {
-    /// The flow reached one of its finish actions. `result` is the finish action's result name;
-    /// `variables` are the flow's variables at that moment.
-    case finished(result: String, variables: [String: JSONValue])
-    /// A purchase started from the flow completed; the flow was dismissed. Names the slug of the
-    /// product bought.
-    case purchased(productSlug: String)
-    /// A restore started from the flow completed; the flow was dismissed.
-    case restored
-    /// The user or the app closed the flow, or the app cancelled its presentation before the
-    /// flow was shown.
-    case closed
-    /// The flow could not be presented, or could no longer be drawn.
-    case failed(FlowError)
-}
-
 /// Why a flow could not be presented, or stopped being shown.
 public enum FlowError: Error, Sendable, Equatable, CustomStringConvertible {
     /// The SDK is disabled or shut down.
     case disabled
-    /// No published flow is assigned to the placement for the current person.
+    /// No published flow is assigned to the location for the current person.
     case notAssigned
-    /// Nothing is cached for the placement and the backend cannot be reached, or the flow's
+    /// Nothing is cached for the location and the backend cannot be reached, or the flow's
     /// package could not be downloaded.
     case unavailable
     /// The app did not add the `VoidhashUI` renderer.
@@ -61,7 +44,7 @@ public enum FlowError: Error, Sendable, Equatable, CustomStringConvertible {
         case .disabled:
             return "FLOW_DISABLED: Voidhash is disabled or shut down"
         case .notAssigned:
-            return "FLOW_NOT_ASSIGNED: no flow is assigned to this placement"
+            return "FLOW_NOT_ASSIGNED: no flow is assigned to this location"
         case .unavailable:
             return
                 "FLOW_UNAVAILABLE: the flow is not cached on this device and could not be loaded"
@@ -77,7 +60,9 @@ public enum FlowError: Error, Sendable, Equatable, CustomStringConvertible {
     }
 }
 
-/// Keeps a flow's variables between presentations, keyed by flow.
+/// Keeps a flow's variables between presentations, keyed by flow. These are the flow's own
+/// working state, replayed to it when it is presented again; an app reads a flow's outputs from
+/// its ``FlowResult``.
 public struct FlowStateStore: Sendable {
     public var load: @Sendable (_ key: String) async -> [String: JSONValue]?
     public var save: @Sendable (_ key: String, _ variables: [String: JSONValue]) async -> Void
@@ -157,22 +142,32 @@ public struct FlowHost: Sendable {
 /// A flow asks for work by message: `ready` is answered with a `configure` envelope (products,
 /// granted capabilities, saved state), `purchase` and `restore` run through the host's single
 /// purchase and restore entry points and report their progress, and `finish`, `close`, a
-/// completed purchase or restore end the flow with a ``FlowResult``. Permissions, attributes,
-/// links, analytics and saved state go to the ``FlowHost``. The renderer only relays messages.
+/// completed purchase or restore end the flow with a ``FlowResult``. An `appAction` runs the
+/// handler the presentation registered for it and is answered with its reply. Permissions,
+/// attributes, links, analytics and saved state go to the ``FlowHost``. The renderer only relays
+/// messages.
 ///
 /// One flow is on screen at a time, and the presenter is never asked for two transitions at
 /// once: a flow is dismissed only after its presentation finished, the next one is presented only
 /// after the one before it left the screen, and a presentation returns its result only then.
 public actor FlowCoordinator {
-    /// Loads the verified bytes of a placement's flow package.
+    /// Loads the verified bytes of a location's flow package.
     public typealias PackageLoader =
-        @Sendable (_ placement: String, _ package: SdkResolvedPaywall.FlowPackage) async throws
+        @Sendable (_ location: String, _ package: SdkResolvedPaywall.FlowPackage) async throws
         -> Data
+
+    /// Resolves what is assigned to a location for an app built against `revision` of the
+    /// location's interface.
+    public typealias PaywallResolver =
+        @Sendable (_ location: String, _ revision: Int) async throws -> SdkResolvedPaywall?
+
+    /// How a presentation ended, or why nothing was presented.
+    private typealias Ending = Result<FlowResult, FlowError>
 
     /// One flow handed to the presenter. Only one holds the screen at a time.
     private final class Session {
         let id: Int
-        let placement: String
+        let location: String
         let paywallId: String?
         /// The paywall a purchase started here names.
         let paywallContext: SdkPurchasePaywallContext
@@ -181,14 +176,25 @@ public actor FlowCoordinator {
         let productIds: [String]
         /// Paywalls end after a purchase or restore; onboarding flows continue.
         let shouldEndFlowOnPurchase: Bool
+        /// The app's handlers by action name.
+        let actions: [String: FlowActionHandler]
+        /// The app's inputs, as last set.
+        var input: [String: FlowValue]
+        /// Whether the flow has its `configure`: from then on a changed input is sent to it.
+        var isConfigured = false
+        /// The outputs the flow last reported.
+        var output: [String: FlowValue] = [:]
+        /// App action handlers still running, by the `requestId` of their call; cancelled when
+        /// the flow ends.
+        var appActions: [String: Task<Void, Never>] = [:]
         /// How the flow ended, set as soon as that is decided: its messages are ignored from
         /// then on. The caller hears it once the flow has left the screen.
-        var result: FlowResult?
+        var result: Ending?
         /// The presenter showing the flow; yields whether it got on screen.
         var presentation: Task<Bool, any Error>?
         /// Takes the flow off the screen and then returns `result` to the caller.
         var ending: Task<Void, Never>?
-        var continuation: CheckedContinuation<FlowResult, Never>?
+        var continuation: CheckedContinuation<Ending, Never>?
         var actionInFlight = false
         /// Answers the flow's `ready`; a purchase or restore waits for it.
         var configuring: Task<Void, Never>?
@@ -197,39 +203,42 @@ public actor FlowCoordinator {
         var messages: AsyncStream<String>.Continuation?
 
         init(
-            id: Int, placement: String, paywallId: String?,
+            id: Int, location: String, paywallId: String?,
             paywallContext: SdkPurchasePaywallContext, stateKey: String, productIds: [String],
-            shouldEndFlowOnPurchase: Bool
+            shouldEndFlowOnPurchase: Bool, input: [String: FlowValue],
+            actions: [String: FlowActionHandler]
         ) {
             self.id = id
-            self.placement = placement
+            self.location = location
             self.paywallId = paywallId
             self.paywallContext = paywallContext
             self.stateKey = stateKey
             self.productIds = productIds
             self.shouldEndFlowOnPurchase = shouldEndFlowOnPurchase
+            self.input = input
+            self.actions = actions
         }
     }
 
-    /// A presentation with nothing on screen yet: it is resolving its placement, loading its
+    /// A presentation with nothing on screen yet: it is resolving its location, loading its
     /// package or waiting for the flow before it to leave the screen.
     private final class PendingPresentation {
         var isCancelled = false
-        /// What the presentation returns once cancelled: closed, unless the client was shut
+        /// How the presentation ends once cancelled: dismissed, unless the client was shut
         /// down under it or it ran out of time.
-        var cancelledResult = FlowResult.closed
+        var cancelledResult = Ending.success(FlowResult(outcome: FlowResult.dismissed))
         /// Cancels the presentation when it has taken too long to reach the presenter.
         var deadline: Task<Void, Never>?
         /// The session to present and its package, or why there is none, once resolved and
         /// loaded.
-        var loaded: Result<(session: Session, package: Data), FlowError>?
+        var loaded: Result<Loaded, FlowError>?
         /// Resumed when `loaded` is set or the presentation is cancelled, whichever is first.
         var loading: CheckedContinuation<Void, Never>?
     }
 
     private let presenter: (any FlowPaywallPresenting)?
     private let loadPackage: PackageLoader
-    private let resolvePaywall: @Sendable (String) async throws -> SdkResolvedPaywall?
+    private let resolvePaywall: PaywallResolver
     private let host: FlowHost
     private let presentationDeadline: @Sendable () async -> Void
     /// The session holding the screen, from before its presentation until it has left.
@@ -245,8 +254,9 @@ public actor FlowCoordinator {
     ///   - presenter: The renderer's presenter; `nil` when the app did not add one, which fails
     ///     every presentation with ``FlowError/rendererMissing``.
     ///   - loadPackage: Loads a flow package's verified bytes.
-    ///   - resolvePaywall: Resolves what is assigned to a placement; throws when nothing is cached
-    ///     and the backend cannot be reached.
+    ///   - resolvePaywall: Resolves what is assigned to a location for the interface revision
+    ///     the presentation names; throws when nothing is cached and the backend cannot be
+    ///     reached.
     ///   - host: What flows can reach in the app.
     ///   - presentationDeadline: Returns once a presentation has had its time to reach the
     ///     presenter, ``NetworkPolicy/flowPresentationDeadlineSeconds`` unless a test says
@@ -254,7 +264,7 @@ public actor FlowCoordinator {
     public init(
         presenter: (any FlowPaywallPresenting)?,
         loadPackage: @escaping PackageLoader,
-        resolvePaywall: @escaping @Sendable (String) async throws -> SdkResolvedPaywall?,
+        resolvePaywall: @escaping PaywallResolver,
         host: FlowHost,
         presentationDeadline: @escaping @Sendable () async -> Void = {
             await NetworkPolicy.sleep(
@@ -270,34 +280,49 @@ public actor FlowCoordinator {
 
     /// Loads the package `release` would be shown with, so the next presentation needs no
     /// download.
-    public func preload(placement: String, release: SdkResolvedPaywall.Release) async throws {
+    public func preload(location: String, release: SdkResolvedPaywall.Release) async throws {
         guard let presenter, let flowPackage = release.flowPackage,
-            presenter.supportsFlowPackage(abiVersion: flowPackage.abiVersion)
+            presenter.supportsFlowPackage(flowPackage)
         else {
             return
         }
-        _ = try await loadPackage(placement, flowPackage)
+        _ = try await loadPackage(location, flowPackage)
     }
 
-    /// Presents the flow assigned to `placement` and returns how it ended, once it has left
+    /// Presents the flow assigned to `location` and returns how it ended, once it has left
     /// the screen.
     ///
-    /// A flow already on screen is closed first; its presentation returns ``FlowResult/closed``.
-    /// Cancelling the calling task, or ``dismiss()``, closes the flow, or keeps it from being
-    /// shown while it is still loading; the presentation then returns ``FlowResult/closed``.
+    /// A flow already on screen is closed first; its presentation ends as
+    /// ``FlowResult/dismissed``. Cancelling the calling task, or ``dismiss()``, closes the flow,
+    /// or keeps it from being shown while it is still loading; the presentation then ends as
+    /// ``FlowResult/dismissed``.
     ///
     /// A flow not handed to the presenter within
     /// ``NetworkPolicy/flowPresentationDeadlineSeconds`` of this call is not shown, then or
     /// later: by then the user is doing something else. The presentation fails with
     /// ``FlowError/unavailable``, while its package is still downloaded and cached for the next
     /// one. Once the presenter has the flow, no deadline applies.
-    public func present(placement: String) async -> FlowResult {
+    ///
+    /// - Parameters:
+    ///   - location: The slug of the location.
+    ///   - revision: The revision of the location's interface the app was built against, 0
+    ///     for none. The location is resolved for it.
+    ///   - input: The app's inputs by name, sent to the flow when it is configured.
+    ///   - actions: Handlers of the app actions the flow may call, by name. A handler runs on a
+    ///     task that is cancelled when the flow ends. A call with no handler, and a handler
+    ///     that throws, fail the call in the flow.
+    /// - Throws: ``FlowError`` when the flow could not be presented, or could no longer be
+    ///   drawn while it was shown.
+    public func present(
+        location: String, revision: Int = 0, input: [String: FlowValue] = [:],
+        actions: [String: FlowActionHandler] = [:]
+    ) async throws -> FlowResult {
         guard !isShutDown else {
-            return .failed(.disabled)
+            throw FlowError.disabled
         }
         guard let presenter else {
             host.warn(FlowError.rendererMissing.description)
-            return .failed(.rendererMissing)
+            throw FlowError.rendererMissing
         }
 
         nextSessionId += 1
@@ -309,42 +334,61 @@ public actor FlowCoordinator {
             guard !Task.isCancelled else {
                 return
             }
-            self.presentationTookTooLong(id, placement: placement)
+            self.presentationTookTooLong(id, location: location)
         }
-        return await withTaskCancellationHandler {
-            await present(id: id, placement: placement, presenter: presenter)
+        let request = Request(
+            location: location, revision: revision, input: representable(input, in: location),
+            actions: actions)
+        return try await withTaskCancellationHandler {
+            try await present(id: id, request: request, presenter: presenter).get()
         } onCancel: {
             Task { await self.cancel(id) }
         }
     }
 
-    private func present(id: Int, placement: String, presenter: any FlowPaywallPresenting) async
-        -> FlowResult
+    /// A presentation's session with its verified package, ready for the presenter.
+    private struct Loaded {
+        let session: Session
+        let package: Data
+        let flowPackage: SdkResolvedPaywall.FlowPackage
+    }
+
+    /// What a presentation was asked to show.
+    private struct Request: Sendable {
+        let location: String
+        let revision: Int
+        let input: [String: FlowValue]
+        let actions: [String: FlowActionHandler]
+    }
+
+    private func present(id: Int, request: Request, presenter: any FlowPaywallPresenting) async
+        -> Ending
     {
         let presentation = pending[id]
         defer {
             presentation?.deadline?.cancel()
             pending[id] = nil
         }
-        guard let loaded = await load(id: id, placement: placement, presenter: presenter) else {
-            return presentation?.cancelledResult ?? .closed
+        guard let loaded = await load(id: id, request: request, presenter: presenter) else {
+            return presentation?.cancelledResult ?? FlowCoordinator.dismissed
         }
         let session: Session
         let package: Data
+        let flowPackage: SdkResolvedPaywall.FlowPackage
         switch loaded {
         case .success(let loaded):
-            (session, package) = loaded
+            (session, package, flowPackage) = (loaded.session, loaded.package, loaded.flowPackage)
         case .failure(let error):
-            return .failed(error)
+            return .failure(error)
         }
 
         // Calls can overlap, and each wait below lets another one in: the screen is taken only
         // when no session holds it, checked again after every wait.
         while let previous = active, pending[id]?.isCancelled == false {
-            await end(previous, with: .closed)
+            await end(previous, outcome: FlowResult.dismissed)
         }
         guard pending[id]?.isCancelled == false, !Task.isCancelled else {
-            return presentation?.cancelledResult ?? .closed
+            return presentation?.cancelledResult ?? FlowCoordinator.dismissed
         }
         // The presenter has the flow from here on, and with it the deadline is met.
         presentation?.deadline?.cancel()
@@ -362,26 +406,56 @@ public actor FlowCoordinator {
         }
         // On its own task, so cancelling the caller cannot interrupt the presentation halfway
         // and ending the session can wait for it.
+        let location = request.location
         let showing = Task {
             try await presenter.show(
-                locationSlug: placement, package: package, onBridgeEvent: onBridgeEvent,
-                onDismiss: onDismiss, onFailure: onFailure)
+                locationSlug: location, package: package, flowPackage: flowPackage,
+                onBridgeEvent: onBridgeEvent, onDismiss: onDismiss, onFailure: onFailure)
         }
         session.presentation = showing
         do {
             if try await !showing.value {
                 await end(
                     session,
-                    with: .failed(.presentationFailed("the renderer could not show the flow")))
+                    with: .failure(.presentationFailed("the renderer could not show the flow")))
             }
         } catch {
-            await end(session, with: .failed(.presentationFailed(describe(error))))
+            await end(session, with: .failure(.presentationFailed(describe(error))))
         }
         return await result(of: session)
     }
 
+    /// Changes inputs of the flow on screen; does nothing when none is shown. A flow that is
+    /// not configured yet receives them with its configuration.
+    public func updateInput(_ values: [String: FlowValue]) {
+        guard let session = active, session.result == nil else {
+            return
+        }
+        let values = representable(values, in: session.location)
+        guard !values.isEmpty else {
+            return
+        }
+        session.input.merge(values) { _, changed in changed }
+        if session.isConfigured {
+            post(session, PaywallBridgeProtocol.inputMessage(values))
+        }
+    }
+
+    /// `values` without the numbers JSON cannot carry, each reported.
+    private func representable(_ values: [String: FlowValue], in location: String)
+        -> [String: FlowValue]
+    {
+        return values.filter { name, value in
+            if !value.isRepresentable {
+                host.warn(
+                    "Flow \"\(location)\": input \"\(name)\" is not a finite number and is not passed")
+            }
+            return value.isRepresentable
+        }
+    }
+
     /// Closes the presented flow and cancels every presentation that is still loading; each
-    /// returns ``FlowResult/closed``. Returns once the flow has left the screen.
+    /// ends as ``FlowResult/dismissed``. Returns once the flow has left the screen.
     public func dismiss() async {
         for presentation in pending.values {
             cancel(presentation)
@@ -389,31 +463,31 @@ public actor FlowCoordinator {
         guard let active else {
             return
         }
-        await end(active, with: .closed)
+        await end(active, outcome: FlowResult.dismissed)
     }
 
     /// Ends every flow of a client that was shut down, which is no way to keep one: the flow on
-    /// screen is closed and its presentation returns ``FlowResult/closed``, and a presentation
+    /// screen is closed and its presentation ends as ``FlowResult/dismissed``, and a presentation
     /// still loading, like every later one, fails with ``FlowError/disabled``. Returns once the
     /// flow has left the screen.
     public func shutDown() async {
         isShutDown = true
         for presentation in pending.values {
-            presentation.cancelledResult = .failed(.disabled)
+            presentation.cancelledResult = .failure(.disabled)
             cancel(presentation)
         }
         guard let active else {
             return
         }
-        await end(active, with: .closed)
+        await end(active, outcome: FlowResult.dismissed)
     }
 
     // MARK: - Loading
 
     /// The session of presentation `id` and the package to present, or why there is none; `nil`
     /// when the presentation was cancelled first.
-    private func load(id: Int, placement: String, presenter: any FlowPaywallPresenting) async
-        -> Result<(session: Session, package: Data), FlowError>?
+    private func load(id: Int, request: Request, presenter: any FlowPaywallPresenting) async
+        -> Result<Loaded, FlowError>?
     {
         guard pending[id]?.isCancelled == false else {
             return nil
@@ -429,7 +503,7 @@ public actor FlowCoordinator {
             presentation.loading = continuation
             // On its own task: a cancelled presentation returns at once, while a download
             // already running finishes and leaves the package cached for the next one.
-            Task { await self.resolveSession(id: id, placement: placement, presenter: presenter) }
+            Task { await self.resolveSession(id: id, request: request, presenter: presenter) }
         }
         guard let presentation = pending[id], !presentation.isCancelled else {
             return nil
@@ -437,10 +511,10 @@ public actor FlowCoordinator {
         return presentation.loaded
     }
 
-    private func resolveSession(id: Int, placement: String, presenter: any FlowPaywallPresenting)
+    private func resolveSession(id: Int, request: Request, presenter: any FlowPaywallPresenting)
         async
     {
-        let loaded = await makeSession(id: id, placement: placement, presenter: presenter)
+        let loaded = await makeSession(id: id, request: request, presenter: presenter)
         guard let presentation = pending[id] else {
             return
         }
@@ -449,46 +523,48 @@ public actor FlowCoordinator {
         presentation.loading = nil
     }
 
-    private func makeSession(id: Int, placement: String, presenter: any FlowPaywallPresenting)
-        async -> Result<(session: Session, package: Data), FlowError>
+    private func makeSession(id: Int, request: Request, presenter: any FlowPaywallPresenting)
+        async -> Result<Loaded, FlowError>
     {
+        let location = request.location
         let resolved: SdkResolvedPaywall?
         do {
-            resolved = try await resolvePaywall(placement)
+            resolved = try await resolvePaywall(location, request.revision)
         } catch {
-            host.warn("Flow \"\(placement)\" is unavailable: \(describe(error))")
+            host.warn("Flow \"\(location)\" is unavailable: \(describe(error))")
             return .failure(.unavailable)
         }
         guard let showing = resolved?.showing, let release = showing.paywallRelease else {
             return .failure(.notAssigned)
         }
         guard let flowPackage = release.flowPackage else {
-            host.warn("The release assigned to \"\(placement)\" has no flow package")
+            host.warn("The release assigned to \"\(location)\" has no flow package")
             return .failure(.notAssigned)
         }
-        guard presenter.supportsFlowPackage(abiVersion: flowPackage.abiVersion) else {
+        guard presenter.supportsFlowPackage(flowPackage) else {
             let error = FlowError.unsupportedPackage(abiVersion: flowPackage.abiVersion)
-            host.warn("Flow \"\(placement)\": \(error)")
+            host.warn("Flow \"\(location)\": \(error)")
             return .failure(error)
         }
 
         let package: Data
         do {
-            package = try await loadPackage(placement, flowPackage)
+            package = try await loadPackage(location, flowPackage)
         } catch {
-            host.warn("Flow \"\(placement)\" is unavailable: \(describe(error))")
+            host.warn("Flow \"\(location)\" is unavailable: \(describe(error))")
             return .failure(.unavailable)
         }
 
         let paywallId = showing.paywallId ?? showing.paywall?.id
         let session = Session(
-            id: id, placement: placement, paywallId: paywallId,
+            id: id, location: location, paywallId: paywallId,
             paywallContext: SdkPurchasePaywallContext(
-                showingId: showing.id, placement: placement, paywallId: paywallId,
+                showingId: showing.id, placement: location, paywallId: paywallId,
                 paywallReleaseId: showing.paywallReleaseId ?? release.releaseId),
-            stateKey: paywallId ?? placement, productIds: flowPackage.productIds,
-            shouldEndFlowOnPurchase: flowPackage.shouldEndFlowOnPurchase ?? true)
-        return .success((session, package))
+            stateKey: paywallId ?? location, productIds: flowPackage.productIds,
+            shouldEndFlowOnPurchase: flowPackage.shouldEndFlowOnPurchase ?? true,
+            input: request.input, actions: request.actions)
+        return .success(Loaded(session: session, package: package, flowPackage: flowPackage))
     }
 
     /// The task awaiting presentation `id` was cancelled.
@@ -496,19 +572,19 @@ public actor FlowCoordinator {
         if let presentation = pending[id] {
             cancel(presentation)
         } else if let active, active.id == id {
-            await end(active, with: .closed)
+            await end(active, outcome: FlowResult.dismissed)
         }
     }
 
     /// Presentation `id` has not reached the presenter in the time it had.
-    private func presentationTookTooLong(_ id: Int, placement: String) {
+    private func presentationTookTooLong(_ id: Int, location: String) {
         guard let presentation = pending[id], !presentation.isCancelled else {
             return
         }
         host.warn(
-            "Flow \"\(placement)\" was not ready within \(Int(NetworkPolicy.flowPresentationDeadlineSeconds)) seconds and is not shown; its package is still loaded for the next presentation"
+            "Flow \"\(location)\" was not ready within \(Int(NetworkPolicy.flowPresentationDeadlineSeconds)) seconds and is not shown; its package is still loaded for the next presentation"
         )
-        presentation.cancelledResult = .failed(.unavailable)
+        presentation.cancelledResult = .failure(.unavailable)
         cancel(presentation)
     }
 
@@ -521,32 +597,53 @@ public actor FlowCoordinator {
 
     // MARK: - Session lifetime
 
-    private func result(of session: Session) async -> FlowResult {
+    private static let dismissed = Ending.success(FlowResult(outcome: FlowResult.dismissed))
+
+    private func result(of session: Session) async -> Ending {
         if session.ending == nil {
             return await withCheckedContinuation { continuation in
                 session.continuation = continuation
             }
         }
         await session.ending?.value
-        return session.result ?? .closed
+        return session.result ?? FlowCoordinator.dismissed
     }
+
+    /// Ends `session` with `outcome` and the outputs the flow last reported, unless `output`
+    /// names the ones it ended with.
+    private func end(
+        _ session: Session, outcome: String, output: [String: FlowValue]? = nil,
+        productId: String? = nil
+    ) async {
+        await end(
+            session,
+            with: .success(
+                FlowResult(
+                    outcome: outcome, output: output ?? session.output, productId: productId)))
+    }
+
 
     /// Ends `session` with `result` and returns once it has left the screen; of several ends
     /// the first decides the result.
     ///
     /// The flow's messages are ignored from the first call on. The caller of
-    /// ``present(placement:)`` hears the result only after the dismissal completed, so whatever
-    /// it presents next does not run into the dismissal.
-    private func end(_ session: Session, with result: FlowResult) async {
+    /// ``present(location:revision:input:actions:)`` hears the result only after the dismissal
+    /// completed, so whatever it presents next does not run into the dismissal. The app action
+    /// handlers still running are cancelled: nothing is left to answer.
+    private func end(_ session: Session, with result: Ending) async {
         if session.ending == nil {
             session.result = result
+            for handling in session.appActions.values {
+                handling.cancel()
+            }
+            session.appActions = [:]
             // On its own task: the dismissal runs to its end whoever asked for it.
             session.ending = Task { await self.leaveScreen(session, with: result) }
         }
         await session.ending?.value
     }
 
-    private func leaveScreen(_ session: Session, with result: FlowResult) async {
+    private func leaveScreen(_ session: Session, with result: Ending) async {
         // The presentation finishes first: the presenter is never asked for two transitions at
         // once. A flow the presenter reported as gone is dismissed all the same, which costs
         // nothing when it is gone and takes it down when it is not: a flow left on screen
@@ -556,7 +653,7 @@ public actor FlowCoordinator {
             do {
                 try await presenter.dismiss()
             } catch {
-                host.warn("Could not dismiss flow \"\(session.placement)\": \(describe(error))")
+                host.warn("Could not dismiss flow \"\(session.location)\": \(describe(error))")
             }
         }
         if active === session {
@@ -574,15 +671,15 @@ public actor FlowCoordinator {
         guard let session = session(sessionId) else {
             return
         }
-        await end(session, with: .closed)
+        await end(session, outcome: FlowResult.dismissed)
     }
 
     private func presenterDidFail(sessionId: Int, message: String) async {
         guard let session = session(sessionId) else {
             return
         }
-        host.warn("Flow \"\(session.placement)\" failed: \(message)")
-        await end(session, with: .failed(.presentationFailed(message)))
+        host.warn("Flow \"\(session.location)\" failed: \(message)")
+        await end(session, with: .failure(.presentationFailed(message)))
     }
 
     private func session(_ id: Int) -> Session? {
@@ -596,7 +693,7 @@ public actor FlowCoordinator {
         guard active === session, session.result == nil else {
             return
         }
-        presenter?.postMessage(locationSlug: session.placement, data: message)
+        presenter?.postMessage(locationSlug: session.location, data: message)
     }
 
     // MARK: - Messages
@@ -665,15 +762,18 @@ public actor FlowCoordinator {
         case .ready:
             await configure(session, requestId: envelope.requestId)
         case .close:
-            await end(session, with: .closed)
+            await end(
+                session, outcome: FlowResult.dismissed,
+                output: envelope.object("output").map(FlowValue.values(in:)))
         case .purchase, .restore:
             await runAction(session, envelope: envelope)
         case .finish:
-            let variables = envelope.object("variables") ?? [:]
             await host.state.clear(session.stateKey)
             await end(
-                session,
-                with: .finished(result: envelope.string("result") ?? "", variables: variables))
+                session, outcome: envelope.string("result") ?? "",
+                output: envelope.object("output").map(FlowValue.values(in:)))
+        case .appAction:
+            runAppAction(session, envelope: envelope)
         case .openExternal:
             guard granted(.links, for: session, action: "open a link"),
                 let url = envelope.string("url")
@@ -685,7 +785,7 @@ public actor FlowCoordinator {
             guard let permission = envelope.string("permission").flatMap(FlowPermission.init)
             else {
                 host.warn(
-                    "Flow \"\(session.placement)\" asked for an unknown permission \"\(envelope.string("permission") ?? "")\""
+                    "Flow \"\(session.location)\" asked for an unknown permission \"\(envelope.string("permission") ?? "")\""
                 )
                 return
             }
@@ -706,7 +806,7 @@ public actor FlowCoordinator {
             switch value {
             case .array, .object:
                 host.warn(
-                    "Flow \"\(session.placement)\" set attribute \"\(name)\" to a list or object; attributes are flat values"
+                    "Flow \"\(session.location)\" set attribute \"\(name)\" to a list or object; attributes are flat values"
                 )
                 return
             default:
@@ -715,7 +815,7 @@ public actor FlowCoordinator {
             do {
                 try await host.setAttribute(name, value)
             } catch {
-                host.warn("Flow \"\(session.placement)\" could not set \"\(name)\": \(describe(error))")
+                host.warn("Flow \"\(session.location)\" could not set \"\(name)\": \(describe(error))")
             }
         case .track:
             guard let name = envelope.string("name") else {
@@ -732,6 +832,9 @@ public actor FlowCoordinator {
             properties["flow_screen_index"] = .number(envelope.number("index") ?? 0)
             await host.screen(name, properties)
         case .state:
+            if let output = envelope.object("output") {
+                session.output = FlowValue.values(in: output)
+            }
             await host.state.save(session.stateKey, envelope.object("variables") ?? [:])
         case .log:
             let level = envelope.string("level") ?? "info"
@@ -739,7 +842,7 @@ public actor FlowCoordinator {
             else {
                 return
             }
-            host.warn("Flow \"\(session.placement)\": \(message)")
+            host.warn("Flow \"\(session.location)\": \(message)")
         }
     }
 
@@ -751,9 +854,9 @@ public actor FlowCoordinator {
         await handle(sessionId: active.id, rawMessage: rawMessage)
     }
 
-    /// The flow's placement and id, added to what it reports to analytics.
+    /// The flow's location and id, added to what it reports to analytics.
     private func context(of session: Session) -> [String: JSONValue] {
-        var context: [String: JSONValue] = ["paywall_location": .string(session.placement)]
+        var context: [String: JSONValue] = ["paywall_location": .string(session.location)]
         if let paywallId = session.paywallId {
             context["paywall_id"] = .string(paywallId)
         }
@@ -767,22 +870,22 @@ public actor FlowCoordinator {
     {
         guard host.capabilities.contains(capability) else {
             host.warn(
-                "Flow \"\(session.placement)\" tried to \(action), but the app did not grant the \"\(capability.rawValue)\" capability"
+                "Flow \"\(session.location)\" tried to \(action), but the app did not grant the \"\(capability.rawValue)\" capability"
             )
             return false
         }
         return true
     }
 
-    /// Answers `ready` with the products the package references, the granted capabilities and
-    /// the saved state. A failed product lookup still configures the flow, without products.
+    /// Answers `ready` with the products the package references, the granted capabilities, the
+    /// app's inputs and the saved state. A failed product lookup still configures the flow, without products.
     private func configure(_ session: Session, requestId: String?) async {
         var products: [VoidhashProduct] = []
         do {
             products = try await host.getProducts()
         } catch {
             host.warn(
-                "Configuring flow \"\(session.placement)\" without products: \(describe(error))")
+                "Configuring flow \"\(session.location)\" without products: \(describe(error))")
         }
         let referenced = session.productIds.compactMap { productId in
             FlowCoordinator.findProduct(products, id: productId)
@@ -791,6 +894,7 @@ public actor FlowCoordinator {
         let configuration = FlowConfiguration.make(
             products: referenced,
             capabilities: host.capabilities,
+            input: session.input,
             savedVariables: saved,
             platform: SdkHeaders.platformName,
             locale: host.locale
@@ -799,6 +903,82 @@ public actor FlowCoordinator {
             session,
             PaywallBridgeProtocol.configureMessage(
                 configuration, requestId: requestId, warn: host.warn))
+        session.isConfigured = active === session && session.result == nil
+    }
+
+    // MARK: - App actions
+
+    /// Runs the app's handler of the action a flow called and answers the call with its reply.
+    ///
+    /// The handler runs on a task of its own, so the flow's other messages are answered
+    /// meanwhile, and the task is cancelled when the flow ends. A call the app has no handler
+    /// for and a handler that throws are answered as failed, which runs the flow's failure
+    /// action; the answer of a flow that has ended is dropped.
+    private func runAppAction(_ session: Session, envelope: PaywallBridgeEnvelope) {
+        let name = envelope.string("name") ?? ""
+        guard let requestId = envelope.requestId else {
+            host.warn(
+                "Flow \"\(session.location)\" called the app action \"\(name)\" without a request id; it cannot be answered"
+            )
+            return
+        }
+        guard let handler = session.actions[name] else {
+            #if DEBUG
+                host.warn(
+                    "Flow \"\(session.location)\" called the app action \"\(name)\", but no handler is registered for it. Pass one in `actions` when presenting \"\(session.location)\"; the call failed in the flow."
+                )
+            #endif
+            post(
+                session,
+                PaywallBridgeProtocol.appActionResponse(
+                    requestId: requestId,
+                    .failure(
+                        FlowActionError(
+                            code: "ACTION_FAILED",
+                            message: "The app has no handler for the action \"\(name)\""))))
+            return
+        }
+        let arguments = FlowValue.values(in: envelope.object("args"))
+        session.appActions[requestId] = Task {
+            let answer: Result<[String: FlowValue], FlowActionError>
+            do {
+                answer = .success(try await handler(arguments))
+            } catch {
+                answer = .failure(
+                    FlowActionError(code: "ACTION_FAILED", message: self.describe(error)))
+            }
+            self.answerAppAction(session, name: name, requestId: requestId, answer)
+        }
+    }
+
+    private func answerAppAction(
+        _ session: Session, name: String, requestId: String,
+        _ answer: Result<[String: FlowValue], FlowActionError>
+    ) {
+        // An ended flow has nothing left to answer.
+        guard active === session, session.result == nil else {
+            return
+        }
+        session.appActions[requestId] = nil
+        var answer = answer
+        switch answer {
+        case .success(let reply):
+            if let unsendable = reply.first(where: { !$0.value.isRepresentable }) {
+                answer = .failure(
+                    FlowActionError(
+                        code: "ACTION_FAILED",
+                        message:
+                            "The reply field \"\(unsendable.key)\" is not a finite number"))
+                host.warn(
+                    "Flow \"\(session.location)\": the handler of \"\(name)\" replied with \"\(unsendable.key)\" that is not a finite number; the call failed in the flow"
+                )
+            }
+        case .failure(let error):
+            host.warn(
+                "Flow \"\(session.location)\": the handler of the app action \"\(name)\" failed: \(error.message)"
+            )
+        }
+        post(session, PaywallBridgeProtocol.appActionResponse(requestId: requestId, answer))
     }
 
     // MARK: - Purchases
@@ -827,7 +1007,7 @@ public actor FlowCoordinator {
             let message = describe(error)
             if !cancelled {
                 host.warn(
-                    "Flow \"\(session.placement)\" \(envelope.type.rawValue) failed: \(message)")
+                    "Flow \"\(session.location)\" \(envelope.type.rawValue) failed: \(message)")
             }
             post(
                 session,
@@ -877,10 +1057,11 @@ public actor FlowCoordinator {
             session,
             PaywallBridgeProtocol.successResponse(
                 .purchase, requestId: envelope.requestId, data: ["productId": product.slug]))
-        // An onboarding flow carries on after a purchase; a paywall is done.
-        guard session.shouldEndFlowOnPurchase else { return }
+        // The purchase says whether the flow is done; one that does not
+        // follows the flow (a paywall is done, an onboarding carries on).
+        guard envelope.bool("endsFlow") ?? session.shouldEndFlowOnPurchase else { return }
         await host.state.clear(session.stateKey)
-        await end(session, with: .purchased(productSlug: product.slug))
+        await end(session, outcome: FlowResult.purchased, productId: product.slug)
     }
 
     private func runRestore(_ session: Session, envelope: PaywallBridgeEnvelope) async throws {
@@ -892,8 +1073,8 @@ public actor FlowCoordinator {
         post(
             session,
             PaywallBridgeProtocol.successResponse(.restore, requestId: envelope.requestId))
-        guard session.shouldEndFlowOnPurchase else { return }
-        await end(session, with: .restored)
+        guard envelope.bool("endsFlow") ?? session.shouldEndFlowOnPurchase else { return }
+        await end(session, outcome: FlowResult.restored)
     }
 
     /// Resolves a product a flow names: by slug, which flows name products by, then by store
@@ -902,7 +1083,7 @@ public actor FlowCoordinator {
         return products.first { $0.slug == id } ?? products.first { $0.storeProductId == id }
     }
 
-    private func describe(_ error: any Error) -> String {
+    private nonisolated func describe(_ error: any Error) -> String {
         return String(describing: error)
     }
 }

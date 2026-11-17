@@ -62,6 +62,12 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageNormalizer i
         if (\array_key_exists('url', $data)) {
             $object->setUrl($data['url']);
         }
+        if (\array_key_exists('runtime', $data) && $data['runtime'] !== null) {
+            $object->setRuntime($this->denormalizer->denormalize($data['runtime'], \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime::class, 'json', $context));
+        }
+        elseif (\array_key_exists('runtime', $data) && $data['runtime'] === null) {
+            $object->setRuntime(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -77,6 +83,7 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageNormalizer i
         $dataArray['shouldEndFlowOnPurchase'] = $data->getShouldEndFlowOnPurchase();
         $dataArray['sha256'] = $data->getSha256();
         $dataArray['url'] = $data->getUrl();
+        $dataArray['runtime'] = $this->normalizer->normalize($data->getRuntime(), 'json', $context);
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

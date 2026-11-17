@@ -1,0 +1,26 @@
+Add a component to the working copy: .voidhash/components/<name>/, a Rust crate with a voidhash-ui
+component and its editor panel, under the id project/<name>.
+
+It stays on this computer until 'voidhash publish' creates its first catalog version. Run it in your
+project's root, where voidhash.json is.
+
+Usage:
+  voidhash new <name> [flags]
+
+Arguments:
+  name  The component's slug: lowercase letters, digits and dashes
+
+Flags:
+  -h, --help           Show help for this command
+      --title <title>  Its title in the paywall editor: letters, digits and spaces (default: from
+                       the name)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash new sale-badge
+  voidhash new wheel-picker --title "Wheel picker"

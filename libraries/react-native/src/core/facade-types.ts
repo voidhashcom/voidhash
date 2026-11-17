@@ -50,7 +50,7 @@ export type Group = { readonly id: string | number } & GroupProperties;
 export type Groups = Readonly<Record<string, Group | string | number | null | undefined>>;
 
 /**
- * What the server assigns to a placement, passed through untouched: the
+ * What the server assigns to a location, passed through untouched: the
  * showing and its release with the flow package, or `null` when nothing is
  * assigned.
  */

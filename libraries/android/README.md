@@ -144,7 +144,7 @@ earlier launch stored and queued stays as it was. Until then:
   not keep or send it. `sessionId` is empty until then.
 - Everything else that cannot be done yet throws `DEVICE_LOCKED`: `purchase`, `restorePurchases`,
   `syncPurchases`, the stateless calls that take a distinct id, and an `identify` or person
-  attribute call past the 100 held. `presentFlow` returns `FlowFailure.UNAVAILABLE`.
+  attribute call past the 100 held. `presentFlow` throws `FlowFailure.UNAVAILABLE`.
 
 Once the device is unlocked the SDK configures itself again with the same key and options, in the
 observer mode you last set with `setReadOnly`, and makes the held calls in order: the consent and
@@ -383,7 +383,8 @@ one that ran into it, report `WriteStatus.DEFERRED` instead of throwing.
 | `enabled`                | `true`                     | When false the client is inert; see [Disabled clients](#disabled-clients)                             |
 | `readOnly`               | `false`                    | Observer mode: syncs transactions but never finishes them with the store, and refuses purchases       |
 | `dev`                    | `false`                    | Requests development mode (debug builds only); see [Development mode](#development-mode)              |
-| `preloadPlacements`      | `emptyList()`              | Placements whose flows are fetched and cached on the first launch; inert without a renderer           |
+| `preloadLocations`       | `emptyList()`              | Locations whose flows are fetched and cached on the first launch; inert without a renderer            |
+| `flowRevisions`          | `emptyMap()`               | The interface revision the app was built against, per location; see [Flows](#flows)                   |
 | `paywallRenderer`        | `null`                     | Draws flows; see [Flows](#flows)                                                                      |
 | `flowCapabilities`       | `setOf(LINKS)`             | What flows may do besides purchasing and restoring; see [Flows](#flows)                               |
 | `onDiagnostic`           | `null`                     | Receives reports about situations the SDK handled itself, on a background thread, in order            |
@@ -459,7 +460,7 @@ empty list, `getCurrentPerson()` and `resolvePaywall()` `null`; `identify()`,
 since nothing is written; `sessionId` is empty; `syncStoreTransaction()` `false`, `flush()` and `shutdown()` an empty
 `FlushStatus`; `capture`, `screen`, `reportTransaction`, `syncPurchases` and
 `reset`, `signOut`, `group` and `setGroups` do nothing, and `restorePurchases()` returns `null`.
-`presentFlow()` returns `FlowResult.Failed` with `FlowFailure.DISABLED`. `purchase()` returns
+`presentFlow()` throws a `FlowException` with `FlowFailure.DISABLED`. `purchase()` returns
 `VoidhashPurchaseResult.Disabled`, `getStorefront()` `null`, `canMakePayments()` `false`, and the
 `googlePlay` calls their empty values. `getDistinctId()` returns the
 `distinctId` option, or an anonymous id that is not stored.
@@ -1203,7 +1204,7 @@ fragments created in code or keep their names:
 ### Flows
 
 A flow is a paywall, or another sequence of screens such as an onboarding, designed in Studio and
-published to a placement. Flows are drawn natively by the optional `:ui` module. Depend on
+published to a location, the spot in your app where it is shown. Flows are drawn natively by the optional `:ui` module. Depend on
 `com.voidhash:ui` and pass its renderer at configure time, together with the capabilities your
 flows may use:
 
@@ -1226,31 +1227,88 @@ val voidhash = Voidhash.configure(
 )
 ```
 
-`presentFlow` shows the flow assigned to a placement fullscreen, edge to edge, above the activity
-you pass, and returns once it is gone. It never throws for a flow that cannot be shown; every
-outcome is a `FlowResult`:
+`presentFlow` shows the flow assigned to a location fullscreen, edge to edge, above the activity
+you pass, and returns once it is gone. The result has the same shape for every ending: its
+`outcome`, the flow's `output`, and the `productId` when a purchase ended it. A flow that cannot be
+shown is a failure, not an outcome, and is thrown as a `FlowException`:
 
 ```kotlin
-when (val result = voidhash.presentFlow(activity, "onboarding")) {
-    is FlowResult.Purchased -> unlockPro() // result.productSlug is the product bought
-    FlowResult.Restored -> refreshAccess()
-    is FlowResult.Finished -> saveAnswers(result.result, result.variables)
-    FlowResult.Closed -> Unit // closed by the flow, the back button or dismissFlow()
-    is FlowResult.Failed -> when (result.error.reason) {
-        FlowFailure.NOT_ASSIGNED -> Unit // nothing published to this placement for this user
+val result = try {
+    voidhash.presentFlow(activity, "onboarding")
+} catch (error: FlowException) {
+    when (error.reason) {
+        FlowFailure.NOT_ASSIGNED -> Unit // nothing published to this location for this user
         FlowFailure.UNAVAILABLE -> Unit // nothing cached and Voidhash unreachable, or not ready within 15 s
         FlowFailure.RENDERER_MISSING -> Unit // paywallRenderer is not set
         FlowFailure.UNSUPPORTED_PACKAGE -> Unit // published for a newer SDK; update it
         FlowFailure.PRESENTATION_FAILED -> Unit // could not be shown, or stopped while on screen
         FlowFailure.DISABLED -> Unit // the client is disabled or shut down
     }
+    return
+}
+when (result.outcome) {
+    FlowResult.PURCHASED -> unlockPro() // result.productId is the store product id
+    FlowResult.RESTORED -> refreshAccess()
+    FlowResult.DISMISSED -> Unit // closed by the flow, the back button or dismissFlow()
+    else -> saveAnswers(result.outcome, result.output) // the outcome the flow finished with, such as "completed"
 }
 ```
+
+#### Inputs, outputs and app actions
+
+What a location exchanges with the app is its interface: inputs the app passes, outputs it reads
+back, the outcomes a flow can end with, and app actions a flow may call. Values are a `String`, a
+number or a `Boolean`; anything else is dropped with a warning, and numbers read from a flow are
+`Double`.
+
+```kotlin
+val result = voidhash.presentFlow(
+    activity,
+    "onboarding",
+    input = mapOf("firstName" to user.firstName, "credits" to 3),
+    actions = mapOf(
+        "pickGoal" to FlowActionHandler { arguments ->
+            mapOf("goal" to openGoalPicker(current = arguments["current"] as? String))
+        },
+    ),
+)
+val goal = result.output["goal"] as? String ?: "none"
+```
+
+- An input that is not passed keeps its default in the flow. `updateFlowInput(mapOf("credits" to 2))`
+  changes inputs of the flow on screen, and does nothing when none is shown.
+- `output` holds the flow's outputs however it ended: with a finish or close they are the ones it
+  reports then, and after a purchase, a restore or `dismissFlow()` the ones it reported last. Read
+  each with a default; a flow that does not have an output leaves it out.
+- A handler receives the action's arguments by name and returns the fields of its reply. A handler
+  that throws, and a call to an action the app passed no handler for, fail that call in the flow,
+  which carries on as it was designed to; the user is never left waiting on the app. A debug build
+  logs a call without a handler, naming the action and the location. Handlers still running when
+  the flow ends are cancelled.
+
+Every change to a location's interface makes a new revision. Report the one the app was built
+against, so a user is only shown a flow this build can answer: per location in
+`VoidhashOptions(flowRevisions = mapOf("onboarding" to 3))`, which also applies to preloading, or
+per call with `presentFlow(activity, "onboarding", revision = 3)`. Without one the app counts as
+revision 0. A cached answer is only used for the revision it was fetched for.
+
+Typed code for a location can be generated by the Voidhash CLI. It declares a `FlowLocation` with
+the location's slug and revision, a `FlowInput`, a `FlowActions` and the output and outcome types,
+for the typed call:
+
+```kotlin
+val result: TypedFlowResult<OnboardingFlow.Output, OnboardingFlow.Outcome> =
+    voidhash.presentFlow(activity, OnboardingFlow.location, OnboardingFlow.Input("Ada", 3.0), actions)
+```
+
+`NoFlowInput` and `NoFlowActions` stand in for a location without inputs or actions.
+
+#### Presentation
 
 `dismissFlow()` can be called from any thread. It closes the flow on screen, and cancels one that `presentFlow` is still resolving or
 downloading, so it never appears later over whatever the user is doing by then; a download already
 under way finishes, and the flow is cached. Only one flow is on screen at a time: presenting another
-closes the current one, whose `presentFlow` returns `Closed`, and cancelling the coroutine that
+closes the current one, whose `presentFlow` returns the outcome `dismissed`, and cancelling the coroutine that
 called `presentFlow` dismisses its flow.
 
 A flow stays up when Android recreates the activity under it for a configuration change, such as a
@@ -1259,7 +1317,7 @@ same flow again above the recreated activity, and `presentFlow` keeps waiting fo
 that of a purchase that was in progress. Call `presentFlow` from a coroutine that outlives the
 activity, such as one in `viewModelScope`: one launched in the activity's `lifecycleScope` is
 cancelled when the activity is destroyed, which dismisses the flow. An activity that goes away for
-any other reason closes the flow with `Closed`, and so does a recreated activity that finishes
+any other reason closes the flow as `dismissed`, and so does a recreated activity that finishes
 before it starts.
 
 A flow that comes back on screen, after a recreation or after the app was in the background or the
@@ -1269,7 +1327,7 @@ A single frame that fails to draw is drawn again; the flow ends with `PRESENTATI
 three failed frames in a row.
 
 Purchases and restores started from a flow go through the SDK, like `purchase(...)` and
-`restorePurchases()`. A successful one ends the flow with `Purchased` or `Restored`; a failed,
+`restorePurchases()`. A successful one ends the flow as `purchased` or `restored`; a failed,
 cancelled or pending one shows its outcome in the flow and leaves it on screen, so the user can try
 again. In observer mode, purchases from a flow fail with `READ_ONLY_PURCHASE_NOT_ALLOWED` and the
 flow shows the failure. A flow buys a subscription with its introductory offer, as `purchase` does
@@ -1280,16 +1338,46 @@ which resolves to the first product with that id. Each product reaches the flow 
 as text — `month`, `year`, `3 months`, `2 weeks`; `lifetime` for a development-mode product whose
 development period is `lifetime` — and its free trial as `trial` — `1 week`, `3 days` — when the user can get one.
 
-Events a flow tracks are captured like `capture(...)` with `paywall_location` (the placement) and
+Events a flow tracks are captured like `capture(...)` with `paywall_location` (the location) and
 `paywall_id` added, and each screen the user reaches is recorded like `screen(...)` with
 `paywall_location` and `flow_screen_index`.
 
 A purchase started from a flow is reported with the paywall it was made on, so its revenue, and
-the revenue of its renewals, is credited to the placement, paywall, release and experiment variant
+the revenue of its renewals, is credited to the location, paywall, release and experiment variant
 in Voidhash analytics, also when Google Play completes a pending payment later. Purchases made
 outside a flow and restores are not credited to a paywall. A `FlowHost` of your own receives
 that paywall in `purchase(product, offerId, paywallContext)`, to send with the receipt as
 `paywallContext`; by default it buys through the other `purchase` methods and names no paywall.
+
+#### Text inputs
+
+A flow can ask the user to type: a name, an email address, a code. Tapping a text input shows the
+keyboard the input asks for (text, email, number, decimal, phone or URL, with its return key), and
+the flow keeps what it shows above the keyboard. The return key moves to the next input or puts the
+keyboard away, as the flow says. The back button first puts the keyboard away, then goes back in
+the flow. Hardware keyboards work too, with the usual shortcuts for moving, selecting, undo and the
+clipboard.
+
+What the user types stays in the flow and reaches your app as one of the flow's outputs (see
+[Inputs, outputs and app actions](#inputs-outputs-and-app-actions)); it is sent to Voidhash only
+where the flow's author added an action for it. The text of a password input is masked, cannot be
+copied, and the keyboard is asked not to learn from it.
+
+An input that says what it holds, such as an email address, a password or a one-time code from an
+SMS, is offered to the device's autofill service while it has the keyboard. Autofill sees one input
+at a time, so a password manager fills a sign-in form field by field and does not offer to save
+what was typed.
+
+TalkBack, Switch Access and Voice Access see each text input as an edit field, named by its
+accessibility label or placeholder. Activating it shows the keyboard; its text can be dictated or
+replaced, and while it has the keyboard the cursor moves by character, word and line, with cut,
+copy and paste. A password input's text is never read out. A disabled input or button is announced
+as unavailable, and a slider is adjusted with the usual swipe up and down.
+
+`presentFlow` needs nothing from your activity for this. If you put a `VoidhashPaywallView` in a
+layout of your own, it works best in a window drawn edge to edge or one with
+`android:windowSoftInputMode="adjustResize"`. `adjustPan` is not recommended: Android then moves
+the window as well as the flow making room.
 
 #### Capabilities
 
@@ -1317,23 +1405,25 @@ the app.
 
 #### Saved progress
 
-A flow's variables, such as the answers given so far, are saved on the device for each paywall
-and person as they change. Presenting the same paywall again resumes with them. They are cleared
+A flow's own variables, such as the answers given so far, are saved on the device for each paywall
+and person as they change. Presenting the same paywall again resumes with them; inputs always
+come from the app. They are cleared
 when the flow finishes, when a purchase from it succeeds, and when the person signs out or
 identifies as someone else.
 
 #### Offline
 
 The SDK downloads each flow's package, verifies it against the hash the API names and keeps it on
-disk, so a flow shown once still shows offline. A placement's configuration is cached for seven
-days, and a placement the device has resolved before is preloaded on the next launch, package
-included, so `presentFlow` renders without waiting on the network. `preloadPlacements` covers the
-first launch, which has nothing to remember yet. The `:ui` module ships native code for
+disk, so a flow shown once still shows offline. A location's configuration is cached for seven
+days, and a location the device has resolved before is preloaded on the next launch, package
+included, so `presentFlow` renders without waiting on the network. `preloadLocations` covers the
+first launch, which has nothing to remember yet. Preloading asks for the revision in
+`flowRevisions`, or else the one the location was last presented with. The `:ui` module ships native code for
 `arm64-v8a` and `x86_64`; on other devices flows report `UNSUPPORTED_PACKAGE`.
 
 A flow's images are kept on disk too, so a cached flow shows its backgrounds, product art and icons
 while the host serving them cannot be reached. The SDK fetches the images a package lists, up to
-64 of them, in the background when it preloads a placement or loads its package, and keeps every
+64 of them, in the background when it preloads a location or loads its package, and keeps every
 image a flow displays. Fetching ahead never uses a metered connection such as cellular data, runs
 once per package while the app runs, and stops at 32 MB per package; an image a flow displays is
 loaded on any connection. An image is read from the device first and downloaded only when it is not
@@ -1346,13 +1436,13 @@ all is removed, so the next presentation fetches it again. They are the same for
 reported as a warning; it never fails or delays a flow.
 
 `presentFlow` gives a flow 15 seconds, from the call until the flow is ready to show, to resolve
-its placement and download its package. A flow that is not ready by then is not shown: it would
-appear over whatever the user went on to do. The call returns `FlowResult.Failed` with
+its location and download its package. A flow that is not ready by then is not shown: it would
+appear over whatever the user went on to do. The call throws a `FlowException` with
 `FlowFailure.UNAVAILABLE`, and the download finishes in the background, so the next `presentFlow`
-for the placement shows the flow from the cache. A flow that is on screen has no time limit.
+for the location shows the flow from the cache. A flow that is on screen has no time limit.
 
-Without a renderer no flow can be shown: `presentFlow` returns `RENDERER_MISSING`,
-`resolvePaywall(...)` returns `null` and `preloadPlacements` is inert.
+Without a renderer no flow can be shown: `presentFlow` throws `RENDERER_MISSING`,
+`resolvePaywall(...)` returns `null` and `preloadLocations` is inert.
 
 ### Shutdown
 
@@ -1377,6 +1467,14 @@ next client you configure with the same publishable key and base URL.
 
 ## Migrating from earlier alpha releases
 
+- **Placements are locations, and a flow ends with one result.** `presentFlow(activity, placement)`
+  is `presentFlow(activity, location, revision, input, actions)`, and `preloadPlacements` is
+  `preloadLocations`. `FlowResult` is no longer five cases: it is a class with `outcome`
+  (`purchased`, `restored`, `dismissed`, or the outcome the flow finished with), `output` and
+  `productId`, the slug of the product bought. `Closed` is the outcome `dismissed`. `FlowResult.Failed` is gone: a flow that
+  cannot be shown is thrown as the `FlowException` it used to carry, so wrap the call in
+  `try`/`catch`. A finished flow no longer hands back all of its variables; read the outputs it
+  declares from `output`. See [Flows](#flows).
 - **The billing API follows Play Billing 9.** `VoidhashProduct` drops `id`, `displayPrice`,
   `price: Double`, `currency`, `billingPeriod`, `googlePlayOfferToken(s)` and `isSubscription`:
   use `storeProductId` or `productId`, `price` (a `VoidhashPrice`), `subscription.period`, `offers`
@@ -1390,12 +1488,12 @@ next client you configure with the same publishable key and base URL.
   `purchaseDate`. `transactionUpdates` emits a `VoidhashTransactionUpdate` (`transaction` and
   `synced`). `restorePurchases()` returns the person. `VoidhashPerson.currentSubscription` is
   `subscriptions.current`, next to `subscriptions.all`, `subscriptions.history` and
-  `purchases.history`. `FlowResult.Purchased` carries `productSlug`. A schema cached by an earlier
+  `purchases.history`. A schema cached by an earlier
   release is fetched again, as it lacks the product ids.
 - **Paywalls are flows.** `presentPaywall`, `presentPaywallForStatus`, `PaywallStatus` and
   `PaywallListener` are removed, and so is the WebView paywall. Add the `:ui` module, pass
-  `VoidhashUiPaywallRenderer()` as `paywallRenderer`, and call `presentFlow(activity, placement)`,
-  which returns how the flow ended. React to `FlowResult.Purchased` and `Restored` where you used
+  `VoidhashUiPaywallRenderer()` as `paywallRenderer`, and call `presentFlow(activity, location)`,
+  which returns how the flow ended. React to the outcomes `purchased` and `restored` where you used
   `onPurchaseCompleted` and `onRestoreCompleted`. Flows that open links, set attributes or ask
   for permissions need the matching `flowCapabilities`. `ResolvedPaywall` now describes the
   release's flow package instead of an HTML page.
@@ -1469,7 +1567,7 @@ The other changes are behaviour changes; existing call sites keep compiling.
   Backup used to miss `$app_installed` and continue the old device's session.
 - **Old receipt markers are cleaned up.** Markers the SDK keeps for recently processed purchases
   used to stay in the preferences file forever; expired ones are removed at launch.
-- **`preloadPlacements` is inert without a renderer.** It used to resolve paywalls and warm a
+- **`preloadLocations` is inert without a renderer.** It used to resolve paywalls and warm a
   WebView on every launch.
 - **The install coordinate is `com.voidhash:sdk`.** The documented `includeBuild` now works
   without a substitution block, and vendored modules can live under any project path.
@@ -1547,13 +1645,13 @@ The other changes are behaviour changes; existing call sites keep compiling.
   to count as the API's answer: the write was dropped as delivered, a person without access or "no
   paywall" was cached. It is now retried, and the cached state stays.
 - **A flow survives a configuration change, and `dismissFlow()` cancels one not on screen yet.**
-  Rotating the device used to close a flow with `Closed`; it is now shown again above the recreated
+  Rotating the device used to close a flow; it is now shown again above the recreated
   activity. `dismissFlow()` used to do nothing while a flow was resolving or downloading. A flow
   that returns from the background is configured from its latest saved variables and counted as one
   view, and one failed frame no longer ends it. See [Flows](#flows).
 - **`presentFlow` gives up on a flow that is not ready after 15 seconds.** It used to wait up to
-  about 30 seconds for the placement and the package, and then show the flow over whatever the
-  user was doing by then. It now returns `FlowFailure.UNAVAILABLE` and keeps downloading for the
+  about 30 seconds for the location and the package, and then show the flow over whatever the
+  user was doing by then. It now fails with `FlowFailure.UNAVAILABLE` and keeps downloading for the
   next call. See [Offline](#offline).
 - **A flow's images are kept on the device.** They used to be downloaded again for every
   presentation, so a cached flow showed without them while their host was unreachable. Up to

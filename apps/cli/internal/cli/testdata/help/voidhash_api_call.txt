@@ -1,0 +1,36 @@
+Call an operation of the Voidhash API as yourself and print its JSON response.
+
+An operation of a project is called on the project commands act on here ('voidhash status' shows
+which), on --project, or on the one --path projectId=<id> names. An answer of 400 or above ends the
+command with the exit code of its status: 2 for 400, 3 for 401, 4 for 404, else 1.
+
+Usage:
+  voidhash api call <operation> [flags]
+
+Arguments:
+  operation  The operation's id from 'voidhash api list', such as webhooks.list
+
+Flags:
+      --body <json>         The request body as json, inline or as @file.json
+      --environment <production|test|all>
+                            Purchases the call sees: production (the default; production purchases,
+                            and store sandbox ones when they unlock production), test (store sandbox
+                            and test purchases, as a test key reads) or all
+  -h, --help                Show help for this command
+      --path <name=value>   A path parameter as name=value (can be repeated)
+      --project <project>   Project to act on: its id, slug, organization/slug or name (default:
+                            this directory's project, then your default project)
+      --query <name=value>  A query parameter as name=value; a repeated name is a list (can be
+                            repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash api call webhooks.list --query limit=5
+  voidhash api call webhooks.get --path webhookId=wh_123
+  voidhash api call webhooks.create --body '{"name": "Orders", "url": "https://example.com/hook"}'
+  voidhash api call products.create --body @product.json --project acme/app

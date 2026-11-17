@@ -1,0 +1,34 @@
+Check a component the way publishing does on a server with a component build service: the module
+against the component conformance suite, and its editor panel module, when it has one, against the
+panel checks.
+
+The argument is one of:
+  a component's slug   a component of the working copy, .voidhash/components/<slug>
+  a crate directory    built for release first, into target/voidhash/ in the crate
+  a .wasm module       its panel is --panel, or a panel.wasm next to it
+
+Building needs Rust with the wasm32-unknown-unknown target. The conformance suite is run by the
+voidhash-guest-conformance executable, found on your PATH or named by VOIDHASH_CONFORMANCE.
+
+Usage:
+  voidhash test [component] [flags]
+
+Arguments:
+  component  A component of .voidhash/components, a component crate or a .wasm module (the current
+             directory by default)
+
+Flags:
+  -h, --help           Show help for this command
+      --panel <panel>  The editor panel module of a .wasm module (default: panel.wasm next to it)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash test
+  voidhash test sale-badge
+  voidhash test ./crates/wheel-picker
+  voidhash test build/module.wasm --panel build/panel.wasm

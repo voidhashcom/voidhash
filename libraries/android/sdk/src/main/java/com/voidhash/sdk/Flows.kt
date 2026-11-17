@@ -21,38 +21,110 @@ enum class FlowCapability(val wireName: String) {
     LINKS("links"),
 }
 
-/** How a flow presented with [VoidhashClient.presentFlow] ended. */
-sealed class FlowResult {
+/**
+ * Answers an app action a flow calls while it is shown; see `actions` of
+ * [VoidhashClient.presentFlow].
+ */
+fun interface FlowActionHandler {
     /**
-     * The flow reached one of its finish actions.
-     *
-     * @property result the name the flow gave this ending.
-     * @property variables the flow's variables when it finished, such as answers to a survey.
+     * Runs the action with the [arguments] the flow passed, by name, and returns the reply's
+     * fields by name. Values are a [String], a [Number] or a [Boolean]; numbers arrive as
+     * [Double]. Throwing fails the call, and the flow carries on as it was designed to for a
+     * failed call. The coroutine is cancelled when the flow ends before the handler returns.
      */
-    data class Finished(val result: String, val variables: Map<String, Any?>) : FlowResult()
-
-    /** The user bought the product [productSlug] from the flow. */
-    data class Purchased(val productSlug: String) : FlowResult()
-
-    /** The user restored their purchases from the flow. */
-    data object Restored : FlowResult()
-
-    /**
-     * The flow was closed: by its close action, by the user leaving it, by
-     * [VoidhashClient.dismissFlow], or by another flow presented in its place.
-     */
-    data object Closed : FlowResult()
-
-    /** The flow could not be presented, or stopped because it could not keep running. */
-    data class Failed(val error: FlowException) : FlowResult()
+    suspend fun handle(arguments: Map<String, Any>): Map<String, Any>
 }
+
+/**
+ * How a flow presented with [VoidhashClient.presentFlow] ended.
+ *
+ * @property outcome [PURCHASED] when a purchase ended the flow, [RESTORED] when a restore did,
+ *   [DISMISSED] when it was closed: by the user, by [VoidhashClient.dismissFlow], by another
+ *   flow presented in its place, or because the client shut down. Otherwise the outcome the flow
+ *   finished with, such as `completed`.
+ * @property output the flow's outputs by name: each a [String], a [Double] or a [Boolean]. Empty
+ *   when the flow has none or reported none.
+ * @property productId the slug of the product that was bought, when the outcome is [PURCHASED].
+ */
+data class FlowResult(
+    val outcome: String,
+    val output: Map<String, Any> = emptyMap(),
+    val productId: String? = null,
+) {
+    companion object {
+        /** A purchase ended the flow. */
+        const val PURCHASED = "purchased"
+
+        /** A restore ended the flow. */
+        const val RESTORED = "restored"
+
+        /** The flow was closed without finishing. */
+        const val DISMISSED = "dismissed"
+    }
+}
+
+/**
+ * The inputs of a location as a type; generated code declares one per location and converts it
+ * to the values [VoidhashClient.presentFlow] takes.
+ */
+interface FlowInput {
+    /** The inputs by name: each a [String], a [Number] or a [Boolean]. */
+    fun toFlowValues(): Map<String, Any>
+}
+
+/**
+ * The app actions of a location as a type; generated code declares one per location and adapts
+ * its methods to handlers by name.
+ */
+interface FlowActions {
+    /** A handler for each action, by the action's name. */
+    fun flowHandlers(): Map<String, FlowActionHandler>
+}
+
+/** The input of a location that takes none. */
+object NoFlowInput : FlowInput {
+    override fun toFlowValues(): Map<String, Any> = emptyMap()
+}
+
+/** The actions of a location whose flows call none. */
+object NoFlowActions : FlowActions {
+    override fun flowHandlers(): Map<String, FlowActionHandler> = emptyMap()
+}
+
+/**
+ * A location with the types of what crosses between the app and the flow shown there, for the
+ * typed [VoidhashClient.presentFlow].
+ *
+ * @property slug the location's slug.
+ * @property revision the revision of the location's interface these types were made from.
+ * @property output reads the typed output from a flow's outputs by name; an output that is
+ *   missing or of another type reads as its default.
+ * @property outcome reads the typed outcome from its name, also for a name the types do not know.
+ */
+class FlowLocation<Input : FlowInput, Output, Outcome, Actions : FlowActions>(
+    val slug: String,
+    val revision: Int,
+    val output: (Map<String, Any>) -> Output,
+    val outcome: (String) -> Outcome,
+)
+
+/**
+ * How a flow presented at a [FlowLocation] ended.
+ *
+ * @property productId the slug of the product that was bought, when a purchase ended the flow.
+ */
+data class TypedFlowResult<Output, Outcome>(
+    val outcome: Outcome,
+    val output: Output,
+    val productId: String?,
+)
 
 /** Why a flow could not be presented. */
 enum class FlowFailure {
     /** The SDK is disabled or was shut down. */
     DISABLED,
 
-    /** No flow is assigned to the placement for this user. */
+    /** No flow is assigned to the location for this user. */
     NOT_ASSIGNED,
 
     /**
@@ -72,7 +144,8 @@ enum class FlowFailure {
 }
 
 /**
- * The error of a [FlowResult.Failed]. Its [code] is `FLOW_<reason>`.
+ * Thrown by [VoidhashClient.presentFlow] for a flow that could not be presented, or that
+ * stopped because it could not keep running. Its [code] is `FLOW_<reason>`.
  *
  * @property abiVersion the package version the renderer could not draw, for
  *   [FlowFailure.UNSUPPORTED_PACKAGE].

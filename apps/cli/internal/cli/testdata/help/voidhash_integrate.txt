@@ -1,0 +1,79 @@
+Add Voidhash to the app in this directory, from nothing to a checked integration.
+
+The CLI does what needs no knowledge of your code: it finds out what kind of app this is, signs you
+in, chooses or creates the project, creates the perk, product or location you ask for, installs the
+SDK with your package manager, and writes voidhash.json, the SDK client or environment values, and
+the generated types.
+
+A coding agent you already have (Claude Code, Codex, OpenCode, Grok Build, Cursor or fx) then does
+what needs your code read: mounting the SDK where the app starts, identifying the user, gating on a
+perk, selling a product. It runs without its own interface and with your own account, may run your
+project's own checks but install nothing, and is kept to this directory and off .env files as far as
+that agent can be; the plan says how far, before anything runs. Its whole task is written to
+.voidhash/integrate/task.md first, so you can read what it is told. With no such agent, or --agent
+none, the task is written for you to hand to any agent or to follow yourself; run the command again
+afterwards to check the result.
+
+Then the CLI checks the result instead of taking the agent's word: your typecheck or build must
+pass, the SDK must be in your code, and, when you start the app, its first event must arrive. The
+summary lists the files git shows as changed and what is left for you, such as store setup. Nothing
+is committed.
+
+It needs a clean git working tree, so that everything it changes can be reviewed and undone;
+--allow-dirty lifts that. Run it again at any time: it continues an interrupted run and repeats
+nothing that is already done. --restart forgets the earlier run.
+
+Platforms:
+  expo, nextjs, react       supported
+  react-native, web, node,  best effort: the same steps, with less of the
+  ios, android              result checked
+
+Usage:
+  voidhash integrate [flags]
+
+Aliases:
+  integrate, wizard
+
+Flags:
+      --agent <claude|codex|opencode|grok|cursor|fx|none>
+                             The coding agent that edits your code, or none to write its task only
+                             (default: the one installed; asks in a terminal when there are several)
+      --allow-dirty          Run although git shows uncommitted changes, or this is not a git
+                             repository
+      --check <check>        A command that must pass, instead of the project's typecheck or build
+                             (can be repeated)
+      --dry-run              Show what would happen, and change nothing
+  -h, --help                 Show help for this command
+      --json                 Print the result as JSON, for scripts
+      --location <location>  The slug of the paywall location the app presents; created when the
+                             project has none by it
+      --mcp                  Also add the Voidhash MCP server to your AI agents (default: asks in a
+                             terminal)
+      --model <model>        The model the agent works with, named as that agent names its models
+                             (default: the one the agent is set up with)
+      --perk <perk>          The slug of the perk the app gates on; created when the project has
+                             none by it
+      --platform <expo|react-native|nextjs|react|web|ios|android|node>
+                             The kind of app, when it is not the one found
+      --product <product>    The slug of the product the app sells; created as a monthly
+                             subscription when the project has none by it
+      --project <project>    The project to integrate: its slug, organization/slug, name or id
+                             (default: the one voidhash.json names, else asks)
+      --restart              Forget an earlier run here and start over
+      --timeout <timeout>    How long the agent may work
+      --wait <wait>          How long to wait for the app's first event, such as 5m (default: asks
+                             in a terminal, otherwise does not wait)
+  -y, --yes                  Go ahead without asking, with the defaults for what is not passed
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash integrate
+  voidhash integrate --dry-run
+  voidhash integrate --project acme/app --perk premium --product pro_monthly --yes
+  voidhash integrate --agent none
+  voidhash integrate --project acme/app --agent codex --yes --json

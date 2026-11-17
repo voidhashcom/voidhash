@@ -1,0 +1,24 @@
+Tracking domains: serve the web SDK from your own subdomain. List, add, verify and remove them.
+
+Usage:
+  voidhash domain <command> [flags]
+
+Aliases:
+  domain, domains
+
+Commands:
+  list       List the project's tracking domains, with what each still needs before it serves.
+  add        Serve the web SDK from your own subdomain.
+  verify     Check a tracking domain's DNS and certificate now, and say what it still needs.
+  remove     Stop serving a tracking domain and remove it.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash domain <command> --help' for more about a command.

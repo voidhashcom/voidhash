@@ -1,0 +1,31 @@
+Publish the working copy's new and modified components as new catalog versions, which the server
+builds from their src/**.rs and Cargo.toml.
+
+Newer catalog versions are merged into the working copy first, as 'voidhash dev' does; a component
+with conflicts cannot be published until they are resolved. The command waits for every build and
+fails when one did not build.
+
+On a terminal it asks which components to publish; anywhere else, pass --all or --component. With
+--json it prints the published versions, with -q their ids.
+
+Usage:
+  voidhash publish [flags]
+
+Flags:
+      --all               Publish every new and modified component
+      --component <slug>  Publish this component, by its slug (can be repeated)
+  -h, --help              Show help for this command
+      --json              Print the API objects as JSON, for scripts
+  -q, --quiet             Print only ids, one per line
+  -y, --yes               Publish without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash publish
+  voidhash publish --all --yes
+  voidhash publish --component sale-badge --component wheel-picker

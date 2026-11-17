@@ -1,0 +1,19 @@
+Connect AI agents, such as Claude Code, Cursor and Codex, to Voidhash over the Model Context
+Protocol, so they can read and change your projects as you.
+
+Usage:
+  voidhash mcp <command> [flags]
+
+Commands:
+  install    Add the Voidhash MCP server to the AI agents on this computer.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash mcp <command> --help' for more about a command.

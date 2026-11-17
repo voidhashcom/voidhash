@@ -1,0 +1,23 @@
+Push notifications to your users' devices: send one, see how it went, set up push services.
+
+Usage:
+  voidhash push <command> [flags]
+
+Commands:
+  send        Send a push notification to people's devices.
+  list        List the latest push notifications with how many devices each reached, failed or
+              skipped.
+  deliveries  Show how a push notification reached each device, and why deliveries failed.
+  config      The push services the project sends through (APNs, FCM): list, set up, turn on or off,
+              delete.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash push <command> --help' for more about a command.

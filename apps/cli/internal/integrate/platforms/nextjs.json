@@ -1,0 +1,51 @@
+{
+  "id": "nextjs",
+  "order": 3,
+  "name": "Next.js",
+  "support": "supported",
+  "detect": {
+    "dependencies": ["next"]
+  },
+  "guide": "web.md",
+  "docs": "https://voidhash.com/docs/sdks/web/quickstart",
+  "sdk": "@voidhash/web",
+  "reference": ["node_modules/@voidhash/web/README.md"],
+  "key": "publishable",
+  "capabilities": ["identify", "events", "flags"],
+  "packages": [
+    {
+      "name": "@voidhash/web",
+      "spec": "https://pkg.voidha.sh/@voidhash/web/branch:main"
+    },
+    {
+      "name": "effect",
+      "spec": "^4.0.3",
+      "keepInstalled": true
+    }
+  ],
+  "env": {
+    "file": ".env.local",
+    "values": [
+      {
+        "name": "NEXT_PUBLIC_VOIDHASH_KEY",
+        "value": "[[.TestKey]]"
+      },
+      {
+        "name": "NEXT_PUBLIC_VOIDHASH_BASE_URL",
+        "value": "[[.APIURL]]",
+        "onlyCustomAPI": true
+      }
+    ]
+  },
+  "checks": [
+    ["script:typecheck", "script:type-check", "script:check-types", "script:tsc", "tsc"],
+    ["script:build"]
+  ],
+  "markers": ["VoidhashProvider"],
+  "sources": [".ts", ".tsx", ".js", ".jsx", ".vue", ".svelte", ".astro"],
+  "run": "your dev server, then open the site in a browser",
+  "leftForYou": [
+    "Set NEXT_PUBLIC_VOIDHASH_KEY to the production publishable key where you build for production (your host's environment settings). .env.local holds the test key and is for this computer only.",
+    "The web SDK sells nothing by itself. To sell on the web, connect Stripe and pass the visitor's id to your checkout: https://voidhash.com/docs/sdks/web/checkouts"
+  ]
+}

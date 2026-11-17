@@ -1,0 +1,26 @@
+Disconnect an ad account and delete what was synced from it: its campaigns, ads and spend leave the
+ads reports. Asks first; --yes skips that.
+
+Usage:
+  voidhash ads disconnect [account] [flags]
+
+Arguments:
+  account  The ad account's name, act_ id or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads disconnect "Acme EU"
+  voidhash ads disconnect act_1234567890 --yes

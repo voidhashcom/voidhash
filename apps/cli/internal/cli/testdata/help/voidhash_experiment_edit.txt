@@ -1,0 +1,47 @@
+Change an experiment's name, description, hypothesis, metrics (while it is a draft) or arms (not
+while it runs).
+
+--arm and --flag describe the arms whole and replace them: an arm kept by its name keeps its end
+users. Replacing the arms of an experiment that has started asks first; --yes skips that.
+
+Usage:
+  voidhash experiment edit [experiment] [flags]
+
+Arguments:
+  experiment  The experiment's name or id
+
+Flags:
+      --arm <NAME=PAYWALL>         An arm as NAME=PAYWALL (with --location) or
+                                   NAME=LOCATION:PAYWALL[,LOCATION:PAYWALL], the control first.
+                                   Replaces the arms (can be repeated)
+      --control <name>             Which --arm is the control, by its name (default: the first)
+      --description <description>  What it is for
+      --flag <KEY=VALUE,VALUE>     A feature flag the arms set, as KEY=VALUE,VALUE with one value
+                                   per --arm, in order: on, off, or one of the flag's variant keys;
+                                   an --arm needs no paywall then (can be repeated)
+  -h, --help                       Show help for this command
+      --hypothesis <hypothesis>    What you expect to happen
+      --json                       Print the API objects as JSON, for scripts
+      --location <location>        The paywall location every --arm NAME=PAYWALL shows at
+      --metric <event>             The event that counts as a conversion (default:
+                                   purchase_completed); fixed once it starts
+      --name <name>                Its new name
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+  -q, --quiet                      Print only ids, one per line
+      --secondary-metric <event>   Another event to track; fixed once it starts (can be repeated)
+      --weights <shares>           The shares of the arms, in the order of --arm, such as 60,40
+                                   (default: even)
+  -y, --yes                        Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash experiment edit "Annual-first onboarding" --name "Annual first"
+  voidhash experiment edit exp_123 --arm 'Control=monthly' --arm 'Annual first=annual' --location onboarding-end
+  voidhash experiment edit exp_123 --arm Control --arm 'New checkout' --flag 'new-checkout=off,on'
+  voidhash experiment edit exp_123 --metric trial_started --secondary-metric purchase_completed

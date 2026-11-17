@@ -1,0 +1,4 @@
+# The binary `pnpm build` writes for this computer.
+/bin/
+# Release archives and npm packages from scripts/release.mjs.
+/dist/

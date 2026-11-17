@@ -77,8 +77,12 @@ namespace margelo::nitro::voidhash { enum class NativeAnalyticsConsent; }
 namespace margelo::nitro::voidhash { struct NativeClientConfiguration; }
 // Forward declaration of `NativePendingAnalytics` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativePendingAnalytics; }
+// Forward declaration of `NativeFlowRevision` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowRevision; }
 // Forward declaration of `NativeFlowCapability` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
+// Forward declaration of `NativeFlowRuntime` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeFlowRuntime; }
 // Forward declaration of `NativeAppStoreMessages` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeAppStoreMessages; }
 // Forward declaration of `NativePurchaseIntents` to properly resolve imports.
@@ -113,6 +117,8 @@ namespace margelo::nitro::voidhash { struct NativeReportedTransaction; }
 namespace margelo::nitro::voidhash { enum class NativeStorePlatform; }
 // Forward declaration of `NativeReportedPurchaseState` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeReportedPurchaseState; }
+// Forward declaration of `NativeFlowPresentation` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowPresentation; }
 
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/JPromise.hpp>
@@ -191,8 +197,12 @@ namespace margelo::nitro::voidhash { enum class NativeReportedPurchaseState; }
 #include "JNativeClientConfiguration.hpp"
 #include "NativePendingAnalytics.hpp"
 #include "JNativePendingAnalytics.hpp"
+#include "NativeFlowRevision.hpp"
+#include "JNativeFlowRevision.hpp"
 #include "NativeFlowCapability.hpp"
 #include "JNativeFlowCapability.hpp"
+#include "NativeFlowRuntime.hpp"
+#include "JNativeFlowRuntime.hpp"
 #include "NativeAppStoreMessages.hpp"
 #include "JNativeAppStoreMessages.hpp"
 #include "NativePurchaseIntents.hpp"
@@ -230,6 +240,9 @@ namespace margelo::nitro::voidhash { enum class NativeReportedPurchaseState; }
 #include "JNativeStorePlatform.hpp"
 #include "NativeReportedPurchaseState.hpp"
 #include "JNativeReportedPurchaseState.hpp"
+#include "NativeFlowPresentation.hpp"
+#include "JNativeFlowPresentation.hpp"
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string.hpp"
 
 namespace margelo::nitro::voidhash {
 
@@ -520,9 +533,9 @@ namespace margelo::nitro::voidhash {
       return __promise;
     }();
   }
-  std::shared_ptr<Promise<std::string>> JHybridVoidhashNativeClientSpec::getPaywall(const std::string& placement) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* placement */)>("getPaywall");
-    auto __result = method(_javaPart, jni::make_jstring(placement));
+  std::shared_ptr<Promise<std::string>> JHybridVoidhashNativeClientSpec::getPaywall(const std::string& location) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* location */)>("getPaywall");
+    auto __result = method(_javaPart, jni::make_jstring(location));
     return [&]() {
       auto __promise = Promise<std::string>::create();
       __result->cthis()->addOnResolvedListener([=](const jni::alias_ref<jni::JObject>& __boxedResult) {
@@ -891,14 +904,29 @@ namespace margelo::nitro::voidhash {
     auto __result = method(_javaPart);
     return __result->toStdString();
   }
-  std::shared_ptr<Promise<std::string>> JHybridVoidhashNativeClientSpec::presentFlow(const std::string& placement) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* placement */)>("presentFlow");
-    auto __result = method(_javaPart, jni::make_jstring(placement));
+  std::shared_ptr<Promise<std::string>> JHybridVoidhashNativeClientSpec::presentFlow(const std::string& location, const NativeFlowPresentation& presentation, const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>& onAction) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* location */, jni::alias_ref<JNativeFlowPresentation> /* presentation */, jni::alias_ref<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string::javaobject> /* onAction */)>("presentFlow_cxx");
+    auto __result = method(_javaPart, jni::make_jstring(location), JNativeFlowPresentation::fromCpp(presentation), JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_cxx::fromCpp(onAction));
     return [&]() {
       auto __promise = Promise<std::string>::create();
       __result->cthis()->addOnResolvedListener([=](const jni::alias_ref<jni::JObject>& __boxedResult) {
         auto __result = jni::static_ref_cast<jni::JString>(__boxedResult);
         __promise->resolve(__result->toStdString());
+      });
+      __result->cthis()->addOnRejectedListener([=](const jni::alias_ref<jni::JThrowable>& __throwable) {
+        jni::JniException __jniError(__throwable);
+        __promise->reject(std::make_exception_ptr(__jniError));
+      });
+      return __promise;
+    }();
+  }
+  std::shared_ptr<Promise<void>> JHybridVoidhashNativeClientSpec::updateFlowInput(const std::string& valuesJson) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* valuesJson */)>("updateFlowInput");
+    auto __result = method(_javaPart, jni::make_jstring(valuesJson));
+    return [&]() {
+      auto __promise = Promise<void>::create();
+      __result->cthis()->addOnResolvedListener([=](const jni::alias_ref<jni::JObject>& /* unit */) {
+        __promise->resolve();
       });
       __result->cthis()->addOnRejectedListener([=](const jni::alias_ref<jni::JThrowable>& __throwable) {
         jni::JniException __jniError(__throwable);

@@ -7,7 +7,7 @@ class PaywallsCreateBuild extends \Voidhash\Generated\Core\Runtime\Client\BaseEn
     protected $projectId;
     protected $paywallId;
     /**
-     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. Only a person can start a build, because a build records who started it. Fails with `permission_denied` (`person_credential_required`) for a project secret key.
+     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. The build compiles what the paywall may exchange with apps as its locations give it now, and is `failed` at once, with what to change, while two of its locations conflict. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. A person or a project secret key with permission to edit paywalls can start a build; the build records which. Deploying it takes permission to publish paywalls.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallBuildBodyJsonEncoding $requestBody

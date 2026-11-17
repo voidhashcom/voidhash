@@ -1,0 +1,18 @@
+[package]
+name = "__SLUG__"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+# The crate builds twice: by default the component module paywalls run, and
+# with `--no-default-features --features panel` its editor panel module.
+[features]
+default = ["runtime"]
+runtime = []
+panel = ["voidhash-ui/panel"]
+
+[dependencies]
+voidhash-ui = "0.1"

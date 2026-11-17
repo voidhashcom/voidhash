@@ -1,0 +1,22 @@
+Connect the App Store, Google Play or Stripe with its credentials, or add a payment source. Run it
+again to change a store's settings: values not given keep what is saved.
+
+Usage:
+  voidhash provider connect <command> [flags]
+
+Commands:
+  app-store       Connect the App Store with the app's ids and keys.
+  google-play     Connect Google Play with the app's package name and a service account key.
+  stripe          Connect Stripe with your account id, API keys and webhook secrets.
+  payment-source  Add a payment source: payments taken outside the stores.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash provider connect <command> --help' for more about a command.

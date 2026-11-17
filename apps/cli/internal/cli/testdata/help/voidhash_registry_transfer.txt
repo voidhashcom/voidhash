@@ -1,0 +1,25 @@
+Make the project (this directory's, or --project) the owner of a registry component, so the people
+who may publish paywalls in it can publish new versions, deprecate and yank. The previous owner
+loses that access.
+
+Only an organization admin can, signed in with 'voidhash login' (not with a secret key).
+
+Usage:
+  voidhash registry transfer <component> [flags]
+
+Arguments:
+  component  The registry component's id, such as acme/wheel-picker
+
+Flags:
+  -h, --help               Show help for this command
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry transfer acme/wheel-picker --project acme/design-system

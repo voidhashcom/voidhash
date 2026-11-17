@@ -1,0 +1,22 @@
+List where the project takes payments, with each provider's health: enabled, store products read and
+mapped, purchases waiting for a mapping.
+
+Usage:
+  voidhash provider list [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider list
+  voidhash provider list --json

@@ -40,6 +40,9 @@ class PaywallJsonEncodingNormalizer implements DenormalizerInterface, Normalizer
         if (\array_key_exists('isArchived', $data) && \is_int($data['isArchived'])) {
             $data['isArchived'] = (bool) $data['isArchived'];
         }
+        if (\array_key_exists('isMadeForLocations', $data) && \is_int($data['isMadeForLocations'])) {
+            $data['isMadeForLocations'] = (bool) $data['isMadeForLocations'];
+        }
         if (\array_key_exists('id', $data)) {
             $object->setId($data['id']);
         }
@@ -63,6 +66,9 @@ class PaywallJsonEncodingNormalizer implements DenormalizerInterface, Normalizer
         }
         elseif (\array_key_exists('archivedAt', $data) && $data['archivedAt'] === null) {
             $object->setArchivedAt(null);
+        }
+        if (\array_key_exists('isMadeForLocations', $data)) {
+            $object->setIsMadeForLocations($data['isMadeForLocations']);
         }
         if (\array_key_exists('thumbnailUrl', $data) && $data['thumbnailUrl'] !== null) {
             $object->setThumbnailUrl($data['thumbnailUrl']);
@@ -94,6 +100,7 @@ class PaywallJsonEncodingNormalizer implements DenormalizerInterface, Normalizer
         $dataArray['kind'] = $data->getKind();
         $dataArray['isArchived'] = $data->getIsArchived();
         $dataArray['archivedAt'] = $data->getArchivedAt();
+        $dataArray['isMadeForLocations'] = $data->getIsMadeForLocations();
         $dataArray['thumbnailUrl'] = $data->getThumbnailUrl();
         $dataArray['createdAt'] = $data->getCreatedAt();
         $dataArray['updatedAt'] = $data->getUpdatedAt();

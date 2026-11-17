@@ -1,0 +1,27 @@
+Show or change how each category of notices reaches you, and their language. Without flags it shows
+them. Billing, legal and security notices always reach you.
+
+Usage:
+  voidhash notices preferences [flags]
+
+Flags:
+      --category <billing|legal|security|account|integrations|product>
+                        The category to change, with --inbox or --email
+      --email <on|off>  Whether its notices are emailed to you
+  -h, --help            Show help for this command
+      --inbox <on|off>  Whether its notices appear in your inbox
+      --json            Print the API objects as JSON, for scripts
+      --locale <en|cs>  The language of your notices, in every organization
+      --org <org>       Organization to act on: its slug, name or id (default: the organization of
+                        this directory's or your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash notices preferences
+  voidhash notices preferences --category product --email off
+  voidhash notices preferences --locale cs

@@ -1,0 +1,22 @@
+Revenue, subscription, trial and churn metrics: list and run the built-in insights.
+
+Usage:
+  voidhash insights <command> [flags]
+
+Aliases:
+  insights, insight
+
+Commands:
+  list       List the built-in insights 'voidhash insights run' takes.
+  run        Run built-in insights over a period.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash insights <command> --help' for more about a command.

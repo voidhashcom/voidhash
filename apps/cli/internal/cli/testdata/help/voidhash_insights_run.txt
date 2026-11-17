@@ -1,0 +1,43 @@
+Run built-in insights over a period: each one's summary, and its value in every bucket of the
+period.
+
+An insight is named by its id (mrr, churn_rate or churn-rate) or its name ("Churn rate"); 'voidhash
+insights list' shows them. The period is the last 30 complete days in UTC unless --last or --from
+says otherwise. Purchases of production are counted unless --environment says otherwise.
+
+Usage:
+  voidhash insights run [insight...] [flags]
+
+Arguments:
+  insight  Insights to run, such as mrr or "trial conversion rate"
+
+Flags:
+      --by <hour|day|week|month|quarter|year>
+                           Bucket width of the series (default: by the period's length)
+      --compare            Also run the period of the same length before it
+      --environment <production|sandbox|test|all>
+                           Purchases counted: production, sandbox (App Store and Google Play
+                           sandbox), test (debug builds' simulated purchases and test modes such as
+                           Stripe's) or all (default: production)
+      --from <day>         First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help               Show help for this command
+      --json               Print the API results as JSON, for scripts
+      --last <span>        The complete days before today to report on: a span such as 7d, 4w, 3m or
+                           1y (default: 30d)
+      --product <product>  Only purchases of this product: its slug, name or id; repeat for each
+                           (can be repeated)
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+      --to <day>           Last day to report on, YYYY-MM-DD (default: today; with --from)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash insights run mrr
+  voidhash insights run mrr churn-rate --last 90d --by week
+  voidhash insights run revenue --from 2026-10-01 --to 2026-10-31 --compare
+  voidhash insights run new-subscriptions --product pro-monthly --json

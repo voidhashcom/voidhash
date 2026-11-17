@@ -1,0 +1,27 @@
+Show how each arm converts, with a verdict on each against the control that says when it is too
+early to tell, and when a difference is unlikely to be chance.
+
+With --json it prints the results as the API measures them; with -q the ids of the arms.
+
+Usage:
+  voidhash experiment results [experiment] [flags]
+
+Arguments:
+  experiment  The experiment's name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash experiment results "Annual-first onboarding"
+  voidhash experiment results exp_123 --json

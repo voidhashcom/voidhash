@@ -158,6 +158,23 @@ namespace margelo::nitro::voidhash::bridge::swift {
     };
   }
   
+  // pragma MARK: std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>
+  Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string create_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroVoidhash::Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::string& name, const std::string& argsJson) mutable -> std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>> {
+      auto __result = swiftClosure.call(name, argsJson);
+      return __result;
+    };
+  }
+  
+  // pragma MARK: std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>
+  Func_void_std__shared_ptr_Promise_std__string__ create_Func_void_std__shared_ptr_Promise_std__string__(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroVoidhash::Func_void_std__shared_ptr_Promise_std__string__::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::shared_ptr<Promise<std::string>>& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
   // pragma MARK: std::shared_ptr<HybridVoidhashNativeClientSpec>
   std::shared_ptr<HybridVoidhashNativeClientSpec> create_std__shared_ptr_HybridVoidhashNativeClientSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
     NitroVoidhash::HybridVoidhashNativeClientSpec_cxx swiftPart = NitroVoidhash::HybridVoidhashNativeClientSpec_cxx::fromUnsafe(swiftUnsafePointer);

@@ -63,6 +63,12 @@ class PaywallLocationJsonEncoding
      */
     protected $testShowing;
     /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @var LocationInterface
+     */
+    protected $interface;
+    /**
      * When the location was created, as an ISO 8601 timestamp.
      *
      * @var string|null
@@ -262,6 +268,28 @@ class PaywallLocationJsonEncoding
     {
         $this->initialized['testShowing'] = true;
         $this->testShowing = $testShowing;
+        return $this;
+    }
+    /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @return LocationInterface
+     */
+    public function getInterface(): LocationInterface
+    {
+        return $this->interface;
+    }
+    /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @param LocationInterface $interface
+     *
+     * @return self
+     */
+    public function setInterface(LocationInterface $interface): self
+    {
+        $this->initialized['interface'] = true;
+        $this->interface = $interface;
         return $this;
     }
     /**

@@ -1,0 +1,43 @@
+Show how revenue from people acquired each week grows by day 0, 7, 30, 90, 180 and 365 after the
+touch credited with their signup, projected for days the cohort has not reached.
+
+A cell marked * is still maturing, ~ is projected from the project's renewal and trial history, and
++ is a projection that is likely low. --json has each group's cohorts and every projection's range.
+
+Usage:
+  voidhash analytics cohorts [flags]
+
+Flags:
+      --adset <id>         Only people whose credited touch carried this ad set id
+      --attribution-window-days <days>
+                           How long before a signup a campaign touch may be credited with it, in
+                           days from 1 to 90 (default: the project's setting)
+      --by <surface|network|campaign|adset>
+                           What the groups are (default: network)
+      --campaign <id>      Only people whose credited touch carried this campaign id
+      --currency <code>    ISO 4217 code money is reported in (default: USD)
+      --environment <production|sandbox|test>
+                           Purchases revenue is read from: production, sandbox (App Store and Google
+                           Play sandbox) or test (debug builds' simulated purchases and test modes
+                           such as Stripe's) (default: production)
+      --from <day>         First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help               Show help for this command
+      --json               Print the API report as JSON, for scripts
+      --last <span>        The complete days before today to report on: a span such as 7d, 4w, 3m or
+                           1y (default: 13w)
+      --network <network>  Only people whose credited touch came from this network, such as meta
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+      --timezone <zone>    IANA time zone days are cut in, such as Europe/Prague (default: UTC)
+      --to <day>           Last day to report on, YYYY-MM-DD (default: today; with --from)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash analytics cohorts
+  voidhash analytics cohorts --by campaign --last 26w
+  voidhash analytics cohorts --network meta --json

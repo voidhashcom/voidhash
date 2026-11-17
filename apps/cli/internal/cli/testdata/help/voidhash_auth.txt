@@ -1,0 +1,20 @@
+Sign the CLI in and out, and see who it is signed in as.
+
+Usage:
+  voidhash auth <command> [flags]
+
+Commands:
+  login      Sign in by approving a code in your browser.
+  logout     Sign out on this computer.
+  status     Show who the CLI is signed in as (the same as 'whoami').
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash auth <command> --help' for more about a command.

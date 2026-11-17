@@ -1,0 +1,30 @@
+Send a push notification to every device the people named registered. Shows who it reaches and asks
+first; --yes skips that, --dry-run only shows.
+
+Usage:
+  voidhash push send [flags]
+
+Flags:
+      --body <text>        The notification's text
+      --data <key=value>   Data for your app, as key=value; repeat for each (can be repeated)
+      --dry-run            Show what would change, and change nothing
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --title <title>      The notification's title
+      --to <person>        A person to notify: their distinct id, email or id; repeat for each (can
+                           be repeated)
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash push send --to ada@example.com --title "Welcome back" --body "Your trial ends tomorrow"
+  voidhash push send --to user-42 --to user-43 --title Hi --body Hello --data screen=offers --yes
+  voidhash push send --to user-42 --title Hi --body Hello --dry-run

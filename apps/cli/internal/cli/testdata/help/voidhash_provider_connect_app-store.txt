@@ -1,0 +1,37 @@
+Connect the App Store: the app's ids and its In-App Purchase and App Store Connect API keys, read
+from their .p8 files. Asks for what is missing in a terminal; run it again to change them.
+
+The keys are read from the files and sent to Voidhash, which stores them encrypted; they are never
+printed.
+
+Usage:
+  voidhash provider connect app-store [flags]
+
+Flags:
+      --api-key <file>          The App Store Connect API key file (AuthKey_....p8)
+      --api-key-id <id>         Its key id (default: from the file name)
+      --apple-id <number>       The app's Apple ID: the number in its App Store Connect address
+      --bundle-id <id>          The app's bundle id, such as com.acme.app
+      --forward-notifications-to <url>
+                                Also forward the store's notifications to this HTTPS url, such as
+                                your own server
+  -h, --help                    Show help for this command
+      --iap-key <file>          The In-App Purchase key file (SubscriptionKey_....p8)
+      --iap-key-id <id>         Its key id (default: from the file name)
+      --issuer-id <id>          The issuer id of your App Store Connect keys (Users and Access,
+                                Integrations)
+      --json                    Print the API objects as JSON, for scripts
+      --project <project>       Project to act on: its id, slug, organization/slug or name (default:
+                                this directory's project, then your default project)
+  -q, --quiet                   Print only ids, one per line
+      --vendor-number <number>  Your vendor number, from Payments and Financial Reports
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider connect app-store
+  voidhash provider connect app-store --bundle-id com.acme.app --apple-id 1234567890 --issuer-id 57246542-96fe-1a63-e053-0824d011072a --iap-key SubscriptionKey_ABC123DEF4.p8 --api-key AuthKey_XYZ987WVU6.p8 --vendor-number 87654321

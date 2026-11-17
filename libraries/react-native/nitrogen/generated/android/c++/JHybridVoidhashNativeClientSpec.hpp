@@ -73,7 +73,7 @@ namespace margelo::nitro::voidhash {
     std::shared_ptr<Promise<NativePersonState>> getPersonState(bool forceFetch) override;
     std::shared_ptr<Promise<void>> resetPersonCache() override;
     std::shared_ptr<Promise<NativeFeatureFlagsResult>> getFeatureFlags(const std::optional<std::vector<std::string>>& flagKeys) override;
-    std::shared_ptr<Promise<std::string>> getPaywall(const std::string& placement) override;
+    std::shared_ptr<Promise<std::string>> getPaywall(const std::string& location) override;
     std::shared_ptr<Promise<std::vector<NativeProduct>>> getProducts() override;
     std::shared_ptr<Promise<NativePurchaseResult>> purchase(const std::string& productSlug, const NativePurchaseOptions& options) override;
     std::shared_ptr<Promise<NativePersonState>> restorePurchases() override;
@@ -100,7 +100,8 @@ namespace margelo::nitro::voidhash {
     void screenAt(const std::string& name, const std::string& propertiesJson, double capturedAt) override;
     std::shared_ptr<Promise<NativeFlushStatus>> flush() override;
     std::string getSessionId() override;
-    std::shared_ptr<Promise<std::string>> presentFlow(const std::string& placement) override;
+    std::shared_ptr<Promise<std::string>> presentFlow(const std::string& location, const NativeFlowPresentation& presentation, const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>& onAction) override;
+    std::shared_ptr<Promise<void>> updateFlowInput(const std::string& valuesJson) override;
     std::shared_ptr<Promise<void>> dismissFlow() override;
 
   private:

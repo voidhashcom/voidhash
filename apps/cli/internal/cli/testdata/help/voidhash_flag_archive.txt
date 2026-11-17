@@ -1,0 +1,25 @@
+Archive a flag you no longer use: apps stop receiving it. Asks first when it is on; --yes skips
+that. 'voidhash flag restore' brings it back as it was.
+
+Usage:
+  voidhash flag archive [flag] [flags]
+
+Arguments:
+  flag  The flag's key or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag archive old-banner

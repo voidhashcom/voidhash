@@ -108,6 +108,48 @@ result, err = client.EventCapture.GroupIdentify(context.Background(), voidhash.G
 })
 ```
 
+### Acting for a person
+
+A tool that people sign in to, such as a command line, uses the device
+authorization grant: it shows a code, the person approves it in the dashboard,
+and the tool receives a token (`vh_oat_…`) that acts as them.
+
+```go
+auth := &voidhash.DeviceAuth{ClientID: "my-tool"}
+authorization, err := auth.Start(ctx, voidhash.DeviceAuthorizationParams{DeviceName: hostname})
+fmt.Printf("Open %s and enter %s\n", authorization.VerificationURI, authorization.UserCode)
+token, err := auth.Wait(ctx, authorization) // polls until approved, denied or expired
+```
+
+The management API takes the token like a secret key. A person can use
+several projects, so name one, and build the client with
+`NewWithTokenSource` when the token is stored elsewhere or can be replaced
+while the client lives; it is asked for before every request:
+
+```go
+client, err := voidhash.NewWithTokenSource(
+	func(ctx context.Context) (string, error) { return keychain.Read(ctx) },
+	voidhash.WithProjectID("proj_..."),
+)
+```
+
+`auth.Revoke` ends the token's session when the person signs out.
+
+### Every operation
+
+The services cover the common calls. `client.API()` is the generated client
+for the whole management API, one method per operation, sending the same
+credential; `voidhash.ReadResponse` turns its raw response into the body or an
+`*APIError`:
+
+```go
+resp, err := client.API().ProjectsGet(ctx, "proj_...")
+if err != nil {
+	return err
+}
+body, err := voidhash.ReadResponse(resp)
+```
+
 ### Errors
 
 Every non-2xx response surfaces as `*voidhash.APIError`. Branch on `Type`

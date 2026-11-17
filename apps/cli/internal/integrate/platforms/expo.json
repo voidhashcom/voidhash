@@ -1,0 +1,48 @@
+{
+  "id": "expo",
+  "order": 1,
+  "name": "Expo",
+  "support": "supported",
+  "detect": {
+    "dependencies": ["expo"]
+  },
+  "guide": "react-native.md",
+  "docs": "https://voidhash.com/docs/sdks/react-native/quickstart",
+  "sdk": "@voidhash/react-native",
+  "reference": ["node_modules/@voidhash/react-native/README.md"],
+  "key": "publishable",
+  "capabilities": ["identify", "perks", "purchases", "paywalls", "events"],
+  "types": "typescript",
+  "packages": [
+    {
+      "name": "@voidhash/react-native",
+      "spec": "https://pkg.voidha.sh/@voidhash/react-native/branch:main"
+    },
+    {
+      "name": "react-native-nitro-modules",
+      "spec": "0.37"
+    },
+    {
+      "name": "effect",
+      "spec": "4.0.7"
+    }
+  ],
+  "pnpmSettings": {
+    "blockExoticSubdeps": "false"
+  },
+  "files": [
+    {
+      "role": "client",
+      "path": "[[.SourceDir]]lib/voidhash.[[.ScriptExt]]",
+      "content": "import { createVoidhashClient } from \"@voidhash/react-native\";\n\n/**\n * The app's one Voidhash client. Use it as `<voidhash.Provider>`,\n * `voidhash.useHasPerk()` and `voidhash.client`.\n *\n * Debug builds use the test key with simulated purchases; release builds\n * use the production key and the real store. Publishable keys are safe to\n * ship in an app.\n */\nexport const voidhash = createVoidhashClient(__DEV__ ? \"[[.TestKey]]\" : \"[[.ProductionKey]]\", {\n  dev: true,[[if .CustomAPI]]\n  baseUrl: \"[[.APIURL]]\",[[end]]\n});\n"
+    }
+  ],
+  "checks": [["script:typecheck", "script:type-check", "script:check-types", "script:tsc", "tsc"]],
+  "markers": ["voidhash.Provider"],
+  "sources": [".ts", ".tsx", ".js", ".jsx"],
+  "run": "npx expo run:ios   (or: npx expo run:android)",
+  "leftForYou": [
+    "Rebuild the app: the SDK has native code, so Expo Go cannot load it. Run 'npx expo prebuild' and then 'npx expo run:ios' or 'npx expo run:android', or make a new development build.",
+    "Connect the App Store or Google Play and map your products to store products before you sell for real: 'voidhash provider --help'. Until then, debug builds simulate purchases."
+  ]
+}

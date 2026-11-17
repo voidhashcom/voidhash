@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "voidhash.json",
+  "description": "The Voidhash configuration of a directory: the project an app is built for, and the type files generated for it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["team", "project"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "team": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The slug of the organization that owns the project."
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The project's slug."
+    },
+    "types": {
+      "type": "array",
+      "description": "The type files 'voidhash types generate' writes. Without it, one TypeScript declaration file is written to voidhash.gen.d.ts.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["language", "output"],
+        "properties": {
+          "language": {
+            "enum": ["typescript", "swift", "kotlin"],
+            "description": "The language of the file."
+          },
+          "output": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file's path, relative to this file."
+          },
+          "package": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$",
+            "description": "Kotlin only: the package the file declares. Without it, the package follows from the path below a java or kotlin source directory."
+          }
+        }
+      }
+    },
+    "typesOutput": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deprecated: the path of the TypeScript declaration file. Use a \"types\" entry instead."
+    }
+  }
+}

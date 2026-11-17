@@ -15,10 +15,11 @@ Store. Paywalls and flows are drawn natively by the `VoidhashUI` package.
   with Voidhash and finishes it, and does the same for the transactions StoreKit delivers later:
   renewals, approved Ask to Buy requests and purchases made on another device. The app never
   touches StoreKit transactions itself.
-- **Presenting a flow and handling how it ended.** `presentFlow(placement:)` returns when the
-  flow ends: `.purchased`, `.restored`, `.finished(result:variables:)`, `.closed`, or
-  `.failed(error)`. A project with no published paywall answers `.failed(.notAssigned)` — the
-  normal state on day one, not an error — and the app quietly falls back to its own Upgrade tab.
+- **Presenting a flow and handling how it ended.** `presentFlow(location:)` returns when the
+  flow ends, with its `outcome` (`purchased`, `restored`, `dismissed`, or the outcome the flow
+  finished with) and its `output`, and throws a `FlowError` when nothing could be shown. A
+  project with no published paywall throws `FlowError.notAssigned` — the normal state on day
+  one, not an error — and the app quietly falls back to its own Upgrade tab.
   The flow is drawn by `VoidhashUIPaywallRenderer`, passed as `options.paywallRenderer`. A
   purchase tapped on it runs through the same SDK purchase, and a paywall then ends with
   `.purchased`.
@@ -120,20 +121,26 @@ The note list, a banner reading "2 of 3 notes left", and two buttons.
 | Action                     | SDK call                                                                                        |
 | -------------------------- | ----------------------------------------------------------------------------------------------- |
 | New note                   | `capture("note_created", properties:)`, then `setPersonAttributes(["plan":, "notes_created":])` |
-| New note at the free limit | `presentFlow(placement: "onboarding")`                                                          |
+| New note at the free limit | `presentFlow(location: "onboarding")`                                                           |
 | Export (Pro only)          | `capture("export_requested")`, then `presentFlow(…)` when the person has no `pro` grant         |
 
-The flow result is handled exhaustively, and every failure ends up on the Upgrade tab with a
-one-line explanation:
+Every outcome is handled, and every failure ends up on the Upgrade tab with a one-line
+explanation:
 
 ```swift
-switch await client.presentFlow(placement: "onboarding") {
-case .purchased, .restored:      await refreshPerson()
-case .finished(let result, _):   notice = …
-case .closed:                    break
-case .failed(.notAssigned):      fallBackToUpgradeTab("No paywall is available for “onboarding”…")
-case .failed(.unavailable):      fallBackToUpgradeTab("Voidhash is unreachable and this paywall was never loaded…")
-case .failed(let error):         fallBackToUpgradeTab("The paywall could not be presented…")
+do {
+    let result = try await client.presentFlow(location: "onboarding")
+    switch result.outcome {
+    case FlowResult.purchased, FlowResult.restored: await refreshPerson()
+    case FlowResult.dismissed:                      break
+    default:                                        notice = …  // the flow's own outcome
+    }
+} catch FlowError.notAssigned {
+    fallBackToUpgradeTab("No paywall is available for “onboarding”…")
+} catch FlowError.unavailable {
+    fallBackToUpgradeTab("Voidhash is unreachable and this paywall was never loaded…")
+} catch {
+    fallBackToUpgradeTab("The paywall could not be presented…")
 }
 ```
 

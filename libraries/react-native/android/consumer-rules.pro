@@ -1,6 +1,10 @@
 # The flow renderer is found by name when the app compiles it in, so shrinking must keep it.
 -keep class com.voidhash.ui.VoidhashUiPaywallRenderer {
     <init>();
+    public static void setRuntimeMode(com.voidhash.ui.VoidhashUiPaywallRenderer$RuntimeMode);
+}
+-keep enum com.voidhash.ui.VoidhashUiPaywallRenderer$RuntimeMode {
+    public static ** MODULE;
 }
 
 # The SDK reads AndroidX Navigation destinations for screen names only in an app that uses

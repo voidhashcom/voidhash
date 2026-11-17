@@ -1,0 +1,42 @@
+Set how purchases reach Meta's Conversions API, and the install referrer key. Only what you pass
+changes.
+
+Secrets are asked for without showing them (--token, --install-referrer-key) or piped in
+(--token-stdin, --install-referrer-key-stdin); they are never passed as a flag's value. Turning
+conversions on needs a dataset and a token, and asks first; --yes skips that.
+
+Usage:
+  voidhash ads measurement edit [flags]
+
+Flags:
+      --clear-install-referrer-key  Remove the install referrer key
+      --clear-test-event-code       Stop marking events as tests
+      --clear-token                 Remove the access token
+      --dataset <id>                The dataset id from Meta's Events Manager
+      --disable                     Stop sending; purchases made meanwhile are never sent
+      --enable                      Send purchases from now on (needs a dataset and a token); asks
+                                    first
+  -h, --help                        Show help for this command
+      --install-referrer-key        Ask, hidden, for Meta's install referrer decryption key
+      --install-referrer-key-stdin  Read the install referrer key from standard input
+      --json                        Print the API object as JSON, for scripts
+      --project <project>           Project to act on: its id, slug, organization/slug or name
+                                    (default: this directory's project, then your default project)
+      --test-event-code <code>      The code from Meta's Test Events tab; events then only show up
+                                    there
+      --token                       Ask, hidden, for the dataset's Conversions API access token
+      --token-stdin                 Read the access token from standard input
+  -y, --yes                         Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads measurement edit --dataset 1234567890 --token
+  voidhash ads measurement edit --enable
+  voidhash ads measurement edit --token-stdin < token.txt
+  voidhash ads measurement edit --test-event-code TEST12345
+  voidhash ads measurement edit --disable

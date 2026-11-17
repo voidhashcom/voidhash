@@ -1,5 +1,7 @@
 import { createVoidhashClient } from "@voidhash/react-native";
 
+import { flowRevisions } from "../voidhash.flows.gen";
+
 // `process.env.EXPO_PUBLIC_*` must stay a literal member expression: Expo's
 // Babel plugin replaces these exact expressions with string literals at build
 // time, so reading them through a variable or a helper yields `undefined`.
@@ -24,6 +26,9 @@ export const voidhash = createVoidhashClient(publishableKey, {
   // completes on a simulator with no App Store Connect or Play Console setup.
   // The SDK ignores it unless `__DEV__` is true, so release builds are unaffected.
   dev: true,
+  // The interface revision of each location this build was made against, so
+  // the server only sends flows that fit the inputs and handlers below.
+  flowRevisions,
   // Flows may open links (the default) and store answers on the person.
   flowCapabilities: ["links", "attributes"],
   // Without a key there is nothing to talk to. A disabled client mounts every

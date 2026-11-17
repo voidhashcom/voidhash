@@ -37,7 +37,7 @@ class PaywallJsonEncoding
      */
     protected $slug;
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @var string
      */
@@ -54,6 +54,12 @@ class PaywallJsonEncoding
      * @var string|null
      */
     protected $archivedAt;
+    /**
+     * Whether what the paywall may exchange with apps follows the locations it is made for, so a paywall made for none exchanges nothing. False only for a paywall made before paywalls were made for locations that has had none since: it keeps the interface its design declares until its first location is added.
+     *
+     * @var bool
+     */
+    protected $isMadeForLocations;
     /**
      * The URL of the latest preview image the studio rendered; null until it rendered one.
      *
@@ -161,7 +167,7 @@ class PaywallJsonEncoding
         return $this;
     }
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @return string
      */
@@ -170,7 +176,7 @@ class PaywallJsonEncoding
         return $this->kind;
     }
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @param string $kind
      *
@@ -224,6 +230,28 @@ class PaywallJsonEncoding
     {
         $this->initialized['archivedAt'] = true;
         $this->archivedAt = $archivedAt;
+        return $this;
+    }
+    /**
+     * Whether what the paywall may exchange with apps follows the locations it is made for, so a paywall made for none exchanges nothing. False only for a paywall made before paywalls were made for locations that has had none since: it keeps the interface its design declares until its first location is added.
+     *
+     * @return bool
+     */
+    public function getIsMadeForLocations(): bool
+    {
+        return $this->isMadeForLocations;
+    }
+    /**
+     * Whether what the paywall may exchange with apps follows the locations it is made for, so a paywall made for none exchanges nothing. False only for a paywall made before paywalls were made for locations that has had none since: it keeps the interface its design declares until its first location is added.
+     *
+     * @param bool $isMadeForLocations
+     *
+     * @return self
+     */
+    public function setIsMadeForLocations(bool $isMadeForLocations): self
+    {
+        $this->initialized['isMadeForLocations'] = true;
+        $this->isMadeForLocations = $isMadeForLocations;
         return $this;
     }
     /**

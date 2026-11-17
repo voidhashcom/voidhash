@@ -4,7 +4,8 @@ This document describes how the Voidhash React Native package reports failures.
 
 ## Overview
 
-Every fallible client method returns a better-result `Result<T, VoidhashError>` and never rejects.
+Every fallible client method returns a better-result `Result<T, VoidhashError>` and never rejects,
+except `presentFlow()`, which rejects with a `VoidhashError` when the flow cannot be shown.
 `VoidhashError` (in `src/errors.ts`) carries a stable `code` typed as `VoidhashErrorCode`; the full
 list is exported as `VOIDHASH_ERROR_CODES`. Match on `error.code`, not on the message text:
 
@@ -32,16 +33,16 @@ unchanged.
 
 ### Paywall Errors
 
-- `PAYWALL_UNAVAILABLE`: No paywall configuration has ever been cached for this placement and the
+- `PAYWALL_UNAVAILABLE`: No paywall configuration has ever been cached for this location and the
   server cannot be reached. Not a failure: hide the paywall and try again once the device is back
   online. `getPaywallForLocation()` returns it as an `Err`; `presentFlow()` reports it as
   `FLOW_UNAVAILABLE`.
 
-`presentFlow()` never rejects. A flow that could not be shown resolves as `{ status: "failed" }`
-with one of these codes:
+A flow that could not be shown is not a result: `presentFlow()` rejects with a `VoidhashError`
+carrying one of these codes:
 
-- `FLOW_NOT_ASSIGNED`: No published paywall is assigned to the placement.
-- `FLOW_UNAVAILABLE`: Nothing is cached for the placement and the server cannot be reached, or its
+- `FLOW_NOT_ASSIGNED`: No published paywall is assigned to the location.
+- `FLOW_UNAVAILABLE`: Nothing is cached for the location and the server cannot be reached, or its
   flow package could not be downloaded or verified.
 - `FLOW_RENDERER_MISSING`: The build does not include the flow renderer (config plugin option
   `renderer: true`).
@@ -161,7 +162,7 @@ A transient failure never produces a `VoidhashError`:
   deferred identify keeps the new identity.
 - `init()` resolves once local state is loaded, whatever the network is doing.
 
-The only failures the SDK cannot absorb are reads for which no fallback exists — a paywall placement
+The only failures the SDK cannot absorb are reads for which no fallback exists — a paywall location
 it has never resolved (`PAYWALL_UNAVAILABLE`), or a read with an empty cache behind a rejected
 publishable key (`AUTHENTICATION_FAILED`, surfaced once) — verdicts of the Voidhash API on a direct
 write (`identify()`, `identifySync()` and `setPersonAttributesSync()` return them as an `Err`), and

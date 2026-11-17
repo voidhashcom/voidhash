@@ -1,0 +1,24 @@
+Your projects: list, create, rename and delete them.
+
+Usage:
+  voidhash project <command> [flags]
+
+Aliases:
+  project, projects
+
+Commands:
+  list       List the projects of an organization.
+  create     Create a project in an organization.
+  edit       Rename a project or change its logo.
+  delete     Delete a project and everything in it.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash project <command> --help' for more about a command.

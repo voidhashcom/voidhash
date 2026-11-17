@@ -19,6 +19,12 @@ class SchemaLocationJsonEncoding
      */
     protected $description;
     /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @var LocationInterface
+     */
+    protected $interface;
+    /**
      * The location's display name.
      *
      * @var string
@@ -50,6 +56,28 @@ class SchemaLocationJsonEncoding
     {
         $this->initialized['description'] = true;
         $this->description = $description;
+        return $this;
+    }
+    /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @return LocationInterface
+     */
+    public function getInterface(): LocationInterface
+    {
+        return $this->interface;
+    }
+    /**
+     * What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+     *
+     * @param LocationInterface $interface
+     *
+     * @return self
+     */
+    public function setInterface(LocationInterface $interface): self
+    {
+        $this->initialized['interface'] = true;
+        $this->interface = $interface;
         return $this;
     }
     /**

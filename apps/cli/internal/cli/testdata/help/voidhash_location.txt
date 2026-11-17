@@ -1,0 +1,38 @@
+The places in your apps that show a paywall: list and view them, choose what each shows, show an end
+user or a group a paywall of their own, and see what they showed before.
+
+An app asks for a location by its slug and gets the paywall it shows. What is asked first decides:
+an end user's pin, then the first rule that matches them, then what the location shows everyone.
+Apps using a test key get the same unless the location is given a test showing, pins or rules of its
+own (--env test).
+
+Usage:
+  voidhash location <command> [flags]
+
+Aliases:
+  location, locations
+
+Commands:
+  list       List the places in your apps that show a paywall, with what each shows now.
+  view       Show a location: what it shows now, in test, to pinned end users and by rule, and
+             before.
+  create     Create a place in your apps that shows a paywall.
+  edit       Rename a location or change its description.
+  show       Show a paywall's live build at a location from now on.
+  clear      Stop showing anything at a location, so apps asking for it get no paywall.
+  pin        Show one end user a paywall of their own at a location.
+  unpin      Remove an end user's pin at a location.
+  rule       Show another paywall at a location to the end users a rule matches.
+  history    List what a location has shown, most recent first.
+  archive    Archive a location your apps no longer ask for.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash location <command> --help' for more about a command.

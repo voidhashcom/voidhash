@@ -631,9 +631,15 @@ public struct SdkFeatureFlagsResponse: Codable, Sendable, Equatable {
 /// Body of `POST /api/v1/sdk/resolve-paywall`.
 public struct SdkResolvePaywallBody: Codable, Sendable, Equatable {
     public let locationSlug: String
+    /// The revision of the location's interface the app was built against; `nil`, which is
+    /// left out of the body, for an app that reports none.
+    public let interfaceRevision: Int?
 
-    public init(locationSlug: String) {
+    /// - Parameter interfaceRevision: Sent only when greater than 0: an app that reports no
+    ///   revision counts as revision 0.
+    public init(locationSlug: String, interfaceRevision: Int = 0) {
         self.locationSlug = locationSlug
+        self.interfaceRevision = interfaceRevision > 0 ? interfaceRevision : nil
     }
 }
 
@@ -665,6 +671,26 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
         public let kind: String?
         /// Whether a successful purchase or restore ends the flow; absent means it does.
         public let shouldEndFlowOnPurchase: Bool?
+        /// The flow runtime module the release needs, for a renderer that runs the flow runtime
+        /// as a downloaded module; absent from older backends and when none is offered.
+        public var runtime: RuntimeModule? = nil
+
+        /// A flow runtime module: what a renderer in module mode downloads, verifies by hash and
+        /// caches to show the flow.
+        public struct RuntimeModule: Codable, Sendable, Equatable {
+            /// The runtime version, `major.minor.patch`.
+            public let version: String
+            /// Lowercase hex SHA-256 of the module bytes.
+            public let sha256: String
+            /// Where the module is downloaded from.
+            public let url: String
+
+            public init(version: String, sha256: String, url: String) {
+                self.version = version
+                self.sha256 = sha256
+                self.url = url
+            }
+        }
     }
 
     public struct Release: Codable, Sendable, Equatable {
@@ -720,10 +746,10 @@ public enum SdkSyncTransactionIntent: String, Codable, Sendable, Equatable {
 
 /// Body of `POST /api/v1/sdk/sync-transaction`.
 /// The paywall a purchase was started from, sent with it so its revenue is credited to the
-/// placement, paywall, release and experiment variant that sold it. The backend validates the
+/// location, paywall, release and experiment variant that sold it. The backend validates the
 /// showing and derives the rest; the other fields are informational.
 public struct SdkPurchasePaywallContext: Codable, Sendable, Equatable {
-    /// The showing the placement lookup returned.
+    /// The showing the location lookup returned.
     public let showingId: String
     public let placement: String?
     public let paywallId: String?

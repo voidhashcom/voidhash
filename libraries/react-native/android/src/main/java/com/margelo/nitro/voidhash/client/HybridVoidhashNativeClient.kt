@@ -14,6 +14,7 @@ import com.voidhash.sdk.AnalyticsConsent
 import com.voidhash.sdk.ClientEvent
 import com.voidhash.sdk.FeatureFlagOptions
 import com.voidhash.sdk.FlowCapability
+import com.voidhash.sdk.FlowException
 import com.voidhash.sdk.FlowFailure
 import com.voidhash.sdk.FlowResult
 import com.voidhash.sdk.FlagsState
@@ -299,8 +300,11 @@ class HybridVoidhashNativeClient internal constructor(
             // The facade's navigation integrations report screens through `screen()`.
             screenTracking = ScreenTrackingOptions(automatic = false),
             automaticLifecycleEvents = configuration.automaticLifecycleEvents,
-            preloadPlacements = configuration.preloadPlacements.toList(),
-            paywallRenderer = VoidhashFlowsCore.linkedRenderer(),
+            preloadLocations = configuration.preloadLocations.toList(),
+            flowRevisions = configuration.flowRevisions.associate { it.location to it.revision.toInt() },
+            paywallRenderer = VoidhashFlowsCore.linkedRenderer(
+                runtimeModules = configuration.flowRuntime == NativeFlowRuntime.MODULE,
+            ),
             flowCapabilities = configuration.flowCapabilities.map(::flowCapability).toSet(),
             featureFlags = FeatureFlagOptions(
                 maxWaitMs = configuration.featureFlagMaxWaitMs?.toLong() ?: FeatureFlagOptions().maxWaitMs,
@@ -526,7 +530,7 @@ class HybridVoidhashNativeClient internal constructor(
         client.readFlags(flagKeys?.toList().orEmpty(), surfaceAuthFailure = true).state.toNative()
     }
 
-    override fun getPaywall(placement: String): Promise<String> = call { it.resolvePaywallJson(placement) }
+    override fun getPaywall(location: String): Promise<String> = call { it.resolvePaywallJson(location) }
 
     override fun getProducts(): Promise<Array<NativeProduct>> {
         val load = synchronized(lock) { ++productsLoads }
@@ -809,15 +813,39 @@ class HybridVoidhashNativeClient internal constructor(
 
     // ---- Flows ----
 
-    override fun presentFlow(placement: String): Promise<String> = call { client ->
+    /**
+     * Presents the flow at [location] through the SDK and resolves with how it ended, or with why
+     * it could not be presented, as JSON. Each action [presentation] lists is answered by
+     * [onAction]; a call JavaScript rejects, and one it has no handler for, fail in the flow as
+     * they do in a native app.
+     */
+    override fun presentFlow(
+        location: String,
+        presentation: NativeFlowPresentation,
+        onAction: (name: String, argsJson: String) -> Promise<Promise<String>>,
+    ): Promise<String> = call { client ->
         val activity = usableActivity()
             ?: return@call VoidhashFlowsCore.encode(
                 VoidhashFlowsCore.failed(FlowFailure.UNAVAILABLE, "The React Native host has no current activity"),
             )
-        val result = client.presentFlow(activity, placement)
-        if (result is FlowResult.Purchased || result == FlowResult.Restored) dropHeldProducts()
-        VoidhashFlowsCore.encode(result)
+        try {
+            val result = client.presentFlow(
+                activity,
+                location,
+                revision = presentation.revision?.toInt(),
+                input = VoidhashFlowsCore.flowValues(presentation.inputJson),
+                actions = VoidhashFlowsCore.actionHandlers(presentation.actions, onAction),
+            )
+            // A flow that ended in a purchase or a restore outdates the products held.
+            if (result.outcome == FlowResult.PURCHASED || result.outcome == FlowResult.RESTORED) dropHeldProducts()
+            VoidhashFlowsCore.encode(result)
+        } catch (error: FlowException) {
+            VoidhashFlowsCore.encode(error)
+        }
     }
+
+    override fun updateFlowInput(valuesJson: String): Promise<Unit> =
+        call { it.updateFlowInput(VoidhashFlowsCore.flowValues(valuesJson)) }
 
     override fun dismissFlow(): Promise<Unit> = call { it.dismissFlow() }
 

@@ -1,0 +1,24 @@
+Who your campaigns and other touches brought in, how their revenue grows, whether tracking works,
+every chart the dashboard shows, and alerts on events that look broken.
+
+Usage:
+  voidhash analytics <command> [flags]
+
+Commands:
+  acquisition  Report the people each campaign or other touch brought in, and what they paid.
+  cohorts      Show how revenue from people acquired each week grows over time.
+  health       Check that web and app tracking report what measuring ads relies on.
+  charts       List the charts the dashboard shows.
+  chart        Run one of the charts the dashboard shows.
+  alerts       Rules that tell owners and admins when events look broken.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash analytics <command> --help' for more about a command.

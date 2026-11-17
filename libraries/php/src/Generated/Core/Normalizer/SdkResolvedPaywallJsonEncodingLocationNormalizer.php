@@ -40,6 +40,9 @@ class SdkResolvedPaywallJsonEncodingLocationNormalizer implements DenormalizerIn
         if (\array_key_exists('id', $data)) {
             $object->setId($data['id']);
         }
+        if (\array_key_exists('interfaceRevision', $data)) {
+            $object->setInterfaceRevision($data['interfaceRevision']);
+        }
         if (\array_key_exists('name', $data)) {
             $object->setName($data['name']);
         }
@@ -52,6 +55,7 @@ class SdkResolvedPaywallJsonEncodingLocationNormalizer implements DenormalizerIn
     {
         $dataArray = [];
         $dataArray['id'] = $data->getId();
+        $dataArray['interfaceRevision'] = $data->getInterfaceRevision();
         $dataArray['name'] = $data->getName();
         $dataArray['slug'] = $data->getSlug();
         return $dataArray;

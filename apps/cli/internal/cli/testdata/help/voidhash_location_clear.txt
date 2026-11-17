@@ -1,0 +1,32 @@
+Stop showing anything at a location, so apps asking for it get no paywall. Asks first; --yes skips
+that.
+
+With --env test it ends the location's test showing instead, so apps using a test key get what
+production shows again; nothing is asked, because nothing changes for end users.
+
+Usage:
+  voidhash location clear [location] [flags]
+
+Arguments:
+  location  The location's slug, name or id
+
+Flags:
+      --env <production|test>  Whose apps it changes: production (the default), or test, which only
+                               apps using a test key see; test follows production until the location
+                               is given a test showing of its own
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location clear home
+  voidhash location clear home --env test

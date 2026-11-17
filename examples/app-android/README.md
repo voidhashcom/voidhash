@@ -13,10 +13,12 @@ the other six.
   screen has a retry button, because `initialize()` talks to the network and to
   Google Play and both fail on a bad day.
 - **Presenting a flow and handling every way it ends.** `presentFlow` returns
-  a `FlowResult` once the flow is gone: purchased, restored, finished, closed,
-  or failed with a reason. Nothing published for the placement is one of those
-  reasons, and not something a user should ever see: the app falls back to its
-  own Upgrade screen. This is the single most valuable thing here to copy.
+  a `FlowResult` once the flow is gone, with its outcome: purchased, restored,
+  dismissed, or the outcome the flow finished with. A flow that cannot be shown
+  throws a `FlowException` with a reason. Nothing published for the location is
+  one of those reasons, and not something a user should ever see: the app falls
+  back to its own Upgrade screen. This is the single most valuable thing here
+  to copy.
 - **Development mode**, so a purchase completes on a bare emulator with no Play
   Console setup.
 - Identity, person attributes, entitlement grants and a feature flag.
@@ -71,11 +73,11 @@ In Studio, create the objects the example expects:
 | ------------ | ------------------------------------------- |
 | Perk         | `pro`                                       |
 | Products     | `pro-monthly`, `pro-annual`, `pro-lifetime` |
-| Placement    | `onboarding`                                |
+| Location     | `onboarding`                                |
 | Feature flag | `nimbus-new-onboarding`                     |
 
 None of them are required to start the app. Missing products give you an empty
-Upgrade screen with an explanation, and a placement without a flow is exactly
+Upgrade screen with an explanation, and a location without a flow is exactly
 the fallback path the example is built to show.
 
 ## Run it
@@ -128,12 +130,17 @@ The upgrade flow is one function, `NimbusViewModel.requestUpgrade`, abridged
 here down to the decision it makes:
 
 ```kotlin
-when (val result = sdk.presentFlow(activity, "onboarding")) {
-    is FlowResult.Purchased -> { refreshPerson(); emitMessage("Purchased ${result.productSlug}") }
-    FlowResult.Restored -> { refreshPerson(); emitMessage("Purchases restored") }
-    is FlowResult.Finished -> emitMessage("Flow finished: ${result.result}")
-    FlowResult.Closed -> Unit
-    is FlowResult.Failed -> _events.emit(NimbusEvent.OpenUpgrade)
+val result = try {
+    sdk.presentFlow(activity, "onboarding")
+} catch (error: FlowException) {
+    _events.emit(NimbusEvent.OpenUpgrade)
+    return
+}
+when (result.outcome) {
+    FlowResult.PURCHASED -> { refreshPerson(); emitMessage("Purchased ${result.productId}") }
+    FlowResult.RESTORED -> { refreshPerson(); emitMessage("Purchases restored") }
+    FlowResult.DISMISSED -> Unit
+    else -> emitMessage("Flow finished: ${result.outcome}")
 }
 ```
 

@@ -19,6 +19,10 @@ class SdkResolvedPaywallJsonEncodingLocation
      */
     protected $id;
     /**
+     * @var mixed
+     */
+    protected $interfaceRevision;
+    /**
      * The location's display name.
      *
      * @var string
@@ -50,6 +54,24 @@ class SdkResolvedPaywallJsonEncodingLocation
     {
         $this->initialized['id'] = true;
         $this->id = $id;
+        return $this;
+    }
+    /**
+     * @return mixed
+     */
+    public function getInterfaceRevision()
+    {
+        return $this->interfaceRevision;
+    }
+    /**
+     * @param mixed $interfaceRevision
+     *
+     * @return self
+     */
+    public function setInterfaceRevision($interfaceRevision): self
+    {
+        $this->initialized['interfaceRevision'] = true;
+        $this->interfaceRevision = $interfaceRevision;
         return $this;
     }
     /**

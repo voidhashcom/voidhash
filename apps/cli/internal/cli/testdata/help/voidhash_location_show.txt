@@ -1,0 +1,33 @@
+Show a paywall's live build at a location from now on. Deploying a newer build of the paywall
+updates the location too.
+
+Asks first when it replaces what end users see there; --yes skips that. With --env test only apps
+using a test key see it, production keeps what it shows, and nothing is asked.
+
+Usage:
+  voidhash location show [location] [paywall] [flags]
+
+Arguments:
+  location  The location's slug, name or id
+  paywall   The paywall's slug, name or id
+
+Flags:
+      --env <production|test>  Whose apps it changes: production (the default), or test, which only
+                               apps using a test key see; test follows production until the location
+                               is given a test showing of its own
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location show home pro
+  voidhash location show home summer-sale --env test

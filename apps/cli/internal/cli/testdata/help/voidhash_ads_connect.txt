@@ -1,0 +1,31 @@
+Connect a Meta ad account with a system user access token that grants ads_read. The token is asked
+for without showing it, or piped in with --token-stdin; it is never passed as a flag's value.
+
+Without an account, you choose from the accounts the token reads. The first sync starts right away
+and reads --backfill-days of history.
+
+Usage:
+  voidhash ads connect [account] [flags]
+
+Arguments:
+  account  The Meta ad account id, with or without act_ (default: choose from the token's accounts)
+
+Flags:
+      --backfill-days <days>  History the first sync reads, in days (default: 90, at most 1095)
+  -h, --help                  Show help for this command
+      --json                  Print the API objects as JSON, for scripts
+      --project <project>     Project to act on: its id, slug, organization/slug or name (default:
+                              this directory's project, then your default project)
+  -q, --quiet                 Print only ids, one per line
+      --token-stdin           Read the access token from standard input instead of asking for it
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads connect
+  voidhash ads connect act_1234567890
+  voidhash ads connect 1234567890 --token-stdin --backfill-days 365 < token.txt

@@ -38,7 +38,7 @@ private const val RESTORED_OWNER_TTL_MS = 1000L * 60 * 60 * 24 * 30
  * Both write the same preferences file under the same namespace prefix and the same envelope
  * `{value, createdAt, staleAt, expiresAt}`, so most entries are already the SDK's: the identity,
  * the consent, the session, the last-seen release, person snapshots, the schema, paywall
- * resolutions, known placements, flow state, processed-transaction and SDK-started-purchase markers,
+ * resolutions, known locations, flow state, processed-transaction and SDK-started-purchase markers,
  * and the owner keys `restored-transaction-identity:` and `transaction-identity:`, which the SDK
  * reads as they are. What differs is converted:
  *

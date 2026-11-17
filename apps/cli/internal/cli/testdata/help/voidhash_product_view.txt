@@ -1,0 +1,24 @@
+Show a product: its type, the perks it grants and the store products it is sold as.
+
+Usage:
+  voidhash product view [product] [flags]
+
+Arguments:
+  product  The product's slug, name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash product view pro-monthly
+  voidhash product view "Pro Monthly" --json

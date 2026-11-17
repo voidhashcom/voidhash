@@ -6,7 +6,7 @@ class ComponentRegistryListInstalls extends \Voidhash\Generated\Core\Runtime\Cli
 {
     protected $projectId;
     /**
-     * Lists the registry components installed in the project, with the version updating each would move to (`availableUpdate`, null when current).
+     * Lists the components installed in the project, from the organization's registry and Voidhash's own, with the version updating each would move to (`availableUpdate`, null when current). Only installed components can be newly placed in the project's flows.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.

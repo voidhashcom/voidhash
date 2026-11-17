@@ -1,0 +1,40 @@
+Feature flags: turn features on for a share of end users in production or in test, fix them for
+testers, and see why someone gets what.
+
+Who gets a flag is set per environment and read top to bottom: switched off, it is off for everyone
+there; then an end user's override decides; then the rules, in order; then the share everyone else
+gets. Test, which apps using a test key read, follows production until something is changed in it.
+
+Usage:
+  voidhash flag <command> [flags]
+
+Aliases:
+  flag, flags
+
+Commands:
+  list         List the project's feature flags.
+  view         Show a flag: its variants, and who gets it in production and in test.
+  create       Create a feature flag, off until you turn it on.
+  enable       Turn a flag on, optionally for a share of end users.
+  disable      Turn a flag off for everyone in an environment.
+  rollout      Set the share of end users who get a flag.
+  edit         Change a flag's key or description.
+  variants     The values a string, number or json flag hands out.
+  override     Fix a flag for one end user, whatever its rules say.
+  rule, rules  Rules: what share of the end users they match get the flag.
+  follow       Make a flag's test follow production again.
+  promote      Apply a flag's test configuration to production.
+  evaluate     Show what one end user gets from each flag, and why.
+  archive      Archive a flag you no longer use.
+  restore      Bring back an archived flag as it was.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash flag <command> --help' for more about a command.

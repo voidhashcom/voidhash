@@ -1,0 +1,5876 @@
+[
+ {
+  "path": "init",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "login",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "read-only",
+    "type": "boolean"
+   },
+   {
+    "name": "no-browser",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "logout",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "whoami",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "status",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "link",
+  "arguments": [
+   {
+    "name": "project",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": []
+ },
+ {
+  "path": "unlink",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "switch",
+  "arguments": [
+   {
+    "name": "project",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": []
+ },
+ {
+  "path": "open",
+  "arguments": [
+   {
+    "name": "page",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "item",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "browser",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "person",
+  "aliases": [
+   "persons"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "person list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person find",
+  "arguments": [
+   {
+    "name": "query",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person view",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person why",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "perk",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person edit",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "email",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "set",
+    "type": "string"
+   },
+   {
+    "name": "set-once",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "distinct-id",
+    "type": "string"
+   },
+   {
+    "name": "email",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "person erase",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "wait",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product",
+  "aliases": [
+   "products"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "product list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "type",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product view",
+  "arguments": [
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "type",
+    "type": "choice"
+   },
+   {
+    "name": "period",
+    "type": "choice"
+   },
+   {
+    "name": "perk",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product edit",
+  "arguments": [
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product delete",
+  "arguments": [
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "product perks",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "product perks set",
+  "arguments": [
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "perk",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "none",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "dry-run",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "perk",
+  "aliases": [
+   "perks"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "perk list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "perk create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "product",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "perk edit",
+  "arguments": [
+   {
+    "name": "perk",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "perk delete",
+  "arguments": [
+   {
+    "name": "perk",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider",
+  "aliases": [
+   "providers"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "provider list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider view",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider connect",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "provider connect app-store",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "bundle-id",
+    "type": "string"
+   },
+   {
+    "name": "apple-id",
+    "type": "string"
+   },
+   {
+    "name": "issuer-id",
+    "type": "string"
+   },
+   {
+    "name": "iap-key",
+    "type": "string"
+   },
+   {
+    "name": "iap-key-id",
+    "type": "string"
+   },
+   {
+    "name": "api-key",
+    "type": "string"
+   },
+   {
+    "name": "api-key-id",
+    "type": "string"
+   },
+   {
+    "name": "vendor-number",
+    "type": "string"
+   },
+   {
+    "name": "forward-notifications-to",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider connect google-play",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "package-name",
+    "type": "string"
+   },
+   {
+    "name": "service-account-key",
+    "type": "string"
+   },
+   {
+    "name": "notifications-topic",
+    "type": "string"
+   },
+   {
+    "name": "forward-notifications-to",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider connect stripe",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "account-id",
+    "type": "string"
+   },
+   {
+    "name": "live-secret-key",
+    "type": "string"
+   },
+   {
+    "name": "test-secret-key",
+    "type": "string"
+   },
+   {
+    "name": "live-webhook-secret",
+    "type": "string"
+   },
+   {
+    "name": "test-webhook-secret",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider connect payment-source",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "endpoint",
+    "type": "string"
+   },
+   {
+    "name": "test-endpoint",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider test",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider edit",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "enable",
+    "type": "boolean"
+   },
+   {
+    "name": "disable",
+    "type": "boolean"
+   },
+   {
+    "name": "endpoint",
+    "type": "string"
+   },
+   {
+    "name": "disconnect-endpoint",
+    "type": "boolean"
+   },
+   {
+    "name": "rotate-secret",
+    "type": "boolean"
+   },
+   {
+    "name": "test-endpoint",
+    "type": "string"
+   },
+   {
+    "name": "disconnect-test-endpoint",
+    "type": "boolean"
+   },
+   {
+    "name": "rotate-test-secret",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider products",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "unmapped",
+    "type": "boolean"
+   },
+   {
+    "name": "mapped",
+    "type": "boolean"
+   },
+   {
+    "name": "refresh",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider map",
+  "arguments": [
+   {
+    "name": "store-product",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "provider",
+    "type": "string"
+   },
+   {
+    "name": "offer",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider unmap",
+  "arguments": [
+   {
+    "name": "store-product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "provider",
+    "type": "string"
+   },
+   {
+    "name": "product",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider import",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "watch",
+    "type": "boolean"
+   },
+   {
+    "name": "cancel",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider delete",
+  "arguments": [
+   {
+    "name": "provider",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider record-payment",
+  "arguments": [
+   {
+    "name": "source",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "amount",
+    "type": "string"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "product",
+    "type": "string"
+   },
+   {
+    "name": "distinct-id",
+    "type": "string"
+   },
+   {
+    "name": "customer",
+    "type": "string"
+   },
+   {
+    "name": "refunds",
+    "type": "string"
+   },
+   {
+    "name": "id",
+    "type": "string"
+   },
+   {
+    "name": "at",
+    "type": "string"
+   },
+   {
+    "name": "test",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider refund",
+  "arguments": [
+   {
+    "name": "source",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "transaction",
+    "type": "string"
+   },
+   {
+    "name": "amount",
+    "type": "string"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "reason",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "provider cancel-subscription",
+  "arguments": [
+   {
+    "name": "source",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "subscription",
+    "type": "string"
+   },
+   {
+    "name": "now",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall",
+  "aliases": [
+   "paywalls"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "paywall list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "archived",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall view",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "kind",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall edit",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall build",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "wait",
+    "type": "boolean"
+   },
+   {
+    "name": "timeout",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall deploy",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "build",
+    "type": "string"
+   },
+   {
+    "name": "timeout",
+    "type": "integer"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall archive",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall unarchive",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "paywall delete",
+  "arguments": [
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location",
+  "aliases": [
+   "locations"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "location list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "archived",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location view",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "slug",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "show",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location edit",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "clear-description",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location show",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location clear",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location pin",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "note",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location unpin",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "location rule",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "location rule add",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "paywall",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "when",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "first",
+    "type": "boolean"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location rule remove",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "position",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "location history",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "location archive",
+  "arguments": [
+   {
+    "name": "location",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag",
+  "aliases": [
+   "flags"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "flag list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "archived",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag view",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "key",
+    "type": "string"
+   },
+   {
+    "name": "type",
+    "type": "choice"
+   },
+   {
+    "name": "variant",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "rollout",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag enable",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "rollout",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag disable",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag rollout",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "percent",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag edit",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "key",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag variants",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "flag variants set",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "value",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag override",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "setting",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "note",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag rule",
+  "aliases": [
+   "rules"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "flag rule add",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "when",
+    "type": "string"
+   },
+   {
+    "name": "rollout",
+    "type": "string"
+   },
+   {
+    "name": "variant",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "id",
+    "type": "string"
+   },
+   {
+    "name": "first",
+    "type": "boolean"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag rule remove",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "rule",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag follow",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag promote",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag evaluate",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "flag",
+    "type": "string"
+   },
+   {
+    "name": "platform",
+    "type": "string"
+   },
+   {
+    "name": "app-version",
+    "type": "string"
+   },
+   {
+    "name": "os-version",
+    "type": "string"
+   },
+   {
+    "name": "country",
+    "type": "string"
+   },
+   {
+    "name": "locale",
+    "type": "string"
+   },
+   {
+    "name": "env",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag archive",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "flag restore",
+  "arguments": [
+   {
+    "name": "flag",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment",
+  "aliases": [
+   "experiments"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "experiment list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "status",
+    "type": "choice"
+   },
+   {
+    "name": "archived",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment view",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "hypothesis",
+    "type": "string"
+   },
+   {
+    "name": "metric",
+    "type": "string"
+   },
+   {
+    "name": "location",
+    "type": "string"
+   },
+   {
+    "name": "arm",
+    "type": "string"
+   },
+   {
+    "name": "control",
+    "type": "string"
+   },
+   {
+    "name": "weights",
+    "type": "string"
+   },
+   {
+    "name": "flag",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment edit",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "hypothesis",
+    "type": "string"
+   },
+   {
+    "name": "metric",
+    "type": "string"
+   },
+   {
+    "name": "secondary-metric",
+    "type": "string"
+   },
+   {
+    "name": "location",
+    "type": "string"
+   },
+   {
+    "name": "arm",
+    "type": "string"
+   },
+   {
+    "name": "control",
+    "type": "string"
+   },
+   {
+    "name": "weights",
+    "type": "string"
+   },
+   {
+    "name": "flag",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment start",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment pause",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment results",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment conclude",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "winner",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment archive",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "experiment restore",
+  "arguments": [
+   {
+    "name": "experiment",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events",
+  "aliases": [
+   "event"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "events list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "person",
+    "type": "string"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events tail",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "person",
+    "type": "string"
+   },
+   {
+    "name": "interval",
+    "type": "integer"
+   },
+   {
+    "name": "count",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events policy",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "events policy view",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events policy enable",
+  "arguments": [
+   {
+    "name": "event",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events policy disable",
+  "arguments": [
+   {
+    "name": "event",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events policy block",
+  "arguments": [
+   {
+    "name": "event",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "events policy unblock",
+  "arguments": [
+   {
+    "name": "event",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "insights",
+  "aliases": [
+   "insight"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "insights list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "insights run",
+  "arguments": [
+   {
+    "name": "insight",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "by",
+    "type": "choice"
+   },
+   {
+    "name": "product",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "compare",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "analytics acquisition",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "by",
+    "type": "choice"
+   },
+   {
+    "name": "network",
+    "type": "string"
+   },
+   {
+    "name": "campaign",
+    "type": "string"
+   },
+   {
+    "name": "adset",
+    "type": "string"
+   },
+   {
+    "name": "attribution-window-days",
+    "type": "integer"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "ad",
+    "type": "string"
+   },
+   {
+    "name": "key-conversion",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics cohorts",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "by",
+    "type": "choice"
+   },
+   {
+    "name": "network",
+    "type": "string"
+   },
+   {
+    "name": "campaign",
+    "type": "string"
+   },
+   {
+    "name": "adset",
+    "type": "string"
+   },
+   {
+    "name": "attribution-window-days",
+    "type": "integer"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics health",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics charts",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "section",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics chart",
+  "arguments": [
+   {
+    "name": "chart",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "by",
+    "type": "choice"
+   },
+   {
+    "name": "dimension",
+    "type": "string"
+   },
+   {
+    "name": "metric",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics alerts",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "analytics alerts list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics alerts create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "kind",
+    "type": "choice"
+   },
+   {
+    "name": "event",
+    "type": "string"
+   },
+   {
+    "name": "success-event",
+    "type": "string"
+   },
+   {
+    "name": "window-hours",
+    "type": "integer"
+   },
+   {
+    "name": "threshold",
+    "type": "number"
+   },
+   {
+    "name": "min-people",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics alerts enable",
+  "arguments": [
+   {
+    "name": "alert",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics alerts disable",
+  "arguments": [
+   {
+    "name": "alert",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "analytics alerts delete",
+  "arguments": [
+   {
+    "name": "alert",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads",
+  "aliases": [
+   "ad"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "ads accounts",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads connect",
+  "arguments": [
+   {
+    "name": "account",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "token-stdin",
+    "type": "boolean"
+   },
+   {
+    "name": "backfill-days",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads disconnect",
+  "arguments": [
+   {
+    "name": "account",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads campaigns",
+  "arguments": [
+   {
+    "name": "campaign",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "account",
+    "type": "string"
+   },
+   {
+    "name": "status",
+    "type": "choice"
+   },
+   {
+    "name": "delivery",
+    "type": "choice"
+   },
+   {
+    "name": "destination",
+    "type": "choice"
+   },
+   {
+    "name": "search",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads report",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "ads report performance",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "level",
+    "type": "choice"
+   },
+   {
+    "name": "campaign",
+    "type": "string"
+   },
+   {
+    "name": "delivery",
+    "type": "choice"
+   },
+   {
+    "name": "sort",
+    "type": "choice"
+   },
+   {
+    "name": "breakdown",
+    "type": "choice"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads report creatives",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "format",
+    "type": "choice"
+   },
+   {
+    "name": "search",
+    "type": "string"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads report cohorts",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "last",
+    "type": "string"
+   },
+   {
+    "name": "from",
+    "type": "string"
+   },
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "by",
+    "type": "choice"
+   },
+   {
+    "name": "unit",
+    "type": "choice"
+   },
+   {
+    "name": "metric",
+    "type": "choice"
+   },
+   {
+    "name": "currency",
+    "type": "string"
+   },
+   {
+    "name": "timezone",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads issues",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads settings",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "ads settings view",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads settings web-to-app",
+  "arguments": [
+   {
+    "name": "prefix",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "clear",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads measurement",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "ads measurement view",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "ads measurement edit",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "enable",
+    "type": "boolean"
+   },
+   {
+    "name": "disable",
+    "type": "boolean"
+   },
+   {
+    "name": "dataset",
+    "type": "string"
+   },
+   {
+    "name": "token",
+    "type": "boolean"
+   },
+   {
+    "name": "token-stdin",
+    "type": "boolean"
+   },
+   {
+    "name": "clear-token",
+    "type": "boolean"
+   },
+   {
+    "name": "test-event-code",
+    "type": "string"
+   },
+   {
+    "name": "clear-test-event-code",
+    "type": "boolean"
+   },
+   {
+    "name": "install-referrer-key",
+    "type": "boolean"
+   },
+   {
+    "name": "install-referrer-key-stdin",
+    "type": "boolean"
+   },
+   {
+    "name": "clear-install-referrer-key",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook",
+  "aliases": [
+   "webhooks"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "webhook list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook view",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook create",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "event",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook edit",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "url",
+    "type": "string"
+   },
+   {
+    "name": "event",
+    "type": "string"
+   },
+   {
+    "name": "description",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook enable",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook disable",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook delete",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook rotate",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook test",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook deliveries",
+  "arguments": [
+   {
+    "name": "webhook",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "failed",
+    "type": "boolean"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook delivery",
+  "arguments": [
+   {
+    "name": "delivery",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "webhook retry",
+  "arguments": [
+   {
+    "name": "delivery",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "push send",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "to",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "body",
+    "type": "string"
+   },
+   {
+    "name": "data",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "dry-run",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push deliveries",
+  "arguments": [
+   {
+    "name": "push",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "failed",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "push config list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config set",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "push config set apns",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "team-id",
+    "type": "string"
+   },
+   {
+    "name": "key-id",
+    "type": "string"
+   },
+   {
+    "name": "key-file",
+    "type": "string"
+   },
+   {
+    "name": "bundle-id",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config set fcm",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "service-account-file",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config enable",
+  "arguments": [
+   {
+    "name": "service",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config disable",
+  "arguments": [
+   {
+    "name": "service",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "push config delete",
+  "arguments": [
+   {
+    "name": "service",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "org",
+  "aliases": [
+   "orgs"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "org list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "org create",
+  "arguments": [
+   {
+    "name": "name",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "org edit",
+  "arguments": [
+   {
+    "name": "org",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "logo",
+    "type": "string"
+   },
+   {
+    "name": "remove-logo",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "org delete",
+  "arguments": [
+   {
+    "name": "org",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "project",
+  "aliases": [
+   "projects"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "project list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "project create",
+  "arguments": [
+   {
+    "name": "name",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "switch",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "project edit",
+  "arguments": [
+   {
+    "name": "project",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "logo",
+    "type": "string"
+   },
+   {
+    "name": "remove-logo",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "project delete",
+  "arguments": [
+   {
+    "name": "project",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "member",
+  "aliases": [
+   "members"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "member list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "member invite",
+  "arguments": [
+   {
+    "name": "email",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "role",
+    "type": "choice"
+   },
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "member role",
+  "arguments": [
+   {
+    "name": "member",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "role",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "member remove",
+  "arguments": [
+   {
+    "name": "member",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "settings",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "settings view",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "settings set",
+  "arguments": [
+   {
+    "name": "key",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "value",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "domain",
+  "aliases": [
+   "domains"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "domain list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "domain add",
+  "arguments": [
+   {
+    "name": "hostname",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "domain verify",
+  "arguments": [
+   {
+    "name": "domain",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "domain remove",
+  "arguments": [
+   {
+    "name": "domain",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "sandbox view",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox renew",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox expire",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox grace-period",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox refund",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox revoke",
+  "arguments": [
+   {
+    "name": "person",
+    "optional": true,
+    "variadic": false
+   },
+   {
+    "name": "product",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "sandbox reset",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "key",
+  "aliases": [
+   "keys"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "key list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "environment",
+    "type": "choice"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "audit",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "type",
+    "type": "string"
+   },
+   {
+    "name": "entity",
+    "type": "string"
+   },
+   {
+    "name": "limit",
+    "type": "integer"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "notices",
+  "aliases": [
+   "notice"
+  ],
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "notices list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "archived",
+    "type": "boolean"
+   },
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   },
+   {
+    "name": "quiet",
+    "short": "q",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "notices read",
+  "arguments": [
+   {
+    "name": "notice",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "all",
+    "type": "boolean"
+   },
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "notices archive",
+  "arguments": [
+   {
+    "name": "notice",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "notices unarchive",
+  "arguments": [
+   {
+    "name": "notice",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "notices preferences",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "category",
+    "type": "choice"
+   },
+   {
+    "name": "inbox",
+    "type": "choice"
+   },
+   {
+    "name": "email",
+    "type": "choice"
+   },
+   {
+    "name": "locale",
+    "type": "choice"
+   },
+   {
+    "name": "org",
+    "type": "string"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "feedback",
+  "arguments": [
+   {
+    "name": "message",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "topic",
+    "type": "choice"
+   },
+   {
+    "name": "sentiment",
+    "type": "integer"
+   },
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "dev",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "port",
+    "type": "integer"
+   }
+  ]
+ },
+ {
+  "path": "new",
+  "arguments": [
+   {
+    "name": "name",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "title",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "publish",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "all",
+    "type": "boolean"
+   },
+   {
+    "name": "component",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "test",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "panel",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "registry list",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry publish",
+  "arguments": [
+   {
+    "name": "path",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "from-project",
+    "type": "string"
+   },
+   {
+    "name": "version",
+    "type": "string"
+   },
+   {
+    "name": "name",
+    "type": "string"
+   },
+   {
+    "name": "title",
+    "type": "string"
+   },
+   {
+    "name": "category",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry install",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "range",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry update",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "range",
+    "type": "string"
+   },
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry uninstall",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry deprecate",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   },
+   {
+    "name": "version",
+    "optional": true,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "message",
+    "type": "string"
+   },
+   {
+    "name": "undo",
+    "type": "boolean"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry yank",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   },
+   {
+    "name": "version",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "message",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry transfer",
+  "arguments": [
+   {
+    "name": "component",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry publisher",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "registry publisher show",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "registry publisher claim",
+  "arguments": [
+   {
+    "name": "namespace",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "project",
+    "type": "string"
+   }
+  ]
+ },
+ {
+  "path": "types",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "types generate",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "poll-interval-ms",
+    "type": "integer"
+   },
+   {
+    "name": "watch",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "types check",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "mcp",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "mcp install",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "yes",
+    "short": "y",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "api",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "api list",
+  "arguments": [
+   {
+    "name": "search",
+    "optional": true,
+    "variadic": true
+   }
+  ],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "api describe",
+  "arguments": [
+   {
+    "name": "operation",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": []
+ },
+ {
+  "path": "api call",
+  "arguments": [
+   {
+    "name": "operation",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": [
+   {
+    "name": "path",
+    "type": "string"
+   },
+   {
+    "name": "query",
+    "type": "string"
+   },
+   {
+    "name": "body",
+    "type": "string"
+   },
+   {
+    "name": "project",
+    "type": "string"
+   },
+   {
+    "name": "environment",
+    "type": "choice"
+   }
+  ]
+ },
+ {
+  "path": "auth",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "auth login",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "read-only",
+    "type": "boolean"
+   },
+   {
+    "name": "no-browser",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "auth logout",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "auth status",
+  "arguments": [],
+  "flags": [
+   {
+    "name": "json",
+    "type": "boolean"
+   }
+  ]
+ },
+ {
+  "path": "config",
+  "arguments": [],
+  "flags": []
+ },
+ {
+  "path": "config set",
+  "arguments": [
+   {
+    "name": "key",
+    "optional": false,
+    "variadic": false
+   },
+   {
+    "name": "value",
+    "optional": false,
+    "variadic": false
+   }
+  ],
+  "flags": []
+ },
+ {
+  "path": "config reset",
+  "arguments": [],
+  "flags": []
+ }
+]

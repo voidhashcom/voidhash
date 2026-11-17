@@ -1,0 +1,26 @@
+Set exactly which landing pages mark website ads as web-to-app (sending people on to your app). The
+prefixes replace the list; --clear empties it. Synced ads change right away.
+
+Usage:
+  voidhash ads settings web-to-app [prefix...] [flags]
+
+Arguments:
+  prefix  Landing page prefixes, such as example.app/start; they replace the list
+
+Flags:
+      --clear              Remove every prefix
+  -h, --help               Show help for this command
+      --json               Print the API object as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads settings web-to-app example.app/start
+  voidhash ads settings web-to-app example.app/start example.app/get
+  voidhash ads settings web-to-app --clear

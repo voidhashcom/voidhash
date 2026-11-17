@@ -1,0 +1,30 @@
+Add someone with a Voidhash account to the organization as a member. They can use its projects at
+once. Adding a member again keeps their role.
+
+Someone without an account is invited by email from the dashboard, and making someone an admin is
+done there too.
+
+Usage:
+  voidhash member invite [email] [flags]
+
+Arguments:
+  email  The email of their Voidhash account
+
+Flags:
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --org <org>            Organization to act on: its slug, name or id (default: the organization
+                             of this directory's or your default project)
+  -q, --quiet                Print only ids, one per line
+      --role <admin|member>  Their role: member (the default). Making someone an admin is done in
+                             the Voidhash dashboard
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash member invite sam@example.com
+  voidhash member invite sam@example.com --org acme

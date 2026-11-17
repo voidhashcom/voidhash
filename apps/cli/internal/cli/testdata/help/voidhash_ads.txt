@@ -1,0 +1,29 @@
+Paid acquisition: connect ad accounts, see campaigns and reports, and find what needs attention.
+Voidhash reads ads; it never changes them.
+
+Usage:
+  voidhash ads <command> [flags]
+
+Aliases:
+  ads, ad
+
+Commands:
+  accounts     List the connected ad accounts and how their syncs are doing.
+  connect      Connect a Meta ad account with a system user token.
+  disconnect   Disconnect an ad account and delete what was synced from it.
+  campaigns    List the campaigns synced from your ad accounts, or show one.
+  report       Ads reports: performance, creatives and cohorts.
+  issues       What needs attention in your ads.
+  settings     The project's ads settings.
+  measurement  What Voidhash tells Meta: the Conversions API and the install referrer key.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash ads <command> --help' for more about a command.

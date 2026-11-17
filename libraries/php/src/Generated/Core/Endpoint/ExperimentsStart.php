@@ -7,7 +7,7 @@ class ExperimentsStart extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpo
     protected $projectId;
     protected $experimentId;
     /**
-     * Starts a draft experiment, or resumes a paused one: each of its paywall locations starts splitting end users between the arms, and each feature flag it sets takes the value of the end user's arm. Fails with `conflict` (`experiment_already_running`, `experiment_concluded` or `experiment_archived`) when the experiment is running, concluded or archived, and `conflict` (`experiment_not_startable`) when a placed paywall has no deployed build, a location runs another experiment, or another running or paused experiment sets one of its flags.
+     * Starts a draft experiment, or resumes a paused one: each of its paywall locations starts splitting end users between the arms, and each feature flag it sets takes the value of the end user's arm. Fails with `conflict` (`experiment_already_running`, `experiment_concluded` or `experiment_archived`) when the experiment is running, concluded or archived, and `conflict` (`experiment_not_startable`) when a placed paywall has no deployed build or is not made for the location it is placed at, a location runs another experiment, or another running or paused experiment sets one of its flags.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $experimentId The experiment's id, `exp_...`.
      */

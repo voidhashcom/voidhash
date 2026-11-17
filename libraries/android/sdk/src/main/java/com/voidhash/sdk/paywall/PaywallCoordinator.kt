@@ -3,6 +3,7 @@ package com.voidhash.sdk.paywall
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import com.voidhash.sdk.FlowActionHandler
 import com.voidhash.sdk.FlowCapability
 import com.voidhash.sdk.FlowException
 import com.voidhash.sdk.FlowFailure
@@ -19,7 +20,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
@@ -120,6 +123,10 @@ private const val PAYWALL_VIEWED_EVENT = "\$paywall_viewed"
  * refused with a warning. The variables a flow reports are saved per paywall and restored when
  * it is presented again, until the flow finishes or a purchase from it succeeds.
  *
+ * An `appAction` runs the handler the app passed for it and is answered with its reply. A call
+ * without a handler, and a handler that throws, are answered as failed, so the flow never waits
+ * on the app; handlers still running when the flow ends are cancelled.
+ *
  * A renderer whose surface goes away, as when the app is in the background, creates the flow's
  * runtime anew when it is back. That runtime reports `ready` again and is configured from the
  * variables saved by then; the screen the user was on is not part of them, so the flow shows its
@@ -140,12 +147,17 @@ private const val PAYWALL_VIEWED_EVENT = "\$paywall_viewed"
 class PaywallCoordinator(
     private val host: FlowHost,
     private val renderer: PaywallRenderer,
-    private val loadPackage: suspend (placement: String, reference: FlowPackageReference) -> ByteArray?,
+    private val loadPackage: suspend (location: String, reference: FlowPackageReference) -> ByteArray?,
     private val capabilities: Set<FlowCapability>,
     private val locale: String?,
     private val scope: CoroutineScope,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     private val onWarning: (String) -> Unit = {},
+    /**
+     * Told of an app action a flow called that the app passed no handler for. The SDK logs it in
+     * a debug build of the app, whether or not it logs warnings.
+     */
+    private val onMissingActionHandler: (String) -> Unit = onWarning,
     /**
      * Told, on the main thread, of the activity a flow is shown above once the one it was
      * presented from was recreated: what the host launches for the flow, such as the store's
@@ -170,9 +182,9 @@ class PaywallCoordinator(
     val isPresenting: Boolean get() = active.get() != null
 
     /** Downloads the flow package of [paywall] ahead of its presentation, when it can be drawn. */
-    suspend fun preload(placement: String, paywall: ResolvedPaywall) {
+    suspend fun preload(location: String, paywall: ResolvedPaywall) {
         val reference = paywall.flowPackage ?: return
-        if (renderer.supportsAbiVersion(reference.abiVersion)) loadPackage(placement, reference)
+        if (renderer.supports(reference)) loadPackage(location, reference)
     }
 
     /**
@@ -182,26 +194,26 @@ class PaywallCoordinator(
      * user has moved on, and a paywall appearing over whatever they are doing would be worse than
      * none. Either way what it was waiting for carries on, and is cached for the next presentation.
      */
-    internal inner class PendingPresentation(private val placement: String) {
+    internal inner class PendingPresentation(private val location: String) {
         private val ended = CompletableDeferred<Unit>()
-        private val outcome = AtomicReference<FlowResult?>(null)
+        private val outcome = AtomicReference<Result<FlowResult>?>(null)
 
         /** Measures the deadline on the coordinator's scope, from the moment the presentation began. */
         private val deadline = scope.launch {
             delay(FLOW_PRESENTATION_DEADLINE_MS)
-            val message = "The flow for \"$placement\" was not ready to show within " +
+            val message = "The flow for \"$location\" was not ready to show within " +
                 "${FLOW_PRESENTATION_DEADLINE_MS / 1000} s; what was fetched for it is kept for the next presentation"
             if (end(failed(FlowFailure.UNAVAILABLE, message))) onWarning(message)
         }
 
         /** How the presentation ended before it reached the screen; `null` while it may still be shown. */
-        val ending: FlowResult? get() = outcome.get()
+        val ending: Result<FlowResult>? get() = outcome.get()
 
         fun dismiss() {
-            end(FlowResult.Closed)
+            end(Result.success(FlowResult(FlowResult.DISMISSED)))
         }
 
-        private fun end(result: FlowResult): Boolean {
+        private fun end(result: Result<FlowResult>): Boolean {
             if (!outcome.compareAndSet(null, result)) return false
             ended.complete(Unit)
             return true
@@ -240,60 +252,70 @@ class PaywallCoordinator(
     private val pending: MutableSet<PendingPresentation> = Collections.newSetFromMap(ConcurrentHashMap())
 
     /**
-     * Starts the presentation of the flow for [placement], whose paywall is still to be resolved:
+     * Starts the presentation of the flow for [location], whose paywall is still to be resolved:
      * from here on [dismiss] cancels it and its deadline runs. Hand it to [present], or
      * [PendingPresentation.close] it.
      */
-    internal fun beginPresentation(placement: String): PendingPresentation =
-        PendingPresentation(placement).also { pending.add(it) }
+    internal fun beginPresentation(location: String): PendingPresentation =
+        PendingPresentation(location).also { pending.add(it) }
 
     /**
-     * Presents the flow of [paywall] above [activity] and returns how it ended. Cancelling the
-     * caller dismisses the flow, and so does [dismiss], also while the package is still being
-     * downloaded: the call then returns [FlowResult.Closed] and the download finishes on its own.
+     * Presents the flow of [paywall] above [activity] and returns how it ended. [input] are the
+     * inputs the app passes it and [actions] the handlers of the app actions it may call, both by
+     * name. [dismiss] closes the flow, also while the package is still being downloaded: the call
+     * then returns the outcome [FlowResult.DISMISSED] and the download finishes on its own.
+     * Cancelling the caller closes the flow too.
      *
-     * A flow that is not handed to the renderer within [FLOW_PRESENTATION_DEADLINE_MS] of this
-     * call is not shown: the call returns a [FlowResult.Failed] with [FlowFailure.UNAVAILABLE],
-     * and the download finishes on its own here too. Once on screen, a flow has no deadline.
+     * A flow that cannot be shown, or fails while it is on screen, throws a [FlowException]. One
+     * that is not handed to the renderer within [FLOW_PRESENTATION_DEADLINE_MS] of this call is
+     * not shown and throws [FlowFailure.UNAVAILABLE]; the download finishes on its own here too.
+     * Once on screen, a flow has no deadline.
      */
-    suspend fun present(activity: Activity, placement: String, paywall: ResolvedPaywall): FlowResult =
-        present(activity, placement, paywall, beginPresentation(placement))
+    suspend fun present(
+        activity: Activity,
+        location: String,
+        paywall: ResolvedPaywall,
+        input: Map<String, Any> = emptyMap(),
+        actions: Map<String, FlowActionHandler> = emptyMap(),
+    ): FlowResult = present(activity, location, paywall, beginPresentation(location), input, actions)
 
     /** [present] for a presentation begun with [beginPresentation], which this call closes. */
     internal suspend fun present(
         activity: Activity,
-        placement: String,
+        location: String,
         paywall: ResolvedPaywall,
         presentation: PendingPresentation,
+        input: Map<String, Any> = emptyMap(),
+        actions: Map<String, FlowActionHandler> = emptyMap(),
     ): FlowResult = try {
-        presentPending(activity, placement, paywall, presentation)
+        presentPending(activity, location, paywall, presentation, input, actions)
     } finally {
         presentation.close()
     }
 
     private suspend fun presentPending(
         activity: Activity,
-        placement: String,
+        location: String,
         paywall: ResolvedPaywall,
         presentation: PendingPresentation,
+        input: Map<String, Any>,
+        actions: Map<String, FlowActionHandler>,
     ): FlowResult {
-        presentation.ending?.let { return it }
+        presentation.ending?.let { return it.getOrThrow() }
         val reference = paywall.flowPackage ?: run {
-            onWarning("The paywall for \"$placement\" has no flow package")
-            return failed(FlowFailure.NOT_ASSIGNED, "The paywall for \"$placement\" has no flow package")
+            onWarning("The paywall for \"$location\" has no flow package")
+            throw FlowException(FlowFailure.NOT_ASSIGNED, "The paywall for \"$location\" has no flow package")
         }
-        if (!renderer.supportsAbiVersion(reference.abiVersion)) {
-            return FlowResult.Failed(
-                FlowException(
-                    FlowFailure.UNSUPPORTED_PACKAGE,
-                    "The flow for \"$placement\" uses package version ${reference.abiVersion}, " +
-                        "which this SDK cannot draw; update the Voidhash SDK",
-                    abiVersion = reference.abiVersion,
-                ),
+        if (!renderer.supports(reference)) {
+            throw FlowException(
+                FlowFailure.UNSUPPORTED_PACKAGE,
+                "The flow for \"$location\" uses package version ${reference.abiVersion}, " +
+                    "which this SDK cannot draw; update the Voidhash SDK",
+                abiVersion = reference.abiVersion,
             )
         }
         // On the coordinator's scope, so a dismissal or the deadline ends the wait and not the download.
-        val download = scope.async { loadPackage(placement, reference) }
+        val download = scope.async { loadPackage(location, reference) }
         val loaded = presentation.unlessEnded {
             try {
                 download.await()
@@ -302,17 +324,34 @@ class PaywallCoordinator(
                 currentCoroutineContext().ensureActive()
                 null
             }
-        } ?: return presentation.ending ?: FlowResult.Closed
+        } ?: return presentation.ending?.getOrThrow() ?: FlowResult(FlowResult.DISMISSED)
         val bytes = loaded.value
-            ?: return failed(FlowFailure.UNAVAILABLE, "The flow for \"$placement\" could not be downloaded")
+            ?: throw FlowException(FlowFailure.UNAVAILABLE, "The flow for \"$location\" could not be downloaded")
+        // In module mode, the runtime module the release needs; bounded by the renderer.
+        val prepared = presentation.unlessEnded {
+            try {
+                renderer.prepare(activity, reference)
+                null
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                error
+            }
+        } ?: return presentation.ending?.getOrThrow() ?: FlowResult(FlowResult.DISMISSED)
+        prepared.value?.let { error ->
+            onWarning("The flow runtime for \"$location\" is not available: ${error.message}")
+            throw FlowException(FlowFailure.UNAVAILABLE, "The flow runtime for \"$location\" is not available")
+        }
 
         val paywallContext = paywall.showingId?.let { showingId ->
-            PurchasePaywallContext(showingId, placement, paywall.paywallId, paywall.releaseId)
+            PurchasePaywallContext(showingId, location, paywall.paywallId, paywall.releaseId)
         }
         val flow = PresentedFlow(
-            activity, placement, paywall.paywallId, paywallContext, reference,
-            stateKey = paywall.paywallId ?: placement,
+            activity, location, paywall.paywallId, paywallContext, reference,
+            stateKey = paywall.paywallId ?: location,
             bytes = bytes,
+            input = flowValues(input, "input of the flow for \"$location\""),
+            actions = actions,
         )
         try {
             if (withContext(mainDispatcher) { show(flow, bytes, presentation) }) {
@@ -320,25 +359,41 @@ class PaywallCoordinator(
             }
             return flow.result.await()
         } catch (error: CancellationException) {
-            flow.end(FlowResult.Closed)
+            flow.dismiss()
             throw error
         }
     }
 
     /**
      * Closes the flow on screen, if any, and cancels every presentation that is not on screen
-     * yet; each one's [present] returns [FlowResult.Closed].
+     * yet; each one's [present] returns the outcome [FlowResult.DISMISSED].
      */
     fun dismiss() {
         // Before the flow on screen is read: a presentation that goes on screen meanwhile has
         // either seen its dismissal or is the active flow by then.
         pending.toList().forEach { it.dismiss() }
-        active.get()?.end(FlowResult.Closed)
+        active.get()?.dismiss()
+    }
+
+    /**
+     * Changes inputs of the flow on screen: [values] by name, each a string, number, boolean or
+     * list of strings.
+     * Inputs it does not name keep their values. Does nothing when no flow is on screen.
+     */
+    fun updateInput(values: Map<String, Any>) {
+        val flow = active.get() ?: return
+        val changed = flowValues(values, "input of the flow for \"${flow.location}\"")
+        if (changed.isEmpty()) return
+        // Kept, so a runtime the renderer creates anew is configured with them.
+        synchronized(flow) {
+            flow.input = flow.input + changed
+            flow.post(PaywallEnvelope.inputMessage(JSONObject(changed)))
+        }
     }
 
     /** Main thread. Returns whether [flow] is on screen. */
     private fun show(flow: PresentedFlow, bytes: ByteArray, presentation: PendingPresentation): Boolean {
-        active.getAndSet(flow)?.end(FlowResult.Closed)
+        active.getAndSet(flow)?.dismiss()
         // Dismissed, or past its deadline, after the package arrived and before anything was shown.
         presentation.ending?.let { ending ->
             flow.end(ending)
@@ -347,7 +402,7 @@ class PaywallCoordinator(
         // Handed to the renderer: from here on the flow has no deadline.
         presentation.close()
         val session = try {
-            renderer.present(flow.activity, bytes, flow.attachment)
+            renderer.present(flow.activity, bytes, flow.reference, flow.attachment)
         } catch (error: Exception) {
             flow.end(failed(FlowFailure.PRESENTATION_FAILED, "The flow could not be presented: ${error.message}"))
             return false
@@ -381,15 +436,19 @@ class PaywallCoordinator(
         }
         val state = guard("load the flow state") { host.loadState(flow.stateKey) }
 
-        val config = buildPaywallRuntimeConfig(
-            productIds = flow.reference.productIds,
-            products = products,
-            locale = locale,
-            capabilities = capabilities.map { it.wireName },
-            state = state,
-            onSkippedProduct = { reference -> onWarning("Paywall product not available in the store: $reference") },
-        )
-        flow.post(PaywallEnvelope.configureMessage(config, requestId))
+        // With `updateInput`, so a change of inputs is either part of this or posted after it.
+        synchronized(flow) {
+            val config = buildPaywallRuntimeConfig(
+                productIds = flow.reference.productIds,
+                products = products,
+                locale = locale,
+                capabilities = capabilities.map { it.wireName },
+                state = state,
+                input = JSONObject(flow.input),
+                onSkippedProduct = { reference -> onWarning("Paywall product not available in the store: $reference") },
+            )
+            flow.post(PaywallEnvelope.configureMessage(config, requestId))
+        }
     }
 
     /** Main thread, from the renderer. */
@@ -413,19 +472,19 @@ class PaywallCoordinator(
                 }
             }
             "purchase", "restore" -> scope.launch { runAction(flow, envelope) }
-            "close" -> flow.end(FlowResult.Closed)
+            "close" -> {
+                payload.optJSONObject("output")?.let { flow.output = it.toFlowValues() }
+                flow.dismiss()
+            }
             "openExternal" -> if (granted(FlowCapability.LINKS)) {
                 guard("open ${payload.getString("url")}") { host.openUrl(payload.getString("url")) }
             }
             "finish" -> {
                 guard("clear the flow state") { host.clearState(flow.stateKey) }
-                flow.end(
-                    FlowResult.Finished(
-                        payload.getString("result"),
-                        payload.optJSONObject("variables").toMap(),
-                    ),
-                )
+                payload.optJSONObject("output")?.let { flow.output = it.toFlowValues() }
+                flow.end(Result.success(FlowResult(payload.getString("result"), flow.output)))
             }
+            "appAction" -> flow.handlers.launch { callApp(flow, envelope) }
             "requestPermission" -> scope.launch { requestPermission(flow, envelope) }
             "setAttribute" -> setAttribute(payload)
             "track" -> guard("capture a flow event") {
@@ -434,7 +493,7 @@ class PaywallCoordinator(
                     return@guard
                 }
                 val properties = payload.optJSONObject("properties").toMap() +
-                    ("paywall_location" to flow.placement) +
+                    ("paywall_location" to flow.location) +
                     listOfNotNull(flow.paywallId?.let { "paywall_id" to it })
                 host.capture(payload.getString("name"), properties)
             }
@@ -442,18 +501,81 @@ class PaywallCoordinator(
                 host.screen(
                     payload.getString("name"),
                     mapOf(
-                        "paywall_location" to flow.placement,
+                        "paywall_location" to flow.location,
                         "flow_screen_index" to (payload.get("index") as Number).toInt(),
                     ),
                 )
             }
-            "state" -> guard("save the flow state") {
-                host.saveState(flow.stateKey, payload.getJSONObject("variables"))
+            "state" -> {
+                // Kept for an ending that reports none itself: a purchase, a restore, a dismissal.
+                payload.optJSONObject("output")?.let { flow.output = it.toFlowValues() }
+                guard("save the flow state") { host.saveState(flow.stateKey, payload.getJSONObject("variables")) }
             }
             "log" -> onWarning(
-                "Paywall for \"${flow.placement}\" logged (${payload.getString("level")}): ${payload.getString("message")}",
+                "Paywall for \"${flow.location}\" logged (${payload.getString("level")}): ${payload.getString("message")}",
             )
         }
+    }
+
+    /**
+     * Runs the app's handler for the action the flow called and answers the call. A call is
+     * always answered while the flow is shown: without a handler, and when the handler throws, as
+     * failed. A flow that ended meanwhile has cancelled the handler, and nothing is sent.
+     */
+    private suspend fun callApp(flow: PresentedFlow, envelope: PaywallInboundEnvelope) {
+        val name = envelope.payload.getString("name")
+        val requestId = envelope.requestId ?: run {
+            onWarning("Ignoring the app action \"$name\" the flow for \"${flow.location}\" called without a request id")
+            return
+        }
+        val handler = flow.actions[name]
+        if (handler == null) {
+            onMissingActionHandler(
+                "The flow for \"${flow.location}\" called the app action \"$name\", which the app passed no " +
+                    "handler for; pass one in `actions` of presentFlow",
+            )
+            flow.post(PaywallEnvelope.appActionFailure(requestId, "No handler is registered for \"$name\""))
+            return
+        }
+        val answer = try {
+            val reply = handler.handle(envelope.payload.optJSONObject("args").toFlowValues())
+            PaywallEnvelope.appActionReply(
+                requestId,
+                JSONObject(flowValues(reply, "reply of the app action \"$name\"")),
+            )
+        } catch (error: Throwable) {
+            // Cancelled because the flow ended: there is nothing left to answer.
+            currentCoroutineContext().ensureActive()
+            onWarning("The handler of the app action \"$name\" failed: ${error.message}")
+            PaywallEnvelope.appActionFailure(requestId, error.message.orEmpty().ifEmpty { "The app action failed" })
+        }
+        flow.post(answer)
+    }
+
+    /**
+     * The entries of [values] a flow can take: strings, finite numbers, booleans and lists of
+     * strings (a list as a [JSONArray]). Anything else is dropped with a warning that names
+     * [what] it was part of.
+     */
+    private fun flowValues(values: Map<String, Any?>, what: String): Map<String, Any> {
+        val kept = LinkedHashMap<String, Any>()
+        for ((name, value) in values) {
+            val usable: Any? = when (value) {
+                is String, is Boolean -> value
+                is Number -> value.takeIf { it.toDouble().isFinite() }
+                is List<*> -> if (value.all { it is String }) JSONArray(value) else null
+                else -> null
+            }
+            if (usable != null) {
+                kept[name] = usable
+            } else {
+                onWarning(
+                    "Dropped \"$name\" from the $what: only strings, numbers, booleans and lists " +
+                        "of strings can be passed",
+                )
+            }
+        }
+        return kept
     }
 
     private fun granted(capability: FlowCapability): Boolean {
@@ -547,10 +669,11 @@ class PaywallCoordinator(
         flow.post(
             PaywallEnvelope.successResponse("purchase", envelope.requestId, JSONObject().put("productId", product.slug)),
         )
-        // An onboarding flow carries on after a purchase; a paywall is done.
-        if (!flow.reference.shouldEndFlowOnPurchase) return
+        // The purchase says whether the flow is done; one that does not
+        // follows the flow (a paywall is done, an onboarding carries on).
+        if (!endsFlow(flow, envelope)) return
         guard("clear the flow state") { host.clearState(flow.stateKey) }
-        flow.end(FlowResult.Purchased(product.slug))
+        flow.end(Result.success(FlowResult(FlowResult.PURCHASED, flow.output, product.slug)))
     }
 
     private suspend fun runRestore(flow: PresentedFlow, envelope: PaywallInboundEnvelope) {
@@ -560,9 +683,16 @@ class PaywallCoordinator(
 
         flow.status(PaywallEnvelope.statusMessage("restored", envelope.requestId))
         flow.post(PaywallEnvelope.successResponse("restore", envelope.requestId))
-        if (!flow.reference.shouldEndFlowOnPurchase) return
-        flow.end(FlowResult.Restored)
+        if (!endsFlow(flow, envelope)) return
+        flow.end(Result.success(FlowResult(FlowResult.RESTORED, flow.output)))
     }
+
+    /**
+     * Whether a successful purchase or restore ends the flow: as the action says
+     * (`endsFlow`, flow packages from ABI 11), or else as the flow does.
+     */
+    private fun endsFlow(flow: PresentedFlow, envelope: PaywallInboundEnvelope): Boolean =
+        (envelope.payload.opt("endsFlow") as? Boolean) ?: flow.reference.shouldEndFlowOnPurchase
 
     /** Resolves the flow's product reference against the store products; see [findFlowProduct]. */
     private suspend fun findProduct(productId: String): VoidhashProduct? = findFlowProduct(host.products(), productId)
@@ -619,7 +749,7 @@ class PaywallCoordinator(
     private inner class PresentedFlow(
         /** The activity the flow is shown above: the one it was presented from, or its recreation. */
         @Volatile var activity: Activity,
-        val placement: String,
+        val location: String,
         val paywallId: String?,
         /** The paywall a purchase from this flow names; `null` when the server sent no showing. */
         val paywallContext: PurchasePaywallContext?,
@@ -627,8 +757,19 @@ class PaywallCoordinator(
         val stateKey: String,
         /** The flow package, for a session presented again. */
         private val bytes: ByteArray,
+        /** The inputs the app passes the flow, as of its last change; read and replaced under the flow's lock. */
+        @Volatile var input: Map<String, Any>,
+        /** The app's handlers of the actions the flow may call, by name. */
+        val actions: Map<String, FlowActionHandler>,
     ) : Application.ActivityLifecycleCallbacks {
         val result = CompletableDeferred<FlowResult>()
+
+        /** The flow's outputs as it last reported them. */
+        @Volatile
+        var output: Map<String, Any> = emptyMap()
+
+        /** Runs the app's action handlers; cancelled when the flow ends. */
+        val handlers = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
         val ended = AtomicBoolean(false)
         val configured = AtomicBoolean(false)
         val actionInFlight = AtomicBoolean(false)
@@ -674,11 +815,15 @@ class PaywallCoordinator(
             session?.postMessage(message)
         }
 
+        /** Ends the presentation as dismissed, with the outputs the flow reported by now. */
+        fun dismiss() = end(Result.success(FlowResult(FlowResult.DISMISSED, output)))
+
         /** Ends the presentation with [outcome] and removes it from the screen; later calls do nothing. */
-        fun end(outcome: FlowResult) {
+        fun end(outcome: Result<FlowResult>) {
             if (!ended.compareAndSet(false, true)) return
             active.compareAndSet(this, null)
-            result.complete(outcome)
+            outcome.fold(result::complete, result::completeExceptionally)
+            handlers.cancel()
             onMain {
                 application?.unregisterActivityLifecycleCallbacks(this)
                 application = null
@@ -712,7 +857,7 @@ class PaywallCoordinator(
             // Without a successor to show the flow above, its caller must not wait for good.
             recreationDeadline = scope.launch {
                 delay(RECREATION_WAIT_MS)
-                onMain { if (recreating) end(FlowResult.Closed) }
+                onMain { if (recreating) dismiss() }
             }
         }
 
@@ -727,7 +872,7 @@ class PaywallCoordinator(
             val next = Attachment()
             attachment = next
             val presented = try {
-                renderer.present(recreated, bytes, next)
+                renderer.present(recreated, bytes, reference, next)
             } catch (error: Exception) {
                 end(
                     failed(
@@ -753,12 +898,12 @@ class PaywallCoordinator(
             when {
                 // Created to replace the flow's activity and gone before it started, as one that
                 // finishes in `onCreate` is: there is nothing to show the flow above.
-                destroyed === successor -> end(FlowResult.Closed)
+                destroyed === successor -> dismiss()
                 destroyed !== activity -> Unit
                 destroyed.isChangingConfigurations -> awaitRecreation()
                 // Gone for good. Ended here rather than by the renderer's dismissal alone, which
                 // a renderer that keeps no watch on its activity never reports.
-                !recreating -> end(FlowResult.Closed)
+                !recreating -> dismiss()
             }
         }
 
@@ -794,12 +939,12 @@ class PaywallCoordinator(
             }
 
             override fun onWarning(message: String) {
-                this@PaywallCoordinator.onWarning("Paywall for \"$placement\": $message")
+                this@PaywallCoordinator.onWarning("Paywall for \"$location\": $message")
             }
 
             override fun onFailure(message: String) {
                 if (detached) return
-                this@PaywallCoordinator.onWarning("Paywall for \"$placement\" failed: $message")
+                this@PaywallCoordinator.onWarning("Paywall for \"$location\" failed: $message")
                 end(failed(FlowFailure.PRESENTATION_FAILED, message))
             }
 
@@ -830,13 +975,14 @@ class PaywallCoordinator(
                 // session was not left by the user: the flow waits for the recreated activity.
                 if (!ended.get() && activity.isChangingConfigurations) return awaitRecreation()
                 session = null
-                end(FlowResult.Closed)
+                dismiss()
             }
         }
     }
 }
 
-private fun failed(reason: FlowFailure, message: String) = FlowResult.Failed(FlowException(reason, message))
+private fun failed(reason: FlowFailure, message: String): Result<FlowResult> =
+    Result.failure(FlowException(reason, message))
 
 /** A JSON object as Kotlin values: nested objects become maps, arrays lists, `null` null. */
 private fun JSONObject?.toMap(): Map<String, Any?> {
@@ -849,4 +995,24 @@ private fun Any?.toKotlin(): Any? = when (this) {
     is JSONObject -> toMap()
     is JSONArray -> (0 until length()).map { get(it).toKotlin() }
     else -> this
+}
+
+/**
+ * What a flow sent by name, as the app reads it: strings, booleans, numbers as [Double] and
+ * lists as [List] of [String]. A flow sends nothing else; anything else is left out.
+ */
+private fun JSONObject?.toFlowValues(): Map<String, Any> {
+    if (this == null) return emptyMap()
+    val values = LinkedHashMap<String, Any>()
+    for (name in keys()) {
+        when (val value = get(name)) {
+            is String, is Boolean -> values[name] = value
+            is Number -> values[name] = value.toDouble()
+            is JSONArray -> {
+                val strings = (0 until value.length()).map { value.get(it) }
+                if (strings.all { it is String }) values[name] = strings.filterIsInstance<String>()
+            }
+        }
+    }
+    return values
 }

@@ -1,0 +1,25 @@
+The perks your app checks for, which products grant: list, create, edit and delete them. 'voidhash
+product perks set' chooses the perks a product grants.
+
+Usage:
+  voidhash perk <command> [flags]
+
+Aliases:
+  perk, perks
+
+Commands:
+  list       List the project's perks and the products that grant each.
+  create     Create a perk, the access your app checks for.
+  edit       Rename a perk or change the slug your app checks for.
+  delete     Delete a perk, which everyone who has it loses.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash perk <command> --help' for more about a command.

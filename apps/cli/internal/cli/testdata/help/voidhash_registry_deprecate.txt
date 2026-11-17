@@ -1,0 +1,29 @@
+Deprecate one version, or the whole component when no version is named.
+
+A deprecated component cannot be newly installed or inserted, and a deprecated version cannot be
+published in a paywall again; published paywalls keep working. --undo lifts the deprecation.
+
+Usage:
+  voidhash registry deprecate <component> [version] [flags]
+
+Arguments:
+  component  The registry component's id, such as acme/wheel-picker
+  version    The version to deprecate (the whole component when omitted)
+
+Flags:
+  -h, --help               Show help for this command
+      --message <message>  Why, shown wherever the component is used
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+      --undo               Lift the deprecation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry deprecate acme/wheel-picker --message "Use acme/picker instead"
+  voidhash registry deprecate acme/wheel-picker 1.2.0
+  voidhash registry deprecate acme/wheel-picker 1.2.0 --undo

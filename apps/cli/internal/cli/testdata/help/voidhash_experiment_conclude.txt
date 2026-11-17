@@ -1,0 +1,28 @@
+End an experiment for good with a winner: its paywalls show to everyone at its locations, and the
+flags it set give its values to everyone their own rules and overrides don't name. It can never run
+again. Shows the results and asks first; --yes skips the question.
+
+Usage:
+  voidhash experiment conclude [experiment] [flags]
+
+Arguments:
+  experiment  The experiment's name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --winner <arm>       The winning arm by name (default: the control)
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash experiment conclude "Annual-first onboarding" --winner "Annual first"
+  voidhash experiment conclude exp_123 --winner control --yes

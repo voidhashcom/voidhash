@@ -1,0 +1,41 @@
+Show what one end user gets from each flag and why, as their app would see it in production, or in
+test with --env test. Looking places them in no experiment.
+
+Rules that ask about the app read --platform, --app-version, --os-version, --country and --locale;
+without them such a condition counts as not set.
+
+With -q it prints the keys of the flags that are on for them.
+
+Usage:
+  voidhash flag evaluate [person] [flags]
+
+Arguments:
+  person  The end user: an email, a distinct id or a person id (person_…); prefix email:,
+          distinct_id:, person_id: or external_id: to say which
+
+Flags:
+      --app-version <version>  Their app's version, such as 2.4.1, for rules that ask
+      --country <country>      The two-letter country they are in, such as DE, for rules that ask
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+      --flag <key>             Only this flag, by key (can be repeated)
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --locale <locale>        Their locale, such as de-DE, for rules that ask
+      --os-version <version>   Their operating system's version, such as 17.4, for rules that ask
+      --platform <platform>    The platform their app runs on (ios, android or web), for rules that
+                               ask
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag evaluate alice@example.com
+  voidhash flag evaluate device-1234 --flag new-checkout --env test
+  voidhash flag evaluate alice@example.com --platform ios --app-version 2.4.1 --country DE

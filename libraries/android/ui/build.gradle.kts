@@ -36,6 +36,8 @@ kotlin {
 dependencies {
     // A build that vendors the modules under other paths names the SDK one here.
     api(project((findProperty("voidhash.sdkProjectPath") as String?) ?: ":sdk"))
+    // Waiting for a runtime module off the main thread; the SDK already depends on it.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     testImplementation("org.json:json:20231013")
     testImplementation(kotlin("test"))

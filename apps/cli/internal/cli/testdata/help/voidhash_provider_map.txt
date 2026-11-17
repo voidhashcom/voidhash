@@ -1,0 +1,41 @@
+Map a store product to a product, so buying it grants the product's perks. Without arguments it asks
+for both in a terminal, offering the store products not mapped yet.
+
+Moving one mapped to another product asks first; --yes skips that. A payment source whose test
+system names products differently maps each key with --environment production or test.
+
+Usage:
+  voidhash provider map [store-product] [product] [flags]
+
+Arguments:
+  store-product  The store's id for it, as 'provider products' lists it (a Stripe price is
+                 prod_...:price_...)
+  product        The product buying it grants: its slug, name or id
+
+Flags:
+      --environment <all|production|test>
+                                   For a payment source whose test system names products
+                                   differently: the purchases this store product key names (default
+                                   all). App Store and Google Play products name every environment,
+                                   and a Stripe price's mode decides its own
+  -h, --help                       Show help for this command
+      --json                       Print the API objects as JSON, for scripts
+      --offer <id=store-offer-id>  An offer a paywall can sell on it, as id=store-offer-id; repeat
+                                   for each. Replaces the saved offers (can be repeated)
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+      --provider <provider>        The provider selling it (app-store, google-play, stripe, a
+                                   payment source's slug); needed only when several do
+  -q, --quiet                      Print only ids, one per line
+  -y, --yes                        Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider map com.acme.pro.monthly pro-monthly
+  voidhash provider map prod_123:price_456 pro-annual --provider stripe
+  voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK50

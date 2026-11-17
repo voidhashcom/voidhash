@@ -1,0 +1,23 @@
+List the project's paywalls with the build end users see, a newer build that is not live, and the
+locations that show each paywall.
+
+Usage:
+  voidhash paywall list [flags]
+
+Flags:
+      --archived           List only archived ones
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall list
+  voidhash paywall list --archived -q

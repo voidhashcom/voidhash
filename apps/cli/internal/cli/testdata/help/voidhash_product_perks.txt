@@ -1,0 +1,18 @@
+Choose the perks a product grants.
+
+Usage:
+  voidhash product perks <command> [flags]
+
+Commands:
+  set        Make a product grant exactly these perks.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash product perks <command> --help' for more about a command.

@@ -1,0 +1,40 @@
+Show another paywall at a location to everyone its --when conditions hold for, in place of what the
+location shows everyone else; they are outside an experiment running there. Rules are read in order
+after pins, and the first that matches decides. With --env test, only apps using a test key are
+answered.
+
+A condition is '<what> <how> [<values>]'. What is platform, app_version, os_version, country, locale
+or trait:<key>. How is in, not in, >=, <, is set or is not set. Values are separated by commas.
+Repeat --when; all conditions must hold.
+
+Usage:
+  voidhash location rule add [location] [paywall] [flags]
+
+Arguments:
+  location  The location's slug, name or id
+  paywall   The paywall's slug, name or id
+
+Flags:
+      --env <production|test>  Whose apps the rule answers: production (the default), whose rules
+                               answer every app, or test, whose rules answer apps using a test key
+                               only and are read first there
+      --first                  Read it before the location's other rules instead of after them
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --name <name>            A name for the rule
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+      --when <condition>       A condition the rule matches by, such as 'country in DE,AT' or
+                               'trait:beta is set'; all of them must hold (can be repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location rule add home annual --when 'country in DE,AT' --name Germany
+  voidhash location rule add home pro --when 'app_version >= 2.4' --when 'trait:beta is set' --first
+  voidhash location rule add home pro --when 'platform in ios' --env test

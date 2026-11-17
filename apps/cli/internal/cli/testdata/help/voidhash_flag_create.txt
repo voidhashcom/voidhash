@@ -1,0 +1,34 @@
+Create a feature flag, off until you turn it on. A boolean flag is on or off; a string, number or
+json flag hands out the values you give with --variant, split evenly.
+
+--rollout turns it on in production right away for that share of end users.
+
+Usage:
+  voidhash flag create [flags]
+
+Flags:
+      --description <description>  What the flag is for
+  -h, --help                       Show help for this command
+      --json                       Print the API objects as JSON, for scripts
+      --key <key>                  What your app asks for, such as new-checkout
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+  -q, --quiet                      Print only ids, one per line
+      --rollout <share>            Turn it on in production right away for this share of end users,
+                                   such as 10%
+      --type <boolean|string|number|json>
+                                   Its type: boolean (on or off; the default), or string, number or
+                                   json variants
+      --variant <value>            A value the flag can hand out (not for boolean) (can be repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag create --key new-checkout
+  voidhash flag create --key new-checkout --rollout 10%
+  voidhash flag create --key button-color --type string --variant red --variant blue
+  voidhash flag create --key limits --type json --variant '{"max":5}' --variant '{"max":10}'

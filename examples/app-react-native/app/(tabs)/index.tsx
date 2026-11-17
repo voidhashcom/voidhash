@@ -8,7 +8,7 @@ import { Card } from "../../components/card";
 import { Screen } from "../../components/screen";
 import { EVENTS, FREE_NOTE_LIMIT, ONBOARDING_LOCATION, PRO_PERK } from "../../lib/nimbus";
 import { addNote, useNotes } from "../../lib/notes";
-import { describePaywallOutcome } from "../../lib/paywall-outcome";
+import { describePaywallFailure } from "../../lib/paywall-outcome";
 import { useTheme } from "../../lib/theme";
 import { voidhash } from "../../lib/voidhash";
 
@@ -30,28 +30,36 @@ export default function NotesScreen() {
 
   /**
    * Presents the paywall published for the location, or the app's own Upgrade
-   * screen when it can't be shown. `present()` never rejects: it resolves once
-   * the paywall is gone, with how it ended, so there is no `try`/`catch` here,
-   * only a decision.
+   * screen when it can't be shown. `present()` resolves once the paywall is
+   * gone, with how it ended and what it reported, and rejects when nothing
+   * could be shown.
+   *
+   * The generated declarations type this location: `input`, the `pickGoal`
+   * handler and the result's `outcome` and `output` are all checked.
    */
   const presentUpgrade = useCallback(async () => {
-    const result = await present();
-    if (result.status === "purchased" || result.status === "restored") {
-      void refetchAccess();
-    }
-
-    const outcome = describePaywallOutcome(result);
-    if (!outcome.fallback) {
+    try {
+      const result = await present({
+        actions: {
+          // The flow asks the app for a goal; here the notes decide.
+          pickGoal: ({ current }) => ({ goal: notes.length > 0 ? "write-daily" : current }),
+        },
+        input: { credits: Math.max(0, FREE_NOTE_LIMIT - notes.length) },
+      });
+      if (result.outcome === "purchased" || result.outcome === "restored") {
+        void refetchAccess();
+      }
       voidhash.client.capture(EVENTS.paywallViewed, {
         location: ONBOARDING_LOCATION,
-        outcome: result.status,
+        outcome: result.outcome,
         presentation: "hosted",
+        ...(result.outcome === "completed" ? { goal: result.output.goal } : {}),
       });
-      return;
+    } catch (error) {
+      const failure = describePaywallFailure(error);
+      router.navigate({ params: { reason: failure.reason }, pathname: "/upgrade" });
     }
-
-    router.navigate({ params: { reason: outcome.reason }, pathname: "/upgrade" });
-  }, [present, refetchAccess, router]);
+  }, [notes.length, present, refetchAccess, router]);
 
   const handleCreateNote = useCallback(async () => {
     if (!isPro && notes.length >= FREE_NOTE_LIMIT) {

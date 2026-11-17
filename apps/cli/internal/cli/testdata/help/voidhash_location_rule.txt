@@ -1,0 +1,21 @@
+Show another paywall at a location to the end users a rule matches: add a rule with --when
+conditions, or remove one. Rules are read in order after pins, and the first that matches decides;
+'voidhash location view' lists them.
+
+Usage:
+  voidhash location rule <command> [flags]
+
+Commands:
+  add        Show another paywall at a location to everyone its --when conditions hold for.
+  remove     Remove one of a location's rules by its number.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash location rule <command> --help' for more about a command.

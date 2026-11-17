@@ -113,7 +113,7 @@ abstract class HybridVoidhashNativeClientSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
-  abstract fun getPaywall(placement: String): Promise<String>
+  abstract fun getPaywall(location: String): Promise<String>
   
   @DoNotStrip
   @Keep
@@ -219,9 +219,18 @@ abstract class HybridVoidhashNativeClientSpec: HybridObject() {
   @Keep
   abstract fun getSessionId(): String
   
+  abstract fun presentFlow(location: String, presentation: NativeFlowPresentation, onAction: (name: String, argsJson: String) -> Promise<Promise<String>>): Promise<String>
+  
   @DoNotStrip
   @Keep
-  abstract fun presentFlow(placement: String): Promise<String>
+  private fun presentFlow_cxx(location: String, presentation: NativeFlowPresentation, onAction: Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string): Promise<String> {
+    val __result = presentFlow(location, presentation, onAction)
+    return __result
+  }
+  
+  @DoNotStrip
+  @Keep
+  abstract fun updateFlowInput(valuesJson: String): Promise<Unit>
   
   @DoNotStrip
   @Keep

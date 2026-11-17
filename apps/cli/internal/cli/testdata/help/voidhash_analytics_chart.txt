@@ -1,0 +1,37 @@
+Run one of the charts the dashboard shows: retention, paywalls, web traffic, installs, countries and
+more. 'voidhash analytics charts' lists them.
+
+A time series reads as one number per line: the total of counts and money, the latest value of rates
+and stocks. Tables show their first 25 rows. --json has the whole result.
+
+Usage:
+  voidhash analytics chart <chart> [flags]
+
+Arguments:
+  chart  The chart's id, as 'voidhash analytics charts' lists it
+
+Flags:
+      --by <hour|day|week|month>  Bucket width of a time series (default: day)
+      --dimension <dimension>     What a chart with dimensions groups by
+      --from <day>                First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help                      Show help for this command
+      --json                      Print the API result as JSON, for scripts
+      --last <span>               The complete days before today to report on: a span such as 7d,
+                                  4w, 3m or 1y (default: 30d)
+      --metric <metric>           What a chart with metrics shows
+      --project <project>         Project to act on: its id, slug, organization/slug or name
+                                  (default: this directory's project, then your default project)
+      --timezone <zone>           IANA time zone days are cut in, such as Europe/Prague (default:
+                                  UTC)
+      --to <day>                  Last day to report on, YYYY-MM-DD (default: today; with --from)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash analytics chart mrr_trend --last 90d --by week
+  voidhash analytics chart revenue_by_placement
+  voidhash analytics chart top_pages --timezone Europe/Prague --json

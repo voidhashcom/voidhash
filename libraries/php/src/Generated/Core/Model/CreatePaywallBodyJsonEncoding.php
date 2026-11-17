@@ -25,7 +25,7 @@ class CreatePaywallBodyJsonEncoding
      */
     protected $slug;
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @var string
      */
@@ -75,7 +75,7 @@ class CreatePaywallBodyJsonEncoding
         return $this;
     }
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @return string
      */
@@ -84,7 +84,7 @@ class CreatePaywallBodyJsonEncoding
         return $this->kind;
     }
     /**
-     * What the flow is for: a `paywall`, or an `onboarding` flow.
+     * What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
      *
      * @param string $kind
      *

@@ -1,0 +1,26 @@
+Notices your organizations sent you: list them, mark them read, archive them, choose how they reach
+you.
+
+Usage:
+  voidhash notices <command> [flags]
+
+Aliases:
+  notices, notice
+
+Commands:
+  list         List the notices an organization sent you, newest first.
+  read         Mark notices read, or the whole inbox with --all.
+  archive      Archive notices, which also marks them read.
+  unarchive    Bring archived notices back to the inbox.
+  preferences  Show or change how each category of notices reaches you, and their language.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash notices <command> --help' for more about a command.

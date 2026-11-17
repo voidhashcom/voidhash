@@ -1,0 +1,27 @@
+Build the paywall's current design without deploying it. --wait waits for the result and shows why a
+build failed. Starting a build needs you signed in as yourself; a project key cannot.
+
+Usage:
+  voidhash paywall build [paywall] [flags]
+
+Arguments:
+  paywall  The paywall's slug, name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --timeout <seconds>  How many seconds to wait for the build (default: 300)
+      --wait               Wait until the build is ready or failed
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall build pro --wait
+  voidhash paywall build pro -q

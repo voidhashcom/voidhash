@@ -1,8 +1,8 @@
-import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
 import { VoidhashError, type VoidhashErrorCode } from "../../errors";
+import type { FlowActions, FlowInput, FlowOutcome, FlowOutput } from "../schema/registry";
 
 /**
  * What an app lets its flows do, granted at SDK setup. Purchases, restores,
@@ -16,6 +16,16 @@ import { VoidhashError, type VoidhashErrorCode } from "../../errors";
  */
 export type FlowCapability = "notifications" | "tracking" | "attributes" | "links";
 
+/**
+ * Which flow runtime draws flows, for the whole app process.
+ *
+ * - `linked`: the runtime built into the SDK (the default).
+ * - `module`: the flow runtime module each flow names, which the SDK
+ *   downloads once, verifies and caches, so flows can use flow editor
+ *   features newer than the SDK. Not yet recommended for production.
+ */
+export type FlowRuntime = "linked" | "module";
+
 /** Capabilities granted when `flowCapabilities` is not set. */
 export const DEFAULT_FLOW_CAPABILITIES: ReadonlyArray<FlowCapability> = ["links"];
 
@@ -25,80 +35,99 @@ export type FlowErrorCode = Extract<VoidhashErrorCode, `FLOW_${string}`>;
 /**
  * How a presented flow ended.
  *
- * - `finished`: the flow reached one of its finish actions. `result` is the
- *   finish action's result name; `variables` are the flow's variables then.
- * - `purchased`: a purchase started from the flow completed and the flow was
- *   dismissed; `productSlug` names the product bought.
- * - `restored`: a restore started from the flow completed and the flow was dismissed.
- * - `closed`: the user or the app closed the flow, or another flow replaced it.
- * - `failed`: the flow could not be presented; `error.code` says why.
+ * - `outcome`: `purchased` when a purchase ended the flow, `restored` when a
+ *   restore did, `dismissed` when the user or the app closed it or another
+ *   flow replaced it; otherwise the outcome the flow finished with.
+ * - `output`: the flow's outputs by name; empty when it declares none.
+ * - `productId`: the store product bought, when the outcome is `purchased`.
+ *
+ * A flow that could not be presented is not a result: `presentFlow()` rejects.
  */
-export type FlowResult =
-  | { status: "finished"; result: string; variables: Record<string, unknown> }
-  | { status: "purchased"; productSlug: string }
-  | { status: "restored" }
-  | { status: "closed" }
-  | { status: "failed"; error: VoidhashError };
+export interface FlowResult<L extends string = string> {
+  readonly outcome: FlowOutcome<L>;
+  readonly output: FlowOutput<L>;
+  readonly productId?: string;
+}
 
-/** A failed presentation. */
-export const flowFailure = (code: FlowErrorCode, message: string): FlowResult => ({
-  error: new VoidhashError(code, `${code}: ${message}`),
-  status: "failed",
-});
+type RequiredWhenNotEmpty<Key extends string, Value> =
+  Record<never, never> extends Value
+    ? { readonly [K in Key]?: Value }
+    : { readonly [K in Key]: Value };
+
+/**
+ * What an app passes to one presentation of the flow at location `L`.
+ *
+ * - `input`: the flow's inputs by name.
+ * - `actions`: a handler per app action the flow can call.
+ * - `revision`: the interface revision the app was built against. Leave it
+ *   out to use the one set for the location in the `flowRevisions` option.
+ */
+export type PresentFlowOptions<L extends string = string> = {
+  readonly revision?: number;
+} & RequiredWhenNotEmpty<"input", FlowInput<L>> &
+  RequiredWhenNotEmpty<"actions", FlowActions<L>>;
+
+/**
+ * The arguments of a presentation after its location: the options are
+ * required when the location's flow has required inputs or app actions.
+ */
+export type PresentFlowArguments<L extends string = string> =
+  Record<never, never> extends PresentFlowOptions<L>
+    ? [options?: PresentFlowOptions<L>]
+    : [options: PresentFlowOptions<L>];
+
+/** The error a presentation that could not be shown rejects with. */
+export const flowError = (code: FlowErrorCode, message: string): VoidhashError =>
+  new VoidhashError(code, `${code}: ${message}`);
+
+const NativeFlowValue = Schema.Union([
+  Schema.String,
+  Schema.Number,
+  Schema.Boolean,
+  Schema.Array(Schema.String),
+]);
 
 const NativeFlowResult = Schema.Union([
   Schema.Struct({
-    result: Schema.String,
-    status: Schema.Literal("finished"),
-    variables: Schema.Record(Schema.String, Schema.Unknown),
+    outcome: Schema.String,
+    output: Schema.Record(Schema.String, NativeFlowValue),
+    productId: Schema.optional(Schema.String),
   }),
-  Schema.Struct({ productSlug: Schema.String, status: Schema.Literal("purchased") }),
-  Schema.Struct({ status: Schema.Literal("restored") }),
-  Schema.Struct({ status: Schema.Literal("closed") }),
   Schema.Struct({
-    code: Schema.Literals([
-      "FLOW_DISABLED",
-      "FLOW_NOT_ASSIGNED",
-      "FLOW_UNAVAILABLE",
-      "FLOW_RENDERER_MISSING",
-      "FLOW_UNSUPPORTED_PACKAGE",
-      "FLOW_PRESENTATION_FAILED",
-    ]),
-    message: Schema.String,
-    status: Schema.Literal("failed"),
+    failure: Schema.Struct({
+      code: Schema.Literals([
+        "FLOW_DISABLED",
+        "FLOW_NOT_ASSIGNED",
+        "FLOW_UNAVAILABLE",
+        "FLOW_RENDERER_MISSING",
+        "FLOW_UNSUPPORTED_PACKAGE",
+        "FLOW_PRESENTATION_FAILED",
+      ]),
+      message: Schema.String,
+    }),
   }),
 ]);
 
 const decodeNativeFlowResult = Schema.decodeUnknownResult(Schema.fromJsonString(NativeFlowResult));
 
 /**
- * Reads the result the native coordinator reported. An answer this SDK does
- * not understand (a native module from another SDK version) is a failed
- * presentation rather than an exception.
+ * Reads the answer of the native coordinator: how the flow ended, or the
+ * error of a flow that could not be presented. An answer this SDK does not
+ * understand (a native module from another SDK version) is such an error too.
  */
-export const parseFlowResult = (json: string): FlowResult => {
+export const parseFlowResult = (json: string): Result.Result<FlowResult, VoidhashError> => {
   const decoded = decodeNativeFlowResult(json);
   if (Result.isFailure(decoded)) {
-    return flowFailure("FLOW_PRESENTATION_FAILED", `unreadable flow result ${json}`);
+    return Result.fail(flowError("FLOW_PRESENTATION_FAILED", `unreadable flow result ${json}`));
   }
-  return Match.value(decoded.success).pipe(
-    Match.discriminatorsExhaustive("status")({
-      closed: (): FlowResult => ({ status: "closed" }),
-      // The native message already starts with its code.
-      failed: (native): FlowResult => ({
-        error: new VoidhashError(native.code, native.message),
-        status: "failed",
-      }),
-      finished: (native): FlowResult => ({
-        result: native.result,
-        status: "finished",
-        variables: { ...native.variables },
-      }),
-      purchased: (native): FlowResult => ({
-        productSlug: native.productSlug,
-        status: "purchased",
-      }),
-      restored: (): FlowResult => ({ status: "restored" }),
-    }),
-  );
+  const native = decoded.success;
+  // The native message already starts with its code.
+  if ("failure" in native) {
+    return Result.fail(new VoidhashError(native.failure.code, native.failure.message));
+  }
+  return Result.succeed({
+    outcome: native.outcome,
+    output: native.output,
+    ...(native.productId === undefined ? {} : { productId: native.productId }),
+  });
 };

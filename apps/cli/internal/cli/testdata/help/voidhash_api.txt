@@ -1,0 +1,29 @@
+Find, describe and call any operation of the Voidhash API: everything the dashboard can do except
+paywall design. Use it in scripts, and for what has no command of its own yet.
+
+The operations are read from the server the CLI talks to, so they are always the ones that server
+has.
+
+Usage:
+  voidhash api <command> [flags]
+
+Commands:
+  list       List the operations of the Voidhash API.
+  describe   Show an operation's parameters, body and response schemas, and errors.
+  call       Call an operation of the Voidhash API as yourself and print its JSON response.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash api list webhooks
+  voidhash api describe webhooks.create
+  voidhash api call webhooks.list --query limit=5
+
+Run 'voidhash api <command> --help' for more about a command.

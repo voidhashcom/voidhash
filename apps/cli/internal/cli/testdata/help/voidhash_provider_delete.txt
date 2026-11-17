@@ -1,0 +1,24 @@
+Delete a payment provider that no store product is mapped to. Asks first; --yes skips that.
+
+Usage:
+  voidhash provider delete [provider] [flags]
+
+Arguments:
+  provider  The provider: app-store, google-play, stripe, a payment source's slug or name, or its id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider delete google-play --yes

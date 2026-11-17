@@ -1,0 +1,30 @@
+Install a component of your organization's registry into the project, after showing what it asks
+for.
+
+A component that asks for capabilities (such as commerce or links) needs your consent: accept at the
+prompt, or pass --yes after reviewing them.
+
+Usage:
+  voidhash registry install <component> [flags]
+
+Arguments:
+  component  The registry component's id, such as acme/wheel-picker
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --range <range>      Version range: *, an exact version, ^1.2.3 or ~1.2.3
+  -y, --yes                Accept the capabilities and changes the review shows
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry install acme/wheel-picker
+  voidhash registry install acme/wheel-picker --range ^1.2.0 --yes

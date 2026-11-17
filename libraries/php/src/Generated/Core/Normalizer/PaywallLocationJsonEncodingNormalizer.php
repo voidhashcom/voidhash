@@ -73,6 +73,9 @@ class PaywallLocationJsonEncodingNormalizer implements DenormalizerInterface, No
         if (\array_key_exists('testShowing', $data)) {
             $object->setTestShowing($this->denormalizer->denormalize($data['testShowing'], \Voidhash\Generated\Core\Model\PaywallLocationShowingJsonEncoding::class, 'json', $context));
         }
+        if (\array_key_exists('interface', $data)) {
+            $object->setInterface($this->denormalizer->denormalize($data['interface'], \Voidhash\Generated\Core\Model\LocationInterface::class, 'json', $context));
+        }
         if (\array_key_exists('createdAt', $data) && $data['createdAt'] !== null) {
             $object->setCreatedAt($data['createdAt']);
         }
@@ -99,6 +102,7 @@ class PaywallLocationJsonEncodingNormalizer implements DenormalizerInterface, No
         $dataArray['archivedAt'] = $data->getArchivedAt();
         $dataArray['showing'] = $this->normalizer->normalize($data->getShowing(), 'json', $context);
         $dataArray['testShowing'] = $this->normalizer->normalize($data->getTestShowing(), 'json', $context);
+        $dataArray['interface'] = $this->normalizer->normalize($data->getInterface(), 'json', $context);
         $dataArray['createdAt'] = $data->getCreatedAt();
         $dataArray['updatedAt'] = $data->getUpdatedAt();
         return $dataArray;

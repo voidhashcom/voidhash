@@ -1,0 +1,23 @@
+List the operations of the Voidhash API, or those whose id, path or description holds every word you
+pass.
+
+Usage:
+  voidhash api list [search...] [flags]
+
+Arguments:
+  search  Words that must all appear in the operation's id, path or description
+
+Flags:
+  -h, --help  Show help for this command
+      --json  Print the API objects as JSON, for scripts
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash api list
+  voidhash api list webhooks
+  voidhash api list person erase --json

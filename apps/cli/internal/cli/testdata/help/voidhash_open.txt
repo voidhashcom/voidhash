@@ -1,0 +1,37 @@
+Open a page of the project's dashboard in your browser, and print its address. Without a page, opens
+the project's overview. Off a terminal, or with --no-browser, the address is only printed.
+
+Pages: overview, products, product, perks, persons, person, flags, flag, experiments, experiment,
+paywalls, paywall, locations, location, components, events, event-settings, analytics, ads,
+ad-accounts, campaigns, creatives, cohorts, webhooks, webhook, providers, provider, keys,
+notifications, settings, domains, sandbox, push.
+
+product, person, flag, experiment, paywall, location, webhook and provider open the page of one
+item, which you name after it or choose on a terminal.
+
+Usage:
+  voidhash open [page] [item] [flags]
+
+Arguments:
+  page  The dashboard page to open (default: overview)
+  item  For product, paywall or location: its slug, name or id; for person: their email, distinct id
+        or id; for flag: its key or id; for experiment: its name or id; for webhook: its name, URL
+        or id; for provider: app-store, google-play, stripe or a payment source's slug
+
+Flags:
+  -h, --help               Show help for this command
+      --no-browser         Only print the page's address
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash open
+  voidhash open products
+  voidhash open product pro-monthly
+  voidhash open person ada@example.com --no-browser

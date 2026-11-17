@@ -1,0 +1,32 @@
+Publish components to your organization's registry, and install and manage registry components in a
+project.
+
+A registry component is named <publisher>/<name>, such as acme/wheel-picker: the publisher is your
+organization's namespace ('voidhash registry publisher show'). Every project of the organization can
+install what the registry holds.
+
+Usage:
+  voidhash registry <command> [flags]
+
+Commands:
+  list       List the project's components, its installs, and your organization's registry.
+  publish    Publish a component bundle, or a ready project component, to your organization's
+             registry.
+  install    Install a component from your organization's registry.
+  update     Update an installed component to the newest version in its range.
+  uninstall  Remove an installed component from the project.
+  deprecate  Deprecate a component or one of its versions.
+  yank       Yank a component version for good.
+  transfer   Move a component to another project of your organization.
+  publisher  Show or claim the namespace your organization publishes components under.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash registry <command> --help' for more about a command.

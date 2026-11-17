@@ -1,0 +1,23 @@
+List the project's own components with their newest versions, the registry components it has
+installed, and every component of the organization's registry.
+
+With --json, one object holds the three lists: "components", "installs" and "registry".
+
+Usage:
+  voidhash registry list [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry list
+  voidhash registry list --project acme/app --json

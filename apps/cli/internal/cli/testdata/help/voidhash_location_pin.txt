@@ -1,0 +1,35 @@
+Show one end user a paywall of their own at a location, whatever it shows everyone else; they are
+outside an experiment running there. Pinning them again changes their pin.
+
+With --env test the pin answers apps using a test key only. A pin shows only where the location
+shows something.
+
+Usage:
+  voidhash location pin [location] [person] [paywall] [flags]
+
+Arguments:
+  location  The location's slug, name or id
+  person    The end user: an email, a distinct id or a person id (person_…); prefix email:,
+            distinct_id: or person_id: to say which
+  paywall   The paywall's slug, name or id
+
+Flags:
+      --env <production|test>  Whose apps the pin answers: production (the default), which answers
+                               every app, or test, which answers apps using a test key only and wins
+                               there
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --note <note>            Why, such as QA
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location pin home ada@example.com pro --note QA
+  voidhash location pin home distinct_id:device-qa pro --env test

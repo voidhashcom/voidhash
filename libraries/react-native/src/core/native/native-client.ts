@@ -59,7 +59,13 @@ import type { GooglePlayInAppMessageResult } from "../entities/google-play";
 import { decodePerson, type Person } from "../entities/person";
 import type { Product } from "../entities/product";
 import type { TransactionUpdate } from "../entities/transaction";
-import { type FlowErrorCode, flowFailure, type FlowResult, parseFlowResult } from "../flows/flows";
+import {
+  flowError,
+  type FlowErrorCode,
+  type FlowResult,
+  parseFlowResult,
+  type PresentFlowOptions,
+} from "../flows/flows";
 import type {
   FeatureFlagsResult,
   GroupProperties,
@@ -80,7 +86,7 @@ import {
   schemaAtom,
   UNCONFIRMED_PERSON,
 } from "../reactivity/client-state";
-import type { PerkSlug } from "../schema/registry";
+import type { FlowValues, PerkSlug } from "../schema/registry";
 import { decodeRuntimeSchema } from "../schema/decode";
 import { type AnalyticsConsent, isAnalyticsConsent } from "../sdk-configuration";
 import { readNativeError } from "../utils/native-error";
@@ -195,6 +201,7 @@ const FAILURES = {
   },
   canMakePayments: { fallback: "FAILED_TO_CHECK_CAN_MAKE_PAYMENTS" },
   dismissFlow: { fallback: "FLOW_PRESENTATION_FAILED" },
+  updateFlowInput: { fallback: "FLOW_PRESENTATION_FAILED" },
   flush: { fallback: "FAILED_TO_FLUSH_ANALYTICS" },
   getCurrentPerson: {
     fallback: "FAILED_TO_GET_CURRENT_PERSON",
@@ -346,7 +353,17 @@ const toFlushResult = (status: NativeFlushStatus): FlushResult => ({
       }),
 });
 
-/** Whether a native code is one of the `FLOW_*` codes the facade's flow results carry. */
+/** Inputs, action arguments and action replies as the native side carries them. */
+const FlowValuesFromJson = Schema.fromJsonString(
+  Schema.Record(
+    Schema.String,
+    Schema.Union([Schema.String, Schema.Number, Schema.Boolean, Schema.Array(Schema.String)]),
+  ),
+);
+const decodeFlowValues = Schema.decodeUnknownSync(FlowValuesFromJson);
+const encodeFlowValues = Schema.encodeSync(FlowValuesFromJson);
+
+/** Whether a native code is one of the `FLOW_*` codes a presentation rejects with. */
 const isFlowErrorCode = (code: string): code is FlowErrorCode =>
   code.startsWith("FLOW_") && VOIDHASH_ERROR_CODES.some((known) => known === code);
 
@@ -972,15 +989,15 @@ export const makeNativeClientAdapter = (options: NativeClientAdapterOptions) => 
         return toFlags(result);
       }),
 
-    getPaywallForLocation: async (placement: string) => {
-      const json = await call(FAILURES.getPaywallForLocation, () => native.getPaywall(placement));
+    getPaywallForLocation: async (location: string) => {
+      const json = await call(FAILURES.getPaywallForLocation, () => native.getPaywall(location));
       return json.andThen((value) =>
         EffectResult.match(EffectResult.flatMap(decodeJson(value), decodePaywall), {
           onFailure: () =>
             Result.err(
               new VoidhashError(
                 "FAILED_TO_GET_PAYWALL_FOR_LOCATION",
-                `FAILED_TO_GET_PAYWALL_FOR_LOCATION: unreadable paywall for "${placement}"`,
+                `FAILED_TO_GET_PAYWALL_FOR_LOCATION: unreadable paywall for "${location}"`,
               ),
             ),
           onSuccess: (paywall) => Result.ok(paywall),
@@ -1221,31 +1238,64 @@ export const makeNativeClientAdapter = (options: NativeClientAdapterOptions) => 
       ),
 
     /**
-     * Never rejects, as on the facade: a flow that cannot be shown is a
-     * `failed` result. A `FLOW_*` code the native side gives is kept; a client
-     * that is not started is `FLOW_UNAVAILABLE`, as before `init()` today. A
-     * flow that ended in a purchase or a restore outdates the products, as
+     * Resolves with how the flow ended and rejects with a `VoidhashError` when
+     * it could not be presented. A `FLOW_*` code the native side gives is
+     * kept; a client that is not started is `FLOW_UNAVAILABLE`.
+     *
+     * The native coordinator runs the flow: it calls back only for the
+     * actions named here, and answers a rejected call, a slow one and one
+     * whose flow has ended itself.
+     * A flow that ended in a purchase or a restore outdates the products, as
      * `purchase()` and `restorePurchases()` do: the native client reports
      * neither as a transaction update.
      */
-    presentFlow: async (placement: string): Promise<FlowResult> => {
+    presentFlow: async (
+      location: string,
+      options: PresentFlowOptions = {},
+    ): Promise<FlowResult> => {
+      const handlers = options.actions ?? {};
+      const onAction = async (name: string, argsJson: string) => {
+        const handler = handlers[name];
+        if (handler === undefined) {
+          throw new VoidhashError("INVALID_ARGUMENT", `no handler for app action "${name}"`);
+        }
+        const reply = await handler(decodeFlowValues(argsJson));
+        return encodeFlowValues(reply ?? {});
+      };
       const exit = await Effect.runPromiseExit(
-        Effect.tryPromise({ catch: (error) => error, try: () => native.presentFlow(placement) }),
+        Effect.tryPromise({
+          catch: (error) => error,
+          try: () =>
+            native.presentFlow(
+              location,
+              {
+                actions: R.keys(handlers),
+                inputJson: encodeFlowValues(options.input ?? {}),
+                ...(options.revision === undefined ? {} : { revision: options.revision }),
+              },
+              onAction,
+            ),
+        }),
       );
       if (Exit.isSuccess(exit)) {
-        const result = parseFlowResult(exit.value);
-        if (result.status === "purchased" || result.status === "restored") invalidateProducts();
-        return result;
+        const parsed = parseFlowResult(exit.value);
+        if (EffectResult.isFailure(parsed)) throw parsed.failure;
+        if (parsed.success.outcome === "purchased" || parsed.success.outcome === "restored") {
+          invalidateProducts();
+        }
+        return parsed.success;
       }
       const failure = readNativeError(Cause.squash(exit.cause));
       const code = Option.getOrElse(failure.code, () => "");
       if (NOT_STARTED_CODES.includes(code)) {
-        return flowFailure("FLOW_UNAVAILABLE", new NotInitializedError().message);
+        throw flowError("FLOW_UNAVAILABLE", new NotInitializedError().message);
       }
-      return isFlowErrorCode(code)
-        ? { error: new VoidhashError(code, failure.message), status: "failed" }
-        : flowFailure("FLOW_PRESENTATION_FAILED", failure.message);
+      throw isFlowErrorCode(code)
+        ? new VoidhashError(code, failure.message)
+        : flowError("FLOW_PRESENTATION_FAILED", failure.message);
     },
+    updateFlowInput: (values: FlowValues) =>
+      call(FAILURES.updateFlowInput, () => native.updateFlowInput(encodeFlowValues(values))),
     dismissFlow: () => call(FAILURES.dismissFlow, () => native.dismissFlow()),
   } as const;
 };

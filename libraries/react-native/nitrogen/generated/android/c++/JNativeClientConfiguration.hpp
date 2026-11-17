@@ -13,11 +13,15 @@
 #include "JNativeAnalyticsConsent.hpp"
 #include "JNativeAppStoreMessages.hpp"
 #include "JNativeFlowCapability.hpp"
+#include "JNativeFlowRevision.hpp"
+#include "JNativeFlowRuntime.hpp"
 #include "JNativePendingAnalytics.hpp"
 #include "JNativePurchaseIntents.hpp"
 #include "NativeAnalyticsConsent.hpp"
 #include "NativeAppStoreMessages.hpp"
 #include "NativeFlowCapability.hpp"
+#include "NativeFlowRevision.hpp"
+#include "NativeFlowRuntime.hpp"
 #include "NativePendingAnalytics.hpp"
 #include "NativePurchaseIntents.hpp"
 #include <optional>
@@ -72,10 +76,14 @@ namespace margelo::nitro::voidhash {
       jboolean installAttribution = this->getFieldValue(fieldInstallAttribution);
       static const auto fieldMetaAppId = clazz->getField<jni::JString>("metaAppId");
       jni::local_ref<jni::JString> metaAppId = this->getFieldValue(fieldMetaAppId);
-      static const auto fieldPreloadPlacements = clazz->getField<jni::JArrayClass<jni::JString>>("preloadPlacements");
-      jni::local_ref<jni::JArrayClass<jni::JString>> preloadPlacements = this->getFieldValue(fieldPreloadPlacements);
+      static const auto fieldPreloadLocations = clazz->getField<jni::JArrayClass<jni::JString>>("preloadLocations");
+      jni::local_ref<jni::JArrayClass<jni::JString>> preloadLocations = this->getFieldValue(fieldPreloadLocations);
+      static const auto fieldFlowRevisions = clazz->getField<jni::JArrayClass<JNativeFlowRevision>>("flowRevisions");
+      jni::local_ref<jni::JArrayClass<JNativeFlowRevision>> flowRevisions = this->getFieldValue(fieldFlowRevisions);
       static const auto fieldFlowCapabilities = clazz->getField<jni::JArrayClass<JNativeFlowCapability>>("flowCapabilities");
       jni::local_ref<jni::JArrayClass<JNativeFlowCapability>> flowCapabilities = this->getFieldValue(fieldFlowCapabilities);
+      static const auto fieldFlowRuntime = clazz->getField<JNativeFlowRuntime>("flowRuntime");
+      jni::local_ref<JNativeFlowRuntime> flowRuntime = this->getFieldValue(fieldFlowRuntime);
       static const auto fieldScreenTrackingEnabled = clazz->getField<jboolean>("screenTrackingEnabled");
       jboolean screenTrackingEnabled = this->getFieldValue(fieldScreenTrackingEnabled);
       static const auto fieldFeatureFlagMaxWaitMs = clazz->getField<jni::JDouble>("featureFlagMaxWaitMs");
@@ -114,7 +122,17 @@ namespace margelo::nitro::voidhash {
             __vector.push_back(__element->toStdString());
           }
           return __vector;
-        }(preloadPlacements),
+        }(preloadLocations),
+        [&](auto&& __input) {
+          size_t __size = __input->size();
+          std::vector<NativeFlowRevision> __vector;
+          __vector.reserve(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            auto __element = __input->getElement(__i);
+            __vector.push_back(__element->toCpp());
+          }
+          return __vector;
+        }(flowRevisions),
         [&](auto&& __input) {
           size_t __size = __input->size();
           std::vector<NativeFlowCapability> __vector;
@@ -125,6 +143,7 @@ namespace margelo::nitro::voidhash {
           }
           return __vector;
         }(flowCapabilities),
+        flowRuntime->toCpp(),
         static_cast<bool>(screenTrackingEnabled),
         featureFlagMaxWaitMs != nullptr ? std::make_optional(featureFlagMaxWaitMs->value()) : std::nullopt,
         featureFlagDefaults != nullptr ? std::make_optional([&]() {
@@ -148,7 +167,7 @@ namespace margelo::nitro::voidhash {
      */
     [[maybe_unused]]
     static jni::local_ref<JNativeClientConfiguration::javaobject> fromCpp(const NativeClientConfiguration& value) {
-      using JSignature = JNativeClientConfiguration(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean, jboolean, jni::alias_ref<jni::JString>, jboolean, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativePendingAnalytics>, jboolean, jboolean, jboolean, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<jni::JArrayClass<JNativeFlowCapability>>, jboolean, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JMap<jni::JString, jni::JBoolean>>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeAppStoreMessages>, jni::alias_ref<JNativePurchaseIntents>, jni::alias_ref<jni::JString>);
+      using JSignature = JNativeClientConfiguration(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean, jboolean, jni::alias_ref<jni::JString>, jboolean, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativePendingAnalytics>, jboolean, jboolean, jboolean, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<jni::JArrayClass<JNativeFlowRevision>>, jni::alias_ref<jni::JArrayClass<JNativeFlowCapability>>, jni::alias_ref<JNativeFlowRuntime>, jboolean, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JMap<jni::JString, jni::JBoolean>>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeAppStoreMessages>, jni::alias_ref<JNativePurchaseIntents>, jni::alias_ref<jni::JString>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -176,7 +195,17 @@ namespace margelo::nitro::voidhash {
             __array->setElement(__i, *__elementJni);
           }
           return __array;
-        }(value.preloadPlacements),
+        }(value.preloadLocations),
+        [&](auto&& __input) {
+          size_t __size = __input.size();
+          jni::local_ref<jni::JArrayClass<JNativeFlowRevision>> __array = jni::JArrayClass<JNativeFlowRevision>::newArray(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            const auto& __element = __input[__i];
+            auto __elementJni = JNativeFlowRevision::fromCpp(__element);
+            __array->setElement(__i, *__elementJni);
+          }
+          return __array;
+        }(value.flowRevisions),
         [&](auto&& __input) {
           size_t __size = __input.size();
           jni::local_ref<jni::JArrayClass<JNativeFlowCapability>> __array = jni::JArrayClass<JNativeFlowCapability>::newArray(__size);
@@ -187,6 +216,7 @@ namespace margelo::nitro::voidhash {
           }
           return __array;
         }(value.flowCapabilities),
+        JNativeFlowRuntime::fromCpp(value.flowRuntime),
         value.screenTrackingEnabled,
         value.featureFlagMaxWaitMs.has_value() ? jni::JDouble::valueOf(value.featureFlagMaxWaitMs.value()) : nullptr,
         value.featureFlagDefaults.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JBoolean>> {

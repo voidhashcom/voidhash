@@ -29,7 +29,14 @@ export {
 } from "./errors";
 export * from "./react/components/provider";
 export { DEFAULT_FLOW_CAPABILITIES } from "./core/flows/flows";
-export type { FlowCapability, FlowErrorCode, FlowResult } from "./core/flows/flows";
+export type {
+  FlowCapability,
+  FlowErrorCode,
+  FlowResult,
+  FlowRuntime,
+  PresentFlowArguments,
+  PresentFlowOptions,
+} from "./core/flows/flows";
 export type { UseProductsBySlugsResult, UseProductsResult } from "./react/hooks/use-products";
 export type {
   CompletedPurchase,

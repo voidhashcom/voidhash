@@ -15,10 +15,57 @@ internal data class Viewport(
     val scale: Float,
 )
 
+/**
+ * The text input of a surface that has the keyboard, as the engine holds it. Every call answers
+ * at once; see [VoidhashUiNative] for the units.
+ */
+internal interface TextEngine {
+    /** Returns the revision after the edit, or -1 when it was refused; see [VoidhashUiNative.nativeTextReplace]. */
+    fun textReplace(
+        start: Int,
+        end: Int,
+        text: String,
+        selectionBase: Int,
+        selectionExtent: Int,
+        composingMode: Int,
+        composingStart: Int,
+        composingEnd: Int,
+    ): Long
+
+    fun textSetSelection(base: Int, extent: Int): Boolean
+
+    /** The JSON of a `textState` payload, or `null` when no input is focused. */
+    fun textState(): String?
+
+    fun textAction(action: String): Boolean
+
+    fun textKey(usage: Int, modifiers: Int): Boolean
+
+    fun textUndo(): Boolean
+
+    fun textRedo(): Boolean
+
+    fun textBlur()
+
+    fun textCaretRect(offset: Int): FloatArray?
+
+    fun textRectsForRange(start: Int, end: Int): FloatArray?
+
+    fun textPositionForPoint(x: Float, y: Float): Int
+
+    fun textBounds(): FloatArray?
+
+    fun setKeyboardInset(height: Float)
+}
+
 /** One native renderer instance, bound to the surface it was created for. */
-internal interface SurfaceRenderer {
+internal interface SurfaceRenderer : TextEngine {
     /** Returns `null` on success, otherwise the error. */
     fun loadPackage(bytes: ByteArray): String?
+
+    /** Shows [bytes] with the runtime module chosen for [runtimeSha256]; see [RuntimeModules]. */
+    fun loadPackageFor(bytes: ByteArray, runtimeSha256: String): String? =
+        if (runtimeSha256.isEmpty()) loadPackage(bytes) else "this renderer runs no runtime modules"
 
     /** Returns `null` on success, otherwise the error. */
     fun postMessage(message: String): String?
@@ -46,6 +93,9 @@ internal interface SurfaceRenderer {
     /** Returns `null` on success, otherwise the error. */
     fun accessibilityAction(nodeId: Int, action: String): String?
 
+    /** Replaces a text field's text; returns `null` on success, otherwise the error. */
+    fun accessibilitySetText(nodeId: Int, text: String): String?
+
     /** Releases the renderer; nothing may be called on it afterwards. */
     fun destroy()
 }
@@ -53,6 +103,9 @@ internal interface SurfaceRenderer {
 /** [SurfaceRenderer] over the native library. */
 internal class JniSurfaceRenderer private constructor(private val handle: Long) : SurfaceRenderer {
     override fun loadPackage(bytes: ByteArray) = VoidhashUiNative.nativeLoadPackage(handle, bytes)
+
+    override fun loadPackageFor(bytes: ByteArray, runtimeSha256: String) =
+        VoidhashUiNative.nativeLoadPackageFor(handle, bytes, runtimeSha256)
 
     override fun postMessage(message: String) = VoidhashUiNative.nativePostMessage(handle, message)
 
@@ -86,6 +139,57 @@ internal class JniSurfaceRenderer private constructor(private val handle: Long) 
 
     override fun accessibilityAction(nodeId: Int, action: String) =
         VoidhashUiNative.nativeAccessibilityAction(handle, nodeId, action)
+
+    override fun accessibilitySetText(nodeId: Int, text: String) =
+        VoidhashUiNative.nativeAccessibilitySetText(handle, nodeId, text)
+
+    override fun textReplace(
+        start: Int,
+        end: Int,
+        text: String,
+        selectionBase: Int,
+        selectionExtent: Int,
+        composingMode: Int,
+        composingStart: Int,
+        composingEnd: Int,
+    ) = VoidhashUiNative.nativeTextReplace(
+        handle,
+        start,
+        end,
+        text,
+        selectionBase,
+        selectionExtent,
+        composingMode,
+        composingStart,
+        composingEnd,
+    )
+
+    override fun textSetSelection(base: Int, extent: Int) =
+        VoidhashUiNative.nativeTextSetSelection(handle, base, extent)
+
+    override fun textState() = VoidhashUiNative.nativeTextState(handle)
+
+    override fun textAction(action: String) = VoidhashUiNative.nativeTextAction(handle, action)
+
+    override fun textKey(usage: Int, modifiers: Int) = VoidhashUiNative.nativeTextKey(handle, usage, modifiers)
+
+    override fun textUndo() = VoidhashUiNative.nativeTextUndo(handle)
+
+    override fun textRedo() = VoidhashUiNative.nativeTextRedo(handle)
+
+    override fun textBlur() = VoidhashUiNative.nativeTextBlur(handle)
+
+    override fun textCaretRect(offset: Int) = VoidhashUiNative.nativeTextCaretRect(handle, offset)
+
+    override fun textRectsForRange(start: Int, end: Int) =
+        VoidhashUiNative.nativeTextRectsForRange(handle, start, end)
+
+    override fun textPositionForPoint(x: Float, y: Float) =
+        VoidhashUiNative.nativeTextPositionForPoint(handle, x, y)
+
+    override fun textBounds() = VoidhashUiNative.nativeTextBounds(handle)
+
+    override fun setKeyboardInset(height: Float) = VoidhashUiNative.nativeSetKeyboardInset(handle, height)
 
     override fun destroy() = VoidhashUiNative.nativeDestroy(handle)
 
@@ -123,10 +227,12 @@ internal const val FAILED_FRAME_LIMIT = 3
  * A native renderer lives exactly as long as its surface, which Android destroys whenever the
  * window goes to the background, and the paywall's runtime lives in the renderer: a new surface
  * gets a new runtime, which starts at the paywall's first screen and reports `ready` again. The
- * controller gives it what it holds — the package, the viewport, the latest `context` and `status`
- * envelopes, the images already downloaded, and the latest `configure` unless the host sends one
- * for every renderer (see [replayConfigure]) — and routes the paywall's messages: `loadImage`
- * is answered here, everything else goes to [onMessage]. Main thread only.
+ * controller gives it what it holds — the package, the viewport, the keyboard's inset, the latest
+ * `context` and `status` envelopes, the images already downloaded, and the latest `configure`
+ * unless the host sends one for every renderer (see [replayConfigure]) — and routes the paywall's
+ * messages: `loadImage` is answered here, `textInput` and `textState` go to [onTextMessage] and
+ * nowhere else, as they carry what the end user typed, and everything else goes to [onMessage].
+ * Main thread only.
  *
  * @param createRenderer binds a renderer to a surface; `null` when it cannot.
  * @param fetchImage downloads an image and reports the outcome on the main thread.
@@ -137,6 +243,8 @@ internal const val FAILED_FRAME_LIMIT = 3
  *   viewport, an image that arrived. The view draws frames only while there is something to show.
  * @param onImageRejected the renderer could not use the image fetched for a URL: it is not one
  *   it decodes. Whoever keeps images for later should drop this one.
+ * @param onTextMessage a `textInput` or `textState` message, as its type and payload; a
+ *   `textInput` without a client also when the renderer that had the keyboard is destroyed.
  */
 internal class PaywallSurfaceController(
     private val createRenderer: (Surface) -> SurfaceRenderer?,
@@ -147,6 +255,7 @@ internal class PaywallSurfaceController(
     private val onSemantics: (String) -> Unit = {},
     private val requestFrame: () -> Unit = {},
     private val onImageRejected: (url: String) -> Unit = {},
+    private val onTextMessage: (type: String, payload: JSONObject) -> Unit = { _, _ -> },
 ) {
     private var renderer: SurfaceRenderer? = null
     private var flowPackage: ByteArray? = null
@@ -159,6 +268,10 @@ internal class PaywallSurfaceController(
     private var failed = false
     private var released = false
     private var accessibilityEnabled = false
+    private var keyboardInset = 0f
+
+    /** Whether the renderer said an input has the keyboard and has not said it gave it up. */
+    private var textInputActive = false
 
     /** Whether a renderer was ever attached. */
     private var hadRenderer = false
@@ -178,13 +291,25 @@ internal class PaywallSurfaceController(
     /** Whether a renderer is bound to a surface. */
     val isAttached: Boolean get() = renderer != null
 
-    /** Shows [bytes], now or once a surface exists. */
-    fun loadPackage(bytes: ByteArray) {
+    /** The text input of the renderer, while there is one. */
+    val textEngine: TextEngine? get() = renderer
+
+    /**
+     * Shows [bytes], now or once a surface exists, with the runtime module chosen for
+     * [runtimeSha256] in module mode (empty: the linked runtime, or the bundled module).
+     */
+    fun loadPackage(bytes: ByteArray, runtimeSha256: String = "") {
         flowPackage = bytes
+        flowRuntime = runtimeSha256
         val current = renderer ?: return
-        current.loadPackage(bytes)?.let { return fail("the paywall package could not be loaded: $it") }
+        current.loadPackageFor(bytes, runtimeSha256)?.let {
+            return fail("the paywall package could not be loaded: $it")
+        }
         requestFrame()
     }
+
+    /** The runtime module [flowPackage] is shown with; empty for the default. */
+    private var flowRuntime = ""
 
     /** Delivers a host → paywall envelope, now or once a surface exists. */
     fun postMessage(message: String) {
@@ -213,9 +338,12 @@ internal class PaywallSurfaceController(
         hadRenderer = true
         failedFrames = 0
         viewport?.let(created::setViewport)
+        if (keyboardInset > 0f) created.setKeyboardInset(keyboardInset)
         if (accessibilityEnabled) created.setAccessibilityEnabled(true)
         flowPackage?.let { bytes ->
-            created.loadPackage(bytes)?.let { return fail("the paywall package could not be loaded: $it") }
+            created.loadPackageFor(bytes, flowRuntime)?.let {
+                return fail("the paywall package could not be loaded: $it")
+            }
         }
         val configure = lastConfigure
         if (!replayConfigure) lastConfigure = null
@@ -229,6 +357,11 @@ internal class PaywallSurfaceController(
     fun detach() {
         renderer?.destroy()
         renderer = null
+        // The input that had the keyboard went with the renderer, which can no longer say so.
+        if (textInputActive) {
+            textInputActive = false
+            onTextMessage("textInput", JSONObject().put("client", JSONObject.NULL).put("config", JSONObject.NULL))
+        }
     }
 
     fun setViewport(value: Viewport) {
@@ -236,6 +369,15 @@ internal class PaywallSurfaceController(
         viewport = value
         val current = renderer ?: return
         current.setViewport(value)
+        requestFrame()
+    }
+
+    /** How much of the surface's bottom the keyboard covers, in dp; 0 when it is hidden. */
+    fun setKeyboardInset(height: Float) {
+        if (height == keyboardInset) return
+        keyboardInset = height
+        val current = renderer ?: return
+        current.setKeyboardInset(height)
         requestFrame()
     }
 
@@ -258,6 +400,18 @@ internal class PaywallSurfaceController(
     fun accessibilityAction(nodeId: Int, action: String): Boolean {
         val current = renderer ?: return false
         current.accessibilityAction(nodeId, action)?.let {
+            onWarning("An accessibility action failed: $it")
+            return false
+        }
+        requestFrame()
+        return true
+    }
+
+    /** Replaces the text of a text field of the tree reported to `onSemantics` (the `setText` action). */
+    fun accessibilitySetText(nodeId: Int, text: String): Boolean {
+        val current = renderer ?: return false
+        // The reason names no text, which may be a password.
+        current.accessibilitySetText(nodeId, text)?.let {
             onWarning("An accessibility action failed: $it")
             return false
         }
@@ -309,9 +463,23 @@ internal class PaywallSurfaceController(
     }
 
     private fun route(message: String) {
-        if (messageType(message) != "loadImage") {
-            onMessage(message)
-            return
+        when (val type = messageType(message)) {
+            "loadImage" -> {}
+            // For the keyboard client alone: never the host, a warning or a log.
+            "textInput", "textState" -> {
+                val payload = try {
+                    JSONObject(message).getJSONObject("payload")
+                } catch (error: JSONException) {
+                    return
+                }
+                if (type == "textInput") textInputActive = !payload.isNull("client")
+                onTextMessage(type, payload)
+                return
+            }
+            else -> {
+                onMessage(message)
+                return
+            }
         }
         val url = try {
             JSONObject(message).getJSONObject("payload").getString("url")

@@ -130,7 +130,7 @@ class IdentityStore(
 
     /**
      * Replaces the stored identity with a fresh anonymous id, which belongs to no group.
-     * Shared entries such as the schema and remembered placements are kept.
+     * Shared entries such as the schema and remembered locations are kept.
      */
     @Synchronized
     fun forgetDistinctId() {

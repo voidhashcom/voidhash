@@ -1,0 +1,26 @@
+End a person's simulated subscription now, as when it lapses in the store. Webhooks and analytics
+follow as for a store's event. When the person has several, name the product, or choose in a
+terminal.
+
+Usage:
+  voidhash sandbox expire [person] [product] [flags]
+
+Arguments:
+  person   The person's distinct id, email or id
+  product  The product bought, by slug, name or id, when they have several
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash sandbox expire kim@example.com
+  voidhash sandbox expire user-42 pro-monthly --json

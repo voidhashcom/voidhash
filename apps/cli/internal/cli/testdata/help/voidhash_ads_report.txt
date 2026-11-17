@@ -1,0 +1,21 @@
+Ads reports: what campaigns, ad groups and ads spent and earned, which creatives work, and how
+cohorts pay back. Days are cut in the ad accounts' time zone unless --timezone says otherwise.
+
+Usage:
+  voidhash ads report <command> [flags]
+
+Commands:
+  performance  What each campaign, ad group or ad spent and got.
+  creatives    Which creatives spend the most, what they earn, and which show fatigue.
+  cohorts      Payback by acquisition cohort.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash ads report <command> --help' for more about a command.

@@ -1,0 +1,2437 @@
+[
+  {
+    "id": "today_vs_last_week",
+    "section": "overview",
+    "group": "Today",
+    "title": "Today vs last week",
+    "description": "So far today, by hour, against the same weekday a week ago, up to the same time of day.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "today": "Today",
+      "last_week": "Same day last week"
+    },
+    "metrics": {
+      "revenue": "Revenue",
+      "installs": "Installs",
+      "active_people": "Active people",
+      "trials": "Trials"
+    },
+    "needsEvents": ["$app_installed"],
+    "isCurrentState": true
+  },
+  {
+    "id": "business_snapshot",
+    "section": "overview",
+    "group": "Business",
+    "title": "Business snapshot",
+    "description": "The numbers investors ask for: run rate, growth, retained revenue, what a customer is worth against what one costs, and how fast that pays back.",
+    "shape": "stats",
+    "display": "stats",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "arr": "ARR",
+      "mom_growth": "MRR growth, last month",
+      "net_revenue_retention": "Net revenue retention",
+      "ltv": "Lifetime value per payer",
+      "cac": "Cost per new payer",
+      "ltv_to_cac": "LTV : CAC",
+      "payback_months": "Payback, months"
+    },
+    "units": {
+      "mom_growth": "rate",
+      "net_revenue_retention": "rate",
+      "ltv_to_cac": "ratio",
+      "payback_months": "ratio"
+    }
+  },
+  {
+    "id": "mrr_trend",
+    "section": "revenue",
+    "group": "Recurring revenue",
+    "title": "MRR",
+    "description": "Monthly recurring revenue at the end of each period.",
+    "shape": "series",
+    "display": "area",
+    "unit": "money",
+    "filters": ["product"],
+    "labels": {
+      "mrr": "MRR"
+    },
+    "headline": "latest"
+  },
+  {
+    "id": "mrr_movements",
+    "section": "revenue",
+    "group": "Recurring revenue",
+    "title": "MRR movements",
+    "description": "What added MRR and what took it away in each period.",
+    "shape": "series",
+    "display": "diverging_bar",
+    "unit": "money",
+    "filters": ["product"],
+    "labels": {
+      "new": "New",
+      "expansion": "Expansion",
+      "reactivation": "Reactivation",
+      "contraction": "Contraction",
+      "churn": "Churn"
+    }
+  },
+  {
+    "id": "quick_ratio",
+    "section": "revenue",
+    "group": "Recurring revenue",
+    "title": "Quick ratio",
+    "description": "MRR gained for each unit lost: new, expansion and reactivation over contraction and churn. Above 1 the business grows.",
+    "shape": "series",
+    "display": "line",
+    "unit": "ratio",
+    "filters": ["product"],
+    "labels": {
+      "quick_ratio": "Quick ratio"
+    }
+  },
+  {
+    "id": "arpu_trend",
+    "section": "revenue",
+    "group": "Recurring revenue",
+    "title": "Revenue per person",
+    "description": "ARPU is revenue per person active in the period; ARPPU is revenue per person who paid in it.",
+    "shape": "series",
+    "display": "line",
+    "unit": "money",
+    "filters": ["product"],
+    "labels": {
+      "arpu": "ARPU",
+      "arppu": "ARPPU"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "revenue_bridge",
+    "section": "revenue",
+    "group": "What you keep",
+    "title": "Gross to net",
+    "description": "What customers paid, split into what you keep, the store's commission, tax and refunds.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "proceeds": "Proceeds",
+      "commission": "Store commission",
+      "tax": "Tax",
+      "refunds": "Refunds"
+    }
+  },
+  {
+    "id": "store_fee_rate",
+    "section": "revenue",
+    "group": "What you keep",
+    "title": "Effective store fee",
+    "description": "The store's commission as a share of what customers paid before tax, for each store. Tells you whether you pay the small-business rate.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["product", "country"]
+  },
+  {
+    "id": "revenue_by_store",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "Revenue by store",
+    "description": "Revenue from each store and payment source.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["product", "country"]
+  },
+  {
+    "id": "revenue_by_product",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "Revenue by product",
+    "description": "Revenue from the products that earned the most, the rest counted together.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "country"]
+  },
+  {
+    "id": "revenue_by_billing_period",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "Revenue by billing period",
+    "description": "Revenue by how often the product bills: weekly, monthly, annual or one time.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"]
+  },
+  {
+    "id": "revenue_new_vs_renewal",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "New vs renewal",
+    "description": "First payments against renewals: how much of the income recurs without winning anyone new.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "new": "First payments",
+      "renewal": "Renewals",
+      "one_time": "One-time purchases"
+    }
+  },
+  {
+    "id": "revenue_one_time_vs_subscription",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "One-time vs subscription",
+    "description": "Revenue from subscriptions against lifetime and consumable purchases.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "subscription": "Subscriptions",
+      "one_time": "One-time purchases"
+    }
+  },
+  {
+    "id": "revenue_by_currency",
+    "section": "revenue",
+    "group": "Currencies",
+    "title": "Revenue by charged currency",
+    "description": "Revenue by the currency customers were charged in, converted to your reporting currency.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"]
+  },
+  {
+    "id": "constant_currency_growth",
+    "section": "revenue",
+    "group": "Currencies",
+    "title": "Constant-currency revenue",
+    "description": "Revenue as reported, against revenue at the exchange rates of the start of the period, so the gap is what rates did.",
+    "shape": "series",
+    "display": "line",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "reported": "As reported",
+      "constant": "At constant rates"
+    }
+  },
+  {
+    "id": "lifetime_revenue_distribution",
+    "section": "revenue",
+    "group": "Customers",
+    "title": "Lifetime revenue per customer",
+    "description": "How many paying customers have brought in how much, after commission and tax.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "money",
+    "filters": ["product", "platform", "country"],
+    "isCurrentState": true
+  },
+  {
+    "id": "customer_concentration",
+    "section": "revenue",
+    "group": "Customers",
+    "title": "Customer concentration",
+    "description": "The share of lifetime revenue that the biggest customers brought in.",
+    "shape": "stats",
+    "display": "stats",
+    "unit": "rate",
+    "filters": ["product", "platform", "country"],
+    "labels": {
+      "top_1_percent": "Top 1% of payers",
+      "top_10_percent": "Top 10% of payers",
+      "median_customer": "Median payer",
+      "payers": "Paying customers"
+    },
+    "units": {
+      "median_customer": "money",
+      "payers": "count"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "renewal_calendar",
+    "section": "revenue",
+    "group": "Looking ahead",
+    "title": "Renewals due",
+    "description": "Paid subscriptions due to renew in the next 30 days at today's price, and those that will end instead because auto-renew is off.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product"],
+    "labels": {
+      "renewing": "Set to renew",
+      "ending": "Set to end"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "revenue_forecast",
+    "section": "revenue",
+    "group": "Looking ahead",
+    "title": "Revenue forecast",
+    "description": "Expected renewal revenue from today's subscribers over the next 12 months, by how each plan has retained so far. New customers are not in it.",
+    "shape": "series",
+    "display": "area",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "expected": "Expected",
+      "low": "Low",
+      "high": "High"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "subscribers_by_plan",
+    "section": "subscribers",
+    "group": "Subscribers",
+    "title": "Subscribers by plan",
+    "description": "Active paid subscriptions at the end of each period, by product.",
+    "shape": "series",
+    "display": "stacked_area",
+    "unit": "count",
+    "filters": ["store", "product", "country"]
+  },
+  {
+    "id": "subscriber_movements",
+    "section": "subscribers",
+    "group": "Subscribers",
+    "title": "Subscriber movements",
+    "description": "Subscribers gained, won back and lost in each period.",
+    "shape": "series",
+    "display": "diverging_bar",
+    "unit": "count",
+    "filters": ["product"],
+    "labels": {
+      "new": "New",
+      "reactivated": "Reactivated",
+      "churned": "Churned"
+    }
+  },
+  {
+    "id": "entitlements_by_perk",
+    "section": "subscribers",
+    "group": "Access",
+    "title": "Active entitlements",
+    "description": "People who have each perk now.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "people": "People"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "shared_access",
+    "section": "subscribers",
+    "group": "Access",
+    "title": "Shared access",
+    "description": "Access shared with family members or others in each period.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "shares": "New shares"
+    }
+  },
+  {
+    "id": "ltv_by_cohort",
+    "section": "subscribers",
+    "group": "Lifetime value",
+    "title": "Lifetime value by cohort",
+    "description": "Cumulative revenue per payer by months since their first purchase, for each month's new payers.",
+    "shape": "curves",
+    "display": "curves",
+    "unit": "money",
+    "filters": ["store", "product", "country"]
+  },
+  {
+    "id": "ltv_by_dimension",
+    "section": "subscribers",
+    "group": "Lifetime value",
+    "title": "Lifetime value by segment",
+    "description": "Revenue per payer so far, after commission and tax, for each segment.",
+    "shape": "table",
+    "display": "table",
+    "unit": "money",
+    "filters": [],
+    "dimensions": {
+      "store": "Store",
+      "country": "Country",
+      "plan": "Plan",
+      "source": "Acquisition source"
+    },
+    "labels": {
+      "payers": "Payers",
+      "revenue": "Revenue",
+      "ltv": "Per payer"
+    },
+    "units": {
+      "payers": "count"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "trial_start_rate",
+    "section": "trials",
+    "group": "Starting trials",
+    "title": "Trial start rate",
+    "description": "People who started a trial out of those who were shown a paywall.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": ["platform"],
+    "dimensions": {
+      "placement": "Placement",
+      "country": "Country"
+    },
+    "labels": {
+      "viewers": "Viewers",
+      "trials": "Trials",
+      "rate": "Start rate"
+    },
+    "units": {
+      "viewers": "count",
+      "trials": "count"
+    },
+    "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "trial_conversion_by",
+    "section": "trials",
+    "group": "Converting trials",
+    "title": "Trial conversion by segment",
+    "description": "Trials that ended within the period and converted to a paid renewal.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": ["store", "product"],
+    "dimensions": {
+      "plan": "Plan",
+      "length": "Trial length",
+      "country": "Country",
+      "store": "Store"
+    },
+    "labels": {
+      "ended": "Trials ended",
+      "converted": "Converted",
+      "rate": "Conversion"
+    },
+    "units": {
+      "ended": "count",
+      "converted": "count"
+    }
+  },
+  {
+    "id": "trial_cancel_day",
+    "section": "trials",
+    "group": "Converting trials",
+    "title": "When trials cancel",
+    "description": "The day of the trial on which people turned off auto-renew.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": ["store", "product"]
+  },
+  {
+    "id": "trials_ending_soon",
+    "section": "trials",
+    "group": "Looking ahead",
+    "title": "Trials ending soon",
+    "description": "Trials ending in the next 14 days, by whether auto-renew is still on.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "renewing": "Auto-renew on",
+      "ending": "Auto-renew off"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "survival_curves",
+    "section": "churn",
+    "group": "Retention of subscribers",
+    "title": "Subscriber survival by plan",
+    "description": "The share of those who started paying in the period still subscribed after each month, by plan, counting those too recent to know as still at risk (Kaplan-Meier).",
+    "shape": "curves",
+    "display": "curves",
+    "unit": "rate",
+    "filters": ["store", "product"]
+  },
+  {
+    "id": "renewal_rate_by_number",
+    "section": "churn",
+    "group": "Retention of subscribers",
+    "title": "Renewal rate by renewal",
+    "description": "Of the subscriptions due for their first, second, third renewal, how many renewed.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "rate",
+    "filters": ["store", "product"],
+    "labels": {
+      "rate": "Renewed",
+      "due": "Due"
+    },
+    "units": {
+      "due": "count"
+    }
+  },
+  {
+    "id": "renewal_predictors",
+    "section": "churn",
+    "group": "Retention of subscribers",
+    "title": "What predicts staying",
+    "description": "New subscribers whose first renewal was decided in the period: those who did one of your events in their first 7 days after paying against those who did not, by how much more often they renewed. An event repeated counts as its own row, and so does being active on 3 or 5 days of that week. Plans renew at different rates, so each event is compared within each plan, but the rates still move with your plan mix: filter by plan to read one on its own. Subscribers still in their first period are left out until it ends, and so are purchases from any store not connected to this project. A correlation, not proof of a cause.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": ["store", "product"],
+    "labels": {
+      "doers": "Did it",
+      "doer_rate": "Renewed, did it",
+      "other_rate": "Renewed, did not",
+      "lift": "Lift"
+    },
+    "units": {
+      "doers": "count",
+      "lift": "ratio"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "revenue_retention",
+    "section": "churn",
+    "group": "Retention of subscribers",
+    "title": "Revenue retention",
+    "description": "Of the MRR at the start of each month, how much was left at its end: net counts upgrades, gross does not.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["product"],
+    "labels": {
+      "net": "Net",
+      "gross": "Gross"
+    }
+  },
+  {
+    "id": "churn_by_reason",
+    "section": "churn",
+    "group": "Why people leave",
+    "title": "Churn by reason",
+    "description": "Paid subscriptions that ended in each period, by what happened since their last payment: auto-renew turned off, a failed renewal, or a price increase they were told of.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "voluntary": "Chose to leave",
+      "billing_error": "Billing failed",
+      "price_increase": "Told of a price increase",
+      "unknown": "Nothing recorded"
+    }
+  },
+  {
+    "id": "activity_before_churn",
+    "section": "churn",
+    "group": "Why people leave",
+    "title": "Last active before churn",
+    "description": "Days between a subscriber's last activity and their subscription ending.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": ["store", "product"],
+    "consentSensitive": true
+  },
+  {
+    "id": "churn_by_usage",
+    "section": "churn",
+    "group": "Why people leave",
+    "title": "Churn by usage",
+    "description": "Subscribers at the start of the period who churned during it, grouped by how many days they were active in the 30 days before.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "rate",
+    "filters": ["store", "product"],
+    "labels": {
+      "rate": "Churned",
+      "subscribers": "Subscribers"
+    },
+    "units": {
+      "subscribers": "count"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "mrr_at_risk",
+    "section": "churn",
+    "group": "At risk",
+    "title": "MRR at risk",
+    "description": "MRR of active subscribers with auto-renew off, by the week it ends.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product"],
+    "labels": {
+      "at_risk": "Ending"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "billing_recovery",
+    "section": "churn",
+    "group": "At risk",
+    "title": "Billing retry recovery",
+    "description": "Subscriptions that entered billing retry in each period, by whether they recovered, were lost or are still retrying.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "recovered": "Recovered",
+      "lost": "Lost",
+      "retrying": "Still retrying"
+    }
+  },
+  {
+    "id": "grace_outcomes",
+    "section": "churn",
+    "group": "At risk",
+    "title": "Grace period outcomes",
+    "description": "Subscriptions given a billing grace period in each period, by whether they paid before it ended.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "recovered": "Paid in time",
+      "lost": "Lost",
+      "in_grace": "Still in grace"
+    }
+  },
+  {
+    "id": "winbacks",
+    "section": "churn",
+    "group": "Winning people back",
+    "title": "Win-backs",
+    "description": "People who subscribed again after their subscription had ended.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "winbacks": "Won back"
+    }
+  },
+  {
+    "id": "time_to_winback",
+    "section": "churn",
+    "group": "Winning people back",
+    "title": "Time to win-back",
+    "description": "Days between a subscription ending and the same person subscribing again.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": ["store", "product"]
+  },
+  {
+    "id": "refund_rate",
+    "section": "churn",
+    "group": "Refunds",
+    "title": "Refund rate by segment",
+    "description": "Charges in the period that were refunded, for each segment.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": ["store", "product", "country"],
+    "dimensions": {
+      "product": "Product",
+      "store": "Store",
+      "country": "Country",
+      "reason": "Reason"
+    },
+    "labels": {
+      "charges": "Charges",
+      "refunds": "Refunds",
+      "rate": "Refund rate",
+      "amount": "Refunded"
+    },
+    "units": {
+      "charges": "count",
+      "refunds": "count",
+      "amount": "money"
+    }
+  },
+  {
+    "id": "refund_trend",
+    "section": "churn",
+    "group": "Refunds",
+    "title": "Refund rate",
+    "description": "Refunds in each period as a share of the charges in it.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "rate": "Refund rate"
+    }
+  },
+  {
+    "id": "time_to_refund",
+    "section": "churn",
+    "group": "Refunds",
+    "title": "Time to refund",
+    "description": "Days between a charge and its refund.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": ["store", "product", "country"]
+  },
+  {
+    "id": "price_increase_outcome",
+    "section": "churn",
+    "group": "Pricing changes",
+    "title": "Price increase outcome",
+    "description": "Subscribers told of a price increase in the period, and what they did about it within 60 days.",
+    "shape": "funnel",
+    "display": "funnel",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "notified": "Notified",
+      "kept": "Kept subscribing",
+      "churned": "Churned"
+    }
+  },
+  {
+    "id": "offer_performance",
+    "section": "churn",
+    "group": "Pricing changes",
+    "title": "Offer performance",
+    "description": "Redemptions of each offer, and how many of those subscribers are still active.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["store", "product"],
+    "labels": {
+      "redemptions": "Redemptions",
+      "still_active": "Still active",
+      "retention": "Retained"
+    },
+    "units": {
+      "retention": "rate"
+    }
+  },
+  {
+    "id": "plan_switching",
+    "section": "churn",
+    "group": "Pricing changes",
+    "title": "Plan switching",
+    "description": "Subscribers moving between products: upgrades, downgrades and period changes.",
+    "shape": "flow",
+    "display": "flow",
+    "unit": "count",
+    "filters": ["store"]
+  },
+  {
+    "id": "active_people",
+    "section": "audience",
+    "group": "Active people",
+    "title": "Active people",
+    "description": "People active that day, and in the 7 and 30 days up to it. A week or month shows its last day.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "dau": "Daily",
+      "wau": "Weekly",
+      "mau": "Monthly"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "stickiness_ratio",
+    "section": "audience",
+    "group": "Active people",
+    "title": "Stickiness",
+    "description": "Daily active people as a share of monthly: how habitual the app is. A week or month shows its last day.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "stickiness": "DAU / MAU"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "days_active",
+    "section": "audience",
+    "group": "Active people",
+    "title": "Days active",
+    "description": "How many days of the period each active person used the app.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "consentSensitive": true
+  },
+  {
+    "id": "people_lifecycle",
+    "section": "audience",
+    "group": "Active people",
+    "title": "People lifecycle",
+    "description": "In each period, who was new, who returned from the period before, who came back after a gap, and who went dormant. Visitors never identified are left out.",
+    "shape": "series",
+    "display": "diverging_bar",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "new": "New",
+      "returning": "Returning",
+      "resurrecting": "Resurrected",
+      "dormant": "Dormant"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "retention_cohorts",
+    "section": "audience",
+    "group": "Retention",
+    "title": "Retention cohorts",
+    "description": "Of the people first seen in each period, the share active again in each period after.",
+    "shape": "cohorts",
+    "display": "cohort_grid",
+    "unit": "rate",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "options": ["period", "eventName", "returnEventName"],
+    "consentSensitive": true
+  },
+  {
+    "id": "retention_by_segment",
+    "section": "audience",
+    "group": "Retention",
+    "title": "Retention by segment",
+    "description": "The share of new people active again after each day, for each segment.",
+    "shape": "curves",
+    "display": "curves",
+    "unit": "rate",
+    "filters": [],
+    "dimensions": {
+      "platform": "Platform",
+      "country": "Country",
+      "app_version": "App version",
+      "source": "Acquisition source"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "sessions_per_day",
+    "section": "audience",
+    "group": "Sessions",
+    "title": "Sessions",
+    "description": "Sessions in each period. A session ends after 30 minutes without an event.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "sessions": "Sessions"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "sessions_per_person",
+    "section": "audience",
+    "group": "Sessions",
+    "title": "Sessions per person",
+    "description": "Sessions per active person in each period.",
+    "shape": "series",
+    "display": "line",
+    "unit": "ratio",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "per_person": "Sessions per person"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "session_length",
+    "section": "audience",
+    "group": "Sessions",
+    "title": "Session length",
+    "description": "Time from a session's first event to its last. A session with one event counts as zero seconds.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "seconds",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "consentSensitive": true
+  },
+  {
+    "id": "time_in_app",
+    "section": "audience",
+    "group": "Sessions",
+    "title": "Time per person",
+    "description": "Minutes per active person in each period, adding up their sessions' lengths.",
+    "shape": "series",
+    "display": "line",
+    "unit": "minutes",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "minutes": "Minutes per person"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "activity_heatmap",
+    "section": "audience",
+    "group": "Sessions",
+    "title": "When people are active",
+    "description": "Active people by hour of the week, in your time zone.",
+    "shape": "heatmap",
+    "display": "heatmap",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "consentSensitive": true
+  },
+  {
+    "id": "top_screens",
+    "section": "audience",
+    "group": "Screens",
+    "title": "Top screens",
+    "description": "Screens by views, with the people who saw them and how long they stayed.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "views": "Views",
+      "people": "People",
+      "median_time": "Median time",
+      "exit_rate": "Exit rate"
+    },
+    "units": {
+      "median_time": "milliseconds",
+      "exit_rate": "rate"
+    },
+    "needsEvents": ["$screen"],
+    "consentSensitive": true
+  },
+  {
+    "id": "screen_time",
+    "section": "audience",
+    "group": "Screens",
+    "title": "Time on screen",
+    "description": "Median time people stay on each screen before moving on.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "milliseconds",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "median_time": "Median time"
+    },
+    "needsEvents": ["$screen"],
+    "consentSensitive": true
+  },
+  {
+    "id": "exit_screens",
+    "section": "audience",
+    "group": "Screens",
+    "title": "Exit screens",
+    "description": "The screens sessions most often end on.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "sessions": "Sessions ended"
+    },
+    "needsEvents": ["$screen"],
+    "consentSensitive": true
+  },
+  {
+    "id": "user_paths",
+    "section": "audience",
+    "group": "Screens",
+    "title": "Paths",
+    "description": "How people move through the app from a starting screen or event, the most common routes first.",
+    "shape": "flow",
+    "display": "flow",
+    "unit": "count",
+    "filters": [],
+    "options": ["eventName"],
+    "needsEvents": ["$screen"],
+    "consentSensitive": true
+  },
+  {
+    "id": "top_events",
+    "section": "audience",
+    "group": "Events",
+    "title": "Top events",
+    "description": "Your events by volume, and the share of active people who did each.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "labels": {
+      "events": "Events",
+      "people": "People",
+      "adoption": "Of active people"
+    },
+    "units": {
+      "adoption": "rate"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "event_trend",
+    "section": "audience",
+    "group": "Events",
+    "title": "Event trend",
+    "description": "Your busiest events over time, or the one you choose.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "options": ["eventName"],
+    "consentSensitive": true
+  },
+  {
+    "id": "feature_adoption",
+    "section": "audience",
+    "group": "Events",
+    "title": "Feature adoption",
+    "description": "The share of active people who did an event in each period.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "options": ["eventName"],
+    "consentSensitive": true
+  },
+  {
+    "id": "time_to_first_action",
+    "section": "audience",
+    "group": "Events",
+    "title": "Time to first action",
+    "description": "How long new people take from first being seen to first doing an event.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "seconds",
+    "filters": ["platform", "country", "app_version", "cohort"],
+    "options": ["eventName"],
+    "consentSensitive": true
+  },
+  {
+    "id": "aha_moments",
+    "section": "audience",
+    "group": "Events",
+    "title": "What predicts paying",
+    "description": "New people who did one of your events in their first 7 days, before paying, against those who did not, by how much more often they went on to pay. Events people typically do within an hour of paying are listed last: they are usually steps on the way to the paywall. A correlation, not proof of a cause.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": [],
+    "labels": {
+      "doers": "Did it",
+      "doer_rate": "Paid, did it",
+      "other_rate": "Paid, did not",
+      "lift": "Lift",
+      "before_paying": "Before paying"
+    },
+    "units": {
+      "doers": "count",
+      "lift": "ratio",
+      "before_paying": "seconds"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "people_by_trait",
+    "section": "audience",
+    "group": "Events",
+    "title": "People by trait",
+    "description": "People by the value of a trait you set on them. A value held by fewer than five people is counted under others.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": [],
+    "options": ["trait"],
+    "labels": {
+      "people": "People"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "paywall_funnel",
+    "section": "paywalls",
+    "group": "Conversion",
+    "title": "Paywall funnel",
+    "description": "People shown a paywall, those who started a purchase, and those whose purchase completed.",
+    "shape": "funnel",
+    "display": "funnel",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "options": ["placementId"],
+    "labels": {
+      "viewed": "Viewed",
+      "started": "Started a purchase",
+      "purchased": "Purchased"
+    },
+    "needsEvents": ["$paywall_viewed", "$paywall_purchase_started"],
+    "consentSensitive": true
+  },
+  {
+    "id": "flow_dropoff",
+    "section": "paywalls",
+    "group": "Conversion",
+    "title": "Flow drop-off",
+    "description": "People reaching each screen of a paywall flow.",
+    "shape": "funnel",
+    "display": "funnel",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "options": ["placementId"],
+    "needsEvents": ["$paywall_viewed", "$screen"],
+    "consentSensitive": true
+  },
+  {
+    "id": "paywall_conversion_trend",
+    "section": "paywalls",
+    "group": "Conversion",
+    "title": "Paywall conversion",
+    "description": "People who purchased as a share of those shown a paywall, with releases marked so you can see what each change did.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["platform", "country"],
+    "options": ["placementId"],
+    "labels": {
+      "conversion": "Conversion"
+    },
+    "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "revenue_by_placement",
+    "section": "paywalls",
+    "group": "Revenue",
+    "title": "Revenue by paywall",
+    "description": "Revenue credited to what sold it, renewals included.",
+    "shape": "table",
+    "display": "table",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "dimensions": {
+      "placement": "Placement",
+      "paywall": "Paywall",
+      "release": "Release"
+    },
+    "labels": {
+      "revenue": "Revenue",
+      "buyers": "Buyers",
+      "per_buyer": "Per buyer"
+    },
+    "units": {
+      "buyers": "count"
+    }
+  },
+  {
+    "id": "revenue_per_thousand_views",
+    "section": "paywalls",
+    "group": "Revenue",
+    "title": "Revenue per 1,000 views",
+    "description": "The fairest way to compare placements: what each earns per 1,000 people shown it.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "money",
+    "filters": ["platform", "country"],
+    "labels": {
+      "per_thousand": "Per 1,000 views",
+      "viewers": "Viewers"
+    },
+    "units": {
+      "viewers": "count"
+    },
+    "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "attributed_revenue_share",
+    "section": "paywalls",
+    "group": "Revenue",
+    "title": "Sold on a paywall",
+    "description": "Revenue from purchases made on a paywall, against purchases made elsewhere.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "paywall": "On a paywall",
+      "elsewhere": "Elsewhere"
+    }
+  },
+  {
+    "id": "plan_mix_by_paywall",
+    "section": "paywalls",
+    "group": "Revenue",
+    "title": "Plan mix by paywall",
+    "description": "Which billing periods each paywall sells.",
+    "shape": "table",
+    "display": "table",
+    "unit": "rate",
+    "filters": ["store", "product", "country"],
+    "labels": {
+      "buyers": "Buyers",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semiannual": "Every six months",
+      "annual": "Annual",
+      "lifetime": "One time"
+    },
+    "units": {
+      "buyers": "count"
+    }
+  },
+  {
+    "id": "close_intercept_outcome",
+    "section": "paywalls",
+    "group": "Conversion",
+    "title": "Close-intercept outcome",
+    "description": "Paywalls that ran an action such as a last offer when someone tried to close them, and whether those people bought within an hour.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "labels": {
+      "intercepted": "Intercepted",
+      "purchased": "Bought after",
+      "rate": "Saved"
+    },
+    "units": {
+      "rate": "rate"
+    },
+    "needsEvents": ["$paywall_close_intercepted"],
+    "consentSensitive": true
+  },
+  {
+    "id": "price_vs_conversion",
+    "section": "paywalls",
+    "group": "Pricing",
+    "title": "Price vs conversion by country",
+    "description": "What buyers pay per month in each country, against how often viewers buy.",
+    "shape": "table",
+    "display": "table",
+    "unit": "money",
+    "filters": ["platform"],
+    "labels": {
+      "monthly_price": "Monthly price",
+      "viewers": "Viewers",
+      "buyers": "Buyers",
+      "conversion": "Conversion"
+    },
+    "units": {
+      "viewers": "count",
+      "buyers": "count",
+      "conversion": "rate"
+    },
+    "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "experiment_results",
+    "section": "paywalls",
+    "group": "Experiments",
+    "title": "Experiments",
+    "description": "Each variant's exposure, conversion and revenue per exposed person, with a check that traffic split as configured.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "exposed": "Exposed",
+      "buyers": "Buyers",
+      "conversion": "Conversion",
+      "revenue_per_exposed": "Revenue per exposed",
+      "share": "Traffic",
+      "expected_share": "Expected",
+      "split_check": "Split check p"
+    },
+    "units": {
+      "conversion": "rate",
+      "revenue_per_exposed": "money",
+      "share": "rate",
+      "expected_share": "rate",
+      "split_check": "score"
+    },
+    "needsEvents": ["$experiment.exposed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "experiment_lift",
+    "section": "paywalls",
+    "group": "Experiments",
+    "title": "Experiment conversion over time",
+    "description": "Cumulative conversion of each variant of an experiment.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": [],
+    "options": ["experimentId"],
+    "needsEvents": ["$experiment.exposed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "acquisition_mix",
+    "section": "acquisition",
+    "group": "Where customers come from",
+    "title": "Revenue by acquisition",
+    "description": "The period's net revenue by the touch credited with each person's signup: paid per network, organic or none.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "revenue": "Net revenue",
+      "share": "Share"
+    },
+    "units": {
+      "share": "rate"
+    }
+  },
+  {
+    "id": "acquisition_by_channel",
+    "section": "acquisition",
+    "group": "Where customers come from",
+    "title": "People and revenue by channel",
+    "description": "What the people each channel brought in went on to do, by the touch credited with their signup.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "dimensions": {
+      "network": "Network",
+      "campaign": "Campaign",
+      "adset": "Ad set",
+      "ad": "Ad"
+    },
+    "labels": {
+      "visits": "Visits",
+      "people": "People",
+      "installs": "Installs",
+      "trials": "Trials",
+      "payers": "Payers",
+      "revenue": "Net revenue"
+    },
+    "units": {
+      "revenue": "money"
+    }
+  },
+  {
+    "id": "funnel_by_surface",
+    "section": "acquisition",
+    "group": "Where customers come from",
+    "title": "Acquisition funnel",
+    "description": "People a touch acquired, from visit to payer, each counted on its own surface.",
+    "shape": "funnel",
+    "display": "funnel",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "visits": "Visits",
+      "installs": "Installs",
+      "signups": "Signups",
+      "trials": "Trials",
+      "payers": "Payers"
+    }
+  },
+  {
+    "id": "cross_surface_journeys",
+    "section": "acquisition",
+    "group": "Where customers come from",
+    "title": "Cross-surface journeys",
+    "description": "The most common routes of payers who moved between the web and an app.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "payers": "Payers"
+    }
+  },
+  {
+    "id": "paid_vs_organic_ltv",
+    "section": "acquisition",
+    "group": "Quality of customers",
+    "title": "Lifetime value by network",
+    "description": "Net revenue per person by days since their credited touch, for each network.",
+    "shape": "curves",
+    "display": "curves",
+    "unit": "money",
+    "filters": []
+  },
+  {
+    "id": "first_vs_last_touch",
+    "section": "acquisition",
+    "group": "Quality of customers",
+    "title": "First vs last touch",
+    "description": "Who opens and who closes: payers and revenue by each person's first and last touch.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "first_payers": "Payers, first touch",
+      "last_payers": "Payers, last touch",
+      "first_revenue": "Revenue, first touch",
+      "last_revenue": "Revenue, last touch"
+    },
+    "units": {
+      "first_revenue": "money",
+      "last_revenue": "money"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "touches_before_conversion",
+    "section": "acquisition",
+    "group": "Quality of customers",
+    "title": "Touches before paying",
+    "description": "How many campaign touches payers had before their first purchase.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "count",
+    "filters": []
+  },
+  {
+    "id": "conversion_lag",
+    "section": "acquisition",
+    "group": "Quality of customers",
+    "title": "Conversion lag",
+    "description": "How long people take from one step to the next.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "days",
+    "filters": [],
+    "dimensions": {
+      "touch_to_signup": "Touch to signup",
+      "signup_to_payer": "Signup to first payment"
+    }
+  },
+  {
+    "id": "attribution_window_sensitivity",
+    "section": "acquisition",
+    "group": "Trust the numbers",
+    "title": "Attribution window",
+    "description": "The same channels at 1, 7 and 28 day windows: how much credit depends on the window.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "window_1": "1 day",
+      "window_7": "7 days",
+      "window_28": "28 days"
+    }
+  },
+  {
+    "id": "unattributed_revenue_by_country",
+    "section": "acquisition",
+    "group": "Trust the numbers",
+    "title": "Unattributed revenue by country",
+    "description": "Revenue from people with no credited touch: where measurement is weakest.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "revenue": "Unattributed",
+      "share": "Of the country's revenue"
+    },
+    "units": {
+      "share": "rate"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "self_reported_source",
+    "section": "acquisition",
+    "group": "Trust the numbers",
+    "title": "How people say they found you",
+    "description": "Answers to a \"How did you hear about us?\" question, from the `$acquisition_source` trait.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "people": "People"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "cac_trend",
+    "section": "acquisition",
+    "group": "Spend",
+    "title": "Cost per new payer",
+    "description": "Ad spend in each period over the people who first paid in it, for connected ad accounts.",
+    "shape": "series",
+    "display": "line",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "cac": "Cost per new payer"
+    },
+    "headline": "latest"
+  },
+  {
+    "id": "blended_return",
+    "section": "acquisition",
+    "group": "Spend",
+    "title": "Blended return",
+    "description": "All net revenue in each period over all ad spend in it. It needs no attribution, so it is a check on the numbers that do.",
+    "shape": "series",
+    "display": "line",
+    "unit": "ratio",
+    "filters": [],
+    "labels": {
+      "blended_return": "Revenue over spend"
+    }
+  },
+  {
+    "id": "predicted_payback",
+    "section": "acquisition",
+    "group": "Spend",
+    "title": "Predicted payback",
+    "description": "Return on ad spend by days since the click, as measured and as projected by each plan's retention. The dotted part is the projection.",
+    "shape": "curves",
+    "display": "curves",
+    "unit": "ratio",
+    "filters": [],
+    "labels": {
+      "measured": "Measured",
+      "projected": "Projected"
+    }
+  },
+  {
+    "id": "ad_breakdown",
+    "section": "acquisition",
+    "group": "Spend",
+    "title": "Ad delivery breakdown",
+    "description": "What Meta reports for the last 28 days, by who and where the ads reached.",
+    "shape": "table",
+    "display": "table",
+    "unit": "money",
+    "filters": [],
+    "dimensions": {
+      "country": "Country",
+      "publisher_platform": "Publisher",
+      "device_platform": "Device",
+      "age_gender": "Age and gender",
+      "placement": "Placement"
+    },
+    "labels": {
+      "spend": "Spend",
+      "impressions": "Impressions",
+      "link_clicks": "Link clicks",
+      "results": "Results",
+      "cost_per_result": "Cost per result"
+    },
+    "units": {
+      "impressions": "count",
+      "link_clicks": "count",
+      "results": "count"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "web_traffic",
+    "section": "web",
+    "group": "Traffic",
+    "title": "Traffic",
+    "description": "Unique visitors, sessions and page views.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "visitors": "Visitors",
+      "sessions": "Sessions",
+      "pageviews": "Page views"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "web_engagement",
+    "section": "web",
+    "group": "Traffic",
+    "title": "Bounce rate",
+    "description": "Sessions that saw a single page.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "bounce_rate": "Bounce rate"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "pages_per_session",
+    "section": "web",
+    "group": "Traffic",
+    "title": "Pages per session",
+    "description": "Page views per session.",
+    "shape": "series",
+    "display": "line",
+    "unit": "ratio",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "per_session": "Pages per session"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "top_pages",
+    "section": "web",
+    "group": "Pages",
+    "title": "Top pages",
+    "description": "Pages by views, with their visitors, time on page and scroll depth.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "pageviews": "Views",
+      "visitors": "Visitors",
+      "median_time": "Median time",
+      "scroll_depth": "Scroll depth"
+    },
+    "units": {
+      "median_time": "milliseconds",
+      "scroll_depth": "rate"
+    },
+    "needsEvents": ["$pageview", "$pageleave"],
+    "consentSensitive": true
+  },
+  {
+    "id": "landing_pages",
+    "section": "web",
+    "group": "Pages",
+    "title": "Landing pages",
+    "description": "The page each session started on.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions",
+      "bounce_rate": "Bounce rate"
+    },
+    "units": {
+      "bounce_rate": "rate"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "exit_pages",
+    "section": "web",
+    "group": "Pages",
+    "title": "Exit pages",
+    "description": "The page each session ended on.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions ended"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "top_referrers",
+    "section": "web",
+    "group": "Sources",
+    "title": "Top referrers",
+    "description": "Other sites sessions arrived from.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "campaign_traffic",
+    "section": "web",
+    "group": "Sources",
+    "title": "Campaign traffic",
+    "description": "Sessions whose landing URL carried campaign parameters.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "dimensions": {
+      "source": "Source",
+      "medium": "Medium",
+      "campaign": "Campaign"
+    },
+    "labels": {
+      "sessions": "Sessions",
+      "visitors": "Visitors"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "landing_conversion",
+    "section": "web",
+    "group": "Conversion",
+    "title": "Landing page conversion",
+    "description": "Visitors who landed on each page, and those who went on to sign up and pay.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "visitors": "Visitors",
+      "signups": "Signups",
+      "payers": "Payers",
+      "conversion": "Visitor to payer"
+    },
+    "units": {
+      "conversion": "rate"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "web_to_app_handoff",
+    "section": "web",
+    "group": "Conversion",
+    "title": "Web to app handoff",
+    "description": "Of the identified people an app first reported in the last 7 days, how many were on the web first.",
+    "shape": "stats",
+    "display": "stats",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "app_people": "App people",
+      "web_first_people": "Web first",
+      "share": "Share"
+    },
+    "units": {
+      "share": "rate"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "device_classes",
+    "section": "web",
+    "group": "Technology",
+    "title": "Phone, tablet or desktop",
+    "description": "Sessions by the width of the browser window.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "browsers",
+    "section": "web",
+    "group": "Technology",
+    "title": "Browsers",
+    "description": "Sessions by browser.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "operating_systems",
+    "section": "web",
+    "group": "Technology",
+    "title": "Operating systems",
+    "description": "Sessions by operating system.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "sessions": "Sessions"
+    },
+    "needsEvents": ["$pageview"],
+    "consentSensitive": true
+  },
+  {
+    "id": "web_vitals",
+    "section": "web",
+    "group": "Technology",
+    "title": "Web Vitals",
+    "description": "The 75th percentile of page load (LCP), responsiveness (INP) and layout stability (CLS), as Google's Core Web Vitals measure them.",
+    "shape": "stats",
+    "display": "stats",
+    "unit": "milliseconds",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "lcp": "Largest paint",
+      "inp": "Responsiveness",
+      "cls": "Layout shift"
+    },
+    "units": {
+      "cls": "score"
+    },
+    "needsEvents": ["$pageleave"],
+    "consentSensitive": true
+  },
+  {
+    "id": "web_vitals_by_page",
+    "section": "web",
+    "group": "Technology",
+    "title": "Web Vitals by page",
+    "description": "The slowest pages by largest paint, at the 75th percentile.",
+    "shape": "table",
+    "display": "table",
+    "unit": "milliseconds",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "lcp": "Largest paint",
+      "inp": "Responsiveness",
+      "cls": "Layout shift",
+      "samples": "Page views"
+    },
+    "units": {
+      "cls": "score",
+      "samples": "count"
+    },
+    "needsEvents": ["$pageleave"],
+    "consentSensitive": true
+  },
+  {
+    "id": "outbound_clicks",
+    "section": "web",
+    "group": "Technology",
+    "title": "Outbound clicks",
+    "description": "Clicks on links to other sites, by the site they lead to.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["country", "cohort"],
+    "labels": {
+      "clicks": "Clicks"
+    },
+    "needsEvents": ["$outbound_click"],
+    "consentSensitive": true
+  },
+  {
+    "id": "installs",
+    "section": "app",
+    "group": "Installs",
+    "title": "Installs",
+    "description": "First launches the SDK reported, by platform. Not store downloads: an app downloaded and never opened is not in it.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "needsEvents": ["$app_installed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "install_funnel",
+    "section": "app",
+    "group": "Installs",
+    "title": "Install to paying",
+    "description": "People who installed in the period and how far they have got since it began. A step counts those who reached it or a later one, so someone who pays without a trial is in the trial step too.",
+    "shape": "funnel",
+    "display": "funnel",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "labels": {
+      "installed": "Installed",
+      "signed_up": "Signed up",
+      "trial": "Started a trial",
+      "paid": "Paid"
+    },
+    "needsEvents": ["$app_installed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "uninstall_signals",
+    "section": "app",
+    "group": "Installs",
+    "title": "Lost devices",
+    "description": "Push tokens the stores reported as no longer valid in each period, the closest signal there is to uninstalls.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform"],
+    "labels": {
+      "invalidated": "Tokens invalidated"
+    }
+  },
+  {
+    "id": "version_adoption",
+    "section": "app",
+    "group": "Versions",
+    "title": "Version adoption",
+    "description": "Active people by the app version they used most recently in each period.",
+    "shape": "series",
+    "display": "stacked_area",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "consentSensitive": true
+  },
+  {
+    "id": "app_updates",
+    "section": "app",
+    "group": "Versions",
+    "title": "Updates",
+    "description": "App updates the SDK reported.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "labels": {
+      "updates": "Updates"
+    },
+    "needsEvents": ["$app_updated"],
+    "consentSensitive": true
+  },
+  {
+    "id": "version_quality",
+    "section": "app",
+    "group": "Versions",
+    "title": "Version quality",
+    "description": "The people who first used each version in the period: how many were active 7 days on, what they paid since and how many had no crash. Did this release hurt?",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country"],
+    "labels": {
+      "people": "People",
+      "retained_7d": "Active after 7 days",
+      "revenue_per_person": "Revenue per person",
+      "crash_free": "Crash free"
+    },
+    "units": {
+      "retained_7d": "rate",
+      "revenue_per_person": "money",
+      "crash_free": "rate"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "crash_free_people",
+    "section": "app",
+    "group": "Versions",
+    "title": "Crash-free people",
+    "description": "People active in your apps who had no crash reported in each period. With crash events switched off or an older SDK, everyone reads as crash free.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "crash_free": "Crash free"
+    },
+    "needsEvents": ["$app_crashed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "top_devices",
+    "section": "app",
+    "group": "Devices",
+    "title": "Top devices",
+    "description": "Active people by device model.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "people": "People"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "device_brands",
+    "section": "app",
+    "group": "Devices",
+    "title": "Device brands",
+    "description": "Active people by device brand.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "people": "People"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "os_versions",
+    "section": "app",
+    "group": "Devices",
+    "title": "OS versions",
+    "description": "Active people by operating system version: when you can drop support for one.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "people": "People"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "locales",
+    "section": "app",
+    "group": "Devices",
+    "title": "Languages",
+    "description": "Active people by device language.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "people": "People"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "sdk_versions",
+    "section": "app",
+    "group": "Devices",
+    "title": "SDK versions",
+    "description": "The Voidhash SDK versions that reported events in the last 7 days.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "events": "Events",
+      "last_seen_days": "Days since last event"
+    },
+    "units": {
+      "last_seen_days": "days"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "country_map",
+    "section": "locations",
+    "group": "Countries",
+    "title": "World map",
+    "description": "Where your audience and revenue are. Revenue is by store country, so a purchase whose store names none, such as through Stripe, is not on the map.",
+    "shape": "table",
+    "display": "map",
+    "unit": "count",
+    "filters": ["platform", "app_version"],
+    "metrics": {
+      "people": "People",
+      "installs": "Installs",
+      "revenue": "Revenue",
+      "arpu": "Revenue per person"
+    },
+    "labels": {
+      "value": "Value"
+    },
+    "units": {
+      "value": "money"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "country_table",
+    "section": "locations",
+    "group": "Countries",
+    "title": "Countries",
+    "description": "Each country from install to revenue: the audience by where it was active, the money by store country.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "app_version"],
+    "labels": {
+      "installs": "Installs",
+      "people": "Active people",
+      "trial_rate": "Trial rate",
+      "payer_rate": "Payer rate",
+      "revenue": "Revenue",
+      "ltv": "Per payer",
+      "refund_rate": "Refunds"
+    },
+    "units": {
+      "trial_rate": "rate",
+      "payer_rate": "rate",
+      "revenue": "money",
+      "ltv": "money",
+      "refund_rate": "rate"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "opportunity_quadrant",
+    "section": "locations",
+    "group": "Countries",
+    "title": "Opportunity",
+    "description": "Countries with at least 10 active people, by audience and by how well it pays: big but underperforming markets are at the bottom right.",
+    "shape": "table",
+    "display": "scatter",
+    "unit": "count",
+    "filters": ["platform", "app_version"],
+    "labels": {
+      "people": "Active people",
+      "payer_rate": "Payer rate",
+      "revenue": "Revenue"
+    },
+    "units": {
+      "payer_rate": "rate",
+      "revenue": "money"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "city_map",
+    "section": "locations",
+    "group": "Cities",
+    "title": "City map",
+    "description": "Active people by city. A city with fewer than five people is not shown.",
+    "shape": "points",
+    "display": "points_map",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "consentSensitive": true
+  },
+  {
+    "id": "city_table",
+    "section": "locations",
+    "group": "Cities",
+    "title": "Cities and regions",
+    "description": "Active people and sessions by city or region. A place with fewer than five people is not shown.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "dimensions": {
+      "city": "City",
+      "region": "Region"
+    },
+    "labels": {
+      "people": "People",
+      "sessions": "Sessions"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "locale_vs_country",
+    "section": "locations",
+    "group": "Language",
+    "title": "Language by country",
+    "description": "The most common device language in each country, to show where a translation is missing.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "app_version"],
+    "labels": {
+      "people": "People",
+      "top_locale": "Top language",
+      "top_locale_share": "Its share"
+    },
+    "units": {
+      "top_locale_share": "rate"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "paywall_conversion_by_locale",
+    "section": "locations",
+    "group": "Language",
+    "title": "Paywall conversion by language",
+    "description": "People who purchased out of those shown a paywall, by device language. A language with fewer than five viewers is not shown.",
+    "shape": "table",
+    "display": "bars",
+    "unit": "rate",
+    "filters": ["platform", "country"],
+    "labels": {
+      "conversion": "Conversion",
+      "viewers": "Viewers"
+    },
+    "units": {
+      "viewers": "count"
+    },
+    "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "storefront_vs_ip",
+    "section": "locations",
+    "group": "Language",
+    "title": "Store country vs location",
+    "description": "Payers whose store country differs from where they mostly use the app: moves, VPNs and price arbitrage. A pair of countries with fewer than five payers is not shown.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform"],
+    "labels": {
+      "payers": "Payers",
+      "revenue": "Revenue"
+    },
+    "units": {
+      "revenue": "money"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "local_time_activity",
+    "section": "locations",
+    "group": "Language",
+    "title": "Activity by local time",
+    "description": "Active people by hour of the week in each person's own time zone.",
+    "shape": "heatmap",
+    "display": "heatmap",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "consentSensitive": true
+  },
+  {
+    "id": "push_sends",
+    "section": "push",
+    "group": "Delivery",
+    "title": "Push delivery",
+    "description": "Notifications by whether they reached the push provider.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "succeeded": "Delivered",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
+  },
+  {
+    "id": "push_failures",
+    "section": "push",
+    "group": "Delivery",
+    "title": "Failures by provider",
+    "description": "Deliveries by push provider, with how many failed.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "deliveries": "Deliveries",
+      "failed": "Failed",
+      "failure_rate": "Failure rate"
+    },
+    "units": {
+      "failure_rate": "rate"
+    }
+  },
+  {
+    "id": "push_reachable",
+    "section": "push",
+    "group": "Delivery",
+    "title": "Reachable audience",
+    "description": "People with a valid push token at the end of each period.",
+    "shape": "series",
+    "display": "line",
+    "unit": "count",
+    "filters": ["platform"],
+    "labels": {
+      "people": "People"
+    },
+    "headline": "latest"
+  },
+  {
+    "id": "push_open_rate",
+    "section": "push",
+    "group": "Impact",
+    "title": "Push open rate",
+    "description": "People who opened a notification out of those it was delivered to.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": [],
+    "labels": {
+      "open_rate": "Open rate"
+    },
+    "needsEvents": ["$push_opened"],
+    "consentSensitive": true
+  },
+  {
+    "id": "push_return_rate",
+    "section": "push",
+    "group": "Impact",
+    "title": "Return after a push",
+    "description": "People active within 1 and 24 hours of a delivered notification.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": [],
+    "labels": {
+      "within_1h": "Within 1 hour",
+      "within_24h": "Within 24 hours"
+    },
+    "consentSensitive": true
+  },
+  {
+    "id": "push_revenue_after",
+    "section": "push",
+    "group": "Impact",
+    "title": "Revenue after a push",
+    "description": "Revenue from people within 24 hours of a delivered notification. They may have bought anyway.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "money",
+    "filters": [],
+    "labels": {
+      "revenue": "Revenue"
+    }
+  },
+  {
+    "id": "events_by_name",
+    "section": "health",
+    "group": "Events",
+    "title": "Events by name",
+    "description": "Events stored in each period: a sudden drop usually means something broke.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"]
+  },
+  {
+    "id": "rejected_events",
+    "section": "health",
+    "group": "Events",
+    "title": "Rejected events",
+    "description": "Events the pipeline could not store, by why.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": []
+  },
+  {
+    "id": "group_types_over_limit",
+    "section": "health",
+    "group": "Events",
+    "title": "Group types over the limit",
+    "description": "Events that named a group type beyond the project's 5, by type: those groups were left off them.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": []
+  },
+  {
+    "id": "event_lag",
+    "section": "health",
+    "group": "Events",
+    "title": "Event delay",
+    "description": "Time from an event happening to reaching Voidhash. A long tail is normal for apps used offline.",
+    "shape": "histogram",
+    "display": "histogram",
+    "unit": "seconds",
+    "filters": ["platform", "country", "app_version"]
+  },
+  {
+    "id": "purchasers_without_events",
+    "section": "health",
+    "group": "Events",
+    "title": "Coverage of payers",
+    "description": "Paying people the SDK never reported anything for: they declined consent, or the SDK is not identifying them.",
+    "shape": "stats",
+    "display": "stats",
+    "unit": "count",
+    "filters": [],
+    "labels": {
+      "payers": "Payers",
+      "without_events": "Without events",
+      "share": "Share"
+    },
+    "units": {
+      "share": "rate"
+    },
+    "isCurrentState": true
+  },
+  {
+    "id": "webhook_health",
+    "section": "health",
+    "group": "Integrations",
+    "title": "Webhook success",
+    "description": "Delivery attempts your endpoints answered successfully.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": [],
+    "labels": {
+      "success_rate": "Success rate"
+    }
+  },
+  {
+    "id": "webhook_latency",
+    "section": "health",
+    "group": "Integrations",
+    "title": "Webhook response time",
+    "description": "How long your endpoints take to answer.",
+    "shape": "series",
+    "display": "line",
+    "unit": "milliseconds",
+    "filters": [],
+    "labels": {
+      "p50": "Median",
+      "p95": "95th percentile"
+    }
+  },
+  {
+    "id": "store_notification_lag",
+    "section": "health",
+    "group": "Integrations",
+    "title": "Store notification delay",
+    "description": "Time from a store reporting a purchase event to Voidhash processing it.",
+    "shape": "series",
+    "display": "line",
+    "unit": "seconds",
+    "filters": ["store"],
+    "labels": {
+      "p50": "Median",
+      "p95": "95th percentile"
+    }
+  }
+]

@@ -1,0 +1,44 @@
+Rename a provider, enable or disable it, or connect, change or disconnect a payment source's
+endpoint and its test endpoint and rotate their signing secrets.
+
+Disabling, disconnecting and rotating ask first; --yes skips that. A new signing secret is shown
+once: with --json or --quiet it goes to standard error. 'voidhash provider connect' changes a
+store's credentials.
+
+Usage:
+  voidhash provider edit [provider] [flags]
+
+Arguments:
+  provider  The provider: app-store, google-play, stripe, a payment source's slug or name, or its id
+
+Flags:
+      --disable                   Stop processing its purchases
+      --disconnect-endpoint       Stop calling a payment source's endpoint
+      --disconnect-test-endpoint  Stop calling a payment source's test endpoint; test requests go to
+                                  its endpoint
+      --enable                    Process its purchases again; a store's credentials are checked
+      --endpoint <url>            A payment source's HTTPS endpoint url, its server's provider
+                                  handler; it serves production requests, and test ones without a
+                                  test endpoint
+  -h, --help                      Show help for this command
+      --json                      Print the API objects as JSON, for scripts
+      --name <name>               Its new name
+      --project <project>         Project to act on: its id, slug, organization/slug or name
+                                  (default: this directory's project, then your default project)
+  -q, --quiet                     Print only ids, one per line
+      --rotate-secret             Give a payment source's endpoint a new signing secret
+      --rotate-test-secret        Give a payment source's test endpoint a new signing secret
+      --test-endpoint <url>       A payment source's HTTPS endpoint url for test requests only, such
+                                  as its staging server's provider handler
+  -y, --yes                       Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider edit stripe --disable
+  voidhash provider edit paddle --endpoint https://pay.example.com/voidhash
+  voidhash provider edit paddle --rotate-secret --yes

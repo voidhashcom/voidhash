@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import com.voidhash.sdk.api.FlowPackageReference
 import com.voidhash.sdk.paywall.FlowEngineCapabilities
 import com.voidhash.sdk.paywall.PaywallRenderer
 import com.voidhash.sdk.paywall.PaywallRendererHost
@@ -31,7 +32,8 @@ import com.voidhash.sdk.paywall.PaywallRendererSession
  *
  * Each flow is shown in a fullscreen dialog above the presenting activity, drawn edge to edge
  * with the system bars as its safe area. The back button goes back through the flow (popping
- * screens and dismissing its modals and sheets) and closes it from the flow's first screen.
+ * screens and dismissing its modals and sheets) and closes it from the flow's first screen; while
+ * a text input of the flow has the keyboard up, it puts the keyboard away first.
  * The dialog goes with its activity: [present] is called again, for the same flow, once an
  * activity recreated for a configuration change is started.
  * On a device whose CPU
@@ -39,18 +41,91 @@ import com.voidhash.sdk.paywall.PaywallRendererSession
  * flows report `FlowFailure.UNSUPPORTED_PACKAGE`.
  */
 class VoidhashUiPaywallRenderer : PaywallRenderer {
+    /** Which flow runtime draws flows; see [runtimeMode]. */
+    enum class RuntimeMode {
+        /** The flow runtime built into the SDK (the default). */
+        LINKED,
+
+        /**
+         * Flow runtime modules: each release names the one it needs, which the SDK downloads
+         * once, verifies and caches, and runs in its interpreter.
+         */
+        MODULE,
+    }
+
+    companion object {
+        /**
+         * The flow runtime flows are drawn with, process-wide: [RuntimeMode.LINKED] (the default)
+         * or [RuntimeMode.MODULE]. Set it before the SDK resolves its first flow.
+         */
+        @JvmStatic
+        var runtimeMode: RuntimeMode
+            get() = if (VoidhashUiNative.isAvailable && VoidhashUiNative.nativeRuntimeMode() == 1) {
+                RuntimeMode.MODULE
+            } else {
+                RuntimeMode.LINKED
+            }
+            set(mode) {
+                if (VoidhashUiNative.isAvailable) {
+                    VoidhashUiNative.nativeSetRuntimeMode(if (mode == RuntimeMode.MODULE) 1 else 0)
+                }
+            }
+    }
+
     override fun supportsAbiVersion(abiVersion: Int): Boolean =
         VoidhashUiNative.isAvailable &&
             abiVersion in
             VoidhashUiNative.nativeMinPackageAbiVersion()..VoidhashUiNative.nativePackageAbiVersion()
 
-    /** `null` on a device whose CPU architecture the native library does not ship for. */
+    /**
+     * `null` on a device whose CPU architecture the native library does not ship for. In module
+     * mode it also reports the runtime bridge the engine hosts.
+     */
     override val engineCapabilities: FlowEngineCapabilities?
-        get() = bundledEngineCapabilities
+        get() = bundledEngineCapabilities?.let { engine ->
+            if (runtimeMode == RuntimeMode.MODULE) {
+                engine.copy(runtimeBridgeVersion = VoidhashUiNative.nativeRuntimeBridgeVersion())
+            } else {
+                engine
+            }
+        }
+
+    /** In module mode any release naming a runtime module is drawn: the module reads its package. */
+    override fun supports(reference: FlowPackageReference): Boolean =
+        if (VoidhashUiNative.isAvailable && runtimeMode == RuntimeMode.MODULE && reference.runtime != null) {
+            true
+        } else {
+            supportsAbiVersion(reference.abiVersion)
+        }
+
+    override suspend fun prepare(activity: Activity, reference: FlowPackageReference) {
+        val runtime = reference.runtime ?: return
+        if (runtimeMode != RuntimeMode.MODULE) return
+        RuntimeModules.prepare(activity.applicationContext, runtime)
+    }
 
     override fun present(
         activity: Activity,
         flowPackage: ByteArray,
+        host: PaywallRendererHost,
+    ): PaywallRendererSession = present(activity, flowPackage, runtimeSha256 = "", host)
+
+    override fun present(
+        activity: Activity,
+        flowPackage: ByteArray,
+        reference: FlowPackageReference,
+        host: PaywallRendererHost,
+    ): PaywallRendererSession = present(
+        activity,
+        flowPackage,
+        runtimeSha256 = reference.runtime?.sha256?.takeIf { runtimeMode == RuntimeMode.MODULE }.orEmpty(),
+        host,
+    )
+
+    private fun present(
+        activity: Activity,
+        flowPackage: ByteArray,
+        runtimeSha256: String,
         host: PaywallRendererHost,
     ): PaywallRendererSession {
         val view = VoidhashPaywallView(activity)
@@ -108,7 +183,7 @@ class VoidhashUiPaywallRenderer : PaywallRenderer {
             host.onDismiss()
         }
 
-        view.loadPackage(flowPackage)
+        view.loadPackage(flowPackage, runtimeSha256)
         try {
             dialog.show()
         } catch (error: RuntimeException) {
@@ -128,6 +203,9 @@ class VoidhashUiPaywallRenderer : PaywallRenderer {
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        // The flow makes room for the keyboard itself; a panned window would move it as well.
+        @Suppress("DEPRECATION")
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         @Suppress("DEPRECATION")
         window.statusBarColor = Color.TRANSPARENT
         @Suppress("DEPRECATION")

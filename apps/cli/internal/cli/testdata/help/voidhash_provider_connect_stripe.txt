@@ -1,0 +1,35 @@
+Connect Stripe: your account id, and for live mode, test mode or both the API key and the signing
+secret of the webhook endpoint that points at Voidhash. Test mode alone suits a staging setup; its
+purchases never unlock production.
+
+Without the webhook secrets it saves the rest and prints the address to point them at. In a terminal
+the keys are typed without echo, which keeps them out of your shell history; they are never printed.
+
+Usage:
+  voidhash provider connect stripe [flags]
+
+Flags:
+      --account-id <id>               Your Stripe account id, acct_...
+  -h, --help                          Show help for this command
+      --json                          Print the API objects as JSON, for scripts
+      --live-secret-key <key>         A live secret or restricted key, sk_live_... or rk_live_...;
+                                      leave out to connect test mode only
+      --live-webhook-secret <secret>  The signing secret of the live webhook endpoint pointing at
+                                      Voidhash, whsec_...
+      --project <project>             Project to act on: its id, slug, organization/slug or name
+                                      (default: this directory's project, then your default project)
+  -q, --quiet                         Print only ids, one per line
+      --test-secret-key <key>         A test secret or restricted key, sk_test_... or rk_test_...;
+                                      leave out to connect live mode only
+      --test-webhook-secret <secret>  The signing secret of the test webhook endpoint pointing at
+                                      Voidhash, whsec_...
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider connect stripe
+  voidhash provider connect stripe --account-id acct_123 --test-secret-key sk_test_... --test-webhook-secret whsec_...

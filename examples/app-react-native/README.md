@@ -63,13 +63,22 @@ client is created with `enabled: false`, which keeps every hook mounted and ever
 rather than crashing on the first request.
 
 Slug arguments (`"pro"`, `"onboarding"`, `"pro-monthly"`) are typed as `string` until you generate
-types for your own project:
+types for your own project. Add a `voidhash.json` that names it, then generate:
+
+```json
+{ "team": "<your-team-slug>", "project": "<your-project-slug>" }
+```
 
 ```sh
+npx voidhash-cli login
 npx voidhash-cli types generate
 ```
 
 That rewrites `voidhash.gen.d.ts`, and the same call sites start autocompleting your real slugs.
+
+The file also carries a hand-written example of the declarations generated for a flow with an
+interface: the `onboarding` location's inputs, outputs, outcomes and app action. Its interface
+revision is in `voidhash.flows.gen.ts`, which `lib/voidhash.ts` passes as `flowRevisions`.
 
 ## Run
 
@@ -113,8 +122,9 @@ The list, the quota banner and the two actions that touch Voidhash.
 - Creating a note captures `note_created` and writes the `notes_created` person attribute.
 - Export captures `export_requested`. Pro exports; everyone else gets the paywall.
 - `voidhash.usePresentFlow("onboarding")` presents the paywall published for the location.
-  `present()` resolves once the paywall is gone and says how it ended: `purchased` and `restored`
-  refetch access, and a `failed` presentation opens the Upgrade screen. A location the device has
+  `present()` takes the flow's inputs and a handler for its `pickGoal` app action, resolves once
+  the paywall is gone and says how it ended: `purchased` and `restored` refetch access. It rejects
+  when nothing could be shown, which opens the Upgrade screen. A location the device has
   shown before is downloaded again at launch, so the next `present()` is usually instant.
 - `lib/voidhash.ts` grants flows the `links` and `attributes` capabilities, so a paywall can open a
   link and store an answer on the person. Anything else a paywall asks for is ignored.
@@ -160,18 +170,18 @@ The app-owned fallback, and the screen a brand-new project sees before a paywall
 
 ## Every way a paywall can end or decline
 
-`present()` never rejects. It resolves to a `FlowResult` once the paywall is gone, and a paywall
-that could not appear is `failed` with an error code. `lib/paywall-outcome.ts` turns the union into
-a decision:
+`present()` resolves to a `FlowResult` (`outcome`, `output` and the `productId` of a purchase) once
+the paywall is gone. A paywall that could not appear rejects with an error code, and
+`lib/paywall-outcome.ts` turns that error into a decision:
 
-| Result                             | Nimbus does                                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `purchased`, `restored`            | Refetches access and captures `paywall_viewed`.                                      |
-| `closed`, `finished`               | Captures `paywall_viewed` and stops. The user saw the paywall and left it.           |
-| `failed` / `FLOW_NOT_ASSIGNED`     | Opens the Upgrade screen. No paywall is published for the location yet.              |
-| `failed` / `FLOW_UNAVAILABLE`      | Opens the Upgrade screen. The paywall never loaded and the server cannot be reached. |
-| `failed` / `FLOW_RENDERER_MISSING` | Opens the Upgrade screen. The build does not include the renderer.                   |
-| `failed` / anything else           | Opens the Upgrade screen and carries the error message along.                        |
+| Result                               | Nimbus does                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| `purchased`, `restored`              | Refetches access and captures `paywall_viewed`.                                      |
+| `dismissed`, `completed`, `skipped`  | Captures `paywall_viewed` and stops. The user saw the paywall and left it.           |
+| rejects with `FLOW_NOT_ASSIGNED`     | Opens the Upgrade screen. No paywall is published for the location yet.              |
+| rejects with `FLOW_UNAVAILABLE`      | Opens the Upgrade screen. The paywall never loaded and the server cannot be reached. |
+| rejects with `FLOW_RENDERER_MISSING` | Opens the Upgrade screen. The build does not include the renderer.                   |
+| rejects with anything else           | Opens the Upgrade screen and carries the error message along.                        |
 
 A purchase started inside the paywall that is cancelled or fails does not end it: the paywall shows
 the problem and the user can try again or close it.
@@ -187,7 +197,7 @@ that does nothing.
 - [`components/voidhash-gate.tsx`](./components/voidhash-gate.tsx) — the loading and retry states
   around `useVoidhash()`. `init()` fails when the network does, and `retryInit()` is a one-line fix
   for the user who launched your app in an elevator.
-- [`lib/paywall-outcome.ts`](./lib/paywall-outcome.ts) — the `FlowResult` switch. If you take one
+- [`lib/paywall-outcome.ts`](./lib/paywall-outcome.ts) — the decision for a paywall that could not be shown. If you take one
   file from this example, take this one.
 - [`lib/nimbus.ts`](./lib/nimbus.ts) — slugs and event names in one place, so the app and the
   dashboard cannot drift apart.

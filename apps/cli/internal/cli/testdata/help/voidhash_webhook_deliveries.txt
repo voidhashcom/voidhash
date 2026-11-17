@@ -1,0 +1,28 @@
+List deliveries, newest first, across webhooks or of one, with how the webhook answered. --failed
+shows only failures. It reads the newest 100 deliveries of each webhook.
+
+Usage:
+  voidhash webhook deliveries [webhook] [flags]
+
+Arguments:
+  webhook  Only this webhook's deliveries: its name, URL or id (default: all)
+
+Flags:
+      --failed             Only deliveries that failed or gave up
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --limit <limit>      How many to show, newest first, at most 100
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash webhook deliveries
+  voidhash webhook deliveries "Orders backend" --failed
+  voidhash webhook deliveries --failed -q

@@ -16,7 +16,12 @@ val nitroGenerated = file("../../nitrogen/generated/android/kotlin/com/margelo/n
 // Only what the native client's spec needs; the other generated specs bind classes not built here.
 val nativeClientSpec = tasks.register<Sync>("nativeClientSpec") {
     from(nitroGenerated) {
-        include("HybridVoidhashNativeClientSpec.kt", "Func_void_NativeClientEvent.kt", "Native*.kt")
+        include(
+            "HybridVoidhashNativeClientSpec.kt",
+            "Func_void_NativeClientEvent.kt",
+            "Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string.kt",
+            "Native*.kt",
+        )
     }
     into(layout.buildDirectory.dir("generated/native-client/com/margelo/nitro/voidhash"))
 }

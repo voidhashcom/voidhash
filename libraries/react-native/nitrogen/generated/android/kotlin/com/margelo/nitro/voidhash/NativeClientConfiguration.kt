@@ -62,10 +62,16 @@ data class NativeClientConfiguration(
   val metaAppId: String?,
   @DoNotStrip
   @Keep
-  val preloadPlacements: Array<String>,
+  val preloadLocations: Array<String>,
+  @DoNotStrip
+  @Keep
+  val flowRevisions: Array<NativeFlowRevision>,
   @DoNotStrip
   @Keep
   val flowCapabilities: Array<NativeFlowCapability>,
+  @DoNotStrip
+  @Keep
+  val flowRuntime: NativeFlowRuntime,
   @DoNotStrip
   @Keep
   val screenTrackingEnabled: Boolean,
@@ -107,8 +113,10 @@ data class NativeClientConfiguration(
       && Objects.deepEquals(this.automaticLifecycleEvents, other.automaticLifecycleEvents)
       && Objects.deepEquals(this.installAttribution, other.installAttribution)
       && Objects.deepEquals(this.metaAppId, other.metaAppId)
-      && Objects.deepEquals(this.preloadPlacements, other.preloadPlacements)
+      && Objects.deepEquals(this.preloadLocations, other.preloadLocations)
+      && Objects.deepEquals(this.flowRevisions, other.flowRevisions)
       && Objects.deepEquals(this.flowCapabilities, other.flowCapabilities)
+      && Objects.deepEquals(this.flowRuntime, other.flowRuntime)
       && Objects.deepEquals(this.screenTrackingEnabled, other.screenTrackingEnabled)
       && Objects.deepEquals(this.featureFlagMaxWaitMs, other.featureFlagMaxWaitMs)
       && Objects.deepEquals(this.featureFlagDefaults, other.featureFlagDefaults)
@@ -134,8 +142,10 @@ data class NativeClientConfiguration(
       automaticLifecycleEvents,
       installAttribution,
       metaAppId,
-      preloadPlacements,
+      preloadLocations,
+      flowRevisions,
       flowCapabilities,
+      flowRuntime,
       screenTrackingEnabled,
       featureFlagMaxWaitMs,
       featureFlagDefaults,
@@ -154,8 +164,8 @@ data class NativeClientConfiguration(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Boolean, developmentMode: Boolean, distinctId: String?, readOnly: Boolean, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Boolean, automaticLifecycleEvents: Boolean, installAttribution: Boolean, metaAppId: String?, preloadPlacements: Array<String>, flowCapabilities: Array<NativeFlowCapability>, screenTrackingEnabled: Boolean, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Map<String, Boolean>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String): NativeClientConfiguration {
-      return NativeClientConfiguration(publishableKey, baseUrl, ingestUrl, debug, developmentMode, distinctId, readOnly, analyticsConsent, chosenAnalyticsConsent, analyticsWhilePending, grantConsentOnIdentify, automaticLifecycleEvents, installAttribution, metaAppId, preloadPlacements, flowCapabilities, screenTrackingEnabled, featureFlagMaxWaitMs, featureFlagDefaults, internalSchemaJson, appStoreMessages, purchaseIntents, sdkVersion)
+    private fun fromCpp(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Boolean, developmentMode: Boolean, distinctId: String?, readOnly: Boolean, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Boolean, automaticLifecycleEvents: Boolean, installAttribution: Boolean, metaAppId: String?, preloadLocations: Array<String>, flowRevisions: Array<NativeFlowRevision>, flowCapabilities: Array<NativeFlowCapability>, flowRuntime: NativeFlowRuntime, screenTrackingEnabled: Boolean, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Map<String, Boolean>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String): NativeClientConfiguration {
+      return NativeClientConfiguration(publishableKey, baseUrl, ingestUrl, debug, developmentMode, distinctId, readOnly, analyticsConsent, chosenAnalyticsConsent, analyticsWhilePending, grantConsentOnIdentify, automaticLifecycleEvents, installAttribution, metaAppId, preloadLocations, flowRevisions, flowCapabilities, flowRuntime, screenTrackingEnabled, featureFlagMaxWaitMs, featureFlagDefaults, internalSchemaJson, appStoreMessages, purchaseIntents, sdkVersion)
     }
   }
 }

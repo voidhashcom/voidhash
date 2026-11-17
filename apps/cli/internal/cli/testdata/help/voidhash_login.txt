@@ -1,0 +1,24 @@
+Sign in by approving a code in your browser; the CLI then acts as you. Works over SSH and in
+containers: the code can be entered on any device.
+
+The token is kept in the system keychain when there is one, for the configured API server only. In
+CI and scripts, set VOIDHASH_API_KEY instead of signing in.
+
+Usage:
+  voidhash login [flags]
+
+Flags:
+  -h, --help        Show help for this command
+      --no-browser  Print the sign-in address and code without opening a browser
+      --read-only   Sign in read-only: commands can look but not change anything
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash login
+  voidhash login --read-only
+  voidhash login --no-browser --profile staging

@@ -15,6 +15,7 @@ enum PaywallBridgeActionType: String, Sendable, Equatable, CaseIterable {
     case track
     case screen
     case state
+    case appAction
 }
 
 /// Purchase/restore progress reported back to the flow.
@@ -51,6 +52,13 @@ struct PaywallBridgeEnvelope: Sendable, Equatable {
         return value
     }
 
+    func bool(_ key: String) -> Bool? {
+        guard case .bool(let value)? = payload?[key] else {
+            return nil
+        }
+        return value
+    }
+
     func number(_ key: String) -> Double? {
         guard case .number(let value)? = payload?[key] else {
             return nil
@@ -80,7 +88,7 @@ struct PaywallBridgeParseError: Error, Sendable, Equatable, CustomStringConverti
 /// Parses and serializes the envelopes a flow and its host exchange.
 ///
 /// The wire format is a cross-platform contract: version `1`, the flow → host message types
-/// above and host → flow `configure`, `status` and `response` envelopes.
+/// above and host → flow `configure`, `input`, `status` and `response` envelopes.
 enum PaywallBridgeProtocol {
     static func parse(_ raw: String) throws -> PaywallBridgeEnvelope {
         guard let data = raw.data(using: .utf8),
@@ -169,21 +177,64 @@ enum PaywallBridgeProtocol {
             ])
     }
 
+    /// The app's answer to the `appAction` call `requestId`: the reply by name, or why the call
+    /// failed.
+    static func appActionResponse(
+        requestId: String, _ result: Result<[String: FlowValue], FlowActionError>
+    ) -> String {
+        switch result {
+        case .success(let reply):
+            return serialize(
+                type: "response", requestId: requestId,
+                payload: ["ok": true, "value": jsonObject(reply)])
+        case .failure(let error):
+            return serialize(
+                type: "response", requestId: requestId,
+                payload: ["ok": false, "error": error.message])
+        }
+    }
+
+    /// Changes inputs of the flow on screen.
+    static func inputMessage(_ values: [String: FlowValue]) -> String {
+        return serialize(type: "input", requestId: nil, payload: ["values": jsonObject(values)])
+    }
+
+    private static func jsonObject(_ values: [String: FlowValue]) -> [String: Any] {
+        return values.mapValues(\.jsonObject)
+    }
+
     /// Serializes the `configure` envelope. A configuration that cannot be encoded degrades to
-    /// no products, so the flow is never left waiting on a configure it cannot act on.
+    /// no products, so the flow is never left waiting on a configure it cannot act on. It carries
+    /// the device's clock as it is when sent (`now`, milliseconds since 1970 UTC, and
+    /// `utcOffset`, minutes ahead of UTC), which the flow's logic reads as today's date, and the
+    /// seed its random numbers are drawn from (`randomSeed`, a whole number below 2^53, fresh for
+    /// each presentation).
     static func configureMessage(
         _ config: FlowConfiguration,
         requestId: String? = nil,
+        now: Date = Date(),
+        timeZone: TimeZone = .current,
+        randomSeed: UInt64 = UInt64.random(in: 0..<(1 << 53)),
         warn: @escaping VoidhashWarningHandler
     ) -> String {
+        let clock: [String: Any] = [
+            "now": (now.timeIntervalSince1970 * 1000).rounded(),
+            "utcOffset": timeZone.secondsFromGMT(for: now) / 60,
+            "randomSeed": randomSeed,
+        ]
         if let payload = encodedPayload(config) {
-            return serialize(type: "configure", requestId: requestId, payload: payload, warn: warn)
+            return serialize(
+                type: "configure", requestId: requestId,
+                payload: payload.merging(clock) { _, clock in clock }, warn: warn)
         }
         warn("Failed to encode the flow configure message; sending it without products")
         var degraded = config
         degraded.products = []
-        let payload = encodedPayload(degraded) ?? ["products": [], "variables": [String: Any]()]
-        return serialize(type: "configure", requestId: requestId, payload: payload, warn: warn)
+        let payload = encodedPayload(degraded)
+            ?? ["products": [], "variables": [String: Any](), "input": [String: Any]()]
+        return serialize(
+            type: "configure", requestId: requestId,
+            payload: payload.merging(clock) { _, clock in clock }, warn: warn)
     }
 
     private static func encodedPayload(_ config: FlowConfiguration) -> [String: Any]? {
@@ -226,6 +277,10 @@ enum PaywallBridgeProtocol {
                 throw invalidPayload(type, "'result' must be a string")
             }
             try requireObject(object["variables"], field: "variables", type: type, optional: true)
+            try requireObject(object["output"], field: "output", type: type, optional: true)
+        case .appAction:
+            try requireNonEmptyString(object["name"], field: "name", type: type)
+            try requireObject(object["args"], field: "args", type: type, optional: true)
         case .requestPermission:
             try requireNonEmptyString(object["permission"], field: "permission", type: type)
         case .setAttribute:
@@ -239,7 +294,10 @@ enum PaywallBridgeProtocol {
             }
         case .state:
             try requireObject(object["variables"], field: "variables", type: type, optional: false)
-        case .ready, .close, .restore:
+            try requireObject(object["output"], field: "output", type: type, optional: true)
+        case .close:
+            try requireObject(object["output"], field: "output", type: type, optional: true)
+        case .ready, .restore:
             break
         }
 

@@ -1,0 +1,112 @@
+Manage your Voidhash projects from the terminal. On a terminal, 'voidhash' alone opens a screen that
+sets your app up and shows its project; 'voidhash status' prints the same in a few lines.
+
+Environment, for CI and scripts:
+  VOIDHASH_API_KEY  A project secret key or a person's token; used instead of the stored sign-in
+  VOIDHASH_API_URL  The API server, instead of the configured api_url
+  VOIDHASH_PROFILE  The config profile, when --profile is not passed
+  NO_COLOR          Print without colors
+
+Usage:
+  voidhash <command> [flags]
+
+Get started:
+  init                     Set this directory up for a Voidhash project.
+  integrate, wizard        Add Voidhash to this app, with a coding agent wiring it into your code.
+  login                    Sign in by approving a code in your browser.
+  logout                   Sign out on this computer.
+  whoami                   Show who the CLI is signed in as, and what it can use.
+
+Choose a project:
+  status                   Show the project commands act on here, and what its setup still needs.
+  link                     Make a project this directory's: commands run here and below act on it.
+  unlink                   Remove the link 'voidhash link' made for this directory.
+  switch                   Choose your default project, which commands act on outside linked
+                           directories.
+  open                     Open a page of the project's dashboard in your browser.
+
+Persons and access:
+  person, persons          The people using your app: find them, see their access, edit and erase
+                           them.
+
+Catalog:
+  product, products        The products people buy, and the perks they grant.
+  perk, perks              The perks your app checks for, which products grant.
+
+Payments:
+  provider, providers      Where the project takes payments: stores and payment sources.
+
+Paywalls:
+  paywall, paywalls        Paywalls and onboarding flows: create, build, deploy, archive and delete
+                           them.
+  location, locations      The places in your apps that show a paywall, and what each shows.
+
+Flags and experiments:
+  flag, flags              Feature flags: roll features out, fix them for testers, and see who gets
+                           what.
+  experiment, experiments  A/B tests: set up arms, start, follow the results, and conclude.
+
+Analytics and ads:
+  events, event            The events your apps send: list, watch and choose which are stored.
+  insights, insight        Revenue, subscription, trial and churn metrics.
+  analytics                Acquisition, cohorts, tracking health, charts and alerts.
+  ads, ad                  Paid acquisition: ad accounts, campaigns, reports and what needs
+                           attention.
+
+Your backend:
+  webhook, webhooks        The backend URLs your project's events are sent to.
+
+Messaging:
+  push                     Push notifications to your users' devices: send one, see how it went, set
+                           up push services.
+
+Team and settings:
+  org, orgs                The organizations that own your projects: list, create, rename and delete
+                           them.
+  project, projects        Your projects: list, create, rename and delete them.
+  member, members          Your organization's team: list members, add people, change roles, remove
+                           people.
+  settings                 The project's settings, explained: view them and change one.
+  domain, domains          Tracking domains: serve the web SDK from your own subdomain.
+  sandbox                  Test your app's purchases without a store.
+  key, keys                See the project's API keys.
+  audit                    Show who changed what in the project, newest first.
+  notices, notice          Notices your organizations sent you: list them, mark them read, archive
+                           them, choose how they reach you.
+  feedback                 Send feedback to the Voidhash team.
+
+Paywall components:
+  dev                      Build the project's components on every change and serve them to your
+                           paywall editor.
+  new                      Add a component with its editor panel to the working copy in
+                           .voidhash/components/.
+  publish                  Publish the new and modified components of .voidhash/ as new catalog
+                           versions.
+  test                     Check a component module against the conformance suite and its editor
+                           panel against the panel checks.
+  registry                 Publish components to your organization's registry, and install them.
+
+More:
+  types                    Generate and check the type files of the project's slugs.
+  mcp                      Connect AI agents to Voidhash over MCP.
+  api                      Find, describe and call any operation of the Voidhash API.
+  auth                     Sign the CLI in and out, and see who it is signed in as.
+  config                   Show the CLI settings: API and dashboard URLs, credential, default
+                           project and links.
+  help                     Help about any command
+  completion               Generate the autocompletion script for the specified shell
+
+Flags:
+  -d, --debug              Print each request and full error detail to standard error
+  -h, --help               Show help for a command
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+  -v, --version            Show the CLI's version
+
+Examples:
+  voidhash login
+  voidhash link acme/app
+  voidhash product list --json
+
+Run 'voidhash <command> --help' for more about a command.

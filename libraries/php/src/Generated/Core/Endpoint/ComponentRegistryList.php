@@ -6,7 +6,7 @@ class ComponentRegistryList extends \Voidhash\Generated\Core\Runtime\Client\Base
 {
     protected $projectId;
     /**
-     * Lists the components of the organization's registry, with this project's install of each, or the one with a `slug` (`<publisher>/<name>`).
+     * Lists the components of the organization's registry, then Voidhash's own components (`voidhash/<name>`), which every project can install, with this project's install of each, or the one with a `slug` (`<publisher>/<name>`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.

@@ -56,7 +56,14 @@ import type {
   PersonAttributes,
   ResolvedPaywall,
 } from "./core/facade-types";
-import { type FlowCapability, flowFailure, type FlowResult } from "./core/flows/flows";
+import {
+  type FlowCapability,
+  flowError,
+  type FlowResult,
+  type FlowRuntime,
+  type PresentFlowArguments,
+  type PresentFlowOptions,
+} from "./core/flows/flows";
 import {
   makeNativeClientAdapter,
   type NativeClientAdapter,
@@ -67,6 +74,8 @@ import { clientRunAtom, schemaAtom } from "./core/reactivity/client-state";
 import type {
   FeatureFlagKey,
   FeatureFlagValue,
+  FlowInput,
+  FlowValues,
   LocationSlug,
   PerkSlug,
   ProductSlug,
@@ -267,6 +276,14 @@ export interface VoidhashClientOptions {
    * needing a capability that is not granted is ignored.
    */
   flowCapabilities?: ReadonlyArray<FlowCapability>;
+  /**
+   * Which flow runtime draws flows (default `linked`, the one built into the
+   * SDK). `module` draws them with the flow runtime module each flow names,
+   * downloaded once, verified and cached. It applies to the whole app process
+   * from the first `init()`, on iOS and Android, and needs the native flow
+   * renderer; `linked` leaves the renderer as native code set it.
+   */
+  flowRuntime?: FlowRuntime;
   /** How feature flag reads behave before Voidhash has answered them; see {@link FeatureFlagsOptions}. */
   featureFlags?: FeatureFlagsOptions;
   ingestUrl?: string;
@@ -284,12 +301,19 @@ export interface VoidhashClientOptions {
    */
   onDiagnostic?: VoidhashDiagnosticHandler;
   /**
-   * Placements whose flows are downloaded at boot, so their first
-   * `presentFlow()` shows without a round trip. Placements the device has
+   * Locations whose flows are downloaded at boot, so their first
+   * `presentFlow()` shows without a round trip. Locations the device has
    * presented before are preloaded anyway. Nothing is preloaded when the app
    * does not include the flow renderer.
    */
-  preloadPlacements?: string[];
+  preloadLocations?: string[];
+  /**
+   * The interface revision the app was built against, by location slug. Pass
+   * the `flowRevisions` constant of the generated declarations: a location's
+   * revision is then used to preload its flow and by every `presentFlow()`
+   * that names none. A location that is not listed counts as revision 0.
+   */
+  flowRevisions?: Readonly<Record<string, number>>;
   /**
    * Starts the SDK in observer mode: transactions are reported to Voidhash but
    * never finished/acknowledged with the store, and purchases are blocked, so
@@ -770,7 +794,9 @@ export interface VoidhashClientSetup {
   readonly featureFlagMaxWaitMs: Option.Option<number>;
   /** The validated `featureFlags.defaults`. */
   readonly featureFlagDefaults: Readonly<Record<string, boolean>>;
-  readonly preloadPlacements: ReadonlyArray<string>;
+  readonly flowRuntime: FlowRuntime;
+  readonly preloadLocations: ReadonlyArray<string>;
+  readonly flowRevisions: Readonly<Record<string, number>>;
   readonly screenTracking: ScreenTrackingOptions;
   readonly internalSchema: Option.Option<RuntimeSchema>;
   readonly unstableSwallowErrors: boolean;
@@ -1024,8 +1050,13 @@ export class VoidhashClient {
       developmentMode: setup.developmentMode,
       featureFlagDefaults: { ...setup.featureFlagDefaults },
       flowCapabilities: [...setup.flowCapabilities],
+      flowRuntime: setup.flowRuntime,
       installAttribution: setup.installAttribution,
-      preloadPlacements: [...setup.preloadPlacements],
+      flowRevisions: R.collect(setup.flowRevisions, (location, revision) => ({
+        location,
+        revision,
+      })),
+      preloadLocations: [...setup.preloadLocations],
       publishableKey: setup.publishableKey,
       purchaseIntents: setup.purchaseIntents,
       readOnly: this.readOnly,
@@ -2155,29 +2186,52 @@ export class VoidhashClient {
   }
 
   /**
-   * Presents the flow assigned to a placement and resolves once it ends. Never
-   * rejects: a flow that cannot be shown resolves as `failed`, with an error
-   * whose `code` says why (`FLOW_NOT_ASSIGNED`, `FLOW_UNAVAILABLE`,
+   * Presents the flow assigned to a location and resolves once it ends, with
+   * its `outcome` (`purchased`, `restored`, `dismissed`, or the outcome the
+   * flow finished with), its `output` and the `productId` of a purchase.
+   *
+   * `options.input` are the flow's inputs and `options.actions` a handler per
+   * app action the flow can call; a handler that throws or rejects makes the
+   * flow run that action's failure path. `options.revision` is the interface
+   * revision the app was built against, by default the one the
+   * `flowRevisions` option sets for the location.
+   *
+   * Rejects with a {@link VoidhashError} when the flow cannot be shown; its
+   * `code` says why (`FLOW_NOT_ASSIGNED`, `FLOW_UNAVAILABLE`,
    * `FLOW_RENDERER_MISSING`, …).
    *
-   * The placement's assignment is served from cache when the server cannot be
+   * The location's assignment is served from cache when the server cannot be
    * reached. Purchases started from the flow go through the SDK's purchase
-   * path, so observer mode blocks them and the flow shows the failure; a
-   * completed purchase or restore dismisses the flow. A flow already on screen
-   * is closed first and resolves as `closed`.
+   * path, so observer mode blocks them and the flow shows the failure. A flow
+   * already on screen is closed first and resolves as `dismissed`.
    */
-  async presentFlow(placement: LocationSlug): Promise<FlowResult> {
-    if (!this.setup.enabled) return flowFailure("FLOW_DISABLED", "Voidhash is disabled");
+  presentFlow<const L extends LocationSlug>(
+    location: L,
+    ...args: PresentFlowArguments<L>
+  ): Promise<FlowResult<L>>;
+  async presentFlow(location: string, options?: PresentFlowOptions): Promise<FlowResult> {
+    if (!this.setup.enabled) throw flowError("FLOW_DISABLED", "Voidhash is disabled");
     const replacement = this.replacement();
-    if (Option.isSome(replacement)) return replacement.value.presentFlow(placement);
+    if (Option.isSome(replacement)) return replacement.value.presentFlow(location, options);
     const initialized = await this.whenInitialized();
-    if (initialized.isErr()) return flowFailure("FLOW_UNAVAILABLE", initialized.error.message);
-    return initialized.value.presentFlow(String(placement));
+    if (initialized.isErr()) throw flowError("FLOW_UNAVAILABLE", initialized.error.message);
+    return initialized.value.presentFlow(location, options);
+  }
+
+  /**
+   * Changes inputs of the flow on screen; inputs that are not named keep
+   * their values. No-op when no flow is shown and while disabled.
+   */
+  updateFlowInput<L extends string = string>(values: Partial<FlowInput<L>>): Promise<void>;
+  async updateFlowInput(values: FlowValues): Promise<void> {
+    const started = this.started();
+    if (!this.setup.enabled || started.isErr()) return;
+    await started.value.updateFlowInput(values);
   }
 
   /**
    * Closes the flow on screen, if any; its `presentFlow()` resolves as
-   * `closed`. No-op while disabled.
+   * `dismissed`. No-op while disabled.
    */
   async dismissFlow(): Promise<void> {
     const started = this.started();

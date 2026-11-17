@@ -84,13 +84,17 @@ public final class VoidhashApiClient: Sendable {
     ///
     /// - Parameter engine: The paywall engine the app links, so the backend serves only a flow it
     ///   can show; `nil` without one.
+    /// - Parameter interfaceRevision: The revision of the location's interface the app was
+    ///   built against, so the backend serves only a flow that app satisfies; 0 for none.
     public func resolvePaywall(
-        headers: [String: String], locationSlug: String, engine: FlowEngineCapabilities? = nil
+        headers: [String: String], locationSlug: String, engine: FlowEngineCapabilities? = nil,
+        interfaceRevision: Int = 0
     ) async throws -> SdkResolvedPaywall? {
         let data = try await send(
             method: "POST", path: "/api/v1/sdk/resolve-paywall",
             headers: headers.merging(engine?.headers ?? [:]) { _, reported in reported },
-            body: SdkResolvePaywallBody(locationSlug: locationSlug))
+            body: SdkResolvePaywallBody(
+                locationSlug: locationSlug, interfaceRevision: interfaceRevision))
         if isNullBody(data.body) {
             return nil
         }

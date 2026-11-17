@@ -1,0 +1,30 @@
+Set the share of the end users no rule matches who get a flag. Lowering it in production asks first;
+--yes skips that. A flag that is off stays off.
+
+Usage:
+  voidhash flag rollout [flag] [percent] [flags]
+
+Arguments:
+  flag     The flag's key or id
+  percent  The share of end users who get it, such as 25%
+
+Flags:
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag rollout new-checkout 50%
+  voidhash flag rollout new-checkout 10% --yes
+  voidhash flag rollout new-checkout 100% --env test

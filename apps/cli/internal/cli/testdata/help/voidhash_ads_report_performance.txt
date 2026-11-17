@@ -1,0 +1,49 @@
+What each campaign, ad group or ad spent and got: the platform's clicks next to the signups, payers
+and revenue Voidhash measured, with an estimate of what the clicks it could not see may have earned.
+
+The period is the last 7 complete days unless --last or --from says otherwise. Rows sort by spend,
+highest first; name and cost-per-payer sort lowest first.
+
+Usage:
+  voidhash ads report performance [flags]
+
+Flags:
+      --breakdown <placement|surface|country|age|gender|device>
+                                      Also split each row by this
+      --campaign <campaign>           Only this campaign (its name or id), or the ad groups and ads
+                                      in it; repeat for each (can be repeated)
+      --currency <code>               ISO 4217 code money is reported in (default: the ad accounts'
+                                      currency)
+      --delivery <active|needs-attention>
+                                      Only delivering or learning rows, or those that need attention
+      --environment <production|sandbox|test>
+                                      Purchases revenue is read from: production, sandbox (App Store
+                                      and Google Play sandbox) or test (debug builds' simulated
+                                      purchases and test modes such as Stripe's) (default:
+                                      production)
+      --from <day>                    First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help                          Show help for this command
+      --json                          Print the API report as JSON, for scripts
+      --last <span>                   The complete days before today to report on: a span such as
+                                      7d, 4w, 3m or 1y (default: 7d)
+      --level <campaign|ad-group|ad>  One row per campaign, ad group or ad (default: campaign)
+      --limit <limit>                 Rows to show (default: 50, at most 200)
+      --project <project>             Project to act on: its id, slug, organization/slug or name
+                                      (default: this directory's project, then your default project)
+      --sort <spend|name|impressions|link-clicks|ctr|platform-roas|signups|payers|cost-per-payer|net-revenue|roas>
+                                      What rows are sorted by (default: spend)
+      --timezone <zone>               IANA time zone days are cut in (default: the ad accounts' time
+                                      zone)
+      --to <day>                      Last day to report on, YYYY-MM-DD (default: today; with
+                                      --from)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads report performance
+  voidhash ads report performance --level ad --campaign "Spring sale" --sort roas
+  voidhash ads report performance --last 30d --breakdown country --json

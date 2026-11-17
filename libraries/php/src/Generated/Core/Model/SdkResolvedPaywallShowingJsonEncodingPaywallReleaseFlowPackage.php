@@ -49,6 +49,12 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackage
      */
     protected $url;
     /**
+     * The flow runtime module the release needs, for SDKs that run the flow runtime as a downloaded module; null when none is offered for it. Other SDKs ignore it.
+     *
+     * @var SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime|null
+     */
+    protected $runtime;
+    /**
      * The package's format version.
      *
      * @return mixed
@@ -178,6 +184,28 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackage
     {
         $this->initialized['url'] = true;
         $this->url = $url;
+        return $this;
+    }
+    /**
+     * The flow runtime module the release needs, for SDKs that run the flow runtime as a downloaded module; null when none is offered for it. Other SDKs ignore it.
+     *
+     * @return SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime|null
+     */
+    public function getRuntime(): ?SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime
+    {
+        return $this->runtime;
+    }
+    /**
+     * The flow runtime module the release needs, for SDKs that run the flow runtime as a downloaded module; null when none is offered for it. Other SDKs ignore it.
+     *
+     * @param SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime|null $runtime
+     *
+     * @return self
+     */
+    public function setRuntime(?SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime $runtime): self
+    {
+        $this->initialized['runtime'] = true;
+        $this->runtime = $runtime;
         return $this;
     }
 }

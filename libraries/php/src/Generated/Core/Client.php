@@ -890,7 +890,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ComponentRegistryUpsertPublisher($projectId, $requestBody), $fetch);
     }
     /**
-     * Lists the components of the organization's registry, with this project's install of each, or the one with a `slug` (`<publisher>/<name>`).
+     * Lists the components of the organization's registry, then Voidhash's own components (`voidhash/<name>`), which every project can install, with this project's install of each, or the one with a `slug` (`<publisher>/<name>`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -1088,7 +1088,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ComponentRegistryGetInstallReview($projectId, $registryComponentId, $queryParameters), $fetch);
     }
     /**
-     * Lists the registry components installed in the project, with the version updating each would move to (`availableUpdate`, null when current).
+     * Lists the components installed in the project, from the organization's registry and Voidhash's own, with the version updating each would move to (`availableUpdate`, null when current). Only installed components can be newly placed in the project's flows.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -1582,7 +1582,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ExperimentsUnarchive($projectId, $experimentId), $fetch);
     }
     /**
-     * Starts a draft experiment, or resumes a paused one: each of its paywall locations starts splitting end users between the arms, and each feature flag it sets takes the value of the end user's arm. Fails with `conflict` (`experiment_already_running`, `experiment_concluded` or `experiment_archived`) when the experiment is running, concluded or archived, and `conflict` (`experiment_not_startable`) when a placed paywall has no deployed build, a location runs another experiment, or another running or paused experiment sets one of its flags.
+     * Starts a draft experiment, or resumes a paused one: each of its paywall locations starts splitting end users between the arms, and each feature flag it sets takes the value of the end user's arm. Fails with `conflict` (`experiment_already_running`, `experiment_concluded` or `experiment_archived`) when the experiment is running, concluded or archived, and `conflict` (`experiment_not_startable`) when a placed paywall has no deployed build or is not made for the location it is placed at, a location runs another experiment, or another running or paused experiment sets one of its flags.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $experimentId The experiment's id, `exp_...`.
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -1658,7 +1658,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ExperimentsListVariants($projectId, $experimentId, $queryParameters), $fetch);
     }
     /**
-     * Replaces the experiment's arms, placements and flag values with the ones given and answers all of them. Name an existing arm's `id` to keep it, so end users in it stay there. Exactly one arm is the control and the weights total 100. An arm may show paywalls, give feature flags a value (`flagValues`), or both; a flag one arm gives a value, every arm must, and it has to be one of the project's own flags, not archived. Fails with `invalid_request` (`invalid_variants`, `experiment_variant_not_found`, `paywall_not_found`, `paywall_location_not_found`) and with `conflict` (`experiment_variants_locked`) while it runs; pause it first.
+     * Replaces the experiment's arms, placements and flag values with the ones given and answers all of them. Name an existing arm's `id` to keep it, so end users in it stay there. Exactly one arm is the control and the weights total 100. An arm may show paywalls, give feature flags a value (`flagValues`), or both; a flag one arm gives a value, every arm must, and it has to be one of the project's own flags, not archived. An arm shows a paywall only at a location the paywall is made for (`paywalls.addLocation`); placing one elsewhere is `invalid_variants`. Fails with `invalid_request` (`invalid_variants`, `experiment_variant_not_found`, `paywall_not_found`, `paywall_location_not_found`) and with `conflict` (`experiment_variants_locked`) while it runs; pause it first.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $experimentId The experiment's id, `exp_...`.
      * @param \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncoding $requestBody
@@ -2691,6 +2691,25 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsUpdate($projectId, $paywallLocationId, $requestBody), $fetch);
     }
     /**
+     * Sets what an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles. Send every part, including the ones the interface has already. Changes only add, so app versions already released keep working: a part can be added or marked `deprecated`, never removed or given another type. Every flow made for the location follows the new interface at once; `affectedFlows` says which designs still use a part the change deprecated, and where, which blocks their release until changed. Each change moves the interface to its next `revision`; setting the interface it already has changes nothing. Fails with `invalid_request` (`paywall_location_interface_invalid`) when a part is removed, retyped or badly named, saying which, and with `conflict` (`paywall_location_interface_changed`) when the interface changed since it was read.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paywallLocationId The location's id, `pw_loc_...`.
+     * @param \Voidhash\Generated\Core\Model\SetPaywallLocationInterfaceBody $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsSetInterfaceInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaywallLocationInterfaceSet : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paywallLocationsSetInterface(string $projectId, string $paywallLocationId, \Voidhash\Generated\Core\Model\SetPaywallLocationInterfaceBody $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsSetInterface($projectId, $paywallLocationId, $requestBody), $fetch);
+    }
+    /**
      * Archives a location and ends what it shows in both environments, so apps asking for it get no paywall. Archiving an archived location changes nothing.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
@@ -2728,7 +2747,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsClearShowing($projectId, $paywallLocationId, $queryParameters), $fetch);
     }
     /**
-     * Places a paywall at the location: from now on, end users see its deployed build there. This ends the location's previous placement, even when that was a running experiment. With `environment=test` only apps using a test key see it, and production keeps what it shows; until a location has a test showing, test keys get production's. Placing the paywall the environment already shows changes nothing. Fails with `not_found` (`paywall_not_found`) when the project has no such paywall, and with `conflict` (`paywall_not_deployed`) when the paywall has no deployed build, or `conflict` (`paywall_location_archived`) when the location is archived.
+     * Places a paywall at the location: from now on, end users see its deployed build there. This ends the location's previous placement, even when that was a running experiment. With `environment=test` only apps using a test key see it, and production keeps what it shows; until a location has a test showing, test keys get production's. Placing the paywall the environment already shows changes nothing. Fails with `not_found` (`paywall_not_found`) when the project has no such paywall, and with `conflict` (`paywall_not_deployed`) when the paywall has no deployed build, `conflict` (`paywall_interface_mismatch`) when its deployed flow asks more of the app than the location's interface offers, or `conflict` (`paywall_location_archived`) when the location is archived.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
      * @param \Voidhash\Generated\Core\Model\SetPaywallLocationShowingBodyJsonEncoding $requestBody
@@ -2814,7 +2833,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsRemovePin($projectId, $paywallLocationId, $identity, $queryParameters), $fetch);
     }
     /**
-     * Pins one end user, `{identityType}:{identityValue}` in the path, to a paywall at the location: they see its deployed build there whatever the location shows everyone else, and are outside an A/B test running there. Replaces the end user's pin in that `environment`, answering 201 when there was none. A `production` pin answers every app; a `test` pin answers apps using a test key only and wins there. A pin shows only where the location shows something in that environment. Fails with `invalid_request` (`invalid_identity`) for an identity that is blank or longer than 255 characters, `not_found` (`paywall_not_found`) when the project has no such paywall, and `conflict` (`paywall_not_deployed`) when the paywall has no deployed build, `conflict` (`paywall_location_archived`) when the location is archived, or `conflict` (`paywall_location_pin_limit`) when the location already holds 200 pins.
+     * Pins one end user, `{identityType}:{identityValue}` in the path, to a paywall at the location: they see its deployed build there whatever the location shows everyone else, and are outside an A/B test running there. Replaces the end user's pin in that `environment`, answering 201 when there was none. A `production` pin answers every app; a `test` pin answers apps using a test key only and wins there. A pin shows only where the location shows something in that environment. Fails with `invalid_request` (`invalid_identity`) for an identity that is blank or longer than 255 characters, `not_found` (`paywall_not_found`) when the project has no such paywall, and `conflict` (`paywall_not_deployed`) when the paywall has no deployed build, `conflict` (`paywall_interface_mismatch`) when its deployed flow asks more of the app than the location's interface offers, `conflict` (`paywall_location_archived`) when the location is archived, or `conflict` (`paywall_location_pin_limit`) when the location already holds 200 pins.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
      * @param string $identity The end user, as `{identityType}:{identityValue}` with the value percent-encoded, such as `email:alice@example.com`. The type is `person_id`, `distinct_id` or `email`.
@@ -2859,7 +2878,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsListRules($projectId, $paywallLocationId, $queryParameters), $fetch);
     }
     /**
-     * Replaces the rules of the location in one `environment`, in the order given; an empty list removes them. The first rule whose conditions all hold for an end user and their app shows them its paywall's deployed build, in place of what the location shows everyone else, and keeps them out of an A/B test running there. Conditions are those of a feature flag's rule. Pins are read before rules. A `production` rule answers every app; a `test` rule answers apps using a test key only and is read first there. A rule shows only where the location shows something in that environment. Fails with `invalid_request` (`invalid_rules`) for a rule without conditions or with one that can't be read, `not_found` (`paywall_not_found`) when the project has no such paywall, and `conflict` (`paywall_not_deployed`) when a paywall has no deployed build or `conflict` (`paywall_location_archived`) when the location is archived.
+     * Replaces the rules of the location in one `environment`, in the order given; an empty list removes them. The first rule whose conditions all hold for an end user and their app shows them its paywall's deployed build, in place of what the location shows everyone else, and keeps them out of an A/B test running there. Conditions are those of a feature flag's rule. Pins are read before rules. A `production` rule answers every app; a `test` rule answers apps using a test key only and is read first there. A rule shows only where the location shows something in that environment. Fails with `invalid_request` (`invalid_rules`) for a rule without conditions or with one that can't be read, `not_found` (`paywall_not_found`) when the project has no such paywall, and `conflict` (`paywall_not_deployed`) when a paywall has no deployed build, `conflict` (`paywall_interface_mismatch`) when a paywall's deployed flow asks more of the app than the location's interface offers, or `conflict` (`paywall_location_archived`) when the location is archived.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
      * @param \Voidhash\Generated\Core\Model\ReplacePaywallLocationRulesBodyJsonEncoding $requestBody
@@ -3028,7 +3047,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsListBuilds($projectId, $paywallId, $queryParameters), $fetch);
     }
     /**
-     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. Only a person can start a build, because a build records who started it. Fails with `permission_denied` (`person_credential_required`) for a project secret key.
+     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. The build compiles what the paywall may exchange with apps as its locations give it now, and is `failed` at once, with what to change, while two of its locations conflict. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. A person or a project secret key with permission to edit paywalls can start a build; the build records which. Deploying it takes permission to publish paywalls.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallBuildBodyJsonEncoding $requestBody
@@ -3082,6 +3101,65 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     public function paywallsDeployBuild(string $projectId, string $paywallId, string $buildId, string $fetch = self::FETCH_OBJECT)
     {
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsDeployBuild($projectId, $paywallId, $buildId), $fetch);
+    }
+    /**
+     * Lists the locations the paywall is made for, in order. A paywall is shown, placed by an A/B test, pinned or matched by a rule only at one of them, and what it may exchange with apps comes from their interfaces: every input and output any of them declares, and only the outcomes and app actions all of them declare. Each location lists its `conflicts` with the others, which make a build of the paywall fail until fixed.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paywallId The paywall's id, `pw_...`.
+     * @param array{
+     *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+     *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
+     * } $queryParameters
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsListLocationsBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsListLocationsUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsListLocationsForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsListLocationsNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsListLocationsInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200 : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paywallsListLocations(string $projectId, string $paywallId, array $queryParameters = [], string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsListLocations($projectId, $paywallId, $queryParameters), $fetch);
+    }
+    /**
+     * Stops making the paywall for a location; removing one it is not made for changes nothing. Fails with `conflict` (`paywall_location_in_use`) while the paywall is shown, placed by an A/B test, pinned or matched by a rule there, and `conflict` (`paywall_location_required`) while the paywall's design uses something only that location provides: an input it reads or an output it writes that no other of its locations declares, or, for its last location, an app action it calls or an outcome it ends with; the message says what to change. A paywall made for no location exchanges nothing with apps.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paywallId The paywall's id, `pw_...`.
+     * @param string $paywallLocationId The location's id, `pw_loc_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsRemoveLocationInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paywallsRemoveLocation(string $projectId, string $paywallId, string $paywallLocationId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsRemoveLocation($projectId, $paywallId, $paywallLocationId), $fetch);
+    }
+    /**
+     * Makes the paywall for a location, after the others, answering 201; adding one it is already made for answers 200 and changes nothing. Fails with `not_found` (`paywall_location_not_found`) when the project has no such location or it is archived, and `conflict` (`paywall_location_incompatible`) when the location conflicts with one the paywall is already made for (an input or output both declare with another type or default, or an app action both declare with other arguments or reply), or lacks an app action, outcome, input or output the paywall's design uses; the message says what to change on which location.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paywallId The paywall's id, `pw_...`.
+     * @param string $paywallLocationId The location's id, `pw_loc_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsAddLocationInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaywallSupportedLocationJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paywallsAddLocation(string $projectId, string $paywallId, string $paywallLocationId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsAddLocation($projectId, $paywallId, $paywallLocationId), $fetch);
     }
     /**
      * Lists the project's perks, or the one with a `slug`.
@@ -4067,6 +4145,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      *    "x-ui-package-abi"?: string, //The newest flow package format version the SDK's paywall engine reads.
      *    "x-ui-guest-abi"?: string, //The newest component guest ABI version the SDK's paywall engine runs. Without it the other engine headers are ignored and only releases a guest ABI 1 engine without native components can show are served.
      *    "x-ui-native-components"?: string, //The native components the SDK's paywall engine provides, as comma-separated `id@version` entries.
+     *    "x-ui-runtime-bridge"?: string, //The newest runtime bridge version the SDK's paywall engine hosts, sent only when it runs the flow runtime as a downloaded module. Such an engine reads no package format itself: a release is served when a runtime module for it exists on a bridge the engine hosts, and `x-ui-package-abi` is not checked.
      * } $headerParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallBadRequestException

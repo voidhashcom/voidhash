@@ -1,0 +1,44 @@
+Add a rule that tells owners and admins when events look broken. What it watches is its kind:
+
+  event_count    The event happened --threshold times in the window,
+                 to at least --min-people people.
+  failure_share  More than --threshold (0 to 1) of the attempts in the
+                 window failed. An attempt is --event, the failure, or
+                 --success-event.
+  volume_drop    The event fell by --threshold (0 to 1) against the same
+                 window in the weeks before.
+
+It is first checked at the next quarter past the hour. On a terminal, what is not passed is asked
+for.
+
+Usage:
+  voidhash analytics alerts create [flags]
+
+Flags:
+      --event <event>          The event to watch; for failure_share, the event of a failed attempt
+  -h, --help                   Show help for this command
+      --json                   Print the API object as JSON, for scripts
+      --kind <event_count|failure_share|volume_drop>
+                               What it watches: too many of an event, too many failures among
+                               attempts, or an event that fell against earlier weeks
+      --min-people <people>    For event_count: distinct people it must affect (default: 2). Use 1
+                               when one person matters
+      --name <name>            What a person reads in the notice
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+      --success-event <event>  For failure_share: the event of an attempt that worked
+      --threshold <threshold>  For event_count, the count that fires it; for the others, a share
+                               from 0 to 1
+      --window-hours <hours>   The trailing window each hourly check reads, in hours: 1, 6, 24 or
+                               168
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash analytics alerts create --name "Checkout errors" --kind event_count --event checkout_error --window-hours 1 --threshold 20
+  voidhash analytics alerts create --name "Payments failing" --kind failure_share --event payment_failed --success-event payment_succeeded --window-hours 6 --threshold 0.3
+  voidhash analytics alerts create --name "Signups dropped" --kind volume_drop --event signup --window-hours 24 --threshold 0.5

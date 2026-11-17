@@ -481,7 +481,8 @@ object Voidhash {
             gate = gate,
             outbox = outbox,
             personWrites = personWrites,
-            preloadPlacements = options.preloadPlacements,
+            preloadLocations = options.preloadLocations,
+            flowRevisions = options.flowRevisions,
             featureFlagOptions = options.featureFlags,
             flowCoordinatorFactory = options.paywallRenderer?.takeIf { active }?.let { renderer ->
                 // Keyed by URL and shared by every project and person of the app: images are a
@@ -512,6 +513,9 @@ object Voidhash {
                         scope = scope,
                         mainDispatcher = Dispatchers.Main.immediate,
                         onWarning = warn,
+                        onMissingActionHandler = { message ->
+                            if (options.debug || platformInfo.isDebugBuild) Log.w(LOG_TAG, message)
+                        },
                         // The store sheet of a purchase from the flow launches from the activity it is shown above.
                         onActivityChanged = currentActivity::set,
                         loadImage = images::load,

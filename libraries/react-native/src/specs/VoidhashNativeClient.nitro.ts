@@ -126,6 +126,31 @@ export type NativeStorePlatform = "appStore" | "googlePlay";
 /** The state another billing integration reported a Google Play purchase in. */
 export type NativeReportedPurchaseState = "purchased" | "pending" | "unspecified";
 
+/** The interface revision an app was built against at one location. */
+export interface NativeFlowRevision {
+  readonly location: string;
+  readonly revision: number;
+}
+
+/** What the app passes to one presentation of a flow. */
+export interface NativeFlowPresentation {
+  /**
+   * The interface revision the app was built against; absent to use the one
+   * configured for the location, or 0 when there is none.
+   */
+  readonly revision?: number;
+  /** The flow's inputs by name, as a JSON object of strings, numbers and booleans. */
+  readonly inputJson: string;
+  /** Names of the app actions the app handles. */
+  readonly actions: string[];
+}
+
+/**
+ * Which flow runtime draws flows, process-wide: the one built into the SDK
+ * (`linked`) or the flow runtime modules the server offers (`module`).
+ */
+export type NativeFlowRuntime = "linked" | "module";
+
 /** What a flow may do beyond purchases, restores, closing and analytics. */
 export type NativeFlowCapability = "links" | "notifications" | "tracking" | "attributes";
 
@@ -208,9 +233,20 @@ export interface NativeClientConfiguration {
   readonly installAttribution: boolean;
   /** The Meta app id to ask Meta's apps about on Android; iOS ignores it. */
   readonly metaAppId?: string;
-  /** Placements whose flows are downloaded at start. */
-  readonly preloadPlacements: string[];
+  /** Locations whose flows are downloaded at start. */
+  readonly preloadLocations: string[];
+  /**
+   * The interface revision the app was built against, per location. Used to
+   * preload and as the revision of a presentation that names none.
+   */
+  readonly flowRevisions: NativeFlowRevision[];
   readonly flowCapabilities: NativeFlowCapability[];
+  /**
+   * The `flowRuntime` option. `module` switches the linked native renderer to
+   * flow runtime modules before anything resolves a flow; set once per
+   * process, it stays for the process.
+   */
+  readonly flowRuntime: NativeFlowRuntime;
   /** `false` turns every `screen()` into a no-op. */
   readonly screenTrackingEnabled: boolean;
   /**
@@ -854,11 +890,11 @@ export interface VoidhashNativeClient extends HybridObject<{
    */
   getFeatureFlags(flagKeys?: string[]): Promise<NativeFeatureFlagsResult>;
   /**
-   * The paywall assigned to `placement` as JSON, `"null"` when none is.
+   * The paywall assigned to `location` as JSON, `"null"` when none is.
    * Rejects `PAYWALL_UNAVAILABLE` when nothing is cached and the server
    * cannot be reached.
    */
-  getPaywall(placement: string): Promise<string>;
+  getPaywall(location: string): Promise<string>;
   /**
    * Every product the store returned, one per Studio product slug, sorted by
    * slug: the native SDK's `getProducts()`, one store query per call. A
@@ -1071,22 +1107,38 @@ export interface VoidhashNativeClient extends HybridObject<{
   // ---- Flows ----
 
   /**
-   * Presents the flow assigned to `placement` and resolves once it ends, as
+   * Presents the flow assigned to `location` and resolves once it ends, as
    * JSON, one of:
    *
-   * - `{"status":"finished","result":"<finish action>","variables":{…}}`
-   * - `{"status":"purchased","productSlug":"<product slug>"}`
-   * - `{"status":"restored"}`
-   * - `{"status":"closed"}` (the user or the app closed it, or another flow replaced it)
-   * - `{"status":"failed","code":"<FLOW_* code>","message":"<FLOW_* code>: <detail>"}`,
-   *   where the code is one of `FLOW_DISABLED`, `FLOW_NOT_ASSIGNED`,
-   *   `FLOW_UNAVAILABLE`, `FLOW_RENDERER_MISSING`, `FLOW_UNSUPPORTED_PACKAGE`
-   *   and `FLOW_PRESENTATION_FAILED`.
+   * - `{"outcome":"<outcome>","output":{…}}`, with `"productId":"<product
+   *   slug>"` when the outcome is `purchased`. `purchased`, `restored`
+   *   and `dismissed` are built in (the last also when the app closed the
+   *   flow or another replaced it); any other outcome is the one the flow
+   *   finished with. `output` holds the flow's outputs by name.
+   * - `{"failure":{"code":"<FLOW_* code>","message":"<FLOW_* code>: <detail>"}}`
+   *   for a flow that could not be presented, where the code is one of
+   *   `FLOW_DISABLED`, `FLOW_NOT_ASSIGNED`, `FLOW_UNAVAILABLE`,
+   *   `FLOW_RENDERER_MISSING`, `FLOW_UNSUPPORTED_PACKAGE` and
+   *   `FLOW_PRESENTATION_FAILED`.
+   *
+   * `onAction` runs an app action the flow calls: it receives the action's
+   * name and its arguments as a JSON object, and resolves with the reply as
+   * a JSON object or rejects. It is called only for the names in
+   * `presentation.actions`; the native side answers every other call itself.
    *
    * Purchases and restores the flow starts go through this client. Never
-   * rejects for a flow that cannot be shown: that is a `failed` result.
+   * rejects for a flow that cannot be shown: that is a `failure`.
    */
-  presentFlow(placement: string): Promise<string>;
-  /** Closes the flow on screen, if any; its presentation resolves as closed. */
+  presentFlow(
+    location: string,
+    presentation: NativeFlowPresentation,
+    onAction: (name: string, argsJson: string) => Promise<string>,
+  ): Promise<string>;
+  /**
+   * Changes inputs of the flow on screen; `valuesJson` is a JSON object of
+   * values by input name. Does nothing when no flow is shown.
+   */
+  updateFlowInput(valuesJson: string): Promise<void>;
+  /** Closes the flow on screen, if any; its presentation resolves as dismissed. */
   dismissFlow(): Promise<void>;
 }

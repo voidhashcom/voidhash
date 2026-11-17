@@ -1,0 +1,22 @@
+Send to Android (and iOS) devices through Firebase Cloud Messaging, and turn the service on. The
+service account key is read from the JSON file and stored by Voidhash; it is never printed.
+
+Usage:
+  voidhash push config set fcm [flags]
+
+Flags:
+  -h, --help                         Show help for this command
+      --json                         Print the API objects as JSON, for scripts
+      --project <project>            Project to act on: its id, slug, organization/slug or name
+                                     (default: this directory's project, then your default project)
+  -q, --quiet                        Print only ids, one per line
+      --service-account-file <file>  The Firebase service account key, a JSON file
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash push config set fcm --service-account-file service-account.json

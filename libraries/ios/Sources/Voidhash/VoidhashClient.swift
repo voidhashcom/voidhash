@@ -126,18 +126,18 @@ public actor VoidhashClient {
     private static let paywallCacheStaleTimeMilliseconds: Double = 1000 * 60 * 60
     /// Debounce between foreground-triggered refreshes.
     private static let foregroundRefreshDebounceMilliseconds: Double = 60_000
-    /// Placements remembered for preload on the next launch.
-    static let maxKnownPlacements = 20
-    /// Cache key of the placements this device has resolved before.
-    static let knownPlacementsCacheKey = "paywall:placements"
+    /// Locations remembered for preload on the next launch.
+    static let maxKnownLocations = 20
+    /// Cache key of the locations this device has resolved before.
+    static let knownLocationsCacheKey = "paywall:placements"
 
-    private static func normalizeKnownPlacements(_ placements: [String]) -> [String] {
+    private static func normalizeKnownLocations(_ locations: [String]) -> [String] {
         var normalized: [String] = []
-        for placement in placements where !placement.isEmpty {
-            normalized.removeAll { $0 == placement }
-            normalized.append(placement)
+        for location in locations where !location.isEmpty {
+            normalized.removeAll { $0 == location }
+            normalized.append(location)
         }
-        return Array(normalized.suffix(maxKnownPlacements))
+        return Array(normalized.suffix(maxKnownLocations))
     }
 
     /// Cache key of the `{appBuild, appVersion}` pair seen on the previous launch.
@@ -198,7 +198,7 @@ public actor VoidhashClient {
     nonisolated let isAppScreenClass: (@Sendable (AnyClass) -> Bool)?
     private let warn: VoidhashWarningHandler
     /// Whether any flow can be shown: only through a configured native renderer. Resolving,
-    /// remembering and warming placements all follow it, so no placement costs a request while
+    /// remembering and warming locations all follow it, so no location costs a request while
     /// nothing can show it.
     private var paywallsEnabled: Bool {
         return options.paywallRenderer != nil || dependencies.host?.resolvesPaywalls == true
@@ -358,7 +358,10 @@ public actor VoidhashClient {
     /// Identify requests in flight, see ``trackIdentifySend(_:)``.
     private var identifySends: [UUID: (alias: String?, target: String, task: Task<Void, Never>)] =
         [:]
-    private var knownPlacements: [String] = []
+    private var knownLocations: [String] = []
+    /// The interface revision each location was last presented with in this process, which a
+    /// background refresh of a location ``VoidhashOptions/flowRevisions`` does not name uses.
+    private var presentedFlowRevisions: [String: Int] = [:]
     /// Set while ``purchase(_:options:)`` runs, which takes one purchase at a time.
     private var purchaseInFlight = false
     /// Waiting for the purchase in flight to end, see ``waitForPurchaseInFlight()``.
@@ -2248,7 +2251,7 @@ public actor VoidhashClient {
     /// Signing out captures `$sign_out` under the identity and session being left, with its
     /// groups, then persists a fresh anonymous distinct id, clears the groups and everything
     /// cached for the identity, and starts a new analytics session. State that is not tied to a
-    /// person — the schema, remembered placements, the install marker — stays cached, so a
+    /// person — the schema, remembered locations, the install marker — stays cached, so a
     /// sign-out offline does not turn the next launch into a cold start or re-report
     /// `$app_installed`. So does the analytics consent the end user decided: it belongs to the
     /// device's user, not to the identity. A consent implied by an identify
@@ -3635,55 +3638,98 @@ public actor VoidhashClient {
 
     // MARK: - Flows
 
-    /// Presents the flow or paywall assigned to `placement` and returns how it ended.
+    /// Presents the flow or paywall assigned to `location` and returns how it ended.
     ///
-    /// Returns once the flow has ended (finished, purchased, restored or closed) and left the
-    /// screen. A placement cached on this device presents without waiting on the backend.
-    /// Presenting a flow while another is on screen closes that one first. Cancelling the calling
-    /// task closes the flow, or keeps one that is still loading from being shown; the call then
-    /// returns ``FlowResult/closed``.
+    /// Returns once the flow has ended and left the screen. Every ending has the same shape:
+    /// ``FlowResult/outcome`` is ``FlowResult/purchased``, ``FlowResult/restored``,
+    /// ``FlowResult/dismissed`` or the outcome the flow finished with, and
+    /// ``FlowResult/output`` holds the flow's outputs whichever it was.
+    ///
+    /// A location cached on this device presents without waiting on the backend. Presenting a
+    /// flow while another is on screen closes that one first. Cancelling the calling task closes
+    /// the flow, or keeps one that is still loading from being shown; the call then returns
+    /// ``FlowResult/dismissed``.
     ///
     /// A flow that is not ready to show within 15 seconds of the call
-    /// (``NetworkPolicy/flowPresentationDeadlineSeconds``), because the placement resolves or
-    /// its package downloads too slowly, is not shown at all: the call fails with
+    /// (``NetworkPolicy/flowPresentationDeadlineSeconds``), because the location resolves or
+    /// its package downloads too slowly, is not shown at all: the call throws
     /// ``FlowError/unavailable``, and the package is still downloaded for the next presentation.
     ///
     /// ``shutdown()`` ends the presentation too: a flow on screen is closed and the call returns
-    /// ``FlowResult/closed``; one still loading is not shown, and the call fails with
+    /// ``FlowResult/dismissed``; one still loading is not shown, and the call throws
     /// ``FlowError/disabled``, as every presentation on a shut-down client does.
-    public func presentFlow(placement: String) async -> FlowResult {
+    ///
+    /// - Parameters:
+    ///   - location: The slug of the location in the app where the flow is shown.
+    ///   - revision: The revision of the location's interface the app was built against. When
+    ///     `nil`, the one ``VoidhashOptions/flowRevisions`` names for the location, else 0.
+    ///   - input: The values the app passes to the flow, by name. An input that is not passed
+    ///     keeps its default.
+    ///   - actions: Handlers of the app actions the flow may call, by name. A handler receives
+    ///     the call's arguments and returns the reply; when it throws, or when the flow calls
+    ///     an action that has no handler, the call fails in the flow, which carries on. A
+    ///     handler still running when the flow ends is cancelled.
+    /// - Throws: ``FlowError`` when the flow could not be presented, or could no longer be
+    ///   drawn while it was shown.
+    public func presentFlow(
+        location: String, revision: Int? = nil, input: [String: FlowValue] = [:],
+        actions: [String: FlowActionHandler] = [:]
+    ) async throws -> FlowResult {
         guard options.enabled, !isShutDown else {
-            return .failed(.disabled)
+            throw FlowError.disabled
         }
         guard paywallsEnabled else {
             warn(FlowError.rendererMissing.description)
-            return .failed(.rendererMissing)
+            throw FlowError.rendererMissing
         }
-        // Resolving the placement waits for initialization, inside the coordinator, where
+        let revision = revision ?? flowRevision(of: location)
+        presentedFlowRevisions[location] = revision
+        // Resolving the location waits for initialization, inside the coordinator, where
         // `dismissFlow()` and cancellation end the wait.
+        // App Store messages wait while a flow is on screen.
         flowsOnScreen += 1
-        let result = await flowCoordinator().present(placement: placement)
-        await flowLeftScreen()
-        return result
+        do {
+            let result = try await flowCoordinator().present(
+                location: location, revision: revision, input: input, actions: actions)
+            await flowLeftScreen()
+            return result
+        } catch {
+            await flowLeftScreen()
+            throw error
+        }
     }
 
     #if canImport(UIKit)
-        /// Presents the flow assigned to `placement` from `viewController`, or from the top view
+        /// Presents the flow assigned to `location` from `viewController`, or from the top view
         /// controller of the key window when it is `nil`, and returns how it ended.
-        public func presentFlow(placement: String, from viewController: UIViewController?) async
-            -> FlowResult
-        {
+        ///
+        /// - Throws: ``FlowError`` when the flow could not be presented.
+        public func presentFlow(
+            location: String, revision: Int? = nil, input: [String: FlowValue] = [:],
+            actions: [String: FlowActionHandler] = [:], from viewController: UIViewController?
+        ) async throws -> FlowResult {
             // Released only while it is still this call's: a presentation that replaces this
             // one names its own target before this call returns.
             let claim = presentationTarget.claim(viewController)
             defer { presentationTarget.release(claim) }
-            return await presentFlow(placement: placement)
+            return try await presentFlow(
+                location: location, revision: revision, input: input, actions: actions)
         }
     #endif
 
+    /// Changes inputs of the flow on screen, by name; the inputs it does not name keep their
+    /// values. Does nothing when no flow is shown.
+    public func updateFlowInput(_ values: [String: FlowValue]) async {
+        guard options.enabled, paywallsEnabled, !isShutDown else {
+            return
+        }
+        await flowCoordinatorStorage?.updateInput(values)
+    }
+
     /// Closes the presented flow, and keeps a flow that is still loading from being shown; its
-    /// ``presentFlow(placement:)`` returns ``FlowResult/closed``. Returns once the flow has left
-    /// the screen. It closes a flow of a client that was shut down as well.
+    /// ``presentFlow(location:revision:input:actions:)`` returns ``FlowResult/dismissed``.
+    /// Returns once the flow has left the screen. It closes a flow of a client that was shut
+    /// down as well.
     public func dismissFlow() async {
         guard options.enabled, paywallsEnabled else {
             return
@@ -3692,19 +3738,34 @@ public actor VoidhashClient {
         await (isShutDown ? flowCoordinatorStorage : flowCoordinator())?.dismiss()
     }
 
+    /// The revision of the interface at `location` the app is built against, as far as the
+    /// client knows: the one the options name, else the one the location was last presented
+    /// with in this process, else 0.
+    private func flowRevision(of location: String) -> Int {
+        return options.flowRevisions[location] ?? presentedFlowRevisions[location] ?? 0
+    }
+
     /// Resolves the paywall assigned to `location` without presenting it.
     ///
-    /// Cache-first with a 7 day lifetime and a 1 hour stale window, so a placement the device has
+    /// Cache-first with a 7 day lifetime and a 1 hour stale window, so a location the device has
     /// seen before resolves offline and, after a boot preload, with no request at all.
     ///
     /// Embedded hosts (for example the React Native SDK) use this together with their own
     /// presenter; the returned envelope carries everything a renderer needs.
-    public func getPaywall(location: String) async throws -> SdkResolvedPaywall? {
-        return try await getPaywallState(location: location).value
+    ///
+    /// - Parameter revision: The revision of the location's interface the app was built
+    ///   against. When `nil`, the one ``VoidhashOptions/flowRevisions`` names for the location,
+    ///   else the one it was last presented with, else 0.
+    public func getPaywall(location: String, revision: Int? = nil) async throws
+        -> SdkResolvedPaywall?
+    {
+        return try await getPaywallState(location: location, revision: revision).value
     }
 
-    /// ``getPaywall(location:)`` with the freshness of the configuration it returned.
-    public func getPaywallState(location: String) async throws -> Stale<SdkResolvedPaywall?> {
+    /// ``getPaywall(location:revision:)`` with the freshness of the configuration it returned.
+    public func getPaywallState(location: String, revision: Int? = nil) async throws
+        -> Stale<SdkResolvedPaywall?>
+    {
         guard options.enabled, paywallsEnabled, !isShutDown else {
             return Stale(value: nil)
         }
@@ -3712,18 +3773,20 @@ public actor VoidhashClient {
             return Stale(value: nil, isStale: true, isExpired: true)
         }
         _ = try await ensureInitialized()
+        let revision = revision ?? flowRevision(of: location)
         let distinctId = await identityStore.getDistinctId()
         let engine = options.paywallRenderer?.engineCapabilities
 
         let unassigned = await cacheManager.get(
             VoidhashClient.unassignedPaywallCacheKey(
-                distinctId: distinctId, location: location, engine: engine),
+                distinctId: distinctId, location: location, engine: engine, revision: revision),
             as: Bool.self)
         let assigned =
             unassigned == nil
             ? await cacheManager.get(
                 VoidhashClient.paywallCacheKey(
-                    distinctId: distinctId, location: location, engine: engine),
+                    distinctId: distinctId, location: location, engine: engine,
+                    revision: revision),
                 as: SdkResolvedPaywall.self)
             : nil
         let cached: CachedPaywallState?
@@ -3737,7 +3800,7 @@ public actor VoidhashClient {
             cached = nil
         }
         if cached?.value != nil {
-            await rememberPlacement(location)
+            await rememberLocation(location)
         }
 
         if let cached, !cached.isStale {
@@ -3751,7 +3814,8 @@ public actor VoidhashClient {
         }
 
         let refresh = Task {
-            try await self.refreshPaywall(location: location, distinctId: distinctId)
+            try await self.refreshPaywall(
+                location: location, revision: revision, distinctId: distinctId)
         }
         if cached != nil, case .success(let fresh)? = await value(of: refresh, withinBudget: true) {
             return Stale(value: fresh)
@@ -3765,14 +3829,15 @@ public actor VoidhashClient {
         return Stale(value: nil, isStale: true, isExpired: true)
     }
 
-    /// Resolves a placement for presentation, distinguishing "nothing is assigned here" from
-    /// "this device has never seen this placement and cannot reach the backend".
+    /// Resolves a location for presentation, distinguishing "nothing is assigned here" from
+    /// "this device has never seen this location and cannot reach the backend".
     ///
     /// - Throws: ``FlowActionError`` in the second case, which the coordinator turns into
     ///   ``FlowError/unavailable``.
-    private func resolvePaywallForPresentation(location: String) async throws -> SdkResolvedPaywall?
+    private func resolvePaywallForPresentation(location: String, revision: Int) async throws
+        -> SdkResolvedPaywall?
     {
-        let state = try await getPaywallState(location: location)
+        let state = try await getPaywallState(location: location, revision: revision)
         if state.value == nil, state.isExpired, state.isStale {
             throw FlowActionError(
                 code: "FLOW_UNAVAILABLE",
@@ -3784,10 +3849,11 @@ public actor VoidhashClient {
     }
 
     // Every paywall helper below checks `paywallsEnabled` itself, so no background caller can
-    // resolve a placement, remember it or warm a paywall that cannot be shown.
+    // resolve a location, remember it or warm a paywall that cannot be shown.
     @discardableResult
     private func refreshPaywall(
         location: String,
+        revision: Int,
         distinctId: String
     ) async throws -> SdkResolvedPaywall? {
         guard paywallsEnabled else {
@@ -3795,18 +3861,19 @@ public actor VoidhashClient {
         }
         let cacheKey = VoidhashClient.paywallCacheKey(
             distinctId: distinctId, location: location,
-            engine: options.paywallRenderer?.engineCapabilities)
+            engine: options.paywallRenderer?.engineCapabilities, revision: revision)
         return try await paywallFlight.run(key: cacheKey) { [weak self] in
             guard let self else {
                 return nil
             }
             return try await self.fetchAndCachePaywall(
-                location: location, distinctId: distinctId)
+                location: location, revision: revision, distinctId: distinctId)
         }
     }
 
     private func fetchAndCachePaywall(
         location: String,
+        revision: Int,
         distinctId: String
     ) async throws -> SdkResolvedPaywall? {
         guard paywallsEnabled else {
@@ -3818,7 +3885,8 @@ public actor VoidhashClient {
         do {
             resolved = try await guarded("paywall.resolve") { [apiClient] in
                 try await apiClient.resolvePaywall(
-                    headers: headers, locationSlug: location, engine: engine)
+                    headers: headers, locationSlug: location, engine: engine,
+                    interfaceRevision: revision)
             }
             refreshBackoff[.paywall] = nil
         } catch {
@@ -3830,11 +3898,12 @@ public actor VoidhashClient {
         guard await identityStore.getDistinctId() == distinctId else {
             return resolved
         }
-        // Stored under the engine the request reported, the one the answer was decided for.
+        // Stored under the engine and the interface revision the request reported, the ones the
+        // answer was decided for.
         let assignedKey = VoidhashClient.paywallCacheKey(
-            distinctId: distinctId, location: location, engine: engine)
+            distinctId: distinctId, location: location, engine: engine, revision: revision)
         let unassignedKey = VoidhashClient.unassignedPaywallCacheKey(
-            distinctId: distinctId, location: location, engine: engine)
+            distinctId: distinctId, location: location, engine: engine, revision: revision)
         if let resolved {
             await cacheManager.set(
                 assignedKey,
@@ -3852,11 +3921,11 @@ public actor VoidhashClient {
             )
             await cacheManager.delete(assignedKey)
         }
-        await rememberPlacement(location)
+        await rememberLocation(location)
         return resolved
     }
 
-    /// Downloads the flow package a cached placement points at.
+    /// Downloads the flow package a cached location points at.
     ///
     /// Best effort: a cached configuration whose assets never loaded would still render, just
     /// slower, so a failure here is reported without failing initialization.
@@ -3865,7 +3934,7 @@ public actor VoidhashClient {
             return
         }
         do {
-            try await flowCoordinator().preload(placement: location, release: release)
+            try await flowCoordinator().preload(location: location, release: release)
         } catch {
             // The configuration is still cached and will render; only the warm start is lost.
             diagnostics.emit(
@@ -3878,16 +3947,16 @@ public actor VoidhashClient {
     }
 
     /// Records that this device resolved `location`, so the next launch preloads it.
-    private func rememberPlacement(_ location: String) async {
-        guard paywallsEnabled, knownPlacements.last != location else {
+    private func rememberLocation(_ location: String) async {
+        guard paywallsEnabled, knownLocations.last != location else {
             return
         }
-        knownPlacements.removeAll { $0 == location }
-        knownPlacements.append(location)
-        if knownPlacements.count > VoidhashClient.maxKnownPlacements {
-            knownPlacements.removeFirst(knownPlacements.count - VoidhashClient.maxKnownPlacements)
+        knownLocations.removeAll { $0 == location }
+        knownLocations.append(location)
+        if knownLocations.count > VoidhashClient.maxKnownLocations {
+            knownLocations.removeFirst(knownLocations.count - VoidhashClient.maxKnownLocations)
         }
-        await cacheManager.set(VoidhashClient.knownPlacementsCacheKey, value: knownPlacements)
+        await cacheManager.set(VoidhashClient.knownLocationsCacheKey, value: knownLocations)
     }
 
     /// Adopts an externally supplied schema without a server round-trip.
@@ -4526,9 +4595,9 @@ public actor VoidhashClient {
             currentSchema = schema
         }
 
-        knownPlacements = VoidhashClient.normalizeKnownPlacements(
+        knownLocations = VoidhashClient.normalizeKnownLocations(
             await cacheManager.get(
-                VoidhashClient.knownPlacementsCacheKey, as: [String].self)?.value ?? [])
+                VoidhashClient.knownLocationsCacheKey, as: [String].self)?.value ?? [])
 
         if dependencies.runBackgroundRefreshes {
             Task { [weak self] in
@@ -4677,31 +4746,33 @@ public actor VoidhashClient {
         }
 
         // While no flow can be shown there is nothing to resolve or warm: no request per
-        // placement, no package download on the launch path.
+        // location, no package download on the launch path.
         guard paywallsEnabled else {
             return
         }
-        var placements = options.preloadPlacements
-        for placement in knownPlacements where !placements.contains(placement) {
-            placements.append(placement)
+        var locations = options.preloadLocations
+        for location in knownLocations where !locations.contains(location) {
+            locations.append(location)
         }
         let distinctId = await identityStore.getDistinctId()
-        for placement in placements {
+        for location in locations {
+            let revision = flowRevision(of: location)
             let refreshed =
                 canRefresh
-                ? try? await refreshPaywall(location: placement, distinctId: distinctId) : nil
+                ? try? await refreshPaywall(
+                    location: location, revision: revision, distinctId: distinctId) : nil
             let resolved: SdkResolvedPaywall?
             if let refreshed {
                 resolved = refreshed
             } else {
                 resolved = await cacheManager.get(
                     VoidhashClient.paywallCacheKey(
-                        distinctId: distinctId, location: placement,
-                        engine: options.paywallRenderer?.engineCapabilities),
+                        distinctId: distinctId, location: location,
+                        engine: options.paywallRenderer?.engineCapabilities, revision: revision),
                     as: SdkResolvedPaywall.self
                 )?.value
             }
-            await prefetchPaywallAssets(location: placement, resolved: resolved)
+            await prefetchPaywallAssets(location: location, resolved: resolved)
         }
     }
 
@@ -5166,8 +5237,8 @@ public actor VoidhashClient {
         )
         let coordinator = FlowCoordinator(
             presenter: presenter,
-            loadPackage: { placement, package in
-                let bytes = try await store.load(location: placement, package: package) {
+            loadPackage: { location, package in
+                let bytes = try await store.load(location: location, package: package) {
                     abiVersion in
                     presenter?.supportsFlowPackage(abiVersion: abiVersion) ?? false
                 }
@@ -5184,8 +5255,9 @@ public actor VoidhashClient {
                 }
                 return bytes
             },
-            resolvePaywall: { [weak self] placement in
-                return try await self?.resolvePaywallForPresentation(location: placement)
+            resolvePaywall: { [weak self] location, revision in
+                return try await self?.resolvePaywallForPresentation(
+                    location: location, revision: revision)
             },
             host: host,
             presentationDeadline: { [sleep = dependencies.budgetSleep] in
@@ -5394,20 +5466,30 @@ public actor VoidhashClient {
         return "flags:\(distinctId):\(CacheNamespace.hash(serialized))"
     }
 
-    /// Paywall answers are cached per identity, per engine and per placement: the backend
-    /// answers by what the engine can run (see ``FlowEngineCapabilities/cacheKey``), so an app
-    /// update that brings a newer engine starts from a fresh answer instead of one cached for the
-    /// old engine.
+    /// Paywall answers are cached per identity, per engine, per interface revision and per
+    /// location: the backend answers by what the engine can run (see
+    /// ``FlowEngineCapabilities/cacheKey``) and by the revision of the location's interface the
+    /// app was built against, so an app update that brings a newer engine or a newer revision
+    /// starts from a fresh answer instead of one cached for the old one. Revision 0 leaves the
+    /// key as it was before revisions existed, which keeps the answers cached until then.
     static func paywallCacheKey(
-        distinctId: String, location: String, engine: FlowEngineCapabilities?
+        distinctId: String, location: String, engine: FlowEngineCapabilities?, revision: Int = 0
     ) -> String {
-        return "paywall:\(distinctId):\(engine?.cacheKey ?? "none"):\(location)"
+        return "paywall:\(distinctId):\(paywallCacheVariant(engine: engine, revision: revision)):\(location)"
     }
 
     static func unassignedPaywallCacheKey(
-        distinctId: String, location: String, engine: FlowEngineCapabilities?
+        distinctId: String, location: String, engine: FlowEngineCapabilities?, revision: Int = 0
     ) -> String {
-        return "paywall-unassigned:\(distinctId):\(engine?.cacheKey ?? "none"):\(location)"
+        return
+            "paywall-unassigned:\(distinctId):\(paywallCacheVariant(engine: engine, revision: revision)):\(location)"
+    }
+
+    private static func paywallCacheVariant(engine: FlowEngineCapabilities?, revision: Int)
+        -> String
+    {
+        let engineKey = engine?.cacheKey ?? "none"
+        return revision == 0 ? engineKey : "\(engineKey)-r\(revision)"
     }
 
     // MARK: - Freshness, transport gating and refresh triggers
@@ -5877,8 +5959,8 @@ public actor VoidhashClient {
     /// Foreground handler: half-opens the breaker, flushes and refreshes, at most once a minute.
     ///
     /// Queued work goes before the store scan, as in ``handleConnectivityRestored()``. Only
-    /// placements whose cached configuration is stale are re-resolved: a fresh one would be a
-    /// request per remembered placement on every foreground for nothing.
+    /// locations whose cached configuration is stale are re-resolved: a fresh one would be a
+    /// request per remembered location on every foreground for nothing.
     private func handleForeground() async {
         guard dependencies.runBackgroundRefreshes, !isShutDown,
             claimRecoveryRefresh(lastRefreshAt: &lastForegroundRefreshAt)
@@ -5902,26 +5984,31 @@ public actor VoidhashClient {
             return
         }
         let distinctId = await identityStore.getDistinctId()
-        for placement in knownPlacements {
-            guard await isPaywallStale(placement, distinctId: distinctId) else {
+        for location in knownLocations {
+            let revision = flowRevision(of: location)
+            guard await isPaywallStale(location, revision: revision, distinctId: distinctId)
+            else {
                 continue
             }
-            _ = try? await refreshPaywall(location: placement, distinctId: distinctId)
+            _ = try? await refreshPaywall(
+                location: location, revision: revision, distinctId: distinctId)
         }
     }
 
-    private func isPaywallStale(_ location: String, distinctId: String) async -> Bool {
+    private func isPaywallStale(_ location: String, revision: Int, distinctId: String) async
+        -> Bool
+    {
         let engine = options.paywallRenderer?.engineCapabilities
         if let assigned = await cacheManager.get(
             VoidhashClient.paywallCacheKey(
-                distinctId: distinctId, location: location, engine: engine),
+                distinctId: distinctId, location: location, engine: engine, revision: revision),
             as: SdkResolvedPaywall.self)
         {
             return assigned.isStale
         }
         if let unassigned = await cacheManager.get(
             VoidhashClient.unassignedPaywallCacheKey(
-                distinctId: distinctId, location: location, engine: engine),
+                distinctId: distinctId, location: location, engine: engine, revision: revision),
             as: Bool.self)
         {
             return unassigned.isStale
@@ -6434,7 +6521,8 @@ struct OutboxTransactionSync: TransactionSyncing {
 }
 
 #if canImport(UIKit)
-    /// Holds the view controller a `presentFlow(placement:from:)` call named, if any.
+    /// Holds the view controller a `presentFlow(location:revision:input:actions:from:)` call
+    /// named, if any.
     final class PresentationTargetBox: @unchecked Sendable {
         private let lock = NSLock()
         private weak var storage: UIViewController?

@@ -2000,6 +2000,17 @@ export const groupCoreClient = <ProjectIdError>(
           { params: { environment: request.params["environment"] }, payload: request.payload },
         ),
       ),
+    setInterface: (request: {
+      params: { readonly paywallLocationId: string };
+      payload: Parameters<VoidhashCoreClient["paywallLocationsSetInterface"]>[2];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallLocationsSetInterface(
+          resolvedProjectId,
+          request.params["paywallLocationId"],
+          request.payload,
+        ),
+      ),
     setShowing: (request: {
       params: { readonly paywallLocationId: string; readonly environment?: "production" | "test" };
       payload: Parameters<VoidhashCoreClient["paywallLocationsSetShowing"]>[2]["payload"];
@@ -2039,6 +2050,16 @@ export const groupCoreClient = <ProjectIdError>(
       ),
   },
   paywalls: {
+    addLocation: (request: {
+      params: { readonly paywallId: string; readonly paywallLocationId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsAddLocation(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["paywallLocationId"],
+        ),
+      ),
     archive: (request: { params: { readonly paywallId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsArchive(resolvedProjectId, request.params["paywallId"]),
@@ -2102,6 +2123,25 @@ export const groupCoreClient = <ProjectIdError>(
           cursor: request.params["cursor"],
           limit: request.params["limit"],
         }),
+      ),
+    listLocations: (request: {
+      params: { readonly paywallId: string; readonly cursor?: string; readonly limit?: number };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsListLocations(resolvedProjectId, request.params["paywallId"], {
+          cursor: request.params["cursor"],
+          limit: request.params["limit"],
+        }),
+      ),
+    removeLocation: (request: {
+      params: { readonly paywallId: string; readonly paywallLocationId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsRemoveLocation(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["paywallLocationId"],
+        ),
       ),
     unarchive: (request: { params: { readonly paywallId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>

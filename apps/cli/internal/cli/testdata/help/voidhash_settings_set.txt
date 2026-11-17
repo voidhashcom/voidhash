@@ -1,0 +1,35 @@
+Change one setting. Settings that change what production apps get ask first; --yes skips that. The
+settings and their values:
+
+  paid-access-sharing.production shared|transfer|disabled
+  paid-access-sharing.sandbox shared|transfer|disabled
+  store-sandbox-unlocks-production on|off
+  ads-key-conversion signup|trial|payer
+  ads-attribution-window-days 1-90
+  sandbox-purchasing on|off
+
+Usage:
+  voidhash settings set [key] [value] [flags]
+
+Arguments:
+  key    The setting: paid-access-sharing.production, paid-access-sharing.sandbox,
+         store-sandbox-unlocks-production, ads-key-conversion, ads-attribution-window-days,
+         sandbox-purchasing
+  value  Its new value
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash settings set ads-key-conversion trial
+  voidhash settings set paid-access-sharing.production shared --yes

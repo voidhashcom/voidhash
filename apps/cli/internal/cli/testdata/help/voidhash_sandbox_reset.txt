@@ -1,0 +1,20 @@
+Delete every simulated purchase in the project, to start testing over. Stripe and payment source
+test purchases stay. Asks first; --yes skips that.
+
+Usage:
+  voidhash sandbox reset [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash sandbox reset --yes

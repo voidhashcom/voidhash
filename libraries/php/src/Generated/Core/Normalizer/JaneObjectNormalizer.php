@@ -432,6 +432,18 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\SdkSchemaLocationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkSchemaLocationJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\LocationInterface::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceAction::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceActionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceSignatureField::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceSignatureFieldNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceOutcome::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceOutcomeNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceOutput::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceOutputNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceInput::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceInputNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\ApiSdkServiceErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiSdkServiceErrorJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\SdkResolvedPaywallJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkResolvedPaywallJsonEncodingNormalizer::class,
@@ -445,6 +457,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallRelease::class => \Voidhash\Generated\Core\Normalizer\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseNormalizer::class,
         
         \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackage::class => \Voidhash\Generated\Core\Normalizer\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime::class => \Voidhash\Generated\Core\Normalizer\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntimeNormalizer::class,
         
         \Voidhash\Generated\Core\Model\SdkResolvePaywallBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkResolvePaywallBodyJsonEncodingNormalizer::class,
         
@@ -574,6 +588,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\CreatePerkBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePerkBodyJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\PaywallSupportedLocationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallSupportedLocationJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationProblem::class => \Voidhash\Generated\Core\Normalizer\LocationProblemNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\PaywallBuildJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaywallBuildFailure::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildFailureNormalizer::class,
@@ -611,6 +629,22 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\SetPaywallLocationShowingBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SetPaywallLocationShowingBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationInterfaceSet::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationInterfaceSetNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationAffectedFlow::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationAffectedFlowNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SetPaywallLocationInterfaceBody::class => \Voidhash\Generated\Core\Normalizer\SetPaywallLocationInterfaceBodyNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceActionDraft::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceActionDraftNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\FlowInterfaceActionField::class => \Voidhash\Generated\Core\Normalizer\FlowInterfaceActionFieldNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceOutcomeDraft::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceOutcomeDraftNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceOutputDraft::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceOutputDraftNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\LocationInterfaceInputDraft::class => \Voidhash\Generated\Core\Normalizer\LocationInterfaceInputDraftNormalizer::class,
         
         \Voidhash\Generated\Core\Model\UpdatePaywallLocationBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdatePaywallLocationBodyJsonEncodingNormalizer::class,
         
@@ -1196,6 +1230,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200Normalizer::class,
         
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200Normalizer::class,
+        
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPerksGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPerksGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPersonsGetResponse200Normalizer::class,
@@ -1507,6 +1543,12 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\SdkSchemaProductJsonEncodingProperties::class => false,
             \Voidhash\Generated\Core\Model\SdkSchemaPerkJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkSchemaLocationJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterface::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceAction::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceSignatureField::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceOutcome::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceOutput::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceInput::class => false,
             \Voidhash\Generated\Core\Model\ApiSdkServiceErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkResolvedPaywallJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkResolvedPaywallJsonEncodingLocation::class => false,
@@ -1514,6 +1556,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywall::class => false,
             \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallRelease::class => false,
             \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackage::class => false,
+            \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime::class => false,
             \Voidhash\Generated\Core\Model\SdkResolvePaywallBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkFeatureFlagsResponseJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkFeatureFlagResultJsonEncoding::class => false,
@@ -1578,6 +1621,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdatePerkBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePerkBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallSupportedLocationJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\LocationProblem::class => false,
             \Voidhash\Generated\Core\Model\PaywallBuildJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallBuildFailure::class => false,
             \Voidhash\Generated\Core\Model\FlowPackageDiagnostic::class => false,
@@ -1597,6 +1642,14 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\PaywallLocationShowingJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SetPaywallLocationShowingBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationInterfaceSet::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationAffectedFlow::class => false,
+            \Voidhash\Generated\Core\Model\SetPaywallLocationInterfaceBody::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceActionDraft::class => false,
+            \Voidhash\Generated\Core\Model\FlowInterfaceActionField::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceOutcomeDraft::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceOutputDraft::class => false,
+            \Voidhash\Generated\Core\Model\LocationInterfaceInputDraft::class => false,
             \Voidhash\Generated\Core\Model\UpdatePaywallLocationBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePaywallLocationBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaymentSourceSubscription::class => false,
@@ -1889,6 +1942,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallLocationsPaywallLocationIdRulesGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPerksGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdEntitlementsGetResponse200::class => false,

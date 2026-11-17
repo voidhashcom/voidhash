@@ -19,7 +19,7 @@ class PublishedComponentJsonEncoding
      */
     protected $id;
     /**
-     * The organization (team) whose registry holds the component.
+     * The organization (team) whose registry lists the component. Voidhash's own components (`voidhash/<name>`) are listed in every organization's.
      *
      * @var string
      */
@@ -85,7 +85,7 @@ class PublishedComponentJsonEncoding
      */
     protected $deprecationMessage;
     /**
-     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known.
+     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known, and for Voidhash's own components, which only Voidhash publishes.
      *
      * @var string|null
      */
@@ -149,7 +149,7 @@ class PublishedComponentJsonEncoding
         return $this;
     }
     /**
-     * The organization (team) whose registry holds the component.
+     * The organization (team) whose registry lists the component. Voidhash's own components (`voidhash/<name>`) are listed in every organization's.
      *
      * @return string
      */
@@ -158,7 +158,7 @@ class PublishedComponentJsonEncoding
         return $this->organizationId;
     }
     /**
-     * The organization (team) whose registry holds the component.
+     * The organization (team) whose registry lists the component. Voidhash's own components (`voidhash/<name>`) are listed in every organization's.
      *
      * @param string $organizationId
      *
@@ -391,7 +391,7 @@ class PublishedComponentJsonEncoding
         return $this;
     }
     /**
-     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known.
+     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known, and for Voidhash's own components, which only Voidhash publishes.
      *
      * @return string|null
      */
@@ -400,7 +400,7 @@ class PublishedComponentJsonEncoding
         return $this->ownerProjectId;
     }
     /**
-     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known.
+     * The project that owns the component and may publish, deprecate and yank its versions; null when none is known, and for Voidhash's own components, which only Voidhash publishes.
      *
      * @param string|null $ownerProjectId
      *

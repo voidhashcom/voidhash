@@ -1,0 +1,25 @@
+Claim the namespace your organization publishes components under, or rename it while nothing is
+published.
+
+Only an organization admin can, signed in with 'voidhash login' (not with a secret key).
+
+Usage:
+  voidhash registry publisher claim <namespace> [flags]
+
+Arguments:
+  namespace  Lowercase letters, digits and dashes, at most 39 characters
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash registry publisher claim acme

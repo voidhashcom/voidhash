@@ -1,0 +1,48 @@
+Report the people each network, campaign, ad set, ad or surface brought in, and what they went on to
+pay.
+
+A person is credited to the touch that brought them within the attribution window before they signed
+up. The period is the last 30 complete days unless --last or --from says otherwise, with days cut in
+--timezone.
+
+Usage:
+  voidhash analytics acquisition [flags]
+
+Flags:
+      --ad <id>            Only people whose credited touch carried this ad id
+      --adset <id>         Only people whose credited touch carried this ad set id
+      --attribution-window-days <days>
+                           How long before a signup a campaign touch may be credited with it, in
+                           days from 1 to 90 (default: the project's setting)
+      --by <network|campaign|adset|ad|surface>
+                           What people are grouped by (default: campaign)
+      --campaign <id>      Only people whose credited touch carried this campaign id
+      --currency <code>    ISO 4217 code money is reported in (default: USD)
+      --environment <production|sandbox|test>
+                           Purchases revenue is read from: production, sandbox (App Store and Google
+                           Play sandbox) or test (debug builds' simulated purchases and test modes
+                           such as Stripe's) (default: production)
+      --from <day>         First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help               Show help for this command
+      --json               Print the API report as JSON, for scripts
+      --key-conversion <signup|trial|payer>
+                           The conversion counted as KEY (default: the project's setting)
+      --last <span>        The complete days before today to report on: a span such as 7d, 4w, 3m or
+                           1y (default: 30d)
+      --network <network>  Only people whose credited touch came from this network, such as meta
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+      --timezone <zone>    IANA time zone days are cut in, such as Europe/Prague (default: UTC)
+      --to <day>           Last day to report on, YYYY-MM-DD (default: today; with --from)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash analytics acquisition
+  voidhash analytics acquisition --by network --last 90d
+  voidhash analytics acquisition --by ad --campaign 120210000000000 --timezone Europe/Prague
+  voidhash analytics acquisition --from 2026-10-01 --to 2026-10-31 --json

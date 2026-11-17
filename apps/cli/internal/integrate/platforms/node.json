@@ -1,0 +1,60 @@
+{
+  "id": "node",
+  "order": 8,
+  "name": "Node.js server",
+  "support": "best-effort",
+  "detect": {
+    "files": ["package.json"],
+    "without": [
+      "next",
+      "expo",
+      "react-native",
+      "react",
+      "vite",
+      "vue",
+      "svelte",
+      "@angular/core",
+      "astro"
+    ]
+  },
+  "guide": "node.md",
+  "docs": "https://voidhash.com/docs/libraries/node",
+  "sdk": "@voidhash/node",
+  "reference": ["node_modules/@voidhash/node/README.md"],
+  "key": "secret",
+  "capabilities": ["perks", "events", "webhooks"],
+  "packages": [
+    {
+      "name": "@voidhash/node",
+      "spec": "https://pkg.voidha.sh/@voidhash/node/branch:main"
+    }
+  ],
+  "env": {
+    "file": ".env",
+    "values": [
+      {
+        "name": "VOIDHASH_SECRET_KEY",
+        "value": "",
+        "secret": true
+      },
+      {
+        "name": "VOIDHASH_BASE_URL",
+        "value": "[[.APIURL]]",
+        "onlyCustomAPI": true
+      },
+      {
+        "name": "VOIDHASH_INGEST_URL",
+        "value": "[[.APIURL]]",
+        "onlyCustomAPI": true
+      }
+    ]
+  },
+  "checks": [["script:typecheck", "script:type-check", "script:check-types", "script:tsc", "tsc"]],
+  "markers": ["createVoidhashSdk"],
+  "sources": [".ts", ".js", ".mts", ".mjs", ".cjs"],
+  "run": "your server, then send it a request that reaches Voidhash",
+  "leftForYou": [
+    "Create a secret key in the dashboard ('voidhash open keys') and put it in .env as VOIDHASH_SECRET_KEY, and in your host's environment. A secret key is shown once and must never be committed; the CLI does not create or write one.",
+    "Make sure .env is loaded when the server starts (for example 'node --env-file=.env') and is not committed."
+  ]
+}

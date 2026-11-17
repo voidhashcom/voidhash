@@ -1,0 +1,33 @@
+The people using your app: find them, see what they bought and can use, explain their access, edit
+them, and erase their data.
+
+A person is named by their email, their distinct id (the id your app identifies them by) or their
+id. Names and parts of an email cannot be searched. Prefix email:, distinct_id: or person_id: to say
+which one you mean.
+
+Usage:
+  voidhash person <command> [flags]
+
+Aliases:
+  person, persons
+
+Commands:
+  list       List the project's newest persons.
+  find       Find persons by their exact email, distinct id or id.
+  view       Show a person: their profile, access, subscriptions, purchases, flag overrides and
+             recent events.
+  why        Explain why a person has or lacks a perk.
+  edit       Change a person's email, name or attributes.
+  create     Add a person before your app has seen them.
+  erase      Erase a person's personal data for good, for a data deletion request.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash person <command> --help' for more about a command.

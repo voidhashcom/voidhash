@@ -1,0 +1,31 @@
+Import the purchases Stripe or a payment source recorded before Voidhash was connected, in the
+background. Running it again skips what is recorded; --watch follows it, --cancel stops it.
+
+Usage:
+  voidhash provider import [provider] [flags]
+
+Arguments:
+  provider  The provider: app-store, google-play, stripe, a payment source's slug or name, or its id
+
+Flags:
+      --cancel             Stop the running import instead; what it recorded stays
+      --environment <production|test>
+                           Which purchases: production (default) or test, such as Stripe's test mode
+                           or a payment source's test payments
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --watch              Follow the import until it ends
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider import stripe --watch
+  voidhash provider import paddle --environment test
+  voidhash provider import stripe --cancel

@@ -1,0 +1,28 @@
+Turn a flag off for everyone in an environment, overrides included. Its share, overrides and rules
+are kept for when it is turned on again. In production it asks first; --yes skips that.
+
+Usage:
+  voidhash flag disable [flag] [flags]
+
+Arguments:
+  flag  The flag's key or id
+
+Flags:
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag disable new-checkout --yes
+  voidhash flag disable new-checkout --env test

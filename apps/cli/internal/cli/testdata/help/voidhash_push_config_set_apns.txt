@@ -1,0 +1,29 @@
+Send to iOS devices through APNs with your authentication key, and turn the service on. The key is
+read from the .p8 file and stored by Voidhash; it is never printed. Asks for what is missing on a
+terminal.
+
+Usage:
+  voidhash push config set apns [flags]
+
+Flags:
+      --bundle-id <id>     Your app's bundle id, such as com.example.app
+      --environment <production|sandbox>
+                           The APNs servers to use: production for App Store and TestFlight builds,
+                           sandbox for Xcode builds
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --key-file <file>    The .p8 key file Apple gave you
+      --key-id <id>        The id of your APNs authentication key
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --team-id <id>       Your Apple Developer team id, 10 characters
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash push config set apns --team-id ABCDE12345 --key-id XYZ987 --key-file AuthKey_XYZ987.p8 --bundle-id com.example.app

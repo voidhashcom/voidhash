@@ -1,0 +1,31 @@
+Refund a charge at its payment source, which must implement refunds; Voidhash records the refund it
+answers with. Asks first; --yes skips that.
+
+Usage:
+  voidhash provider refund [source] [flags]
+
+Arguments:
+  source  The payment source: its slug, name or id
+
+Flags:
+      --amount <amount>    Refund only this much, such as 10.00, with --currency (default: all that
+                           is left)
+      --currency <code>    ISO 4217 code, such as EUR
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --reason <reason>    Why, passed to the source
+      --transaction <id>   The charge's id at the source
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider refund paddle --transaction txn_123
+  voidhash provider refund paddle --transaction txn_123 --amount 10.00 --currency EUR --reason "partial outage" --yes

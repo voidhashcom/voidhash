@@ -1745,6 +1745,10 @@ export interface SdkResolvePaywallParams {
    * The native components the SDK's paywall engine provides, as comma-separated `id@version` entries.
    */
   readonly "x-ui-native-components"?: string | undefined;
+  /**
+   * The newest runtime bridge version the SDK's paywall engine hosts, sent only when it runs the flow runtime as a downloaded module. Such an engine reads no package format itself: a release is served when a runtime module for it exists on a bridge the engine hosts, and `x-ui-package-abi` is not checked.
+   */
+  readonly "x-ui-runtime-bridge"?: string | undefined;
 }
 
 export interface SdkResolvePaywallBodyJsonEncoding {
@@ -1752,7 +1756,16 @@ export interface SdkResolvePaywallBodyJsonEncoding {
    * The slug of the location to show a paywall at.
    */
   readonly locationSlug: string;
+  /**
+   * The revision of the location's interface the app was built against. A flow that calls an app action or ends with an outcome the location added later is not served: the person gets the newest earlier release the app can answer, or nothing. Absent means 0, an app that handles nothing a flow asks of it.
+   */
+  readonly interfaceRevision?: number | null | undefined;
 }
+
+export type SdkResolvedPaywallJsonEncodingLocationInterfaceRevisionEnum =
+  | "Infinity"
+  | "-Infinity"
+  | "NaN";
 
 export type SdkResolvedPaywallShowingJsonEncodingPaywallReleaseEnumFlowPackageAbiVersionEnum =
   | "Infinity"
@@ -1830,6 +1843,23 @@ export interface SdkResolvedPaywallShowingJsonEncoding {
        * Where to download the package; its content never changes, so cache it by `sha256`.
        */
       readonly url: string;
+      /**
+       * The flow runtime module the release needs, for SDKs that run the flow runtime as a downloaded module; null when none is offered for it. Other SDKs ignore it.
+       */
+      readonly runtime: {
+        /**
+         * The flow runtime version the release was built for, as `major.minor.patch`; a runtime module of the same major version and not older also runs it.
+         */
+        readonly version: string;
+        /**
+         * The SHA-256 hash of the runtime module's bytes, as hex; verify the download against it.
+         */
+        readonly sha256: string;
+        /**
+         * Where to download the runtime module; its content never changes, so cache it by `sha256`.
+         */
+        readonly url: string;
+      } | null;
     };
     /**
      * When the release was published, as an ISO 8601 timestamp; null when it was not.
@@ -1867,6 +1897,9 @@ export interface SdkResolvedPaywallJsonEncoding {
      * The location's id.
      */
     readonly id: string;
+    readonly interfaceRevision:
+      | number
+      | SdkResolvedPaywallJsonEncodingLocationInterfaceRevisionEnum;
     /**
      * The location's display name.
      */
@@ -2854,6 +2887,7 @@ export const make = (
           "x-ui-package-abi": options.params?.["x-ui-package-abi"] ?? undefined,
           "x-ui-guest-abi": options.params?.["x-ui-guest-abi"] ?? undefined,
           "x-ui-native-components": options.params?.["x-ui-native-components"] ?? undefined,
+          "x-ui-runtime-bridge": options.params?.["x-ui-runtime-bridge"] ?? undefined,
         }),
         HttpClientRequest.bodyJsonUnsafe(options.payload),
         onRequest(["2xx"], {

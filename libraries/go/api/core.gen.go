@@ -1149,7 +1149,7 @@ const (
 
 // Defines values for AnalyticsCustomTimeRangePreset.
 const (
-	Custom AnalyticsCustomTimeRangePreset = "custom"
+	AnalyticsCustomTimeRangePresetCustom AnalyticsCustomTimeRangePreset = "custom"
 )
 
 // Defines values for AnalyticsEventJsonEncodingIdentityMode.
@@ -1804,10 +1804,10 @@ const (
 
 // Defines values for FeatureFlagType.
 const (
-	Boolean FeatureFlagType = "boolean"
-	Json    FeatureFlagType = "json"
-	Number  FeatureFlagType = "number"
-	String  FeatureFlagType = "string"
+	FeatureFlagTypeBoolean FeatureFlagType = "boolean"
+	FeatureFlagTypeJson    FeatureFlagType = "json"
+	FeatureFlagTypeNumber  FeatureFlagType = "number"
+	FeatureFlagTypeString  FeatureFlagType = "string"
 )
 
 // Defines values for FileKind.
@@ -1824,6 +1824,14 @@ const (
 	FileRoleUnfiled    FileRole = "unfiled"
 )
 
+// Defines values for FlowInterfaceActionFieldType.
+const (
+	FlowInterfaceActionFieldTypeBoolean FlowInterfaceActionFieldType = "boolean"
+	FlowInterfaceActionFieldTypeList    FlowInterfaceActionFieldType = "list"
+	FlowInterfaceActionFieldTypeNumber  FlowInterfaceActionFieldType = "number"
+	FlowInterfaceActionFieldTypeString  FlowInterfaceActionFieldType = "string"
+)
+
 // Defines values for IntegrationEnvironment.
 const (
 	IntegrationEnvironmentProduction IntegrationEnvironment = "production"
@@ -1838,6 +1846,54 @@ const (
 // Defines values for InvalidRequestErrorJsonEncodingErrorType.
 const (
 	InvalidRequest InvalidRequestErrorJsonEncodingErrorType = "invalid_request"
+)
+
+// Defines values for LocationInterfaceInputType.
+const (
+	LocationInterfaceInputTypeBoolean LocationInterfaceInputType = "boolean"
+	LocationInterfaceInputTypeList    LocationInterfaceInputType = "list"
+	LocationInterfaceInputTypeNumber  LocationInterfaceInputType = "number"
+	LocationInterfaceInputTypeString  LocationInterfaceInputType = "string"
+)
+
+// Defines values for LocationInterfaceInputDraftType.
+const (
+	LocationInterfaceInputDraftTypeBoolean LocationInterfaceInputDraftType = "boolean"
+	LocationInterfaceInputDraftTypeList    LocationInterfaceInputDraftType = "list"
+	LocationInterfaceInputDraftTypeNumber  LocationInterfaceInputDraftType = "number"
+	LocationInterfaceInputDraftTypeString  LocationInterfaceInputDraftType = "string"
+)
+
+// Defines values for LocationInterfaceOutputType.
+const (
+	LocationInterfaceOutputTypeBoolean LocationInterfaceOutputType = "boolean"
+	LocationInterfaceOutputTypeList    LocationInterfaceOutputType = "list"
+	LocationInterfaceOutputTypeNumber  LocationInterfaceOutputType = "number"
+	LocationInterfaceOutputTypeString  LocationInterfaceOutputType = "string"
+)
+
+// Defines values for LocationInterfaceOutputDraftType.
+const (
+	LocationInterfaceOutputDraftTypeBoolean LocationInterfaceOutputDraftType = "boolean"
+	LocationInterfaceOutputDraftTypeList    LocationInterfaceOutputDraftType = "list"
+	LocationInterfaceOutputDraftTypeNumber  LocationInterfaceOutputDraftType = "number"
+	LocationInterfaceOutputDraftTypeString  LocationInterfaceOutputDraftType = "string"
+)
+
+// Defines values for LocationInterfaceSignatureFieldType.
+const (
+	Boolean LocationInterfaceSignatureFieldType = "boolean"
+	List    LocationInterfaceSignatureFieldType = "list"
+	Number  LocationInterfaceSignatureFieldType = "number"
+	String  LocationInterfaceSignatureFieldType = "string"
+)
+
+// Defines values for LocationProblemPart.
+const (
+	Action  LocationProblemPart = "action"
+	Input   LocationProblemPart = "input"
+	Outcome LocationProblemPart = "outcome"
+	Output  LocationProblemPart = "output"
 )
 
 // Defines values for MetaMeasurementSettingsJsonEncodingConversionsLastErrorKind.
@@ -2034,8 +2090,11 @@ const (
 
 // Defines values for PaywallKind.
 const (
-	PaywallKindOnboarding PaywallKind = "onboarding"
-	PaywallKindPaywall    PaywallKind = "paywall"
+	PaywallKindCustom       PaywallKind = "custom"
+	PaywallKindFeedback     PaywallKind = "feedback"
+	PaywallKindOnboarding   PaywallKind = "onboarding"
+	PaywallKindPaywall      PaywallKind = "paywall"
+	PaywallKindReactivation PaywallKind = "reactivation"
 )
 
 // Defines values for PaywallLocationEnvironment.
@@ -2059,8 +2118,8 @@ const (
 
 // Defines values for PaywallLocationShowingType.
 const (
-	PaywallLocationShowingTypeFeatureFlag PaywallLocationShowingType = "feature_flag"
-	PaywallLocationShowingTypePaywall     PaywallLocationShowingType = "paywall"
+	FeatureFlag PaywallLocationShowingType = "feature_flag"
+	Paywall     PaywallLocationShowingType = "paywall"
 )
 
 // Defines values for PermissionDeniedErrorJsonEncodingErrorType.
@@ -2307,6 +2366,13 @@ const (
 	SdkPurchaseHistoryEntryJsonEncodingTypeConsumable   SdkPurchaseHistoryEntryJsonEncodingType = "consumable"
 	SdkPurchaseHistoryEntryJsonEncodingTypeOneTime      SdkPurchaseHistoryEntryJsonEncodingType = "one_time"
 	SdkPurchaseHistoryEntryJsonEncodingTypeSubscription SdkPurchaseHistoryEntryJsonEncodingType = "subscription"
+)
+
+// Defines values for SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1.
+const (
+	SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1Infinity      SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 = "Infinity"
+	SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1MinusInfinity SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 = "-Infinity"
+	SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1NaN           SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 = "NaN"
 )
 
 // Defines values for SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageAbiVersion1.
@@ -4040,7 +4106,7 @@ type AdCampaignJsonEncoding struct {
 	CreatedAt *string `json:"createdAt"`
 
 	// DeliveryReasons Why it delivers the way it does, blocking reasons first; empty when nothing holds it back.
-	DeliveryReasons Arrays4 `json:"deliveryReasons"`
+	DeliveryReasons Arrays5 `json:"deliveryReasons"`
 
 	// DeliveryStatus Whether an object delivers: `delivering`; `learning` or `learning_limited` (running, still learning or unable to finish learning); `not_delivering` (on, but stopped by an issue, or none of its children deliver); `in_review` or `rejected` (the platform's ad review); `paused`; `off_by_parent` (on, but a parent is off); `scheduled` or `ended` (before its start or after its end, removed objects included); `account_issue` (the ad account cannot deliver).
 	DeliveryStatus AdDeliveryStatus `json:"deliveryStatus"`
@@ -4151,7 +4217,7 @@ type AdGroupJsonEncoding struct {
 	CreatedAt *string `json:"createdAt"`
 
 	// DeliveryReasons Why it delivers the way it does, blocking reasons first; empty when nothing holds it back.
-	DeliveryReasons Arrays4 `json:"deliveryReasons"`
+	DeliveryReasons Arrays5 `json:"deliveryReasons"`
 
 	// DeliveryStatus Whether an object delivers: `delivering`; `learning` or `learning_limited` (running, still learning or unable to finish learning); `not_delivering` (on, but stopped by an issue, or none of its children deliver); `in_review` or `rejected` (the platform's ad review); `paused`; `off_by_parent` (on, but a parent is off); `scheduled` or `ended` (before its start or after its end, removed objects included); `account_issue` (the ad account cannot deliver).
 	DeliveryStatus AdDeliveryStatus `json:"deliveryStatus"`
@@ -4232,7 +4298,7 @@ type AdJsonEncoding struct {
 	CreativeId *string `json:"creativeId"`
 
 	// DeliveryReasons Why it delivers the way it does, blocking reasons first; empty when nothing holds it back.
-	DeliveryReasons Arrays4 `json:"deliveryReasons"`
+	DeliveryReasons Arrays5 `json:"deliveryReasons"`
 
 	// DeliveryStatus Whether an object delivers: `delivering`; `learning` or `learning_limited` (running, still learning or unable to finish learning); `not_delivering` (on, but stopped by an issue, or none of its children deliver); `in_review` or `rejected` (the platform's ad review); `paused`; `off_by_parent` (on, but a parent is off); `scheduled` or `ended` (before its start or after its end, removed objects included); `account_issue` (the ad account cannot deliver).
 	DeliveryStatus AdDeliveryStatus `json:"deliveryStatus"`
@@ -4383,7 +4449,7 @@ type AdsChangesReportJsonEncoding struct {
 	Until string `json:"until"`
 
 	// Warnings Caveats about how complete or comparable the numbers are; empty when there are none.
-	Warnings Arrays5 `json:"warnings"`
+	Warnings Arrays6 `json:"warnings"`
 }
 
 // AdsCohortValue The report's `metric` on one day since acquisition.
@@ -4533,7 +4599,7 @@ type AdsCohortsReportJsonEncoding struct {
 	Unit AdsCohortsReportJsonEncodingUnit `json:"unit"`
 
 	// Warnings Caveats about how complete or comparable the numbers are; empty when there are none.
-	Warnings Arrays5 `json:"warnings"`
+	Warnings Arrays6 `json:"warnings"`
 }
 
 // AdsCohortsReportJsonEncodingEnvironment Environment measured purchases were read from: `production`, `sandbox` (store sandboxes such as TestFlight) or `test` (simulated purchases).
@@ -4749,7 +4815,7 @@ type AdsCreativesReportJsonEncoding struct {
 	To string `json:"to"`
 
 	// Warnings Caveats about how complete or comparable the numbers are; empty when there are none.
-	Warnings Arrays5 `json:"warnings"`
+	Warnings Arrays6 `json:"warnings"`
 }
 
 // AdsCreativesReportJsonEncodingEnvironment Environment measured purchases were read from: `production`, `sandbox` (store sandboxes such as TestFlight) or `test` (simulated purchases).
@@ -4812,7 +4878,7 @@ type AdsDeliveryChange struct {
 	Clicks int `json:"clicks"`
 
 	// Conversions Change in conversions, by kind.
-	Conversions Arrays7 `json:"conversions"`
+	Conversions Arrays8 `json:"conversions"`
 
 	// Currency ISO 4217 code of the amounts, the ad account's.
 	Currency string `json:"currency"`
@@ -4836,7 +4902,7 @@ type AdsDeliveryChange struct {
 	ReadAt string `json:"readAt"`
 
 	// Results Change in results, by type. Results of different types are never added.
-	Results Arrays6 `json:"results"`
+	Results Arrays7 `json:"results"`
 
 	// Spend Change in spend, in minor units of `currency`; negative where lowered.
 	Spend int `json:"spend"`
@@ -5070,7 +5136,7 @@ type AdsPerformanceReportJsonEncoding struct {
 	} `json:"unallocated"`
 
 	// Warnings Caveats about how complete or comparable the numbers are; empty when there are none.
-	Warnings Arrays5 `json:"warnings"`
+	Warnings Arrays6 `json:"warnings"`
 }
 
 // AdsPerformanceReportJsonEncodingEnvironment Environment measured purchases were read from: `production`, `sandbox` (store sandboxes such as TestFlight) or `test` (simulated purchases).
@@ -5372,7 +5438,7 @@ type AdsRevision struct {
 	Clicks int `json:"clicks"`
 
 	// Conversions Change in conversions, by kind.
-	Conversions Arrays7 `json:"conversions"`
+	Conversions Arrays8 `json:"conversions"`
 
 	// Currency ISO 4217 code of the amounts, the ad account's.
 	Currency string `json:"currency"`
@@ -5399,7 +5465,7 @@ type AdsRevision struct {
 	ReadAt string `json:"readAt"`
 
 	// Results Change in results, by type. Results of different types are never added.
-	Results Arrays6 `json:"results"`
+	Results Arrays7 `json:"results"`
 
 	// Spend Change in spend, in minor units of `currency`; negative where lowered.
 	Spend int `json:"spend"`
@@ -7154,23 +7220,26 @@ type Arrays = []string
 // Arrays1 What the server could not check or store for the version.
 type Arrays1 = []ComponentWarning
 
-// Arrays2 The events the webhook receives.
+// Arrays2 defines model for Arrays_2.
 type Arrays2 = []string
 
-// Arrays3 Ids of the person's notices, `notice_...`, up to 200.
+// Arrays3 The events the webhook receives.
 type Arrays3 = []string
 
-// Arrays4 Why it delivers the way it does, blocking reasons first; empty when nothing holds it back.
-type Arrays4 = []AdDeliveryReason
+// Arrays4 Ids of the person's notices, `notice_...`, up to 200.
+type Arrays4 = []string
 
-// Arrays5 Caveats about how complete or comparable the numbers are; empty when there are none.
-type Arrays5 = []AdsReportWarning
+// Arrays5 Why it delivers the way it does, blocking reasons first; empty when nothing holds it back.
+type Arrays5 = []AdDeliveryReason
 
-// Arrays6 Change in results, by type. Results of different types are never added.
-type Arrays6 = []AdsResultChange
+// Arrays6 Caveats about how complete or comparable the numbers are; empty when there are none.
+type Arrays6 = []AdsReportWarning
 
-// Arrays7 Change in conversions, by kind.
-type Arrays7 = []AdsConversionChange
+// Arrays7 Change in results, by type. Results of different types are never added.
+type Arrays7 = []AdsResultChange
+
+// Arrays8 Change in conversions, by kind.
+type Arrays8 = []AdsConversionChange
 
 // AssetJsonEncoding defines model for AssetJsonEncoding.
 type AssetJsonEncoding struct {
@@ -8376,7 +8445,7 @@ type CreatePaymentProviderProductMappingBodyJsonEncoding struct {
 
 // CreatePaywallBodyJsonEncoding defines model for CreatePaywallBodyJsonEncoding.
 type CreatePaywallBodyJsonEncoding struct {
-	// Kind What the flow is for: a `paywall`, or an `onboarding` flow.
+	// Kind What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
 	Kind *PaywallKind `json:"kind,omitempty"`
 
 	// Name The paywall's name, shown in the dashboard.
@@ -9195,6 +9264,17 @@ type FileWithPathJsonEncoding struct {
 	UpdatedBy  ParticipantRef              `json:"updatedBy"`
 }
 
+// FlowInterfaceActionField defines model for FlowInterfaceActionField.
+type FlowInterfaceActionField struct {
+	// IsSecret Carries what the end user typed into a secure input, such as a password, or a value worked out from it. The app receives a secret argument and must keep it out of logs and analytics; a flow keeps a secret reply field away from everything but the app. Absent means false.
+	IsSecret *bool                        `json:"isSecret"`
+	Name     string                       `json:"name"`
+	Type     FlowInterfaceActionFieldType `json:"type"`
+}
+
+// FlowInterfaceActionFieldType defines model for FlowInterfaceActionField.Type.
+type FlowInterfaceActionFieldType string
+
 // FlowPackage The compiled flow a ready build produced, as apps download it.
 type FlowPackage struct {
 	// AbiVersion The version of the package format; SDKs whose engine cannot read it get no paywall.
@@ -9378,6 +9458,189 @@ type LiveUsersResultJsonEncoding struct {
 	WindowMinutes int `json:"windowMinutes"`
 }
 
+// LocationInterface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+type LocationInterface struct {
+	Actions  []LocationInterfaceAction  `json:"actions"`
+	Inputs   []LocationInterfaceInput   `json:"inputs"`
+	Outcomes []LocationInterfaceOutcome `json:"outcomes"`
+	Outputs  []LocationInterfaceOutput  `json:"outputs"`
+	Revision int                        `json:"revision"`
+}
+
+// LocationInterfaceAction defines model for LocationInterfaceAction.
+type LocationInterfaceAction struct {
+	// AddedIn The revision of the interface that added this part.
+	AddedIn int                               `json:"addedIn"`
+	Args    []LocationInterfaceSignatureField `json:"args"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                             `json:"isDeprecated"`
+	Name         string                            `json:"name"`
+	Reply        []LocationInterfaceSignatureField `json:"reply"`
+}
+
+// LocationInterfaceActionDraft defines model for LocationInterfaceActionDraft.
+type LocationInterfaceActionDraft struct {
+	Args []FlowInterfaceActionField `json:"args"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                      `json:"isDeprecated"`
+	Name         string                     `json:"name"`
+	Reply        []FlowInterfaceActionField `json:"reply"`
+}
+
+// LocationInterfaceInput defines model for LocationInterfaceInput.
+type LocationInterfaceInput struct {
+	// AddedIn The revision of the interface that added this part.
+	AddedIn int `json:"addedIn"`
+
+	// Default What a flow holds for the input when the app passes nothing: an app built before the input existed, or one that leaves it out. A list input's default is an array of strings. Without one, the input starts empty: "", 0, false or an empty list.
+	Default *LocationInterfaceInputDefault `json:"default,omitempty"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                      `json:"isDeprecated"`
+	Name         string                     `json:"name"`
+	Type         LocationInterfaceInputType `json:"type"`
+}
+
+// LocationInterfaceInputType defines model for LocationInterfaceInput.Type.
+type LocationInterfaceInputType string
+
+// LocationInterfaceInputDefault What a flow holds for the input when the app passes nothing: an app built before the input existed, or one that leaves it out. A list input's default is an array of strings. Without one, the input starts empty: "", 0, false or an empty list.
+type LocationInterfaceInputDefault struct {
+	union json.RawMessage
+}
+
+// LocationInterfaceInputDefault0 defines model for .
+type LocationInterfaceInputDefault0 = string
+
+// LocationInterfaceInputDefault1 defines model for .
+type LocationInterfaceInputDefault1 = float32
+
+// LocationInterfaceInputDefault2 defines model for .
+type LocationInterfaceInputDefault2 = bool
+
+// LocationInterfaceInputDraft defines model for LocationInterfaceInputDraft.
+type LocationInterfaceInputDraft struct {
+	// Default What a flow holds for the input when the app passes nothing: an app built before the input existed, or one that leaves it out. A list input's default is an array of strings. Without one, the input starts empty: "", 0, false or an empty list.
+	Default *LocationInterfaceInputDefault `json:"default,omitempty"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                           `json:"isDeprecated"`
+	Name         string                          `json:"name"`
+	Type         LocationInterfaceInputDraftType `json:"type"`
+}
+
+// LocationInterfaceInputDraftType defines model for LocationInterfaceInputDraft.Type.
+type LocationInterfaceInputDraftType string
+
+// LocationInterfaceOutcome defines model for LocationInterfaceOutcome.
+type LocationInterfaceOutcome struct {
+	// AddedIn The revision of the interface that added this part.
+	AddedIn int `json:"addedIn"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool  `json:"isDeprecated"`
+	Name         string `json:"name"`
+}
+
+// LocationInterfaceOutcomeDraft defines model for LocationInterfaceOutcomeDraft.
+type LocationInterfaceOutcomeDraft struct {
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool  `json:"isDeprecated"`
+	Name         string `json:"name"`
+}
+
+// LocationInterfaceOutput defines model for LocationInterfaceOutput.
+type LocationInterfaceOutput struct {
+	// AddedIn The revision of the interface that added this part.
+	AddedIn int `json:"addedIn"`
+
+	// Default What an app reads when the flow never set the output. A list output's default is an array of strings.
+	Default LocationInterfaceOutput_Default `json:"default"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                       `json:"isDeprecated"`
+	Name         string                      `json:"name"`
+	Type         LocationInterfaceOutputType `json:"type"`
+}
+
+// LocationInterfaceOutputDefault0 defines model for .
+type LocationInterfaceOutputDefault0 = string
+
+// LocationInterfaceOutputDefault1 defines model for .
+type LocationInterfaceOutputDefault1 = float32
+
+// LocationInterfaceOutputDefault2 defines model for .
+type LocationInterfaceOutputDefault2 = bool
+
+// LocationInterfaceOutput_Default What an app reads when the flow never set the output. A list output's default is an array of strings.
+type LocationInterfaceOutput_Default struct {
+	union json.RawMessage
+}
+
+// LocationInterfaceOutputType defines model for LocationInterfaceOutput.Type.
+type LocationInterfaceOutputType string
+
+// LocationInterfaceOutputDraft defines model for LocationInterfaceOutputDraft.
+type LocationInterfaceOutputDraft struct {
+	Default LocationInterfaceOutputDraft_Default `json:"default"`
+
+	// IsDeprecated Kept for app versions built against it, and no longer offered when designing a flow.
+	IsDeprecated *bool                            `json:"isDeprecated"`
+	Name         string                           `json:"name"`
+	Type         LocationInterfaceOutputDraftType `json:"type"`
+}
+
+// LocationInterfaceOutputDraftDefault0 defines model for .
+type LocationInterfaceOutputDraftDefault0 = string
+
+// LocationInterfaceOutputDraftDefault1 defines model for .
+type LocationInterfaceOutputDraftDefault1 = float32
+
+// LocationInterfaceOutputDraftDefault2 defines model for .
+type LocationInterfaceOutputDraftDefault2 = bool
+
+// LocationInterfaceOutputDraft_Default defines model for LocationInterfaceOutputDraft.Default.
+type LocationInterfaceOutputDraft_Default struct {
+	union json.RawMessage
+}
+
+// LocationInterfaceOutputDraftType defines model for LocationInterfaceOutputDraft.Type.
+type LocationInterfaceOutputDraftType string
+
+// LocationInterfaceSignatureField defines model for LocationInterfaceSignatureField.
+type LocationInterfaceSignatureField struct {
+	// AddedIn The revision of the interface that added this part.
+	AddedIn int `json:"addedIn"`
+
+	// IsSecret Carries what the end user typed into a secure input, such as a password, or a value worked out from it. The app receives a secret argument and must keep it out of logs and analytics; a flow keeps a secret reply field away from everything but the app. Absent means false.
+	IsSecret *bool                               `json:"isSecret"`
+	Name     string                              `json:"name"`
+	Type     LocationInterfaceSignatureFieldType `json:"type"`
+}
+
+// LocationInterfaceSignatureFieldType defines model for LocationInterfaceSignatureField.Type.
+type LocationInterfaceSignatureFieldType string
+
+// LocationProblem defines model for LocationProblem.
+type LocationProblem struct {
+	// LocationIds The locations whose interface can be changed to fix it.
+	LocationIds []string `json:"locationIds"`
+
+	// Message What is wrong and what to change, for a person to read.
+	Message string `json:"message"`
+
+	// Name The name of the input, output, outcome or app action.
+	Name string `json:"name"`
+
+	// Part The part of an interface the problem is about: `input`, `output`, `outcome` or `action`.
+	Part LocationProblemPart `json:"part"`
+}
+
+// LocationProblemPart The part of an interface the problem is about: `input`, `output`, `outcome` or `action`.
+type LocationProblemPart string
+
 // MarkInboxReadBodyJsonEncoding defines model for MarkInboxReadBodyJsonEncoding.
 type MarkInboxReadBodyJsonEncoding struct {
 	ItemIds *InboxItemIds `json:"itemIds,omitempty"`
@@ -9386,7 +9649,7 @@ type MarkInboxReadBodyJsonEncoding struct {
 // MarkNoticesReadBodyJsonEncoding defines model for MarkNoticesReadBodyJsonEncoding.
 type MarkNoticesReadBodyJsonEncoding struct {
 	// NoticeIds Ids of the person's notices, `notice_...`, up to 200.
-	NoticeIds *Arrays3 `json:"noticeIds,omitempty"`
+	NoticeIds *Arrays4 `json:"noticeIds,omitempty"`
 }
 
 // MeJsonEncoding defines model for MeJsonEncoding.
@@ -9644,7 +9907,7 @@ type NoticePreferencesJsonEncoding struct {
 // NoticeSelectionBodyJsonEncoding defines model for NoticeSelectionBodyJsonEncoding.
 type NoticeSelectionBodyJsonEncoding struct {
 	// NoticeIds Ids of the person's notices, `notice_...`, up to 200.
-	NoticeIds Arrays3 `json:"noticeIds"`
+	NoticeIds Arrays4 `json:"noticeIds"`
 }
 
 // NoticeUnreadCountJsonEncoding defines model for NoticeUnreadCountJsonEncoding.
@@ -10289,7 +10552,10 @@ type PaywallJsonEncoding struct {
 	// IsArchived Whether the paywall is archived.
 	IsArchived bool `json:"isArchived"`
 
-	// Kind What the flow is for: a `paywall`, or an `onboarding` flow.
+	// IsMadeForLocations Whether what the paywall may exchange with apps follows the locations it is made for, so a paywall made for none exchanges nothing. False only for a paywall made before paywalls were made for locations that has had none since: it keeps the interface its design declares until its first location is added.
+	IsMadeForLocations bool `json:"isMadeForLocations"`
+
+	// Kind What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
 	Kind PaywallKind `json:"kind"`
 
 	// Name The paywall's name, shown in the dashboard.
@@ -10308,11 +10574,61 @@ type PaywallJsonEncoding struct {
 	UpdatedAt *string `json:"updatedAt"`
 }
 
-// PaywallKind What the flow is for: a `paywall`, or an `onboarding` flow.
+// PaywallKind What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
 type PaywallKind string
+
+// PaywallLocationAffectedFlow defines model for PaywallLocationAffectedFlow.
+type PaywallLocationAffectedFlow struct {
+	// Name The flow's name.
+	Name string `json:"name"`
+
+	// PaywallId The flow's id, `pw_...`.
+	PaywallId string `json:"paywallId"`
+
+	// Problems What its design uses of a part the change deprecated, each saying where (the layer, the logic and its step). Each blocks a release of the flow until the design no longer uses it.
+	Problems []string `json:"problems"`
+}
 
 // PaywallLocationEnvironment The environment: `production`, or `test`, which a test key reads. Test follows production until a location is given a test showing of its own.
 type PaywallLocationEnvironment string
+
+// PaywallLocationInterfaceSet defines model for PaywallLocationInterfaceSet.
+type PaywallLocationInterfaceSet struct {
+	// AffectedFlows The flows made for the location whose design still uses something the change deprecated, with what and where. Their interface follows the location at once either way; empty when no design is affected.
+	AffectedFlows []PaywallLocationAffectedFlow `json:"affectedFlows"`
+
+	// ArchivedAt When the location was archived, as an ISO 8601 timestamp; null when it is not.
+	ArchivedAt *string `json:"archivedAt"`
+
+	// CreatedAt When the location was created, as an ISO 8601 timestamp.
+	CreatedAt *string `json:"createdAt"`
+
+	// Description A note on where the location appears in the app; null when it has none.
+	Description *string `json:"description"`
+
+	// Id The location's id, `pw_loc_...`.
+	Id string `json:"id"`
+
+	// Interface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+	Interface LocationInterface `json:"interface"`
+
+	// IsArchived Whether the location is archived; an archived location shows nothing.
+	IsArchived bool `json:"isArchived"`
+
+	// Name The location's name, shown in the dashboard.
+	Name string `json:"name"`
+
+	// ProjectId The project the location belongs to.
+	ProjectId string                             `json:"projectId"`
+	Showing   PaywallLocationShowingJsonEncoding `json:"showing"`
+
+	// Slug The location's slug, unique in the project and fixed once created; apps ask for the location by it.
+	Slug        string                             `json:"slug"`
+	TestShowing PaywallLocationShowingJsonEncoding `json:"testShowing"`
+
+	// UpdatedAt When the location was last changed, as an ISO 8601 timestamp.
+	UpdatedAt *string `json:"updatedAt"`
+}
 
 // PaywallLocationJsonEncoding defines model for PaywallLocationJsonEncoding.
 type PaywallLocationJsonEncoding struct {
@@ -10327,6 +10643,9 @@ type PaywallLocationJsonEncoding struct {
 
 	// Id The location's id, `pw_loc_...`.
 	Id string `json:"id"`
+
+	// Interface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+	Interface LocationInterface `json:"interface"`
 
 	// IsArchived Whether the location is archived; an archived location shows nothing.
 	IsArchived bool `json:"isArchived"`
@@ -10444,6 +10763,38 @@ type PaywallLocationShowingJsonEncodingEnvironment string
 
 // PaywallLocationShowingType What a showing serves: a `paywall`'s deployed build, or a `feature_flag` whose variants decide the paywall, as a running A/B test does.
 type PaywallLocationShowingType string
+
+// PaywallSupportedLocationJsonEncoding defines model for PaywallSupportedLocationJsonEncoding.
+type PaywallSupportedLocationJsonEncoding struct {
+	AddedAt string `json:"addedAt"`
+
+	// Conflicts Where the location disagrees with another location the paywall is made for, so no interface is right for both, each with what to change and on which locations. A build of the paywall fails until there are none.
+	Conflicts []LocationProblem `json:"conflicts"`
+
+	// Id The location's id, `pw_loc_...`.
+	Id string `json:"id"`
+
+	// InUseReason Why the location cannot be removed now, and what to do first; null when it can.
+	InUseReason *string `json:"inUseReason"`
+
+	// Interface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+	Interface LocationInterface `json:"interface"`
+
+	// IsArchived Whether the location is archived; an archived location counts for nothing the paywall may exchange.
+	IsArchived bool `json:"isArchived"`
+
+	// IsInUse Whether the paywall is shown, placed by an A/B test, pinned or matched by a rule at the location, so the location cannot be removed from it now.
+	IsInUse bool `json:"isInUse"`
+
+	// Name The location's name, shown in the dashboard.
+	Name string `json:"name"`
+
+	// Position Where the location is in the paywall's list, from 0.
+	Position int `json:"position"`
+
+	// Slug The location's slug; apps ask for the location by it.
+	Slug string `json:"slug"`
+}
 
 // PerkJsonEncoding defines model for PerkJsonEncoding.
 type PerkJsonEncoding struct {
@@ -10886,10 +11237,10 @@ type PublishedComponentJsonEncoding struct {
 	// Name The component's name in the namespace, the second part of `slug`.
 	Name string `json:"name"`
 
-	// OrganizationId The organization (team) whose registry holds the component.
+	// OrganizationId The organization (team) whose registry lists the component. Voidhash's own components (`voidhash/<name>`) are listed in every organization's.
 	OrganizationId string `json:"organizationId"`
 
-	// OwnerProjectId The project that owns the component and may publish, deprecate and yank its versions; null when none is known.
+	// OwnerProjectId The project that owns the component and may publish, deprecate and yank its versions; null when none is known, and for Voidhash's own components, which only Voidhash publishes.
 	OwnerProjectId *string `json:"ownerProjectId"`
 
 	// Publisher The publisher's namespace, the first part of `slug`.
@@ -11551,6 +11902,9 @@ type SchemaLocationJsonEncoding struct {
 	// Description What the location is for; null when not set.
 	Description *string `json:"description"`
 
+	// Interface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+	Interface LocationInterface `json:"interface"`
+
 	// Name The location's display name.
 	Name string `json:"name"`
 
@@ -11873,6 +12227,9 @@ type SdkPurchasePaywallContext struct {
 
 // SdkResolvePaywallBodyJsonEncoding defines model for SdkResolvePaywallBodyJsonEncoding.
 type SdkResolvePaywallBodyJsonEncoding struct {
+	// InterfaceRevision The revision of the location's interface the app was built against. A flow that calls an app action or ends with an outcome the location added later is not served: the person gets the newest earlier release the app can answer, or nothing. Absent means 0, an app that handles nothing a flow asks of it.
+	InterfaceRevision *int `json:"interfaceRevision"`
+
 	// LocationSlug The slug of the location to show a paywall at.
 	LocationSlug string `json:"locationSlug"`
 }
@@ -11882,7 +12239,8 @@ type SdkResolvedPaywallJsonEncoding struct {
 	// Location The location the paywall is shown at.
 	Location struct {
 		// Id The location's id.
-		Id string `json:"id"`
+		Id                string                                                    `json:"id"`
+		InterfaceRevision SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision `json:"interfaceRevision"`
 
 		// Name The location's display name.
 		Name string `json:"name"`
@@ -11893,6 +12251,17 @@ type SdkResolvedPaywallJsonEncoding struct {
 
 	// Showing What the location shows the person now.
 	Showing SdkResolvedPaywallShowingJsonEncoding `json:"showing"`
+}
+
+// SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 defines model for .
+type SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 = float32
+
+// SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 defines model for SdkResolvedPaywallJsonEncoding.Location.InterfaceRevision.1.
+type SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 string
+
+// SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision defines model for SdkResolvedPaywallJsonEncoding.Location.InterfaceRevision.
+type SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision struct {
+	union json.RawMessage
 }
 
 // SdkResolvedPaywallShowingJsonEncoding What the location shows the person now.
@@ -11927,6 +12296,18 @@ type SdkResolvedPaywallShowingJsonEncoding struct {
 
 			// ProductIds The store product ids the package can offer, for prefetching their prices.
 			ProductIds []string `json:"productIds"`
+
+			// Runtime The flow runtime module the release needs, for SDKs that run the flow runtime as a downloaded module; null when none is offered for it. Other SDKs ignore it.
+			Runtime *struct {
+				// Sha256 The SHA-256 hash of the runtime module's bytes, as hex; verify the download against it.
+				Sha256 string `json:"sha256"`
+
+				// Url Where to download the runtime module; its content never changes, so cache it by `sha256`.
+				Url string `json:"url"`
+
+				// Version The flow runtime version the release was built for, as `major.minor.patch`; a runtime module of the same major version and not older also runs it.
+				Version string `json:"version"`
+			} `json:"runtime"`
 
 			// Sha256 The SHA-256 hash of the package's bytes, as hex; verify the download against it.
 			Sha256 string `json:"sha256"`
@@ -12002,6 +12383,9 @@ type SdkSchemaJsonEncoding struct {
 type SdkSchemaLocationJsonEncoding struct {
 	// Description What the location is for; null when not set.
 	Description *string `json:"description"`
+
+	// Interface What an app provides at the location: the inputs it passes to a flow, the outputs and outcomes it reads back and the app actions it handles, with the `revision` it is at. A paywall can be shown at the location only when its deployed flow asks for nothing the interface lacks, and code generated for an app is built from it.
+	Interface LocationInterface `json:"interface"`
 
 	// Name The location's display name.
 	Name string `json:"name"`
@@ -12419,6 +12803,14 @@ type SessionProjectJsonEncoding struct {
 
 	// Slug The project's slug, unique within its organization.
 	Slug string `json:"slug"`
+}
+
+// SetPaywallLocationInterfaceBody defines model for SetPaywallLocationInterfaceBody.
+type SetPaywallLocationInterfaceBody struct {
+	Actions  []LocationInterfaceActionDraft  `json:"actions"`
+	Inputs   []LocationInterfaceInputDraft   `json:"inputs"`
+	Outcomes []LocationInterfaceOutcomeDraft `json:"outcomes"`
+	Outputs  []LocationInterfaceOutputDraft  `json:"outputs"`
 }
 
 // SetPaywallLocationShowingBodyJsonEncoding defines model for SetPaywallLocationShowingBodyJsonEncoding.
@@ -13324,7 +13716,7 @@ type WebhookJsonEncoding struct {
 	Environment IntegrationEnvironment `json:"environment"`
 
 	// Events The events the webhook receives.
-	Events Arrays2 `json:"events"`
+	Events Arrays3 `json:"events"`
 
 	// Id The webhook's id, `wh_ep_...`.
 	Id string `json:"id"`
@@ -13363,7 +13755,7 @@ type WebhookWithSecretJsonEncoding struct {
 	Environment IntegrationEnvironment `json:"environment"`
 
 	// Events The events the webhook receives.
-	Events Arrays2 `json:"events"`
+	Events Arrays3 `json:"events"`
 
 	// Id The webhook's id, `wh_ep_...`.
 	Id string `json:"id"`
@@ -14154,6 +14546,15 @@ type PaywallsListParamsIsArchived string
 
 // PaywallsListBuildsParams defines parameters for PaywallsListBuilds.
 type PaywallsListBuildsParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PaywallsListLocationsParams defines parameters for PaywallsListLocations.
+type PaywallsListLocationsParams struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 
@@ -15172,6 +15573,9 @@ type SdkResolvePaywallParams struct {
 
 	// XUiNativeComponents The native components the SDK's paywall engine provides, as comma-separated `id@version` entries.
 	XUiNativeComponents *string `json:"x-ui-native-components,omitempty"`
+
+	// XUiRuntimeBridge The newest runtime bridge version the SDK's paywall engine hosts, sent only when it runs the flow runtime as a downloaded module. Such an engine reads no package format itself: a release is served when a runtime module for it exists on a bridge the engine hosts, and `x-ui-package-abi` is not checked.
+	XUiRuntimeBridge *string `json:"x-ui-runtime-bridge,omitempty"`
 }
 
 // SdkResolvePaywallParamsXDistinctIdEncoding defines parameters for SdkResolvePaywall.
@@ -15625,6 +16029,9 @@ type PaywallLocationsCreateJSONRequestBody = CreatePaywallLocationBodyJsonEncodi
 
 // PaywallLocationsUpdateJSONRequestBody defines body for PaywallLocationsUpdate for application/json ContentType.
 type PaywallLocationsUpdateJSONRequestBody = UpdatePaywallLocationBodyJsonEncoding
+
+// PaywallLocationsSetInterfaceJSONRequestBody defines body for PaywallLocationsSetInterface for application/json ContentType.
+type PaywallLocationsSetInterfaceJSONRequestBody = SetPaywallLocationInterfaceBody
 
 // PaywallLocationsUpsertPinJSONRequestBody defines body for PaywallLocationsUpsertPin for application/json ContentType.
 type PaywallLocationsUpsertPinJSONRequestBody = PutPaywallLocationPinBodyJsonEncoding
@@ -17678,6 +18085,348 @@ func (t *CreateAutomationRunBodyJsonEncoding_Inputs_AdditionalProperties) Unmars
 	return err
 }
 
+// AsLocationInterfaceInputDefault0 returns the union data inside the LocationInterfaceInputDefault as a LocationInterfaceInputDefault0
+func (t LocationInterfaceInputDefault) AsLocationInterfaceInputDefault0() (LocationInterfaceInputDefault0, error) {
+	var body LocationInterfaceInputDefault0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceInputDefault0 overwrites any union data inside the LocationInterfaceInputDefault as the provided LocationInterfaceInputDefault0
+func (t *LocationInterfaceInputDefault) FromLocationInterfaceInputDefault0(v LocationInterfaceInputDefault0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceInputDefault0 performs a merge with any union data inside the LocationInterfaceInputDefault, using the provided LocationInterfaceInputDefault0
+func (t *LocationInterfaceInputDefault) MergeLocationInterfaceInputDefault0(v LocationInterfaceInputDefault0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceInputDefault1 returns the union data inside the LocationInterfaceInputDefault as a LocationInterfaceInputDefault1
+func (t LocationInterfaceInputDefault) AsLocationInterfaceInputDefault1() (LocationInterfaceInputDefault1, error) {
+	var body LocationInterfaceInputDefault1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceInputDefault1 overwrites any union data inside the LocationInterfaceInputDefault as the provided LocationInterfaceInputDefault1
+func (t *LocationInterfaceInputDefault) FromLocationInterfaceInputDefault1(v LocationInterfaceInputDefault1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceInputDefault1 performs a merge with any union data inside the LocationInterfaceInputDefault, using the provided LocationInterfaceInputDefault1
+func (t *LocationInterfaceInputDefault) MergeLocationInterfaceInputDefault1(v LocationInterfaceInputDefault1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceInputDefault2 returns the union data inside the LocationInterfaceInputDefault as a LocationInterfaceInputDefault2
+func (t LocationInterfaceInputDefault) AsLocationInterfaceInputDefault2() (LocationInterfaceInputDefault2, error) {
+	var body LocationInterfaceInputDefault2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceInputDefault2 overwrites any union data inside the LocationInterfaceInputDefault as the provided LocationInterfaceInputDefault2
+func (t *LocationInterfaceInputDefault) FromLocationInterfaceInputDefault2(v LocationInterfaceInputDefault2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceInputDefault2 performs a merge with any union data inside the LocationInterfaceInputDefault, using the provided LocationInterfaceInputDefault2
+func (t *LocationInterfaceInputDefault) MergeLocationInterfaceInputDefault2(v LocationInterfaceInputDefault2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsArrays2 returns the union data inside the LocationInterfaceInputDefault as a Arrays2
+func (t LocationInterfaceInputDefault) AsArrays2() (Arrays2, error) {
+	var body Arrays2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromArrays2 overwrites any union data inside the LocationInterfaceInputDefault as the provided Arrays2
+func (t *LocationInterfaceInputDefault) FromArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeArrays2 performs a merge with any union data inside the LocationInterfaceInputDefault, using the provided Arrays2
+func (t *LocationInterfaceInputDefault) MergeArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t LocationInterfaceInputDefault) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *LocationInterfaceInputDefault) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsLocationInterfaceOutputDefault0 returns the union data inside the LocationInterfaceOutput_Default as a LocationInterfaceOutputDefault0
+func (t LocationInterfaceOutput_Default) AsLocationInterfaceOutputDefault0() (LocationInterfaceOutputDefault0, error) {
+	var body LocationInterfaceOutputDefault0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDefault0 overwrites any union data inside the LocationInterfaceOutput_Default as the provided LocationInterfaceOutputDefault0
+func (t *LocationInterfaceOutput_Default) FromLocationInterfaceOutputDefault0(v LocationInterfaceOutputDefault0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDefault0 performs a merge with any union data inside the LocationInterfaceOutput_Default, using the provided LocationInterfaceOutputDefault0
+func (t *LocationInterfaceOutput_Default) MergeLocationInterfaceOutputDefault0(v LocationInterfaceOutputDefault0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceOutputDefault1 returns the union data inside the LocationInterfaceOutput_Default as a LocationInterfaceOutputDefault1
+func (t LocationInterfaceOutput_Default) AsLocationInterfaceOutputDefault1() (LocationInterfaceOutputDefault1, error) {
+	var body LocationInterfaceOutputDefault1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDefault1 overwrites any union data inside the LocationInterfaceOutput_Default as the provided LocationInterfaceOutputDefault1
+func (t *LocationInterfaceOutput_Default) FromLocationInterfaceOutputDefault1(v LocationInterfaceOutputDefault1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDefault1 performs a merge with any union data inside the LocationInterfaceOutput_Default, using the provided LocationInterfaceOutputDefault1
+func (t *LocationInterfaceOutput_Default) MergeLocationInterfaceOutputDefault1(v LocationInterfaceOutputDefault1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceOutputDefault2 returns the union data inside the LocationInterfaceOutput_Default as a LocationInterfaceOutputDefault2
+func (t LocationInterfaceOutput_Default) AsLocationInterfaceOutputDefault2() (LocationInterfaceOutputDefault2, error) {
+	var body LocationInterfaceOutputDefault2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDefault2 overwrites any union data inside the LocationInterfaceOutput_Default as the provided LocationInterfaceOutputDefault2
+func (t *LocationInterfaceOutput_Default) FromLocationInterfaceOutputDefault2(v LocationInterfaceOutputDefault2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDefault2 performs a merge with any union data inside the LocationInterfaceOutput_Default, using the provided LocationInterfaceOutputDefault2
+func (t *LocationInterfaceOutput_Default) MergeLocationInterfaceOutputDefault2(v LocationInterfaceOutputDefault2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsArrays2 returns the union data inside the LocationInterfaceOutput_Default as a Arrays2
+func (t LocationInterfaceOutput_Default) AsArrays2() (Arrays2, error) {
+	var body Arrays2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromArrays2 overwrites any union data inside the LocationInterfaceOutput_Default as the provided Arrays2
+func (t *LocationInterfaceOutput_Default) FromArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeArrays2 performs a merge with any union data inside the LocationInterfaceOutput_Default, using the provided Arrays2
+func (t *LocationInterfaceOutput_Default) MergeArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t LocationInterfaceOutput_Default) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *LocationInterfaceOutput_Default) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsLocationInterfaceOutputDraftDefault0 returns the union data inside the LocationInterfaceOutputDraft_Default as a LocationInterfaceOutputDraftDefault0
+func (t LocationInterfaceOutputDraft_Default) AsLocationInterfaceOutputDraftDefault0() (LocationInterfaceOutputDraftDefault0, error) {
+	var body LocationInterfaceOutputDraftDefault0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDraftDefault0 overwrites any union data inside the LocationInterfaceOutputDraft_Default as the provided LocationInterfaceOutputDraftDefault0
+func (t *LocationInterfaceOutputDraft_Default) FromLocationInterfaceOutputDraftDefault0(v LocationInterfaceOutputDraftDefault0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDraftDefault0 performs a merge with any union data inside the LocationInterfaceOutputDraft_Default, using the provided LocationInterfaceOutputDraftDefault0
+func (t *LocationInterfaceOutputDraft_Default) MergeLocationInterfaceOutputDraftDefault0(v LocationInterfaceOutputDraftDefault0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceOutputDraftDefault1 returns the union data inside the LocationInterfaceOutputDraft_Default as a LocationInterfaceOutputDraftDefault1
+func (t LocationInterfaceOutputDraft_Default) AsLocationInterfaceOutputDraftDefault1() (LocationInterfaceOutputDraftDefault1, error) {
+	var body LocationInterfaceOutputDraftDefault1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDraftDefault1 overwrites any union data inside the LocationInterfaceOutputDraft_Default as the provided LocationInterfaceOutputDraftDefault1
+func (t *LocationInterfaceOutputDraft_Default) FromLocationInterfaceOutputDraftDefault1(v LocationInterfaceOutputDraftDefault1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDraftDefault1 performs a merge with any union data inside the LocationInterfaceOutputDraft_Default, using the provided LocationInterfaceOutputDraftDefault1
+func (t *LocationInterfaceOutputDraft_Default) MergeLocationInterfaceOutputDraftDefault1(v LocationInterfaceOutputDraftDefault1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLocationInterfaceOutputDraftDefault2 returns the union data inside the LocationInterfaceOutputDraft_Default as a LocationInterfaceOutputDraftDefault2
+func (t LocationInterfaceOutputDraft_Default) AsLocationInterfaceOutputDraftDefault2() (LocationInterfaceOutputDraftDefault2, error) {
+	var body LocationInterfaceOutputDraftDefault2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLocationInterfaceOutputDraftDefault2 overwrites any union data inside the LocationInterfaceOutputDraft_Default as the provided LocationInterfaceOutputDraftDefault2
+func (t *LocationInterfaceOutputDraft_Default) FromLocationInterfaceOutputDraftDefault2(v LocationInterfaceOutputDraftDefault2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLocationInterfaceOutputDraftDefault2 performs a merge with any union data inside the LocationInterfaceOutputDraft_Default, using the provided LocationInterfaceOutputDraftDefault2
+func (t *LocationInterfaceOutputDraft_Default) MergeLocationInterfaceOutputDraftDefault2(v LocationInterfaceOutputDraftDefault2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsArrays2 returns the union data inside the LocationInterfaceOutputDraft_Default as a Arrays2
+func (t LocationInterfaceOutputDraft_Default) AsArrays2() (Arrays2, error) {
+	var body Arrays2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromArrays2 overwrites any union data inside the LocationInterfaceOutputDraft_Default as the provided Arrays2
+func (t *LocationInterfaceOutputDraft_Default) FromArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeArrays2 performs a merge with any union data inside the LocationInterfaceOutputDraft_Default, using the provided Arrays2
+func (t *LocationInterfaceOutputDraft_Default) MergeArrays2(v Arrays2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t LocationInterfaceOutputDraft_Default) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *LocationInterfaceOutputDraft_Default) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // AsPersonAttributeValues0 returns the union data inside the PersonAttributeValues_AdditionalProperties as a PersonAttributeValues0
 func (t PersonAttributeValues_AdditionalProperties) AsPersonAttributeValues0() (PersonAttributeValues0, error) {
 	var body PersonAttributeValues0
@@ -17974,6 +18723,68 @@ func (t SdkPromotionalOfferSignatureJsonEncoding_Timestamp) MarshalJSON() ([]byt
 }
 
 func (t *SdkPromotionalOfferSignatureJsonEncoding_Timestamp) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 returns the union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision as a SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0
+func (t SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) AsSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0() (SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0, error) {
+	var body SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 overwrites any union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision as the provided SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0
+func (t *SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) FromSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0(v SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 performs a merge with any union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision, using the provided SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0
+func (t *SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) MergeSdkResolvedPaywallJsonEncodingLocationInterfaceRevision0(v SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 returns the union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision as a SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1
+func (t SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) AsSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1() (SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1, error) {
+	var body SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 overwrites any union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision as the provided SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1
+func (t *SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) FromSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1(v SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1 performs a merge with any union data inside the SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision, using the provided SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1
+func (t *SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) MergeSdkResolvedPaywallJsonEncodingLocationInterfaceRevision1(v SdkResolvedPaywallJsonEncodingLocationInterfaceRevision1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
@@ -19404,6 +20215,11 @@ type ClientInterface interface {
 	// PaywallLocationsArchive request
 	PaywallLocationsArchive(ctx context.Context, projectId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PaywallLocationsSetInterfaceWithBody request with any body
+	PaywallLocationsSetInterfaceWithBody(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaywallLocationsSetInterface(ctx context.Context, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PaywallLocationsListPins request
 	PaywallLocationsListPins(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListPinsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -19469,6 +20285,15 @@ type ClientInterface interface {
 
 	// PaywallsDeployBuild request
 	PaywallsDeployBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsListLocations request
+	PaywallsListLocations(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsRemoveLocation request
+	PaywallsRemoveLocation(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsAddLocation request
+	PaywallsAddLocation(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PaywallsUnarchive request
 	PaywallsUnarchive(ctx context.Context, projectId string, paywallId string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -23725,6 +24550,30 @@ func (c *Client) PaywallLocationsArchive(ctx context.Context, projectId string, 
 	return c.Client.Do(req)
 }
 
+func (c *Client) PaywallLocationsSetInterfaceWithBody(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallLocationsSetInterfaceRequestWithBody(c.Server, projectId, paywallLocationId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallLocationsSetInterface(ctx context.Context, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallLocationsSetInterfaceRequest(c.Server, projectId, paywallLocationId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PaywallLocationsListPins(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListPinsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallLocationsListPinsRequest(c.Server, projectId, paywallLocationId, params)
 	if err != nil {
@@ -24003,6 +24852,42 @@ func (c *Client) PaywallsGetBuild(ctx context.Context, projectId string, paywall
 
 func (c *Client) PaywallsDeployBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallsDeployBuildRequest(c.Server, projectId, paywallId, buildId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsListLocations(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsListLocationsRequest(c.Server, projectId, paywallId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsRemoveLocation(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsRemoveLocationRequest(c.Server, projectId, paywallId, paywallLocationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsAddLocation(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsAddLocationRequest(c.Server, projectId, paywallId, paywallLocationId)
 	if err != nil {
 		return nil, err
 	}
@@ -38617,6 +39502,60 @@ func NewPaywallLocationsArchiveRequest(server string, projectId string, paywallL
 	return req, nil
 }
 
+// NewPaywallLocationsSetInterfaceRequest calls the generic PaywallLocationsSetInterface builder with application/json body
+func NewPaywallLocationsSetInterfaceRequest(server string, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaywallLocationsSetInterfaceRequestWithBody(server, projectId, paywallLocationId, "application/json", bodyReader)
+}
+
+// NewPaywallLocationsSetInterfaceRequestWithBody generates requests for PaywallLocationsSetInterface with any type of body
+func NewPaywallLocationsSetInterfaceRequestWithBody(server string, projectId string, paywallLocationId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallLocationId", runtime.ParamLocationPath, paywallLocationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywall-locations/%s/interface", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPaywallLocationsListPinsRequest generates requests for PaywallLocationsListPins
 func NewPaywallLocationsListPinsRequest(server string, projectId string, paywallLocationId string, params *PaywallLocationsListPinsParams) (*http.Request, error) {
 	var err error
@@ -39804,6 +40743,181 @@ func NewPaywallsDeployBuildRequest(server string, projectId string, paywallId st
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsListLocationsRequest generates requests for PaywallsListLocations
+func NewPaywallsListLocationsRequest(server string, projectId string, paywallId string, params *PaywallsListLocationsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/locations", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsRemoveLocationRequest generates requests for PaywallsRemoveLocation
+func NewPaywallsRemoveLocationRequest(server string, projectId string, paywallId string, paywallLocationId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "paywallLocationId", runtime.ParamLocationPath, paywallLocationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/locations/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsAddLocationRequest generates requests for PaywallsAddLocation
+func NewPaywallsAddLocationRequest(server string, projectId string, paywallId string, paywallLocationId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "paywallLocationId", runtime.ParamLocationPath, paywallLocationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/locations/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46055,6 +47169,17 @@ func NewSdkResolvePaywallRequestWithBody(server string, params *SdkResolvePaywal
 			req.Header.Set("x-ui-native-components", headerParam22)
 		}
 
+		if params.XUiRuntimeBridge != nil {
+			var headerParam23 string
+
+			headerParam23, err = runtime.StyleParamWithLocation("simple", false, "x-ui-runtime-bridge", runtime.ParamLocationHeader, *params.XUiRuntimeBridge)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("x-ui-runtime-bridge", headerParam23)
+		}
+
 	}
 
 	return req, nil
@@ -47539,6 +48664,11 @@ type ClientWithResponsesInterface interface {
 	// PaywallLocationsArchiveWithResponse request
 	PaywallLocationsArchiveWithResponse(ctx context.Context, projectId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallLocationsArchiveResponse, error)
 
+	// PaywallLocationsSetInterfaceWithBodyWithResponse request with any body
+	PaywallLocationsSetInterfaceWithBodyWithResponse(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error)
+
+	PaywallLocationsSetInterfaceWithResponse(ctx context.Context, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error)
+
 	// PaywallLocationsListPinsWithResponse request
 	PaywallLocationsListPinsWithResponse(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListPinsParams, reqEditors ...RequestEditorFn) (*PaywallLocationsListPinsResponse, error)
 
@@ -47604,6 +48734,15 @@ type ClientWithResponsesInterface interface {
 
 	// PaywallsDeployBuildWithResponse request
 	PaywallsDeployBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsDeployBuildResponse, error)
+
+	// PaywallsListLocationsWithResponse request
+	PaywallsListLocationsWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*PaywallsListLocationsResponse, error)
+
+	// PaywallsRemoveLocationWithResponse request
+	PaywallsRemoveLocationWithResponse(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallsRemoveLocationResponse, error)
+
+	// PaywallsAddLocationWithResponse request
+	PaywallsAddLocationWithResponse(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallsAddLocationResponse, error)
 
 	// PaywallsUnarchiveWithResponse request
 	PaywallsUnarchiveWithResponse(ctx context.Context, projectId string, paywallId string, reqEditors ...RequestEditorFn) (*PaywallsUnarchiveResponse, error)
@@ -54651,6 +55790,34 @@ func (r PaywallLocationsArchiveResponse) StatusCode() int {
 	return 0
 }
 
+type PaywallLocationsSetInterfaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallLocationInterfaceSet
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallLocationsSetInterfaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallLocationsSetInterfaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PaywallLocationsListPinsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -55165,6 +56332,95 @@ func (r PaywallsDeployBuildResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PaywallsDeployBuildResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsListLocationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []PaywallSupportedLocationJsonEncoding `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsListLocationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsListLocationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsRemoveLocationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsRemoveLocationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsRemoveLocationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsAddLocationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallSupportedLocationJsonEncoding
+	JSON201      *PaywallSupportedLocationJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsAddLocationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsAddLocationResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -60398,6 +61654,23 @@ func (c *ClientWithResponses) PaywallLocationsArchiveWithResponse(ctx context.Co
 	return ParsePaywallLocationsArchiveResponse(rsp)
 }
 
+// PaywallLocationsSetInterfaceWithBodyWithResponse request with arbitrary body returning *PaywallLocationsSetInterfaceResponse
+func (c *ClientWithResponses) PaywallLocationsSetInterfaceWithBodyWithResponse(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error) {
+	rsp, err := c.PaywallLocationsSetInterfaceWithBody(ctx, projectId, paywallLocationId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallLocationsSetInterfaceResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaywallLocationsSetInterfaceWithResponse(ctx context.Context, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error) {
+	rsp, err := c.PaywallLocationsSetInterface(ctx, projectId, paywallLocationId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallLocationsSetInterfaceResponse(rsp)
+}
+
 // PaywallLocationsListPinsWithResponse request returning *PaywallLocationsListPinsResponse
 func (c *ClientWithResponses) PaywallLocationsListPinsWithResponse(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListPinsParams, reqEditors ...RequestEditorFn) (*PaywallLocationsListPinsResponse, error) {
 	rsp, err := c.PaywallLocationsListPins(ctx, projectId, paywallLocationId, params, reqEditors...)
@@ -60606,6 +61879,33 @@ func (c *ClientWithResponses) PaywallsDeployBuildWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParsePaywallsDeployBuildResponse(rsp)
+}
+
+// PaywallsListLocationsWithResponse request returning *PaywallsListLocationsResponse
+func (c *ClientWithResponses) PaywallsListLocationsWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*PaywallsListLocationsResponse, error) {
+	rsp, err := c.PaywallsListLocations(ctx, projectId, paywallId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsListLocationsResponse(rsp)
+}
+
+// PaywallsRemoveLocationWithResponse request returning *PaywallsRemoveLocationResponse
+func (c *ClientWithResponses) PaywallsRemoveLocationWithResponse(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallsRemoveLocationResponse, error) {
+	rsp, err := c.PaywallsRemoveLocation(ctx, projectId, paywallId, paywallLocationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsRemoveLocationResponse(rsp)
+}
+
+// PaywallsAddLocationWithResponse request returning *PaywallsAddLocationResponse
+func (c *ClientWithResponses) PaywallsAddLocationWithResponse(ctx context.Context, projectId string, paywallId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallsAddLocationResponse, error) {
+	rsp, err := c.PaywallsAddLocation(ctx, projectId, paywallId, paywallLocationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsAddLocationResponse(rsp)
 }
 
 // PaywallsUnarchiveWithResponse request returning *PaywallsUnarchiveResponse
@@ -76915,6 +78215,74 @@ func ParsePaywallLocationsArchiveResponse(rsp *http.Response) (*PaywallLocations
 	return response, nil
 }
 
+// ParsePaywallLocationsSetInterfaceResponse parses an HTTP response from a PaywallLocationsSetInterfaceWithResponse call
+func ParsePaywallLocationsSetInterfaceResponse(rsp *http.Response) (*PaywallLocationsSetInterfaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallLocationsSetInterfaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallLocationInterfaceSet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePaywallLocationsListPinsResponse parses an HTTP response from a PaywallLocationsListPinsWithResponse call
 func ParsePaywallLocationsListPinsResponse(rsp *http.Response) (*PaywallLocationsListPinsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -78023,6 +79391,209 @@ func ParsePaywallsDeployBuildResponse(rsp *http.Response) (*PaywallsDeployBuildR
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsListLocationsResponse parses an HTTP response from a PaywallsListLocationsWithResponse call
+func ParsePaywallsListLocationsResponse(rsp *http.Response) (*PaywallsListLocationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsListLocationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []PaywallSupportedLocationJsonEncoding `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsRemoveLocationResponse parses an HTTP response from a PaywallsRemoveLocationWithResponse call
+func ParsePaywallsRemoveLocationResponse(rsp *http.Response) (*PaywallsRemoveLocationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsRemoveLocationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsAddLocationResponse parses an HTTP response from a PaywallsAddLocationWithResponse call
+func ParsePaywallsAddLocationResponse(rsp *http.Response) (*PaywallsAddLocationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsAddLocationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallSupportedLocationJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PaywallSupportedLocationJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest InvalidRequestErrorJsonEncoding

@@ -1,0 +1,41 @@
+Set up an experiment as a draft, optionally with its arms. Nothing changes for end users until it is
+started.
+
+An arm shows a paywall at a paywall location (--arm NAME=PAYWALL with --location, or
+NAME=LOCATION:PAYWALL), gives feature flags a value (--flag KEY=VALUE,VALUE, one value per arm), or
+both. The first arm is the control unless --control names another.
+
+Usage:
+  voidhash experiment create [flags]
+
+Flags:
+      --arm <NAME=PAYWALL>       An arm as NAME=PAYWALL (with --location) or
+                                 NAME=LOCATION:PAYWALL[,LOCATION:PAYWALL], the control first.
+                                 Replaces the arms (can be repeated)
+      --control <name>           Which --arm is the control, by its name (default: the first)
+      --flag <KEY=VALUE,VALUE>   A feature flag the arms set, as KEY=VALUE,VALUE with one value per
+                                 --arm, in order: on, off, or one of the flag's variant keys; an
+                                 --arm needs no paywall then (can be repeated)
+  -h, --help                     Show help for this command
+      --hypothesis <hypothesis>  What you expect to happen
+      --json                     Print the API objects as JSON, for scripts
+      --location <location>      The paywall location every --arm NAME=PAYWALL shows at
+      --metric <event>           The event that counts as a conversion (default:
+                                 purchase_completed); fixed once it starts
+      --name <name>              Its name, such as Annual-first onboarding
+      --project <project>        Project to act on: its id, slug, organization/slug or name
+                                 (default: this directory's project, then your default project)
+  -q, --quiet                    Print only ids, one per line
+      --weights <shares>         The shares of the arms, in the order of --arm, such as 60,40
+                                 (default: even)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash experiment create --name "Annual-first onboarding" --arm 'Control=monthly' --arm 'Annual first=annual' --location onboarding-end
+  voidhash experiment create --name "New checkout" --arm Control --arm 'New checkout' --flag 'new-checkout=off,on' --weights 80,20
+  voidhash experiment create --name "Pricing page" --hypothesis "Annual first lifts trials" --metric trial_started

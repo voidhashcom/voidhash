@@ -1,0 +1,26 @@
+Create a project, with its production and test publishable keys, in an organization. --switch makes
+it your default project.
+
+Usage:
+  voidhash project create [name] [flags]
+
+Arguments:
+  name  The project's name, such as your app's
+
+Flags:
+  -h, --help       Show help for this command
+      --json       Print the API objects as JSON, for scripts
+      --org <org>  Organization to act on: its slug, name or id (default: the organization of this
+                   directory's or your default project)
+  -q, --quiet      Print only ids, one per line
+      --switch     Make it your default project, as 'voidhash switch' does
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash project create "My App"
+  voidhash project create "My App" --org acme --switch

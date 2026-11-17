@@ -1,0 +1,37 @@
+Fix a flag for one end user (on, off or a variant) in production, or in test with --env test,
+whatever its rules and rollout say. 'clear' lets the flag decide for them again.
+
+A flag that is off in an environment stays off there for everyone, overrides included.
+
+With -q it prints the flag's id, since an override has none of its own. With --json it prints the
+override, or the flag after 'clear'.
+
+Usage:
+  voidhash flag override [flag] [person] [setting] [flags]
+
+Arguments:
+  flag     The flag's key or id
+  person   The end user: an email, a distinct id or a person id (person_…); prefix email:,
+           distinct_id:, person_id: or external_id: to say which
+  setting  on, off, a variant (its value, label or id), or clear
+
+Flags:
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --note <note>            Why, such as QA
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag override new-checkout alice@example.com on
+  voidhash flag override button-color device-1234 blue --env test --note QA
+  voidhash flag override new-checkout alice@example.com clear

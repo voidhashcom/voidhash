@@ -1,0 +1,25 @@
+Add a person before your app has seen them, by the distinct id it will identify them by. When
+someone already has that distinct id, nothing changes and they are printed.
+
+Usage:
+  voidhash person create [flags]
+
+Flags:
+      --distinct-id <id>   The id your app will identify them by, such as your user id
+      --email <email>      Their email
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --name <name>        Their name
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person create --distinct-id user-100 --email new@example.com
+  voidhash person create --distinct-id user-100 -q

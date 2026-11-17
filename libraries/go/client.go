@@ -9,6 +9,10 @@
 // Project resources are managed in the key's own project, which the client
 // looks up on its first project call; [WithProjectID] names it up front.
 //
+// A tool that acts for a person, such as a command line, signs them in with
+// [DeviceAuth] and builds its client with [NewWithTokenSource]. Operations
+// the services do not cover are reachable through [Client.API].
+//
 // All request and response bodies are typed structs generated from the
 // official OpenAPI document.
 package voidhash
@@ -38,7 +42,7 @@ const (
 // Client is a Voidhash management API client. Create one with [New]; it is
 // safe for concurrent use.
 type Client struct {
-	secretKey      string
+	token          TokenSource
 	publishableKey string
 	extraHeaders   map[string]string
 	httpClient     *http.Client
@@ -125,12 +129,34 @@ func WithHeader(name, value string) Option {
 	}
 }
 
+// TokenSource supplies the credential a request is sent with: a project
+// secret key (vh_sk_...) or a person's token (vh_oat_...). The client calls
+// it before every request, so it can read a token that is stored elsewhere,
+// or replaced while the client lives. An empty token sends the request
+// without a credential; an error fails the request.
+type TokenSource func(ctx context.Context) (string, error)
+
 // New creates a Voidhash client authenticated with a secret key
-// (vh_sk_...). It returns an error when the key is empty or the options are
-// invalid. It makes no request; the project is resolved on first use.
+// (vh_sk_...). The management API takes a person's token (vh_oat_...) the
+// same way, as a bearer credential; pass [WithProjectID] with one, since a
+// person can use several projects. New returns an error when the key is
+// empty or the options are invalid. It makes no request; the project is
+// resolved on first use.
 func New(secretKey string, opts ...Option) (*Client, error) {
 	if secretKey == "" {
 		return nil, newConfigurationError("secretKey is required")
+	}
+	return NewWithTokenSource(func(context.Context) (string, error) { return secretKey, nil }, opts...)
+}
+
+// NewWithTokenSource creates a Voidhash client that asks source for its
+// credential before every request, for a credential that is looked up
+// lazily or can change, such as the token of a signed-in person. It
+// returns an error when source is nil or the options are invalid, and
+// makes no request.
+func NewWithTokenSource(source TokenSource, opts ...Option) (*Client, error) {
+	if source == nil {
+		return nil, newConfigurationError("a token source is required")
 	}
 
 	cfg := &clientConfig{
@@ -143,7 +169,7 @@ func New(secretKey string, opts ...Option) (*Client, error) {
 	for name := range cfg.headers {
 		switch http.CanonicalHeaderKey(name) {
 		case authorizationHeader, http.CanonicalHeaderKey(secretKeyHeader):
-			return nil, newConfigurationError(name + " cannot be set explicitly; the client sends the secret key itself")
+			return nil, newConfigurationError(name + " cannot be set explicitly; the client sends the credential itself")
 		}
 	}
 
@@ -151,7 +177,13 @@ func New(secretKey string, opts ...Option) (*Client, error) {
 		for name, value := range cfg.headers {
 			req.Header.Set(name, value)
 		}
-		req.Header.Set(authorizationHeader, "Bearer "+secretKey)
+		token, err := source(ctx)
+		if err != nil {
+			return fmt.Errorf("voidhash: reading the credential: %w", err)
+		}
+		if token != "" {
+			req.Header.Set(authorizationHeader, "Bearer "+token)
+		}
 		return nil
 	}
 
@@ -164,7 +196,7 @@ func New(secretKey string, opts ...Option) (*Client, error) {
 	}
 
 	client := &Client{
-		secretKey:      secretKey,
+		token:          source,
 		publishableKey: cfg.publishableKey,
 		extraHeaders:   cfg.headers,
 		httpClient:     cfg.httpClient,
@@ -197,6 +229,21 @@ func New(secretKey string, opts ...Option) (*Client, error) {
 	client.PaymentSources = &PaymentSourcesService{client: client}
 
 	return client, nil
+}
+
+// API returns the generated client for the whole management API, one method
+// per operation, for the operations the services do not cover. Its requests
+// carry this client's credential, headers and HTTP client. Each method
+// returns the raw response; [ReadResponse] turns it into the body or an
+// [*APIError]:
+//
+//	resp, err := client.API().ProjectsGet(ctx, "proj_...")
+//	if err != nil {
+//		return err
+//	}
+//	body, err := voidhash.ReadResponse(resp)
+func (c *Client) API() *api.Client {
+	return c.core
 }
 
 // project returns the id of the project that project resources are managed

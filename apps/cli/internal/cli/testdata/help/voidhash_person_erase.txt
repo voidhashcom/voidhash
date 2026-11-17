@@ -1,0 +1,32 @@
+Erase a person's personal data for good, for a data deletion request. Their profile, attributes,
+distinct ids and the personal data in their events are erased; their purchases and access stay,
+anonymized.
+
+Asks you to type their email (or their distinct id when they have no email); --yes skips that. The
+erasure runs in the background: the command waits up to a minute for it, and --no-wait returns once
+it is requested.
+
+Usage:
+  voidhash person erase [person] [flags]
+
+Arguments:
+  person  The person's email, distinct id (the id your app identifies them by) or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --no-wait            Return once the erasure is requested, without waiting for it to finish
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person erase ada@example.com
+  voidhash person erase person_123 --yes --no-wait --json

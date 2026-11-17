@@ -1,0 +1,24 @@
+Your organization's team: list members, add people, change roles, remove people.
+
+Usage:
+  voidhash member <command> [flags]
+
+Aliases:
+  member, members
+
+Commands:
+  list       List an organization's members and their roles.
+  invite     Add someone with a Voidhash account to the organization as a member.
+  role       Make an admin a member.
+  remove     Remove someone from the organization.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash member <command> --help' for more about a command.

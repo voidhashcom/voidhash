@@ -1,0 +1,23 @@
+{
+  "id": "android",
+  "order": 7,
+  "name": "Android (Kotlin)",
+  "support": "best-effort",
+  "detect": {
+    "globs": ["build.gradle.kts", "build.gradle", "settings.gradle.kts", "settings.gradle"]
+  },
+  "guide": "android.md",
+  "docs": "https://voidhash.com/docs/sdks/kotlin/quickstart",
+  "sdk": "com.voidhash:sdk",
+  "key": "publishable",
+  "capabilities": ["identify", "perks", "purchases", "paywalls", "events"],
+  "types": "kotlin",
+  "markers": ["Voidhash.configure"],
+  "sources": [".kt", ".java"],
+  "run": "the app from Android Studio",
+  "leftForYou": [
+    "Add the SDK's sources to the build as the quickstart describes (https://voidhash.com/docs/sdks/kotlin/quickstart), if the agent could not: the SDK is built from source with includeBuild.",
+    "Build the app, or run 'voidhash integrate --check \"./gradlew :app:assembleDebug\"' to have it checked.",
+    "Connect Google Play and map your products to Play products before you sell for real: 'voidhash provider --help'."
+  ]
+}

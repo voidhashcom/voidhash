@@ -41,6 +41,13 @@ extension PaywallRenderer {
 /// time (the React Native SDK) find the renderer when the app links it.
 public protocol PaywallRendererProviding: AnyObject {
     static func makeRenderer() -> any PaywallRenderer
+    /// Switches the renderer to flow runtime modules, process-wide. Called before the client
+    /// resolves its first flow.
+    static func useRuntimeModules()
+}
+
+extension PaywallRendererProviding {
+    public static func useRuntimeModules() {}
 }
 
 /// Finds a renderer the app linked without naming it.
@@ -48,10 +55,17 @@ public enum PaywallRendererDiscovery {
     /// The Objective-C name of the `VoidhashUI` renderer's provider class.
     public static let providerClassName = "VoidhashUIRendererProvider"
 
-    /// The linked renderer, or `nil` when the app did not add one.
-    public static func linkedRenderer() -> (any PaywallRenderer)? {
-        return (NSClassFromString(providerClassName) as? any PaywallRendererProviding.Type)?
-            .makeRenderer()
+    /// The linked renderer, or `nil` when the app did not add one; with `runtimeModules`,
+    /// switched to flow runtime modules first (the React Native `flowRuntime` option).
+    public static func linkedRenderer(runtimeModules: Bool = false) -> (any PaywallRenderer)? {
+        guard
+            let provider = NSClassFromString(providerClassName)
+                as? any PaywallRendererProviding.Type
+        else { return nil }
+        if runtimeModules {
+            provider.useRuntimeModules()
+        }
+        return provider.makeRenderer()
     }
 }
 
@@ -65,8 +79,8 @@ public struct PaywallRendererContext: Sendable {
 
     #if canImport(UIKit)
         /// Resolves the view controller to present from: the one passed to
-        /// ``VoidhashClient/presentFlow(placement:from:)``, or else the top view controller of
-        /// the key window.
+        /// ``VoidhashClient/presentFlow(location:revision:input:actions:from:)``, or else the
+        /// top view controller of the key window.
         public let presentingViewController: @MainActor @Sendable () -> UIViewController?
 
         public init(
@@ -97,7 +111,7 @@ public struct PaywallRendererContext: Sendable {
 public protocol FlowPaywallPresenting: AnyObject, Sendable {
     /// Whether this presenter reads flow packages of `abiVersion`.
     func supportsFlowPackage(abiVersion: Int) -> Bool
-    /// Presents `package`, a verified flow package, for a placement, and returns once the
+    /// Presents `package`, a verified flow package, for a location, and returns once the
     /// presentation finished.
     ///
     /// - Parameters:
@@ -115,8 +129,45 @@ public protocol FlowPaywallPresenting: AnyObject, Sendable {
     ) async throws -> Bool
     /// Dismisses the presented flow and returns once it has left the screen.
     func dismiss() async throws
-    /// Delivers an SDK → flow envelope (`configure`, `status`, `response`).
+    /// Delivers an SDK → flow envelope (`configure`, `input`, `status`, `response`).
     func postMessage(locationSlug: String, data: String)
+    /// Whether this presenter can show the release whose package is `flowPackage`. A presenter
+    /// running the flow runtime as a downloaded module shows any release that names a runtime
+    /// module; by default, whether it reads the package's format.
+    func supportsFlowPackage(_ flowPackage: SdkResolvedPaywall.FlowPackage) -> Bool
+    /// Presents `package`, the verified package `flowPackage` describes; see
+    /// ``show(locationSlug:package:onBridgeEvent:onDismiss:onFailure:)``, which it calls by
+    /// default. A presenter running the flow runtime as a module first gets the runtime module
+    /// `flowPackage` names.
+    @discardableResult
+    func show(
+        locationSlug: String,
+        package: Data,
+        flowPackage: SdkResolvedPaywall.FlowPackage,
+        onBridgeEvent: PaywallRawEventHandler?,
+        onDismiss: PaywallDismissedHandler?,
+        onFailure: PaywallFailedHandler?
+    ) async throws -> Bool
+}
+
+extension FlowPaywallPresenting {
+    public func supportsFlowPackage(_ flowPackage: SdkResolvedPaywall.FlowPackage) -> Bool {
+        return supportsFlowPackage(abiVersion: flowPackage.abiVersion)
+    }
+
+    @discardableResult
+    public func show(
+        locationSlug: String,
+        package: Data,
+        flowPackage: SdkResolvedPaywall.FlowPackage,
+        onBridgeEvent: PaywallRawEventHandler?,
+        onDismiss: PaywallDismissedHandler?,
+        onFailure: PaywallFailedHandler?
+    ) async throws -> Bool {
+        return try await show(
+            locationSlug: locationSlug, package: package, onBridgeEvent: onBridgeEvent,
+            onDismiss: onDismiss, onFailure: onFailure)
+    }
 }
 
 #if canImport(UIKit)

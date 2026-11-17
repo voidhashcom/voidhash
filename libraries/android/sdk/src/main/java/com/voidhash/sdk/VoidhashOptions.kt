@@ -49,12 +49,16 @@ fun isAnonymousDistinctId(distinctId: String): Boolean =
  * @property automaticLifecycleEvents captures `$app_installed`, `$app_updated`, `$app_opened`,
  *   `$app_backgrounded`, `$app_became_active`, `$app_crashed` and `$sign_out`. An app that reports
  *   these events itself turns it off.
- * @property preloadPlacements placements whose flows are fetched and cached on the first launch,
- *   so a flow can be presented before the device has ever resolved it online. Placements the
+ * @property preloadLocations locations whose flows are fetched and cached on the first launch,
+ *   so a flow can be presented before the device has ever resolved it online. Locations the
  *   device has already resolved are remembered and preloaded without being listed here. Inert
  *   without a [paywallRenderer].
+ * @property flowRevisions the revision of each location's interface the app was built against,
+ *   by location slug. It is what [VoidhashClient.presentFlow] reports for a location when the
+ *   call names no revision, and what preloading reports, so the flow fetched ahead is one this
+ *   build of the app can run. A location without an entry counts as revision 0.
  * @property paywallRenderer draws flows. Add the `ui` module and pass
- *   `VoidhashUiPaywallRenderer()`; without a renderer, [VoidhashClient.presentFlow] reports
+ *   `VoidhashUiPaywallRenderer()`; without a renderer, [VoidhashClient.presentFlow] throws
  *   [FlowFailure.RENDERER_MISSING]. Flow packages are downloaded, verified and cached for
  *   offline use.
  * @property flowCapabilities what flows may do beyond showing screens, purchasing and restoring.
@@ -100,7 +104,8 @@ data class VoidhashOptions(
     val dev: Boolean = false,
     val screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
     val automaticLifecycleEvents: Boolean = true,
-    val preloadPlacements: List<String> = emptyList(),
+    val preloadLocations: List<String> = emptyList(),
+    val flowRevisions: Map<String, Int> = emptyMap(),
     val paywallRenderer: PaywallRenderer? = null,
     val flowCapabilities: Set<FlowCapability> = setOf(FlowCapability.LINKS),
     val onDiagnostic: ((VoidhashDiagnostic) -> Unit)? = null,

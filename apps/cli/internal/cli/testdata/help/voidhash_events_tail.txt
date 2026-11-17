@@ -1,0 +1,32 @@
+Show events as they arrive, until Ctrl+C or --count of them. Good for checking an app's tracking
+while you use it.
+
+It starts with the latest few events, then prints each new one once. With --count it prints only
+events that arrive after it started and exits once it has that many, so 'voidhash events tail --name
+purchase_completed --count 1' waits for one purchase.
+
+With --json each event is one line of JSON.
+
+Usage:
+  voidhash events tail [flags]
+
+Flags:
+      --count <count>       Stop after this many new events, such as 1 to wait for one
+  -h, --help                Show help for this command
+      --interval <Seconds>  Seconds between checks for new events (default: 2)
+      --json                Print the API objects as JSON, for scripts
+      --name <name>         Only events with this name, such as $pageview or purchase_completed
+      --person <person>     Only events of this person: a distinct id, person id or email
+      --project <project>   Project to act on: its id, slug, organization/slug or name (default:
+                            this directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash events tail
+  voidhash events tail --person user_42
+  voidhash events tail --name purchase_completed --count 1 --json

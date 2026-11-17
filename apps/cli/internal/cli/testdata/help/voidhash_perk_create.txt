@@ -1,0 +1,27 @@
+Create a perk, the access your app checks for, and optionally the products that grant it. Asks for
+what is missing in a terminal.
+
+Usage:
+  voidhash perk create [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --name <name>        What people see, such as Premium
+      --product <product>  A product that grants it: its slug, name or id; repeat for each (can be
+                           repeated)
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --slug <slug>        How your code checks for it, such as premium (default: made from the
+                           name)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash perk create --name Premium
+  voidhash perk create --name "Offline mode" --product pro-annual --product lifetime

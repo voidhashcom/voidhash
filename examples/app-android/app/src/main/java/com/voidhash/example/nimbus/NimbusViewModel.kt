@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.voidhash.sdk.isAnonymousDistinctId
+import com.voidhash.sdk.FlowException
 import com.voidhash.sdk.FlowFailure
 import com.voidhash.sdk.FlowResult
 import com.voidhash.sdk.VoidhashClient
@@ -38,8 +39,8 @@ const val FREE_NOTE_LIMIT = 3
 /** Perk slug that unlocks Pro, as configured in Studio. */
 const val PRO_PERK_SLUG = "pro"
 
-/** Placement whose flow the Notes screen presents. */
-const val FLOW_PLACEMENT = "onboarding"
+/** Location whose flow the Notes screen presents. */
+const val FLOW_LOCATION = "onboarding"
 
 /** Feature flag the Account screen evaluates. */
 const val ONBOARDING_FLAG_KEY = "nimbus-new-onboarding"
@@ -394,12 +395,13 @@ class NimbusViewModel(private val client: VoidhashClient?) : ViewModel() {
     }
 
     /**
-     * Presents the flow published at [FLOW_PLACEMENT] and reacts to how it ended.
+     * Presents the flow published at [FLOW_LOCATION] and reacts to how it ended.
      *
-     * This is the part worth copying. `presentFlow` returns once the flow is gone and never
-     * throws: every outcome, including "nothing to show", is a [FlowResult]. A placement
-     * without a flow, or one that cannot be loaded offline, is not an error the user should
-     * see — the app owns a screen that sells the same thing.
+     * This is the part worth copying. `presentFlow` returns once the flow is gone, with the
+     * same [FlowResult] for every ending: its outcome and the flow's outputs. A flow that
+     * cannot be shown is thrown as a [FlowException] instead. A location without a flow, or
+     * one that cannot be loaded offline, is not an error the user should see — the app owns a
+     * screen that sells the same thing.
      */
     private suspend fun requestUpgrade(activity: Activity?, source: String) {
         val sdk = client
@@ -409,40 +411,40 @@ class NimbusViewModel(private val client: VoidhashClient?) : ViewModel() {
         }
 
         _uiState.update { it.copy(isPresentingFlow = true) }
-        sdk.capture("upgrade_requested", mapOf("placement" to FLOW_PLACEMENT, "source" to source))
+        sdk.capture("upgrade_requested", mapOf("location" to FLOW_LOCATION, "source" to source))
         val result = try {
-            sdk.presentFlow(activity, FLOW_PLACEMENT)
+            sdk.presentFlow(activity, FLOW_LOCATION)
+        } catch (error: FlowException) {
+            when (error.reason) {
+                // Nothing published yet, or nothing cached while offline.
+                FlowFailure.NOT_ASSIGNED, FlowFailure.UNAVAILABLE -> Unit
+                // The flow itself could not be shown: worth a line in the log.
+                FlowFailure.PRESENTATION_FAILED, FlowFailure.UNSUPPORTED_PACKAGE ->
+                    Log.w(TAG, "Flow for \"$FLOW_LOCATION\" failed: ${error.description}")
+                // Set-up problems a developer has to fix.
+                FlowFailure.RENDERER_MISSING, FlowFailure.DISABLED ->
+                    Log.e(TAG, "Flows are unavailable: ${error.description}")
+            }
+            _events.emit(NimbusEvent.OpenUpgrade)
+            return
         } finally {
             _uiState.update { it.copy(isPresentingFlow = false) }
         }
 
-        when (result) {
-            is FlowResult.Purchased -> {
+        when (result.outcome) {
+            FlowResult.PURCHASED -> {
                 refreshPerson()
-                emitMessage("Purchased ${result.productSlug}")
+                emitMessage("Purchased ${result.productId}")
             }
-            FlowResult.Restored -> {
+            FlowResult.RESTORED -> {
                 refreshPerson()
                 emitMessage(if (_uiState.value.isPro) "Pro restored" else "Purchases restored")
             }
-            is FlowResult.Finished -> {
-                Log.i(TAG, "Flow finished with \"${result.result}\": ${result.variables}")
-                emitMessage("Flow finished: ${result.result}")
-            }
-            FlowResult.Closed -> Unit
-            is FlowResult.Failed -> {
-                val error = result.error
-                when (error.reason) {
-                    // Nothing published yet, or nothing cached while offline.
-                    FlowFailure.NOT_ASSIGNED, FlowFailure.UNAVAILABLE -> Unit
-                    // The flow itself could not be shown: worth a line in the log.
-                    FlowFailure.PRESENTATION_FAILED, FlowFailure.UNSUPPORTED_PACKAGE ->
-                        Log.w(TAG, "Flow for \"$FLOW_PLACEMENT\" failed: ${error.description}")
-                    // Set-up problems a developer has to fix.
-                    FlowFailure.RENDERER_MISSING, FlowFailure.DISABLED ->
-                        Log.e(TAG, "Flows are unavailable: ${error.description}")
-                }
-                _events.emit(NimbusEvent.OpenUpgrade)
+            FlowResult.DISMISSED -> Unit
+            // An outcome the flow finished with, such as "completed".
+            else -> {
+                Log.i(TAG, "Flow ended with \"${result.outcome}\": ${result.output}")
+                emitMessage("Flow finished: ${result.outcome}")
             }
         }
     }

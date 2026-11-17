@@ -1,0 +1,27 @@
+Rename a perk or change the slug your app checks for. Without --name or --slug it asks for both in a
+terminal.
+
+Usage:
+  voidhash perk edit [perk] [flags]
+
+Arguments:
+  perk  The perk's slug, name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --name <name>        Its new name
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --slug <slug>        Its new slug
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash perk edit premium --name "Premium access"
+  voidhash perk edit legacy --slug classic

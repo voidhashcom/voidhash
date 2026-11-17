@@ -1,0 +1,20 @@
+The project's settings, explained: view them and change one.
+
+Usage:
+  voidhash settings <command> [flags]
+
+Commands:
+  view       Show the project's settings: restored purchases, store sandbox, simulated purchases and
+             ads.
+  set        Change one setting.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash settings <command> --help' for more about a command.

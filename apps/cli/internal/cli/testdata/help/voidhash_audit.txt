@@ -1,0 +1,26 @@
+Show who changed what in the project, newest first. Needs permission to read the project's audit
+log.
+
+Usage:
+  voidhash audit [flags]
+
+Flags:
+      --entity <id>        Only changes to the thing with this id
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --limit <limit>      How many of the latest changes to show, at most 100
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --type <type>        Only changes to this kind of thing, such as product, paywall or api_key
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash audit
+  voidhash audit --type product --limit 100
+  voidhash audit --entity prod_123 --json

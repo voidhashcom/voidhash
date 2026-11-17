@@ -221,8 +221,12 @@ func (s *EventCaptureService) post(ctx context.Context, path string, payload any
 	if err != nil {
 		return nil, fmt.Errorf("voidhash: building request: %w", err)
 	}
+	secretKey, err := s.client.token(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("voidhash: reading the credential: %w", err)
+	}
 	req.Header.Set("content-type", "application/json")
-	req.Header.Set(secretKeyHeader, s.client.secretKey)
+	req.Header.Set(secretKeyHeader, secretKey)
 	for name, value := range s.client.extraHeaders {
 		req.Header.Set(name, value)
 	}

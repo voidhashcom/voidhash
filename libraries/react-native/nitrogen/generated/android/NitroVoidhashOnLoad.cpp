@@ -17,6 +17,7 @@
 
 #include "JHybridVoidhashNativeClientSpec.hpp"
 #include "JFunc_void_NativeClientEvent.hpp"
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string.hpp"
 #include <NitroModules/DefaultConstructableObject.hpp>
 
 namespace margelo::nitro::voidhash {
@@ -43,6 +44,7 @@ void registerAllNatives() {
   // Register native JNI methods
   margelo::nitro::voidhash::JHybridVoidhashNativeClientSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JFunc_void_NativeClientEvent_cxx::registerNatives();
+  margelo::nitro::voidhash::JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_cxx::registerNatives();
 
   // Register Nitro Hybrid Objects
   HybridObjectRegistry::registerHybridObjectConstructor(

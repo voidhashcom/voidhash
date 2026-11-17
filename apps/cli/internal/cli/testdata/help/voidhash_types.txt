@@ -1,0 +1,29 @@
+Generate and check the type files of this directory's project: its product, paywall location and
+perk slugs as types of your app's language, so a mistyped slug does not compile.
+
+The files are listed under "types" in voidhash.json, each with its "language" (typescript, swift or
+kotlin) and "output" path. Without any, one TypeScript declaration file is written to
+voidhash.gen.d.ts.
+
+A TypeScript file types the Voidhash SDKs the package.json in this directory depends on,
+@voidhash/react-native and @voidhash/web, or @voidhash/react-native without either. It also lists
+the project's feature flag keys, leaving archived flags out, and the text values of their variants;
+a flag or variant added since the file was written is not in it.
+
+Usage:
+  voidhash types <command> [flags]
+
+Commands:
+  generate   Write the type files from the project as it is now.
+  check      Fail when a type file is behind the project.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash types <command> --help' for more about a command.

@@ -1,0 +1,23 @@
+Rules say what share of the end users they match get the flag: those a rule names one by one, and
+everyone its --when conditions hold for. 'voidhash flag view' shows them in the order they are read.
+
+Usage:
+  voidhash flag rule <command> [flags]
+
+Aliases:
+  rule, rules
+
+Commands:
+  add        Add a rule: who it matches, and the share of them who get the flag.
+  remove     Remove a rule from a flag.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash flag rule <command> --help' for more about a command.

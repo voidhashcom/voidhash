@@ -146,8 +146,8 @@ maps as follows:
 every SDK, and every diagnostic's `kind` (`transport`, `eviction`, `breaker`, `auth`, `cache`,
 `consent`, `store`) routes the same way.
 
-`options.preloadPlacements` is inert unless a native paywall renderer is configured: without one
-the SDK resolves, remembers and warms no placement, so it makes no paywall request and downloads
+`options.preloadLocations` is inert unless a native paywall renderer is configured: without one
+the SDK resolves, remembers and warms no location, so it makes no paywall request and downloads
 no flow package.
 
 ## Install
@@ -960,19 +960,79 @@ options.paywallRenderer = VoidhashUIPaywallRenderer()
 options.flowCapabilities = [.links, .notifications, .attributes]
 let voidhash = Voidhash.configure(publishableKey: "vh_pk_…", options: options)
 
-switch await voidhash.presentFlow(placement: "onboarding") {
-case .finished(let result, let variables): …  // the flow reached a finish action
-case .purchased(let productSlug): …           // a purchase from the flow completed
-case .restored: …
-case .closed: …                               // closed by the user or dismissFlow()
-case .failed(let error): …                    // FlowError, see below
+do {
+    let result = try await voidhash.presentFlow(
+        location: "onboarding",
+        input: ["firstName": "Ada", "credits": 3],
+        actions: [
+            "pickGoal": { arguments in
+                let goal = await pickGoal(startingFrom: arguments["current"]?.stringValue)
+                return ["goal": .string(goal)]
+            }
+        ])
+    switch result.outcome {
+    case FlowResult.purchased: …   // a purchase ended the flow; result.productId is its slug
+    case FlowResult.restored: …    // a restore ended the flow
+    case FlowResult.dismissed: …   // closed by the user or dismissFlow()
+    default: …                     // the outcome the flow finished with, such as "completed"
+    }
+    let goal = result.output["goal"]?.stringValue
+} catch let error as FlowError {
+    …                              // nothing was shown, see below
 }
+```
+
+A **location** is a spot in your app where a flow is shown. Your code names the location by its
+slug; which flow shows there is decided in Voidhash and changes without an app release.
+
+**Inputs, outputs and outcomes.** `input` passes values to the flow by name; an input you do not
+pass keeps its default. Values are strings, numbers or booleans (`FlowValue`), which literals
+convert to. However the flow ends, `presentFlow` returns a `FlowResult`:
+
+- `outcome` is `FlowResult.purchased`, `FlowResult.restored`, `FlowResult.dismissed`, or the
+  outcome the flow finished with, such as `"completed"`.
+- `output` holds the flow's outputs by name, whichever way it ended. It is empty when the flow
+  declares none.
+- `productId` is the product bought when the outcome is `purchased`.
+
+`updateFlowInput(["credits": 5])` changes inputs of the flow on screen; it does nothing when no
+flow is shown.
+
+**Text inputs.** A flow can ask the end user to type: a name, an email, a password, a code. Its
+text inputs use the system keyboard, with the keyboard type, return key, autocorrection and
+autofill suggestions their designer chose, and the flow's content moves above the keyboard.
+What was typed reaches your app only as outputs of the flow, and Voidhash only through an action
+the flow's designer added.
+
+**App actions.** A flow can call functions of your app. Pass a handler per action in `actions`:
+it receives the call's arguments by name and returns the reply by name. When a handler throws,
+or the flow calls an action you passed no handler for, the call fails in the flow, which carries
+on with what its designer chose for that case; a debug build also reports the missing handler
+through `onWarning`. A handler still running when the flow ends is cancelled.
+
+**Revisions.** The inputs, outputs, outcomes and actions of a location are its interface, and
+every change to it makes a new revision. Tell the SDK which revision your app was built against
+and it is only shown flows that app can run: pass `revision:` to `presentFlow`, or set
+`options.flowRevisions = ["onboarding": 3]`, which preloading uses as well. An app that names
+none counts as revision 0 and is shown flows that call no app action and finish only as
+`completed`.
+
+**Typed locations.** The Voidhash CLI can generate Swift types for a location: its input, output,
+outcome and actions, and a `FlowLocation` carrying the slug and the revision. Present it with
+`presentFlow(_:input:actions:)`, which returns a `TypedFlowResult` in those types:
+
+```swift
+let result = try await voidhash.presentFlow(
+    OnboardingFlow.location,
+    input: OnboardingFlow.Input(firstName: "Ada", credits: 3),
+    actions: OnboardingFlow.Actions(pickGoal: { current in await pickGoal(startingFrom: current) }))
+if result.outcome == .completed { save(result.output.goal) }
 ```
 
 `presentFlow` returns once the flow has ended and left the screen, so you can present your next
 screen as soon as it returns. It downloads the published package, verifies it against the hash the
-backend reported and keeps it on the device, so a placement shown once shows again offline, and a
-package that cannot be downloaded falls back to the one the placement showed last. A package
+backend reported and keeps it on the device, so a location shown once shows again offline, and a
+package that cannot be downloaded falls back to the one the location showed last. A package
 larger than 16 MB is not loaded. A flow shows images from `http` and `https` URLs only, and skips
 an image larger than 10 MB.
 
@@ -993,36 +1053,37 @@ package while the app runs, at most half of the 64 MB at a time, never at the ex
 image another flow of the same run needs, and not at all on cellular, on a personal hotspot or
 in Low Data Mode. A flow on screen always downloads the images it is missing, on any connection.
 
-A flow has 15 seconds from the `presentFlow` call to be ready to show: resolving the placement,
+A flow has 15 seconds from the `presentFlow` call to be ready to show: resolving the location,
 downloading the package and waiting for a flow already on screen to leave. When that takes
-longer, nothing is shown, then or later, and `presentFlow` returns `.failed(.unavailable)`, so a
+longer, nothing is shown, then or later, and `presentFlow` throws `FlowError.unavailable`, so a
 paywall never appears over whatever the user has moved on to. The download carries on, and the
-next presentation of the placement finds the package on the device. Preload the placements you
-show early with `options.preloadPlacements`. Once the flow is on its way to the screen, no time
+next presentation of the location finds the package on the device. Preload the locations you
+show early with `options.preloadLocations`. Once the flow is on its way to the screen, no time
 limit applies.
 
 The flow is presented full screen from the top view controller of the key window, also while the
 app is not active yet: at launch, or under a system alert. Pass a view controller to
-`presentFlow(placement:from:)` to present from that one instead; it has to be on screen and not
+`presentFlow(location:from:)` to present from that one instead; it has to be on screen and not
 presenting anything itself. Presenting a flow while another is on screen closes that one first.
 
 `dismissFlow()` closes the flow and returns once it is off the screen. Called while the flow is
 still loading, it keeps the flow from being shown. Cancelling the task that awaits `presentFlow`
-does the same. In both cases `presentFlow` returns `.closed`, as it does when your app dismisses
+does the same. In both cases `presentFlow` returns the outcome `dismissed`, as it does when your app dismisses
 the flow's view controller itself, for example by dismissing everything its root view controller
 presents.
 
 Shutting the client down, which configuring the SDK again does to the client it replaces, ends
-its flows too: a flow on screen is closed and its `presentFlow` returns `.closed`, and one that
-is still loading is not shown and fails with `.disabled`. `dismissFlow()` on that client still
+its flows too: a flow on screen is closed and its `presentFlow` returns the outcome `dismissed`,
+and one that is still loading is not shown and throws `.disabled`. `dismissFlow()` on that client still
 waits for the flow to leave the screen.
 
-`FlowError` says why nothing was shown: `.notAssigned` when nothing is published for the
-placement, `.unavailable` when it was never downloaded and the backend cannot be reached, or it
+A flow that could not be shown is not an outcome: `presentFlow` throws a `FlowError`, which says
+why nothing was shown: `.notAssigned` when nothing is published for the
+location, `.unavailable` when it was never downloaded and the backend cannot be reached, or it
 was not ready within 15 seconds,
 `.rendererMissing` without `options.paywallRenderer`, `.unsupportedPackage` when the flow needs
 a newer SDK, `.presentationFailed` when there is nothing to present from or the flow can no longer
-be drawn, and `.disabled` for a disabled or shut-down client. Without a renderer no placement is
+be drawn, and `.disabled` for a disabled or shut-down client. Without a renderer no location is
 resolved or preloaded and no paywall request is made.
 
 **Capabilities.** Purchases, restores, closing and analytics need no grant. Everything else a
@@ -1039,13 +1100,13 @@ Events a flow tracks are captured with `paywall_location` and `paywall_id` prope
 screen it shows is recorded as a `$screen`.
 
 A purchase started from a flow is reported with the paywall it was made on, so its revenue, and
-the revenue of its renewals, is credited to the placement, paywall, release and experiment variant
+the revenue of its renewals, is credited to the location, paywall, release and experiment variant
 in Voidhash analytics. Purchases made outside a flow and restores are not credited to a paywall,
 and neither is an Ask to Buy purchase approved after the flow closed. A `FlowHost` of your own
 receives that paywall in `purchaseFromPaywall`, to send with the receipt as `paywallContext`;
 without it, the flow buys through `purchase` and `purchaseOffer` and names no paywall.
 
-**Saved progress.** A flow's variables are saved on the device as the user moves through it, per
+**Saved progress.** A flow's own state is saved on the device as the user moves through it, per
 person and flow, and restored the next time the flow is presented, so a user who leaves an
 onboarding flow halfway resumes where they left. Finishing the flow clears the saved state, and so
 does a purchase in a paywall; an onboarding flow keeps going after a purchase. Switching to another
@@ -1123,17 +1184,23 @@ change unless you were relying on the old failure modes.
    `onWarning`/`onDiagnostic` and costs transaction observation for that launch, not the SDK.
 3. `flush()` now returns a `FlushStatus` instead of `Void`. Existing `await voidhash.flush()`
    call sites compile unchanged because the result is discardable.
-4. `presentPaywall(location:delegate:)` is replaced by `presentFlow(placement:)`, which returns a
+4. `presentPaywall(location:delegate:)` is replaced by `presentFlow(location:)`, which returns a
    `FlowResult` when the flow ends; see [Paywalls and flows](#paywalls-and-flows).
 5. Cached entries are served past their TTL rather than discarded. If you treated a `nil` person
    as "signed out", read `getCurrentPersonState().isExpired` instead.
 6. Images a flow shows are now kept on the device (up to 64 MB) and read from there before the
    network. Nothing is required of you; a URL whose content you replace keeps showing the kept
    image, so publish changed artwork under a new URL.
-7. `presentFlow` gives a flow 15 seconds to be ready to show and then returns
-   `.failed(.unavailable)` without showing it, where it used to wait for as long as the placement
+7. `presentFlow` gives a flow 15 seconds to be ready to show and then throws
+   `FlowError.unavailable` without showing it, where it used to wait for as long as the location
    took to resolve and the package to download (over a minute on a bad connection). Treat that
-   result like any other failure to present, and preload placements you show at launch.
+   error like any other failure to present, and preload locations you show at launch.
+8. `presentFlow(placement:)` is now `presentFlow(location:revision:input:actions:)`, and it
+   `throws`. `FlowResult` is a struct with `outcome`, `output` and `productId` for every ending:
+   `.closed` is the outcome `FlowResult.dismissed`, `.finished(result:variables:)` is the outcome
+   the flow finished with, and `.failed(error)` is a thrown `FlowError`. A flow's internal
+   variables are no longer returned; read its `output`. `options.preloadPlacements` is now
+   `options.preloadLocations`.
 
 The persisted cache moved to a namespace derived from your publishable key and API origin, and
 the schema entry moved from a per-app-version key to a single one. Both are migrated once, on the

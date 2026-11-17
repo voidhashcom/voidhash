@@ -122,7 +122,7 @@ export class FailedToFetchSchemaError extends VoidhashError {
 }
 
 /**
- * No paywall configuration has ever been cached for a placement and the
+ * No paywall configuration has ever been cached for a location and the
  * server cannot be reached. Distinct from a failure: there is simply nothing
  * to show yet, so callers hide the paywall and try again later.
  */

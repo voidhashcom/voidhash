@@ -1,0 +1,26 @@
+Send feedback to the Voidhash team, about the project you are in when there is one. Asks for the
+topic and the message on a terminal.
+
+Usage:
+  voidhash feedback [message] [flags]
+
+Arguments:
+  message  What you want the Voidhash team to know
+
+Flags:
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --sentiment <sentiment>  How you feel, from 1 (unhappy) to 4 (delighted)
+      --topic <analytics|paywalls|products|persons|feature-flags|experiments|payment-providers|webhooks|sdk|billing|dashboard|other>
+                               What it is about
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash feedback
+  voidhash feedback "Refund events arrive late" --topic webhooks
+  voidhash feedback "Love the new charts" --topic analytics --sentiment 4

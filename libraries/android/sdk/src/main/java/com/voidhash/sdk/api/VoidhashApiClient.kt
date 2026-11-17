@@ -96,12 +96,15 @@ class VoidhashApiClient(
         distinctId: String,
         locationSlug: String,
         engine: FlowEngineCapabilities? = null,
+        interfaceRevision: Int = 0,
     ): JSONObject? {
         val path = "/api/v1/sdk/resolve-paywall"
         val payload = JSONObject().put("locationSlug", locationSlug)
+        // An app that reports no revision counts as revision 0.
+        if (interfaceRevision > 0) payload.put("interfaceRevision", interfaceRevision)
         return requestJson("POST", path, distinctId, payload, extraHeaders = engine?.headers().orEmpty()) { json ->
             // Only the JSON `null` says nothing is showing. `{}` or an error document would
-            // otherwise be cached as "no paywall" over a placement that has one.
+            // otherwise be cached as "no paywall" over a location that has one.
             if (json != null && (json.optJSONObject("location") == null || json.optJSONObject("showing") == null)) {
                 throw malformed(200, "The Voidhash API returned a paywall without a location or a showing")
             }
@@ -209,8 +212,9 @@ class VoidhashApiClient(
         distinctId: String,
         locationSlug: String,
         engine: FlowEngineCapabilities? = null,
+        interfaceRevision: Int = 0,
     ): ResolvedPaywall? =
-        resolvePaywallRaw(distinctId, locationSlug, engine)?.let(ResolvedPaywall::fromJson)
+        resolvePaywallRaw(distinctId, locationSlug, engine, interfaceRevision)?.let(ResolvedPaywall::fromJson)
 
     /** Syncs a store transaction; returns whether the backend accepted it. */
     suspend fun syncTransaction(distinctId: String, request: SyncTransactionRequest): Boolean =

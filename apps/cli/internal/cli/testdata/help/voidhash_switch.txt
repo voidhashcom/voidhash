@@ -1,0 +1,21 @@
+Choose your default project: the one commands act on outside linked directories and directories
+whose own configuration names a project. Without a project, asks which.
+
+Usage:
+  voidhash switch [project] [flags]
+
+Arguments:
+  project  The project's slug, organization/slug, name or id
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash switch acme/app
+  voidhash switch

@@ -1,0 +1,41 @@
+Payback by acquisition cohort: ROAS, revenue per payer or payers by day since people's first ad
+touch, for the people acquired each week or month.
+
+A cell marked * is still maturing, ~ is projected from the project's renewal and trial history, and
++ is a projection that is likely low. The period is the last 13 complete weeks unless --last or
+--from says otherwise.
+
+Usage:
+  voidhash ads report cohorts [flags]
+
+Flags:
+      --by <platform|surface|campaign|ad-group>
+                           What the groups are (default: platform)
+      --currency <code>    ISO 4217 code money is reported in (default: the ad accounts' currency)
+      --environment <production|sandbox|test>
+                           Purchases revenue is read from: production, sandbox (App Store and Google
+                           Play sandbox) or test (debug builds' simulated purchases and test modes
+                           such as Stripe's) (default: production)
+      --from <day>         First day to report on, YYYY-MM-DD (instead of --last)
+  -h, --help               Show help for this command
+      --json               Print the API report as JSON, for scripts
+      --last <span>        The complete days before today to report on: a span such as 7d, 4w, 3m or
+                           1y (default: 13w)
+      --metric <roas|revenue-per-payer|payers>
+                           What the cells show (default: roas)
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+      --timezone <zone>    IANA time zone days are cut in (default: the ad accounts' time zone)
+      --to <day>           Last day to report on, YYYY-MM-DD (default: today; with --from)
+      --unit <week|month>  Cohort size (default: week)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads report cohorts
+  voidhash ads report cohorts --by campaign --unit month --last 6m
+  voidhash ads report cohorts --metric payers --json

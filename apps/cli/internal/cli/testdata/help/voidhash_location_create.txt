@@ -1,0 +1,27 @@
+Create a place in your apps that shows a paywall, which the app asks for by its slug. --show shows a
+paywall there right away; a paywall without a live build creates nothing.
+
+Usage:
+  voidhash location create [flags]
+
+Flags:
+      --description <description>  Where in the app it is
+  -h, --help                       Show help for this command
+      --json                       Print the API objects as JSON, for scripts
+      --name <name>                What people see, such as Onboarding end
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+  -q, --quiet                      Print only ids, one per line
+      --show <paywall>             A paywall with a live build to show there right away
+      --slug <slug>                What your app asks for (default: made from the name); it cannot
+                                   change later
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location create --name "Onboarding end"
+  voidhash location create --name Settings --slug settings --show pro

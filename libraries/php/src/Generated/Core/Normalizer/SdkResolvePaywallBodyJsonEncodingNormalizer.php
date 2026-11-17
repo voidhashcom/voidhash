@@ -40,12 +40,21 @@ class SdkResolvePaywallBodyJsonEncodingNormalizer implements DenormalizerInterfa
         if (\array_key_exists('locationSlug', $data)) {
             $object->setLocationSlug($data['locationSlug']);
         }
+        if (\array_key_exists('interfaceRevision', $data) && $data['interfaceRevision'] !== null) {
+            $object->setInterfaceRevision($data['interfaceRevision']);
+        }
+        elseif (\array_key_exists('interfaceRevision', $data) && $data['interfaceRevision'] === null) {
+            $object->setInterfaceRevision(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $dataArray = [];
         $dataArray['locationSlug'] = $data->getLocationSlug();
+        if ($data->isInitialized('interfaceRevision')) {
+            $dataArray['interfaceRevision'] = $data->getInterfaceRevision();
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

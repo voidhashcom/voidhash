@@ -1,0 +1,30 @@
+Test your app's purchases without a store: see what a tester bought, simulate renewals, expiry and
+refunds, or start over.
+
+Debug builds in development mode make the purchases with the test publishable key; they are test
+purchases and never unlock production.
+
+Usage:
+  voidhash sandbox <command> [flags]
+
+Commands:
+  view          Show a person's simulated purchases and the access they grant.
+  renew         Renew a person's simulated subscription for another period, as the store would.
+  expire        End a person's simulated subscription now, as when it lapses in the store.
+  grace-period  Put a person's simulated subscription in its three-day billing grace period, as
+                after a failed renewal.
+  refund        Refund a person's one-time simulated purchase; the access it granted ends.
+  revoke        Revoke a person's simulated purchase or subscription, as when the store takes it
+                back.
+  reset         Delete every simulated purchase in the project, to start testing over.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash sandbox <command> --help' for more about a command.

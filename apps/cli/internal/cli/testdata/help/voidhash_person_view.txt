@@ -1,0 +1,29 @@
+Show a person: their profile, the perks they can use and why, their subscriptions and purchases, the
+flag overrides naming them, and their recent events.
+
+Only production store purchases are shown. Recent events are those among the project's 300 newest.
+With --json the person is printed with entitlements, subscriptions, purchases, flagOverrides and
+recentEvents added; a part your access does not include is null.
+
+Usage:
+  voidhash person view [person] [flags]
+
+Arguments:
+  person  The person's email, distinct id (the id your app identifies them by) or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person view ada@example.com
+  voidhash person view distinct_id:user-42 --json

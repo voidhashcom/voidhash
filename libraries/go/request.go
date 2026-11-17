@@ -17,15 +17,9 @@ func (c *Client) call(out any, send func() (*http.Response, error)) error {
 	if err != nil {
 		return fmt.Errorf("voidhash: request failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
+	body, err := ReadResponse(resp)
 	if err != nil {
-		return fmt.Errorf("voidhash: reading response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return newAPIError(resp, body)
+		return err
 	}
 
 	if out == nil || len(bytes.TrimSpace(body)) == 0 {
@@ -36,6 +30,22 @@ func (c *Client) call(out any, send func() (*http.Response, error)) error {
 		return fmt.Errorf("voidhash: decoding response: %w", err)
 	}
 	return nil
+}
+
+// ReadResponse reads and closes the body of a response from the generated
+// client (see [Client.API]). It returns the body of a 2xx response, which is
+// empty for one without content, and an [*APIError] for any other status.
+func ReadResponse(resp *http.Response) ([]byte, error) {
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("voidhash: reading response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, newAPIError(resp, body)
+	}
+	return body, nil
 }
 
 // page is the envelope every list endpoint returns.

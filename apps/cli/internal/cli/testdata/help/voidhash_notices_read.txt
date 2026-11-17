@@ -1,0 +1,24 @@
+Mark notices read, or the whole inbox with --all.
+
+Usage:
+  voidhash notices read [notice...] [flags]
+
+Arguments:
+  notice  A notice's id, as 'voidhash notices list' shows; repeat for each
+
+Flags:
+      --all        Mark the whole inbox read
+  -h, --help       Show help for this command
+      --json       Print the API objects as JSON, for scripts
+      --org <org>  Organization to act on: its slug, name or id (default: the organization of this
+                   directory's or your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash notices read notice_123 notice_456
+  voidhash notices read --all

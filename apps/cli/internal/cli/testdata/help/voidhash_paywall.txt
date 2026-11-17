@@ -1,0 +1,33 @@
+Paywalls and onboarding flows: list and view them, create them, build and deploy their designs,
+archive and delete them.
+
+A paywall is designed in the dashboard. A build is a snapshot of that design; deploying a build
+makes it what end users see at every location that shows the paywall ('voidhash location').
+
+Usage:
+  voidhash paywall <command> [flags]
+
+Aliases:
+  paywall, paywalls
+
+Commands:
+  list       List the project's paywalls with what is live and where each is shown.
+  view       Show a paywall: the build end users see, newer builds, and where it is shown.
+  create     Create an empty paywall or onboarding flow.
+  edit       Rename a paywall.
+  build      Build the paywall's current design without deploying it.
+  deploy     Make a paywall's design live at every location that shows it.
+  archive    Archive a paywall to tidy the list.
+  unarchive  Restore an archived paywall.
+  delete     Delete a paywall that no location shows, with its design and builds.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash paywall <command> --help' for more about a command.

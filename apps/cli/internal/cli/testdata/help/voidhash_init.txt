@@ -1,0 +1,34 @@
+Set this directory up for a Voidhash project: sign in if needed, choose or create the organization
+and project, and write voidhash.json, which names the project for every command run here and is
+meant to be committed.
+
+What else is written depends on the app found here:
+  a JavaScript project (package.json)
+      the React Native SDK client, in src/lib or lib, with the project's
+      publishable key, and the TypeScript declarations voidhash.gen.d.ts
+  an Xcode project or a Swift package
+      Swift types of the project's product, location and perk slugs
+  a Gradle project
+      Kotlin types of the same
+
+The command asks before it replaces a configuration or a file it did not generate; --yes answers
+yes. Off a terminal, pass --project.
+
+Usage:
+  voidhash init [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --project <project>  The project to set up for: its slug, organization/slug, name or id
+                           (default: asks)
+  -y, --yes                Replace an existing configuration and files without asking
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash init
+  voidhash init --project acme/app --yes

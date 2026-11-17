@@ -51,6 +51,24 @@ struct NativeClientError: Error, CustomStringConvertible, LocalizedError, Equata
 }
 
 /// The configuration the facade validated, see `NativeClientConfiguration` in the spec.
+/// Runs an app action in JavaScript: takes the action's name and its arguments as a JSON object,
+/// and returns the reply as a JSON object or throws.
+typealias NativeFlowAction =
+    @Sendable (_ name: String, _ argumentsJson: String) async throws -> String
+
+/// A flow result as the facade reads it; `productId` is present for a purchase only.
+private struct NativeFlowResultPayload: Encodable {
+    let outcome: String
+    let output: [String: FlowValue]
+    let productId: String?
+
+    init(_ result: FlowResult) {
+        outcome = result.outcome
+        output = result.output
+        productId = result.productId
+    }
+}
+
 struct NativeClientCoreConfiguration: Sendable, Equatable {
     var publishableKey: String
     var baseUrl: String
@@ -65,8 +83,13 @@ struct NativeClientCoreConfiguration: Sendable, Equatable {
     var grantConsentOnIdentify: Bool = false
     var automaticLifecycleEvents: Bool
     var installAttribution: Bool
-    var preloadPlacements: [String]
+    var preloadLocations: [String]
+    /// The interface revision the app was built against, by location slug.
+    var flowRevisions: [String: Int]
     var flowCapabilities: Set<FlowCapability>
+    /// Flows are drawn with flow runtime modules (the `flowRuntime` option); `false` leaves the
+    /// renderer as it is.
+    var flowRuntimeModules: Bool = false
     var screenTrackingEnabled: Bool
     /// `nil` keeps the native client's default wait.
     var featureFlagMaxWaitMilliseconds: Double? = nil
@@ -444,12 +467,14 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
                 ? nil : configuration.distinctId,
             readOnly: configuration.readOnly,
             dev: configuration.developmentMode,
-            preloadPlacements: configuration.preloadPlacements,
+            preloadLocations: configuration.preloadLocations,
+            flowRevisions: configuration.flowRevisions,
             // Screens arrive through `screen()`, already mapped by the facade.
             screenTracking: ScreenTrackingOptions(automatic: false),
             automaticLifecycleEvents: configuration.automaticLifecycleEvents,
             analyticsConsent: configuration.analyticsConsent,
-            paywallRenderer: PaywallRendererDiscovery.linkedRenderer(),
+            paywallRenderer: PaywallRendererDiscovery.linkedRenderer(
+                runtimeModules: configuration.flowRuntimeModules),
             flowCapabilities: configuration.flowCapabilities,
             featureFlags: FeatureFlagOptions(
                 maxWaitMilliseconds: configuration.featureFlagMaxWaitMilliseconds
@@ -796,13 +821,13 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
         }
     }
 
-    func getPaywall(placement: String) async throws -> String {
+    func getPaywall(location: String) async throws -> String {
         return try await call { client in
-            let state = try await client.getPaywallState(location: placement)
+            let state = try await client.getPaywallState(location: location)
             if state.value == nil, state.isStale, state.isExpired {
                 throw NativeClientError(
                     code: "PAYWALL_UNAVAILABLE",
-                    detail: "nothing is cached for \"\(placement)\" and Voidhash cannot be reached")
+                    detail: "nothing is cached for \"\(location)\" and Voidhash cannot be reached")
             }
             return VoidhashNativeClientCore.json(state.value) ?? "null"
         }
@@ -1114,17 +1139,47 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
 
     // MARK: - Flows
 
-    func presentFlow(placement: String) async throws -> String {
+    /// Presents the flow at `location` and resolves with how it ended, as JSON: an outcome with
+    /// its outputs, or the failure that kept the flow from being shown. A flow that could not be
+    /// shown is part of that answer, never a thrown error.
+    ///
+    /// - Parameters:
+    ///   - revision: The interface revision the app was built against; `nil` for the one the
+    ///     configuration names for the location.
+    ///   - inputJson: The app's inputs as a JSON object of strings, numbers and booleans.
+    ///   - actions: The app actions JavaScript handles.
+    ///   - onAction: Runs one of `actions` in JavaScript: takes its name and its arguments as a
+    ///     JSON object, and returns the reply as a JSON object or throws.
+    func presentFlow(
+        location: String, revision: Int?, inputJson: String, actions: [String],
+        onAction: @escaping NativeFlowAction
+    ) async throws -> String {
         return try await call { client in
-            let result = await client.presentFlow(placement: placement)
-            switch result {
-            case .purchased, .restored:
-                self.dropHeldProducts()
-            case .finished, .closed, .failed:
-                break
+            do {
+                let result = try await client.presentFlow(
+                    location: location, revision: revision,
+                    input: VoidhashNativeClientCore.flowValues(inputJson) ?? [:],
+                    actions: VoidhashNativeClientCore.flowActionHandlers(
+                        actions, onAction: onAction))
+                // A flow that ended in a purchase or a restore outdates the products held.
+                if result.outcome == FlowResult.purchased || result.outcome == FlowResult.restored {
+                    self.dropHeldProducts()
+                }
+                return VoidhashNativeClientCore.flowResultJson(result)
+            } catch let error as FlowError {
+                return VoidhashNativeClientCore.flowFailureJson(error)
             }
-            return VoidhashNativeClientCore.flowResultJson(result)
         }
+    }
+
+    /// Changes inputs of the flow on screen; `valuesJson` is a JSON object of strings, numbers
+    /// and booleans.
+    func updateFlowInput(valuesJson: String) async throws {
+        guard let values = VoidhashNativeClientCore.flowValues(valuesJson) else {
+            throw NativeClientError(
+                code: "INVALID_ARGUMENT", detail: "flow inputs must be a JSON object")
+        }
+        try await call { client in await client.updateFlowInput(values) }
     }
 
     func dismissFlow() async throws {
@@ -1135,28 +1190,63 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
 
     /// How a presentation ended, as the JSON the facade reads a flow result from.
     static func flowResultJson(_ result: FlowResult) -> String {
-        let object: JSONValue
-        switch result {
-        case .finished(let name, let variables):
-            object = .object([
-                "status": .string("finished"), "result": .string(name),
-                "variables": .object(variables),
+        return json(NativeFlowResultPayload(result))
+            ?? flowFailureJson(.presentationFailed("the flow's result could not be encoded"))
+    }
+
+    /// Why a flow could not be shown, as the JSON the facade reads a flow failure from.
+    static func flowFailureJson(_ error: FlowError) -> String {
+        let failure: JSONValue = .object([
+            "failure": .object([
+                "code": .string(flowErrorCode(error)), "message": .string(error.description),
             ])
-        case .purchased(let productSlug):
-            object = .object([
-                "status": .string("purchased"), "productSlug": .string(productSlug),
-            ])
-        case .restored:
-            object = .object(["status": .string("restored")])
-        case .closed:
-            object = .object(["status": .string("closed")])
-        case .failed(let error):
-            object = .object([
-                "status": .string("failed"), "code": .string(flowErrorCode(error)),
-                "message": .string(error.description),
-            ])
+        ])
+        return json(failure)
+            ?? #"{"failure":{"code":"FLOW_PRESENTATION_FAILED","message":"FLOW_PRESENTATION_FAILED: unencodable"}}"#
+    }
+
+    /// The strings, numbers, booleans and lists of strings of a JSON object, by name; `nil` when
+    /// `json` is not an object. Entries of any other type, and arrays holding anything but
+    /// strings, are left out.
+    static func flowValues(_ json: String) -> [String: FlowValue]? {
+        return object(json)?.compactMapValues { value in
+            switch value {
+            case .string(let string): return .string(string)
+            case .number(let number): return .number(number)
+            case .bool(let bool): return .bool(bool)
+            case .array(let items):
+                let strings = items.compactMap { item -> String? in
+                    guard case .string(let string) = item else { return nil }
+                    return string
+                }
+                return strings.count == items.count ? .list(strings) : nil
+            case .null, .object: return nil
+            }
         }
-        return json(object) ?? #"{"status":"failed","code":"FLOW_PRESENTATION_FAILED","message":"unencodable"}"#
+    }
+
+    /// A handler per action JavaScript handles, each running `onAction` with the action's name
+    /// and its arguments as JSON, and reading the reply back from JSON.
+    static func flowActionHandlers(_ actions: [String], onAction: @escaping NativeFlowAction)
+        -> [String: FlowActionHandler]
+    {
+        var handlers: [String: FlowActionHandler] = [:]
+        for name in actions {
+            handlers[name] = { arguments in
+                guard let argumentsJson = json(arguments) else {
+                    throw NativeClientError(
+                        code: "INVALID_ARGUMENT",
+                        detail: "the arguments of \"\(name)\" could not be encoded")
+                }
+                guard let reply = flowValues(try await onAction(name, argumentsJson)) else {
+                    throw NativeClientError(
+                        code: "INVALID_ARGUMENT",
+                        detail: "the handler of \"\(name)\" must resolve with an object")
+                }
+                return reply
+            }
+        }
+        return handlers
     }
 
     static func flowErrorCode(_ error: FlowError) -> String {

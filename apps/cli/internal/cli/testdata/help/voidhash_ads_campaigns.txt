@@ -1,0 +1,34 @@
+List the campaigns synced from your ad accounts, or show one campaign with its ad groups and ads.
+Voidhash reads them from the ad platform; change them there.
+
+Usage:
+  voidhash ads campaigns [campaign] [flags]
+
+Arguments:
+  campaign  A campaign's name or id: show its ad groups and ads
+
+Flags:
+      --account <account>           Only this ad account's campaigns: its name, act_ id or id
+      --delivery <delivering|learning|learning-limited|not-delivering|in-review|rejected|paused|off-by-parent|scheduled|ended|account-issue>
+                                    Only campaigns that deliver like this
+      --destination <website|app-store|web-to-app|mixed>
+                                    Only campaigns sending people here
+  -h, --help                        Show help for this command
+      --json                        Print the API objects as JSON, for scripts
+      --project <project>           Project to act on: its id, slug, organization/slug or name
+                                    (default: this directory's project, then your default project)
+  -q, --quiet                       Print only ids, one per line
+      --search <text>               Only campaigns whose name contains this text
+      --status <on|paused|removed>  Only campaigns set to this status
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash ads campaigns
+  voidhash ads campaigns --delivery not-delivering
+  voidhash ads campaigns "Spring sale"
+  voidhash ads campaigns --account act_1234567890 --status on --json

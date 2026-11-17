@@ -117,29 +117,31 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 });
 ```
 
-| Option                     | Default                    | Notes                                                                           |
-| -------------------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `scheme`                   | none                       | Deprecated. Accepted for compatibility; no longer needed.                       |
-| `distinctId`               | Persisted anonymous id     | Seeds the first `init()` only; usually omit and `identify()`. Blank is ignored. |
-| `debug`                    | `false`                    | Verbose HTTP logging.                                                           |
-| `dev`                      | `false`                    | Fake-store purchases in debug builds; ignored in release builds.                |
-| `enabled`                  | `true`                     | `false` ships the SDK fully inert. Fixed at construction.                       |
-| `readOnly`                 | `false`                    | Observer mode; see below. Mutable via `client.setReadOnly()`.                   |
-| `baseUrl`                  | `https://api.voidhash.com` | API origin; an absolute `http(s)` URL. Blank is ignored.                        |
-| `ingestUrl`                | Same origin as `baseUrl`   | Analytics origin override; an absolute `http(s)` URL. Blank is ignored.         |
-| `analyticsConsent`         | `"granted"`                | `"denied"` or `"pending"` turns analytics off; see "Analytics consent".         |
-| `analyticsWhilePending`    | `"drop"`                   | `"buffer"` holds events while consent is pending; see "Analytics consent".      |
-| `grantConsentOnIdentify`   | `false`                    | `identify()` grants a pending consent; see "Analytics consent".                 |
-| `automaticLifecycleEvents` | `true`                     | Automatic `$app_*` lifecycle and `$sign_out` events.                            |
-| `installAttribution`       | `true`                     | Credits new installs to the ad behind them; see "Install attribution".          |
-| `metaAppId`                | none                       | Android: also asks Meta's apps about the install; see "Install attribution".    |
-| `screenTracking`           | `{ enabled: true }`        | Automatic `$screen` events; see "Screen tracking".                              |
-| `flowCapabilities`         | `["links"]`                | What paywalls and flows may do; see "Paywalls".                                 |
-| `featureFlags`             | `{ maxWaitMs: 2000 }`      | How long a first flag read waits, and flag defaults; see "Feature flags".       |
-| `preloadPlacements`        | `[]`                       | Placements whose flows download at launch; see "Paywalls".                      |
-| `onDiagnostic`             | none                       | Reports failures the SDK recovered from; see below.                             |
-| `connectivity`             | none                       | No longer needed: reachability is observed natively. Accepted and ignored.      |
-| `unstable_swallowErrors`   | `false`                    | Deprecated; see below.                                                          |
+| Option                     | Default                    | Notes                                                                             |
+| -------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| `scheme`                   | none                       | Deprecated. Accepted for compatibility; no longer needed.                         |
+| `distinctId`               | Persisted anonymous id     | Seeds the first `init()` only; usually omit and `identify()`. Blank is ignored.   |
+| `debug`                    | `false`                    | Verbose HTTP logging.                                                             |
+| `dev`                      | `false`                    | Fake-store purchases in debug builds; ignored in release builds.                  |
+| `enabled`                  | `true`                     | `false` ships the SDK fully inert. Fixed at construction.                         |
+| `readOnly`                 | `false`                    | Observer mode; see below. Mutable via `client.setReadOnly()`.                     |
+| `baseUrl`                  | `https://api.voidhash.com` | API origin; an absolute `http(s)` URL. Blank is ignored.                          |
+| `ingestUrl`                | Same origin as `baseUrl`   | Analytics origin override; an absolute `http(s)` URL. Blank is ignored.           |
+| `analyticsConsent`         | `"granted"`                | `"denied"` or `"pending"` turns analytics off; see "Analytics consent".           |
+| `analyticsWhilePending`    | `"drop"`                   | `"buffer"` holds events while consent is pending; see "Analytics consent".        |
+| `grantConsentOnIdentify`   | `false`                    | `identify()` grants a pending consent; see "Analytics consent".                   |
+| `automaticLifecycleEvents` | `true`                     | Automatic `$app_*` lifecycle and `$sign_out` events.                              |
+| `installAttribution`       | `true`                     | Credits new installs to the ad behind them; see "Install attribution".            |
+| `metaAppId`                | none                       | Android: also asks Meta's apps about the install; see "Install attribution".      |
+| `screenTracking`           | `{ enabled: true }`        | Automatic `$screen` events; see "Screen tracking".                                |
+| `flowCapabilities`         | `["links"]`                | What paywalls and flows may do; see "Paywalls".                                   |
+| `featureFlags`             | `{ maxWaitMs: 2000 }`      | How long a first flag read waits, and flag defaults; see "Feature flags".         |
+| `flowRuntime`              | `"linked"`                 | Experimental: `"module"` draws flows with the runtime each flow names; see below. |
+| `preloadLocations`         | `[]`                       | Locations whose flows download at launch; see "Paywalls".                         |
+| `flowRevisions`            | `{}`                       | Interface revision per location, from the generated declarations; see "Paywalls". |
+| `onDiagnostic`             | none                       | Reports failures the SDK recovered from; see below.                               |
+| `connectivity`             | none                       | No longer needed: reachability is observed natively. Accepted and ignored.        |
+| `unstable_swallowErrors`   | `false`                    | Deprecated; see below.                                                            |
 
 ## Provider and initialization
 
@@ -594,22 +596,62 @@ expired subscription history. Use explicit reporting whenever transaction values
 ## Paywalls
 
 Paywalls and multi-screen flows are drawn natively by a renderer the config plugin adds with
-`["@voidhash/react-native", { "renderer": true }]`. `client.presentFlow(placement)` (or the
-`usePresentFlow(placement)` hook) presents whatever is assigned to the placement and resolves once
-it ends, never rejecting:
+`["@voidhash/react-native", { "renderer": true }]`. `client.presentFlow(location, options)` (or
+the `usePresentFlow(location)` hook) presents whatever is assigned to the location, the spot in
+your app where a flow is shown, and resolves once it ends:
 
 ```ts
-const result = await voidhash.client.presentFlow("onboarding");
-// { status: "purchased", productSlug } | { status: "restored" } | { status: "closed" }
-// | { status: "finished", result, variables } | { status: "failed", error }
+try {
+  const result = await voidhash.client.presentFlow("onboarding", {
+    input: { firstName: user.name, credits: 3 },
+    actions: {
+      pickGoal: async ({ current }) => ({ goal: await openGoalPicker(current) }),
+    },
+  });
+  // { outcome, output, productId? }
+  if (result.outcome === "completed") saveGoal(result.output.goal);
+} catch (error) {
+  // A VoidhashError; error.code is one of the FLOW_* codes.
+  showOwnUpgradeScreen();
+}
 ```
 
-`failed` carries a `FLOW_*` error code (`FLOW_NOT_ASSIGNED`, `FLOW_UNAVAILABLE`,
-`FLOW_RENDERER_MISSING`, `FLOW_UNSUPPORTED_PACKAGE`, `FLOW_PRESENTATION_FAILED`, `FLOW_DISABLED`);
-keep your own upgrade screen for it. `client.dismissFlow()` closes the flow on screen. Purchases
+- `input` holds the flow's inputs by name. `client.updateFlowInput(values)` changes inputs of the
+  flow on screen and does nothing when none is shown.
+- `actions` holds a handler per app action the flow can call. A handler receives the action's
+  arguments and returns its reply. When a handler throws or rejects, is missing, or is slower than
+  the action allows, the flow runs that action's failure path, so the user is never left waiting.
+- `outcome` is `purchased` (a purchase ended the flow; `productId` names the product), `restored`,
+  `dismissed` (the user or `dismissFlow()` closed it, or another flow replaced it), or the outcome
+  the flow finished with. `output` holds the flow's outputs by name.
+- Values are strings, numbers and booleans.
+
+A flow that cannot be shown rejects with a `VoidhashError` carrying a `FLOW_*` code
+(`FLOW_NOT_ASSIGNED`, `FLOW_UNAVAILABLE`, `FLOW_RENDERER_MISSING`, `FLOW_UNSUPPORTED_PACKAGE`,
+`FLOW_PRESENTATION_FAILED`, `FLOW_DISABLED`); keep your own upgrade screen for it.
+
+The declarations `voidhash-cli types generate` writes type each location's inputs, outputs,
+outcomes and handlers, so `presentFlow("onboarding", …)` is checked at compile time and its result
+is typed; a location without declarations takes and returns plain dictionaries. They also export a
+`flowRevisions` constant, the interface revision of each location the app was built against. Pass
+it once at setup, and every presentation and preload uses it:
+
+```ts
+import { flowRevisions } from "./voidhash.flows.gen";
+
+export const voidhash = createVoidhashClient("vh_pk_...", { flowRevisions });
+```
+
+`client.dismissFlow()` closes the flow on screen. Purchases
 and restores started from a flow go through `purchase()` and `restorePurchases()`, so in observer
 mode a purchase from a flow fails with `READ_ONLY_PURCHASE_NOT_ALLOWED` and the flow shows the
 failure. A failed or cancelled purchase leaves the flow open.
+
+`flowRuntime: "module"` (experimental) draws flows with the flow runtime module each flow names,
+which the SDK downloads once, verifies and caches, so flows can use paywall editor features newer
+than the SDK; the SDK carries one for when the device is offline. It applies to the whole app
+process from the first `init()` and needs the native flow renderer. The default, `"linked"`, uses
+the runtime built into the SDK and leaves a choice made in native code as it is.
 
 A flow may open links by default. Grant more with `flowCapabilities`: `notifications` and
 `tracking` let it ask for those permissions (declare `POST_NOTIFICATIONS` on Android and
@@ -696,7 +738,7 @@ distinct ID is adopted locally and the link from the previous anonymous ID is qu
 seeds the first `init()` of the process only: after `end()`, a later `init()` resumes the identity
 stored on the device, so a sign-out or an `identify()` since is not undone. On a cold start the
 schema can initially be empty; subsequent operations use the refreshed schema when it arrives. A
-product, perk or placement the SDK cannot read (one a newer server shapes differently) is left out
+product, perk or location the SDK cannot read (one a newer server shapes differently) is left out
 and reported as `SCHEMA_ENTRY_SKIPPED`; every other entry is still served.
 
 Requests for selected feature flags can reuse the current identity's cached full evaluation,
@@ -833,10 +875,10 @@ retry that was scheduled before the clock moved backwards is treated as due.
 
 ### Paywalls
 
-A placement whose assignment has ever been resolved on this device is cached and shown during an
-outage, and its flow package stays on disk. A placement that has never resolved makes
-`presentFlow()` fail with `FLOW_UNAVAILABLE`, a state to retry rather than a failure to report.
-`preloadPlacements` downloads flows ahead of the first presentation, and placements the device has
+A location whose assignment has ever been resolved on this device is cached and shown during an
+outage, and its flow package stays on disk. A location that has never resolved makes
+`presentFlow()` reject with `FLOW_UNAVAILABLE`, a state to retry rather than a failure to report.
+`preloadLocations` downloads flows ahead of the first presentation, and locations the device has
 shown before are downloaded again at every launch without being listed. Nothing is resolved or
 downloaded at launch when the build does not include the renderer.
 
@@ -1239,8 +1281,8 @@ Behavior that changed. All of it removes a failure mode; none of it needs a flag
   `variantKey` as `string | null` and the variant's `payload`.
 - The provider reports `status: "failed"` when `init()` fails, instead of `"ready"`, so the
   `retryInit()` path is reachable. Hooks report `isLoading: true` while the provider initializes.
-- `presentFlow()` answers `{ status: "failed" }` with `FLOW_UNAVAILABLE` for a placement that has
-  never been resolved on this device while the server is unreachable.
+- `presentFlow()` rejects with `FLOW_UNAVAILABLE` for a location that has never been resolved on
+  this device while the server is unreachable.
 - `setPersonAttributesSync(...)` on a client created with `enabled: false` now answers
   `{ status: "disabled", person: null }` rather than `deferred` — nothing was recorded, and nothing
   is queued.

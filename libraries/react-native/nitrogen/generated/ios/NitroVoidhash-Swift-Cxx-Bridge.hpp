@@ -34,6 +34,8 @@ namespace margelo::nitro::voidhash { struct NativeFeatureFlag; }
 namespace margelo::nitro::voidhash { struct NativeFeatureFlagsResult; }
 // Forward declaration of `NativeFlowCapability` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
+// Forward declaration of `NativeFlowRevision` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowRevision; }
 // Forward declaration of `NativeFlushStatus` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct NativeFlushStatus; }
 // Forward declaration of `NativeFreshnessReason` to properly resolve imports.
@@ -119,6 +121,7 @@ namespace NitroVoidhash { class HybridVoidhashNativeClientSpec_cxx; }
 #include "NativeFeatureFlag.hpp"
 #include "NativeFeatureFlagsResult.hpp"
 #include "NativeFlowCapability.hpp"
+#include "NativeFlowRevision.hpp"
 #include "NativeFlushStatus.hpp"
 #include "NativeFreshnessReason.hpp"
 #include "NativeGooglePlayPurchaseOptions.hpp"
@@ -206,6 +209,17 @@ namespace margelo::nitro::voidhash::bridge::swift {
   using std__vector_std__string_ = std::vector<std::string>;
   inline std::vector<std::string> create_std__vector_std__string_(size_t size) noexcept {
     std::vector<std::string> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::vector<NativeFlowRevision>
+  /**
+   * Specialized version of `std::vector<NativeFlowRevision>`.
+   */
+  using std__vector_NativeFlowRevision_ = std::vector<NativeFlowRevision>;
+  inline std::vector<NativeFlowRevision> create_std__vector_NativeFlowRevision_(size_t size) noexcept {
+    std::vector<NativeFlowRevision> vector;
     vector.reserve(size);
     return vector;
   }
@@ -1268,6 +1282,63 @@ namespace margelo::nitro::voidhash::bridge::swift {
   Func_void_NativeInAppMessageResult create_Func_void_NativeInAppMessageResult(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_NativeInAppMessageResult_Wrapper wrap_Func_void_NativeInAppMessageResult(Func_void_NativeInAppMessageResult value) noexcept {
     return Func_void_NativeInAppMessageResult_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>
+  /**
+   * Specialized version of `std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string&, const std::string&)>`.
+   */
+  using Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string = std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>;
+  /**
+   * Wrapper class for a `std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& / * name * /, const std::string& / * argsJson * /)>`, this can be used from Swift.
+   */
+  class Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_Wrapper final {
+  public:
+    explicit Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_Wrapper(std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>&& func): _function(std::make_unique<std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>>(std::move(func))) {}
+    inline std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>> call(std::string name, std::string argsJson) const noexcept {
+      auto __result = _function->operator()(name, argsJson);
+      return __result;
+    }
+  private:
+    std::unique_ptr<std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string create_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_Wrapper wrap_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string(Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string value) noexcept {
+    return Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>`.
+   */
+  using std__shared_ptr_Promise_std__shared_ptr_Promise_std__string____ = std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>;
+  inline std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>> create_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string____() noexcept {
+    return Promise<std::shared_ptr<Promise<std::string>>>::create();
+  }
+  inline PromiseHolder<std::shared_ptr<Promise<std::string>>> wrap_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string____(std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>> promise) noexcept {
+    return PromiseHolder<std::shared_ptr<Promise<std::string>>>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const std::shared_ptr<Promise<std::string>>&)>`.
+   */
+  using Func_void_std__shared_ptr_Promise_std__string__ = std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::shared_ptr<Promise<std::string>>& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__shared_ptr_Promise_std__string___Wrapper final {
+  public:
+    explicit Func_void_std__shared_ptr_Promise_std__string___Wrapper(std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>>(std::move(func))) {}
+    inline void call(std::shared_ptr<Promise<std::string>> result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::shared_ptr<Promise<std::string>>& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__shared_ptr_Promise_std__string__ create_Func_void_std__shared_ptr_Promise_std__string__(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__shared_ptr_Promise_std__string___Wrapper wrap_Func_void_std__shared_ptr_Promise_std__string__(Func_void_std__shared_ptr_Promise_std__string__ value) noexcept {
+    return Func_void_std__shared_ptr_Promise_std__string___Wrapper(std::move(value));
   }
   
   // pragma MARK: std::shared_ptr<HybridVoidhashNativeClientSpec>

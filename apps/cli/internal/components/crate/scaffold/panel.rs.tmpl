@@ -1,0 +1,68 @@
+//! The badge's section in the paywall editor's right panel.
+//!
+//! The editor draws it with its own controls. Bound fields are edited by the
+//! editor directly (scrubbing, Mixed values, one undo step per gesture); the
+//! panel only describes which fields show.
+
+use voidhash_ui::panel::prelude::*;
+
+use crate::Shape;
+
+/// The label, accent and shape, and the padding of pill badges.
+#[panel(for = "project/__SLUG__", title = "__TITLE__", multi_selectable)]
+pub fn settings(cx: &mut PanelCx) -> Panel {
+    let mut section = section("__TITLE__")
+        .child(field("Label").child(text_field().placeholder("New").bind(bind::prop("label"))))
+        .child(field("Accent").child(color_field().format("hex").bind(bind::prop("accent"))))
+        .child(
+            field("Shape").child(
+                toggle_group()
+                    .width("full")
+                    .options(enum_options::<Shape>())
+                    .bind(bind::prop("shape")),
+            ),
+        );
+    // Square badges keep their padding; only pills offer it.
+    if cx.prop("shape").read::<Shape>() == Shape::Pill {
+        section = section.child(
+            field("Padding").child(
+                number_field()
+                    .icon("square")
+                    .min(0)
+                    .max(32)
+                    .step(1)
+                    .bind(bind::prop("padding").range(0.0, 32.0).decimals(0)),
+            ),
+        );
+    }
+    panel().child(section)
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use super::*;
+    use voidhash_ui::panel::testing::{Harness, find};
+
+    fn bound(tree: &Value, prop: &str) -> bool {
+        find(tree, |node| {
+            node.get("bind").and_then(|bind| bind.get("prop")).and_then(Value::as_str) == Some(prop)
+        })
+        .is_some()
+    }
+
+    #[test]
+    fn offers_padding_only_for_pills() {
+        let context = |shape: &str| {
+            std::format!(
+                r#"{{ "selection": [{{ "id": "a", "type": "component", "definition": "project/__SLUG__" }}],
+                    "props": {{ "shape": {{ "value": "{shape}", "mixed": false, "isDefault": false }} }} }}"#
+            )
+        };
+        let mut harness = Harness::mount(&SETTINGS, &context("pill"));
+        assert!(bound(&harness.render(), "padding"));
+        harness.update(&context("square"));
+        assert!(!bound(&harness.render(), "padding"));
+    }
+}

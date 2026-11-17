@@ -1,0 +1,24 @@
+The organizations that own your projects: list, create, rename and delete them.
+
+Usage:
+  voidhash org <command> [flags]
+
+Aliases:
+  org, orgs
+
+Commands:
+  list       List the organizations you belong to and their projects.
+  create     Create an organization, with you as its owner.
+  edit       Rename an organization or change its logo.
+  delete     Delete an organization with its projects and all their data.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash org <command> --help' for more about a command.

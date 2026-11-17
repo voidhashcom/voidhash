@@ -33,11 +33,15 @@ final class HybridVoidhashNativeClient: HybridVoidhashNativeClientSpec {
                 grantConsentOnIdentify: configuration.grantConsentOnIdentify,
                 automaticLifecycleEvents: configuration.automaticLifecycleEvents,
                 installAttribution: configuration.installAttribution,
-                preloadPlacements: configuration.preloadPlacements,
+                preloadLocations: configuration.preloadLocations,
+                flowRevisions: Dictionary(
+                    configuration.flowRevisions.map { ($0.location, Int($0.revision)) },
+                    uniquingKeysWith: { _, last in last }),
                 flowCapabilities: Set(
                     configuration.flowCapabilities.compactMap {
                         FlowCapability(rawValue: $0.stringValue)
                     }),
+                flowRuntimeModules: configuration.flowRuntime == .module,
                 screenTrackingEnabled: configuration.screenTrackingEnabled,
                 featureFlagMaxWaitMilliseconds: configuration.featureFlagMaxWaitMs,
                 featureFlagDefaults: configuration.featureFlagDefaults ?? [:],
@@ -157,8 +161,8 @@ final class HybridVoidhashNativeClient: HybridVoidhashNativeClientSpec {
         return Self.promise { [core] in Self.flags(try await core.getFeatureFlags(flagKeys)) }
     }
 
-    func getPaywall(placement: String) throws -> Promise<String> {
-        return Self.promise { [core] in try await core.getPaywall(placement: placement) }
+    func getPaywall(location: String) throws -> Promise<String> {
+        return Self.promise { [core] in try await core.getPaywall(location: location) }
     }
 
     func getProducts() throws -> Promise<[NativeProduct]> {
@@ -354,8 +358,25 @@ final class HybridVoidhashNativeClient: HybridVoidhashNativeClientSpec {
 
     // MARK: - Flows
 
-    func presentFlow(placement: String) throws -> Promise<String> {
-        return Self.promise { [core] in try await core.presentFlow(placement: placement) }
+    func presentFlow(
+        location: String, presentation: NativeFlowPresentation,
+        onAction: @escaping (_ name: String, _ argsJson: String) -> Promise<Promise<String>>
+    ) throws -> Promise<String> {
+        let revision = presentation.revision.map { Int($0) }
+        let inputJson = presentation.inputJson
+        let actions = presentation.actions
+        let runAction = UncheckedFlowAction(onAction)
+        return Self.promise { [core] in
+            try await core.presentFlow(
+                location: location, revision: revision, inputJson: inputJson, actions: actions,
+                onAction: { name, argumentsJson in
+                    try await runAction.call(name, argumentsJson)
+                })
+        }
+    }
+
+    func updateFlowInput(valuesJson: String) throws -> Promise<Void> {
+        return Self.promise { [core] in try await core.updateFlowInput(valuesJson: valuesJson) }
     }
 
     func dismissFlow() throws -> Promise<Void> {
@@ -566,5 +587,22 @@ private final class UncheckedListener: @unchecked Sendable {
 
     func call(_ event: NativeClientEvent) {
         listener(event)
+    }
+}
+
+/// The JavaScript function Nitro hands over for a flow's app actions, callable from any thread:
+/// Nitro dispatches each call to the JavaScript thread.
+private final class UncheckedFlowAction: @unchecked Sendable {
+    private let action: (_ name: String, _ argsJson: String) -> Promise<Promise<String>>
+
+    init(_ action: @escaping (_ name: String, _ argsJson: String) -> Promise<Promise<String>>) {
+        self.action = action
+    }
+
+    /// Runs the JavaScript handler of `name` and returns its reply. The call into JavaScript
+    /// resolves once the handler was invoked, with the promise the handler returned; the reply
+    /// is that promise's value.
+    func call(_ name: String, _ argumentsJson: String) async throws -> String {
+        return try await action(name, argumentsJson).await().await()
     }
 }

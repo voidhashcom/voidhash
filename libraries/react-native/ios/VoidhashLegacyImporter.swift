@@ -9,7 +9,7 @@ import Foundation
 /// Both wrote to the same `UserDefaults` namespace and the same Application Support directory,
 /// with the same envelope, so most cache entries are the native client's already: the identity,
 /// the session, the last-seen release, person snapshots, the schema, paywall resolutions, known
-/// placements, flow state, processed-transaction markers and the restored-series owners are kept
+/// locations, flow state, processed-transaction markers and the restored-series owners are kept
 /// as they are. What differs is converted (the consent key, flag keys, a `null` person or
 /// paywall, the TypeScript queues) or dropped (the store-product cache, the SDK-started markers).
 ///

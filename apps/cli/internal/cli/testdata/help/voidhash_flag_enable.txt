@@ -1,0 +1,30 @@
+Turn a flag on in production, or in test with --env test, optionally for a share of end users. Its
+overrides and rules stay. Lowering the share of a flag that is already on in production asks first;
+--yes skips that.
+
+Usage:
+  voidhash flag enable [flag] [flags]
+
+Arguments:
+  flag  The flag's key or id
+
+Flags:
+      --env <production|test>  The environment: production, or test, which apps using a test key
+                               read; test follows production until something is changed in it
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+      --rollout <share>        The share of end users who get it, such as 25% (default: as it was)
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash flag enable new-checkout --rollout 10%
+  voidhash flag enable new-checkout --rollout 100% --env test

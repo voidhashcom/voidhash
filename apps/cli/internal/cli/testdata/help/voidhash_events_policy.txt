@@ -1,0 +1,23 @@
+Which events the project stores: built-in events are stored once enabled, custom events unless
+blocked.
+
+Usage:
+  voidhash events policy <command> [flags]
+
+Commands:
+  view       Show which built-in events are stored and which custom events are blocked.
+  enable     Start storing a built-in event, such as $pageview.
+  disable    Stop storing a built-in event.
+  block      Stop storing a custom event.
+  unblock    Store a blocked custom event again.
+
+Flags:
+  -h, --help  Show help for this command
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Run 'voidhash events policy <command> --help' for more about a command.

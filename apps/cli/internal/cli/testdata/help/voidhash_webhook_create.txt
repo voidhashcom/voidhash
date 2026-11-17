@@ -1,0 +1,38 @@
+Create a webhook and print its signing secret, shown only this once. Asks for what is missing on a
+terminal.
+
+A production webhook receives the purchase events of production keys; a test webhook those of store
+sandbox and test purchases. Person events reach both.
+
+Events: purchase.completed, purchase.refunded, purchase.revoked, subscription.created,
+subscription.renewed, subscription.product_changed, subscription.cancelled, subscription.expired,
+person.deleted. purchase.*, subscription.* and person.* name a group, and all every event that is
+sent.
+
+Usage:
+  voidhash webhook create [flags]
+
+Flags:
+      --description <description>  A note for your team
+      --environment <production|test>
+                                   Which purchase events it receives: production (default), or test
+                                   for a staging backend
+      --event <event>              An event to send, such as purchase.completed, a group such as
+                                   subscription.*, or all; repeat for each (can be repeated)
+  -h, --help                       Show help for this command
+      --json                       Print the API objects as JSON, for scripts
+      --name <name>                What it is for, such as Orders backend
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+  -q, --quiet                      Print only ids, one per line
+      --url <url>                  The public URL Voidhash POSTs events to
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash webhook create --name "Orders backend" --url https://example.com/webhooks/voidhash --event purchase.* --event subscription.renewed
+  voidhash webhook create --name Staging --url https://staging.example.com/hooks --event all --environment test

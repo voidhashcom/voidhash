@@ -487,9 +487,9 @@ open class HybridVoidhashNativeClientSpec_cxx {
   }
   
   @inline(__always)
-  public final func getPaywall(placement: std.string) -> bridge.Result_std__shared_ptr_Promise_std__string___ {
+  public final func getPaywall(location: std.string) -> bridge.Result_std__shared_ptr_Promise_std__string___ {
     do {
-      let __result = try self.__implementation.getPaywall(placement: String(placement))
+      let __result = try self.__implementation.getPaywall(location: String(location))
       let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__string__ in
         let __promise = bridge.create_std__shared_ptr_Promise_std__string__()
         let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__string__(__promise)
@@ -983,9 +983,35 @@ open class HybridVoidhashNativeClientSpec_cxx {
   }
   
   @inline(__always)
-  public final func presentFlow(placement: std.string) -> bridge.Result_std__shared_ptr_Promise_std__string___ {
+  public final func presentFlow(location: std.string, presentation: NativeFlowPresentation, onAction: bridge.Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string) -> bridge.Result_std__shared_ptr_Promise_std__string___ {
     do {
-      let __result = try self.__implementation.presentFlow(placement: String(placement))
+      let __result = try self.__implementation.presentFlow(location: String(location), presentation: presentation, onAction: { () -> (String, String) -> Promise<Promise<String>> in
+        let __wrappedFunction = bridge.wrap_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string_____std__string_std__string(onAction)
+        return { (__name: String, __argsJson: String) -> Promise<Promise<String>> in
+          let __result = __wrappedFunction.call(std.string(__name), std.string(__argsJson))
+          return { () -> Promise<Promise<String>> in
+            let __promise = Promise<Promise<String>>()
+            let __resolver = { (__result: Promise<String>) in
+              __promise.resolve(withResult: __result)
+            }
+            let __rejecter = { (__error: Error) in
+              __promise.reject(withError: __error)
+            }
+            let __resolverCpp = { () -> bridge.Func_void_std__shared_ptr_Promise_std__string__ in
+              let __closureWrapper = Func_void_std__shared_ptr_Promise_std__string__(__resolver)
+              return bridge.create_Func_void_std__shared_ptr_Promise_std__string__(__closureWrapper.toUnsafe())
+            }()
+            let __rejecterCpp = { () -> bridge.Func_void_std__exception_ptr in
+              let __closureWrapper = Func_void_std__exception_ptr(__rejecter)
+              return bridge.create_Func_void_std__exception_ptr(__closureWrapper.toUnsafe())
+            }()
+            let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__shared_ptr_Promise_std__string____(__result)
+            __promiseHolder.addOnResolvedListener(__resolverCpp)
+            __promiseHolder.addOnRejectedListener(__rejecterCpp)
+            return __promise
+          }()
+        }
+      }())
       let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__string__ in
         let __promise = bridge.create_std__shared_ptr_Promise_std__string__()
         let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__string__(__promise)
@@ -998,6 +1024,25 @@ open class HybridVoidhashNativeClientSpec_cxx {
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
       return bridge.create_Result_std__shared_ptr_Promise_std__string___(__exceptionPtr)
+    }
+  }
+  
+  @inline(__always)
+  public final func updateFlowInput(valuesJson: std.string) -> bridge.Result_std__shared_ptr_Promise_void___ {
+    do {
+      let __result = try self.__implementation.updateFlowInput(valuesJson: String(valuesJson))
+      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_void__ in
+        let __promise = bridge.create_std__shared_ptr_Promise_void__()
+        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_void__(__promise)
+        __result
+          .then({ __result in __promiseHolder.resolve() })
+          .catch({ __error in __promiseHolder.reject(__error.toCpp()) })
+        return __promise
+      }()
+      return bridge.create_Result_std__shared_ptr_Promise_void___(__resultCpp)
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_std__shared_ptr_Promise_void___(__exceptionPtr)
     }
   }
   

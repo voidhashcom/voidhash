@@ -1,0 +1,27 @@
+Remove one of a location's rules by its number, in production or in test with --env test. 'voidhash
+location view' lists the rules of each with their numbers.
+
+Usage:
+  voidhash location rule remove [location] <position> [flags]
+
+Arguments:
+  location  The location's slug, name or id
+  position  The rule's number, as 'voidhash location view' lists it, from 1
+
+Flags:
+      --env <production|test>  Whose apps the rule answers: production (the default), whose rules
+                               answer every app, or test, whose rules answer apps using a test key
+                               only and are read first there
+  -h, --help                   Show help for this command
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location rule remove home 1
+  voidhash location rule remove home 2 --env test

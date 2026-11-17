@@ -34,15 +34,22 @@ public struct VoidhashOptions: Sendable {
     /// documented fallback: a paused transport, an evicted queue entry, an opened circuit
     /// breaker, a rejected key, an unreadable cache entry. Handler exceptions never propagate.
     public var onDiagnostic: VoidhashDiagnosticHandler?
-    /// Placements to fetch and warm on the first launch, before the app asks for them.
+    /// Locations to fetch and warm on the first launch, before the app asks for them.
     ///
     /// Inert while no flow can be shown: without a ``paywallRenderer`` the SDK resolves,
-    /// remembers and warms no placement. Otherwise placements the device has already resolved are
+    /// remembers and warms no location. Otherwise locations the device has already resolved are
     /// remembered and preloaded automatically; this option covers the very first launch, where
     /// there is no history yet.
-    public var preloadPlacements: [String]
+    public var preloadLocations: [String]
+    /// The revision of each location's interface the app was built against, by location slug.
+    ///
+    /// Preloading and background refreshes ask for the flow of a location at this revision,
+    /// and a presentation that names no revision uses it. A location that is not listed counts
+    /// as revision 0, or, once presented, as the revision it was last presented with.
+    public var flowRevisions: [String: Int]
     /// Native renderer for paywalls and flows, `VoidhashUIPaywallRenderer()` from the
-    /// `VoidhashUI` package. Without one, ``VoidhashClient/presentFlow(placement:)`` returns
+    /// `VoidhashUI` package. Without one,
+    /// ``VoidhashClient/presentFlow(location:revision:input:actions:)`` throws
     /// ``FlowError/rendererMissing``.
     public var paywallRenderer: (any PaywallRenderer)?
     /// What flows may do beyond purchases, restores and analytics. Defaults to opening links.
@@ -114,7 +121,8 @@ public struct VoidhashOptions: Sendable {
         dev: Bool = false,
         onWarning: VoidhashWarningHandler? = nil,
         onDiagnostic: VoidhashDiagnosticHandler? = nil,
-        preloadPlacements: [String] = [],
+        preloadLocations: [String] = [],
+        flowRevisions: [String: Int] = [:],
         screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
         automaticLifecycleEvents: Bool = true,
         analyticsConsent: AnalyticsConsent = .granted,
@@ -136,7 +144,8 @@ public struct VoidhashOptions: Sendable {
         self.dev = dev
         self.onWarning = onWarning
         self.onDiagnostic = onDiagnostic
-        self.preloadPlacements = preloadPlacements
+        self.preloadLocations = preloadLocations
+        self.flowRevisions = flowRevisions
         self.screenTracking = screenTracking
         self.automaticLifecycleEvents = automaticLifecycleEvents
         self.analyticsConsent = analyticsConsent

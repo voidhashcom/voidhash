@@ -49,6 +49,8 @@ namespace margelo::nitro::voidhash { struct NativeTransaction; }
 namespace margelo::nitro::voidhash { struct NativeInAppMessageResult; }
 // Forward declaration of `NativeAnalyticsConsent` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeAnalyticsConsent; }
+// Forward declaration of `NativeFlowPresentation` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeFlowPresentation; }
 
 #include "NativeClientConfiguration.hpp"
 #include <NitroModules/Promise.hpp>
@@ -74,6 +76,7 @@ namespace margelo::nitro::voidhash { enum class NativeAnalyticsConsent; }
 #include "NativeTransaction.hpp"
 #include "NativeInAppMessageResult.hpp"
 #include "NativeAnalyticsConsent.hpp"
+#include "NativeFlowPresentation.hpp"
 
 namespace margelo::nitro::voidhash {
 
@@ -125,7 +128,7 @@ namespace margelo::nitro::voidhash {
       virtual std::shared_ptr<Promise<NativePersonState>> getPersonState(bool forceFetch) = 0;
       virtual std::shared_ptr<Promise<void>> resetPersonCache() = 0;
       virtual std::shared_ptr<Promise<NativeFeatureFlagsResult>> getFeatureFlags(const std::optional<std::vector<std::string>>& flagKeys) = 0;
-      virtual std::shared_ptr<Promise<std::string>> getPaywall(const std::string& placement) = 0;
+      virtual std::shared_ptr<Promise<std::string>> getPaywall(const std::string& location) = 0;
       virtual std::shared_ptr<Promise<std::vector<NativeProduct>>> getProducts() = 0;
       virtual std::shared_ptr<Promise<NativePurchaseResult>> purchase(const std::string& productSlug, const NativePurchaseOptions& options) = 0;
       virtual std::shared_ptr<Promise<NativePersonState>> restorePurchases() = 0;
@@ -152,7 +155,8 @@ namespace margelo::nitro::voidhash {
       virtual void screenAt(const std::string& name, const std::string& propertiesJson, double capturedAt) = 0;
       virtual std::shared_ptr<Promise<NativeFlushStatus>> flush() = 0;
       virtual std::string getSessionId() = 0;
-      virtual std::shared_ptr<Promise<std::string>> presentFlow(const std::string& placement) = 0;
+      virtual std::shared_ptr<Promise<std::string>> presentFlow(const std::string& location, const NativeFlowPresentation& presentation, const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::string>>>>(const std::string& /* name */, const std::string& /* argsJson */)>& onAction) = 0;
+      virtual std::shared_ptr<Promise<void>> updateFlowInput(const std::string& valuesJson) = 0;
       virtual std::shared_ptr<Promise<void>> dismissFlow() = 0;
 
     protected:

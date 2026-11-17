@@ -32,7 +32,7 @@ public protocol HybridVoidhashNativeClientSpec_protocol: HybridObject {
   func getPersonState(forceFetch: Bool) throws -> Promise<NativePersonState>
   func resetPersonCache() throws -> Promise<Void>
   func getFeatureFlags(flagKeys: [String]?) throws -> Promise<NativeFeatureFlagsResult>
-  func getPaywall(placement: String) throws -> Promise<String>
+  func getPaywall(location: String) throws -> Promise<String>
   func getProducts() throws -> Promise<[NativeProduct]>
   func purchase(productSlug: String, options: NativePurchaseOptions) throws -> Promise<NativePurchaseResult>
   func restorePurchases() throws -> Promise<NativePersonState>
@@ -59,7 +59,8 @@ public protocol HybridVoidhashNativeClientSpec_protocol: HybridObject {
   func screenAt(name: String, propertiesJson: String, capturedAt: Double) throws -> Void
   func flush() throws -> Promise<NativeFlushStatus>
   func getSessionId() throws -> String
-  func presentFlow(placement: String) throws -> Promise<String>
+  func presentFlow(location: String, presentation: NativeFlowPresentation, onAction: @escaping (_ name: String, _ argsJson: String) -> Promise<Promise<String>>) throws -> Promise<String>
+  func updateFlowInput(valuesJson: String) throws -> Promise<Void>
   func dismissFlow() throws -> Promise<Void>
 }
 

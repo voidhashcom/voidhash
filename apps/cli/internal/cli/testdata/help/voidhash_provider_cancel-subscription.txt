@@ -1,0 +1,28 @@
+Cancel a subscription at its payment source, which must implement cancellations; Voidhash records
+the state it answers with. Asks first; --yes skips that.
+
+Usage:
+  voidhash provider cancel-subscription [source] [flags]
+
+Arguments:
+  source  The payment source: its slug, name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --now                End access now instead of at the end of the paid period
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --subscription <id>  The subscription's id at the source
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider cancel-subscription paddle --subscription sub_123
+  voidhash provider cancel-subscription paddle --subscription sub_123 --now --yes

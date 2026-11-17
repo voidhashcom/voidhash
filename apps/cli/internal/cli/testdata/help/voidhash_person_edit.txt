@@ -1,0 +1,31 @@
+Change a person's email, name or attributes. Your app's SDK may overwrite them the next time it sets
+them: the newest write wins.
+
+Usage:
+  voidhash person edit [person] [flags]
+
+Arguments:
+  person  The person's email, distinct id (the id your app identifies them by) or id
+
+Flags:
+      --email <email>         Their new email
+  -h, --help                  Show help for this command
+      --json                  Print the API objects as JSON, for scripts
+      --name <name>           Their new name
+      --project <project>     Project to act on: its id, slug, organization/slug or name (default:
+                              this directory's project, then your default project)
+  -q, --quiet                 Print only ids, one per line
+      --set <key=value>       An attribute to set, as key=value (numbers, true, false and null as
+                              such) (can be repeated)
+      --set-once <key=value>  An attribute to set only when they have none yet, as key=value (can be
+                              repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person edit user-42 --email ada@example.com
+  voidhash person edit ada@example.com --set plan=team --set seats=5 --set-once referrer=newsletter

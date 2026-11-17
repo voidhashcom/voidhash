@@ -18,7 +18,7 @@ public extension NativeClientConfiguration {
   /**
    * Create a new instance of `NativeClientConfiguration`.
    */
-  init(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Bool, developmentMode: Bool, distinctId: String?, readOnly: Bool, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Bool, automaticLifecycleEvents: Bool, installAttribution: Bool, metaAppId: String?, preloadPlacements: [String], flowCapabilities: [NativeFlowCapability], screenTrackingEnabled: Bool, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Dictionary<String, Bool>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String) {
+  init(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Bool, developmentMode: Bool, distinctId: String?, readOnly: Bool, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Bool, automaticLifecycleEvents: Bool, installAttribution: Bool, metaAppId: String?, preloadLocations: [String], flowRevisions: [NativeFlowRevision], flowCapabilities: [NativeFlowCapability], flowRuntime: NativeFlowRuntime, screenTrackingEnabled: Bool, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Dictionary<String, Bool>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String) {
     self.init(std.string(publishableKey), std.string(baseUrl), { () -> bridge.std__optional_std__string_ in
       if let __unwrappedValue = ingestUrl {
         return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
@@ -44,9 +44,15 @@ public extension NativeClientConfiguration {
         return .init()
       }
     }(), { () -> bridge.std__vector_std__string_ in
-      var __vector = bridge.create_std__vector_std__string_(preloadPlacements.count)
-      for __item in preloadPlacements {
+      var __vector = bridge.create_std__vector_std__string_(preloadLocations.count)
+      for __item in preloadLocations {
         __vector.push_back(std.string(__item))
+      }
+      return __vector
+    }(), { () -> bridge.std__vector_NativeFlowRevision_ in
+      var __vector = bridge.create_std__vector_NativeFlowRevision_(flowRevisions.count)
+      for __item in flowRevisions {
+        __vector.push_back(__item)
       }
       return __vector
     }(), { () -> bridge.std__vector_NativeFlowCapability_ in
@@ -55,7 +61,7 @@ public extension NativeClientConfiguration {
         __vector.push_back(__item)
       }
       return __vector
-    }(), screenTrackingEnabled, { () -> bridge.std__optional_double_ in
+    }(), flowRuntime, screenTrackingEnabled, { () -> bridge.std__optional_double_ in
       if let __unwrappedValue = featureFlagMaxWaitMs {
         return bridge.create_std__optional_double_(__unwrappedValue)
       } else {
@@ -174,13 +180,23 @@ public extension NativeClientConfiguration {
   }
   
   @inline(__always)
-  var preloadPlacements: [String] {
-    return self.__preloadPlacements.map({ __item in String(__item) })
+  var preloadLocations: [String] {
+    return self.__preloadLocations.map({ __item in String(__item) })
+  }
+  
+  @inline(__always)
+  var flowRevisions: [NativeFlowRevision] {
+    return self.__flowRevisions.map({ __item in __item })
   }
   
   @inline(__always)
   var flowCapabilities: [NativeFlowCapability] {
     return self.__flowCapabilities.map({ __item in __item })
+  }
+  
+  @inline(__always)
+  var flowRuntime: NativeFlowRuntime {
+    return self.__flowRuntime
   }
   
   @inline(__always)

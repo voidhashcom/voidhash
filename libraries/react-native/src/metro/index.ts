@@ -21,8 +21,9 @@
  * `.d.ts`.
  *
  * `voidhash-cli` is not a dependency of this package — install it as a dev
- * dependency to enable the watch integration. If the binary isn't on PATH,
- * the dev server keeps running and a warning is emitted.
+ * dependency to enable the watch integration, or point `cliBinary` at a
+ * `voidhash` installed another way. If the binary isn't on PATH, the dev
+ * server keeps running and a warning is emitted.
  */
 
 // We avoid pulling in `@types/node` so the SDK's TypeScript compilation
@@ -73,7 +74,10 @@ const isEnhanceMiddleware = (value: unknown): value is EnhanceMiddleware => P.is
 export interface WithVoidhashOptions {
   /** How often to poll the server for schema changes (ms). Default 5000. */
   pollIntervalMs?: number;
-  /** Path to the `voidhash-cli` binary. Defaults to picking it up via $PATH. */
+  /**
+   * The CLI to run: a path, or a name on $PATH such as `voidhash`. Defaults to
+   * `voidhash-cli`, which the npm package of that name provides.
+   */
   cliBinary?: string;
   /** Additional CLI arguments forwarded after `types generate --watch`. */
   extraArgs?: ReadonlyArray<string>;
@@ -133,7 +137,7 @@ function startWatcher(options: WithVoidhashOptions) {
       childProcess.on("error", (error) => {
         process.emitWarning(
           `[voidhash/metro] Failed to spawn '${binary} ${args.join(" ")}': ${error.message}. ` +
-            "Ensure voidhash-cli is installed in this project.",
+            "Install voidhash-cli as a dev dependency of this project, or set cliBinary.",
         );
         activeChildProcess = Option.none();
       });

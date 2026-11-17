@@ -43,6 +43,9 @@ class SchemaLocationJsonEncodingNormalizer implements DenormalizerInterface, Nor
         elseif (\array_key_exists('description', $data) && $data['description'] === null) {
             $object->setDescription(null);
         }
+        if (\array_key_exists('interface', $data)) {
+            $object->setInterface($this->denormalizer->denormalize($data['interface'], \Voidhash\Generated\Core\Model\LocationInterface::class, 'json', $context));
+        }
         if (\array_key_exists('name', $data)) {
             $object->setName($data['name']);
         }
@@ -55,6 +58,7 @@ class SchemaLocationJsonEncodingNormalizer implements DenormalizerInterface, Nor
     {
         $dataArray = [];
         $dataArray['description'] = $data->getDescription();
+        $dataArray['interface'] = $this->normalizer->normalize($data->getInterface(), 'json', $context);
         $dataArray['name'] = $data->getName();
         $dataArray['slug'] = $data->getSlug();
         return $dataArray;

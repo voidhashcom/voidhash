@@ -15,7 +15,7 @@ public enum NetworkPolicy {
     /// which can be large enough to need more than ``resourceTimeoutSeconds`` on a slow network.
     public static let downloadResourceTimeoutSeconds: TimeInterval = 60
     /// Longest a flow may take from the call that presents it until it is handed to the renderer:
-    /// resolving the placement, downloading the package and waiting for a flow before it to
+    /// resolving the location, downloading the package and waiting for a flow before it to
     /// leave the screen. Past it nothing is shown; the package is still downloaded for the next
     /// presentation.
     public static let flowPresentationDeadlineSeconds: TimeInterval = 15

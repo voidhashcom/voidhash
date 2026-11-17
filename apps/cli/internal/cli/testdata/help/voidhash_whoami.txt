@@ -1,0 +1,19 @@
+Show who the CLI is signed in as, on which server and where the credential came from, and the
+organizations and projects it can use. Exits with 3 when no one is signed in.
+
+Usage:
+  voidhash whoami [flags]
+
+Flags:
+  -h, --help  Show help for this command
+      --json  Print the API objects as JSON, for scripts
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash whoami
+  voidhash whoami --json

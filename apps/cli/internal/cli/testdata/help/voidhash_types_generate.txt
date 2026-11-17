@@ -1,0 +1,40 @@
+Write the type files of this directory's project from its products, paywall locations and perks as
+they are now.
+
+The files are listed under "types" in voidhash.json, each with its "language" (typescript, swift or
+kotlin) and "output" path. Without any, one TypeScript declaration file is written to
+voidhash.gen.d.ts.
+
+A TypeScript file types the Voidhash SDKs the package.json in this directory depends on,
+@voidhash/react-native and @voidhash/web, or @voidhash/react-native without either. It also lists
+the project's feature flag keys, leaving archived flags out, and the text values of their variants;
+a flag or variant added since the file was written is not in it.
+
+With --watch the command keeps running: it asks the server for the project's version every
+--poll-interval-ms and writes the files again when it changed. The version does not cover feature
+flags, so it reads them every 30 seconds at most and writes the files again when they changed. The
+React Native Metro plugin runs it this way next to the dev server.
+
+Usage:
+  voidhash types generate [flags]
+
+Flags:
+  -h, --help           Show help for this command
+      --language <typescript|swift|kotlin>
+                       Only the files of this language
+      --output <path>  Use this path instead of the configured one; needs --language when several
+                       files are configured
+      --poll-interval-ms <milliseconds>
+                       How often --watch asks the server, in milliseconds (default: 5000)
+      --watch          Keep running, and write the files again when the project changes
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash types generate
+  voidhash types generate --watch
+  voidhash types generate --language swift --output App/VoidhashTypes.swift
