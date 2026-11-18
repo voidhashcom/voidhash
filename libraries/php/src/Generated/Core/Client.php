@@ -2043,7 +2043,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\IngestPolicyUpsertCustomEvent($projectId, $eventName, $requestBody), $fetch);
     }
     /**
-     * Lists the project's push notifications, newest first, with how many deliveries succeeded, failed or were skipped.
+     * Lists the project's push notifications, newest first, with how many deliveries succeeded, failed or were skipped. Fails with `invalid_request` (`invalid_cursor`) for a cursor this list did not return.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -2084,7 +2084,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PushNotificationsCreate($projectId, $requestBody, $headerParameters), $fetch);
     }
     /**
-     * Lists the deliveries of a push notification, one per device, oldest first, optionally only those with one `status` (such as `failed`). Fails with `not_found` (`push_notification_not_found`).
+     * Lists the deliveries of a push notification, one per device, oldest first, optionally only those with one `status` (such as `failed`). Fails with `not_found` (`push_notification_not_found`), and with `invalid_request` (`invalid_cursor`) for a cursor this list did not return.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $pushNotificationId The push notification's id, `push_send_...`.
      * @param array{
@@ -3823,10 +3823,10 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PushNotificationConfigurationsUpdate($projectId, $configurationId, $requestBody), $fetch);
     }
     /**
-     * Reads the project's products, perks, paywall locations, enabled providers and the natively rendered components of its deployed paywalls, behind a `sha256:<hex>` `ETag`. Answers `304` without a body when `If-None-Match` names the current version.
+     * Reads the project's products, perks, paywall locations, enabled providers and the natively rendered components of its deployed paywalls. The `ETag` is a `sha256:<hex>` hash of the response, which changes with anything in it, including what the version leaves out. Answers `304` without a body when `If-None-Match` names the current `ETag`.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
-     *    "if-none-match"?: string, //The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+     *    "if-none-match"?: string, //The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
      * } $headerParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SchemaGetBadRequestException
@@ -3842,10 +3842,10 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\SchemaGet($projectId, $headerParameters), $fetch);
     }
     /**
-     * Reads only the schema's version, to check for changes without the body. Same `ETag` and `If-None-Match` rules as reading the schema.
+     * Reads only the schema's version, to check whether generated code is out of date without the body. The `ETag` is the version. Answers `304` without a body when `If-None-Match` names it.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
-     *    "if-none-match"?: string, //The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+     *    "if-none-match"?: string, //The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
      * } $headerParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SchemaGetVersionBadRequestException
@@ -4159,7 +4159,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\SdkResolvePaywall($requestBody, $headerParameters), $fetch);
     }
     /**
-     * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. `schema.get` serves the same schema to the management API.
+     * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. The `ETag` is a `sha256:<hex>` hash of the response, which changes with anything in it, including the products' ids, which the version leaves out. Answers `304` without a body when `If-None-Match` names the current `ETag`. `schema.get` serves the same schema to the management API.
      * @param array{
      *    "x-distinct-id": string, //The distinct id of the end user the request acts for: the anonymous `vh_anon_…` id the SDK generated, or the id the app identified them with. At most 255 characters.
      *    "x-distinct-id-encoding"?: string, //`percent` when `x-distinct-id` holds the RFC 3986 percent-encoded UTF-8 form of an id that is not printable ASCII; leave it out when the header holds the id as is.
@@ -5451,7 +5451,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\BoardsListTasks($projectId, $boardId, $queryParameters), $fetch);
     }
     /**
-     * Adds a task to the end of a column, the board's first when `columnId` is left out. Repeating a create with the same `Idempotency-Key` header returns the first task instead of adding another. Assignees must be members of the project's organization or bots added to the project (`assignee_not_found`).
+     * Adds a task to the end of a column, the board's first when `columnId` is left out. Repeating a create with the same `Idempotency-Key` header returns the first task instead of adding another. Keys are kept per project: a key whose task is not on this board (made on another board, or deleted since) fails with `conflict` (`idempotency_key_reused`). Assignees must be members of the project's organization or bots added to the project (`assignee_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $boardId
      * @param \Voidhash\Generated\Core\Model\CreateBoardTaskBodyJsonEncoding $requestBody

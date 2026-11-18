@@ -2047,7 +2047,7 @@ export interface SdkSchemaJsonEncoding {
    */
   readonly products: Record<string, unknown>;
   /**
-   * The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+   * The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
    */
   readonly version: string;
 }
@@ -3162,7 +3162,7 @@ export interface VoidhashSdkClient {
     | VoidhashSdkClientError<"SdkResolvePaywall500", SdkResolvePaywall500>
   >;
   /**
-   * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. `schema.get` serves the same schema to the management API.
+   * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. The `ETag` is a `sha256:<hex>` hash of the response, which changes with anything in it, including the products' ids, which the version leaves out. Answers `304` without a body when `If-None-Match` names the current `ETag`. `schema.get` serves the same schema to the management API.
    */
   readonly sdkGetSdkSchema: (
     options: SdkGetSdkSchemaParams,

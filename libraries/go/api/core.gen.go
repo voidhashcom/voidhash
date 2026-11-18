@@ -11069,7 +11069,7 @@ type ProjectSchemaResponseJsonEncoding struct {
 	// Products The project's products.
 	Products []SchemaProductJsonEncoding `json:"products"`
 
-	// Version The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+	// Version The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
 	Version string `json:"version"`
 }
 
@@ -12088,7 +12088,7 @@ type SchemaProductProviderJsonEncodingProviderId string
 
 // SchemaVersionJsonEncoding defines model for SchemaVersionJsonEncoding.
 type SchemaVersionJsonEncoding struct {
-	// Version The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+	// Version The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is. Also the `ETag` of the response.
 	Version string `json:"version"`
 }
 
@@ -12501,7 +12501,7 @@ type SdkSchemaJsonEncoding struct {
 	// Products The project's products, keyed by slug.
 	Products map[string]SdkSchemaProductJsonEncoding `json:"products"`
 
-	// Version The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+	// Version The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
 	Version string `json:"version"`
 }
 
@@ -13772,14 +13772,14 @@ type WebhookDeliveryJsonEncoding struct {
 	// ProjectId The project the delivery belongs to.
 	ProjectId string `json:"projectId"`
 
-	// Status `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+	// Status `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
 	Status WebhookDeliveryJsonEncodingStatus `json:"status"`
 
 	// WebhookId The webhook it is sent to.
 	WebhookId string `json:"webhookId"`
 }
 
-// WebhookDeliveryJsonEncodingStatus `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+// WebhookDeliveryJsonEncodingStatus `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
 type WebhookDeliveryJsonEncodingStatus string
 
 // WebhookDeliveryWithAttemptsJsonEncoding defines model for WebhookDeliveryWithAttemptsJsonEncoding.
@@ -13817,14 +13817,14 @@ type WebhookDeliveryWithAttemptsJsonEncoding struct {
 	// ProjectId The project the delivery belongs to.
 	ProjectId string `json:"projectId"`
 
-	// Status `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+	// Status `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
 	Status WebhookDeliveryWithAttemptsJsonEncodingStatus `json:"status"`
 
 	// WebhookId The webhook it is sent to.
 	WebhookId string `json:"webhookId"`
 }
 
-// WebhookDeliveryWithAttemptsJsonEncodingStatus `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+// WebhookDeliveryWithAttemptsJsonEncodingStatus `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
 type WebhookDeliveryWithAttemptsJsonEncodingStatus string
 
 // WebhookJsonEncoding defines model for WebhookJsonEncoding.
@@ -14852,13 +14852,13 @@ type SandboxGetStateParams struct {
 
 // SchemaGetParams defines parameters for SchemaGet.
 type SchemaGetParams struct {
-	// IfNoneMatch The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+	// IfNoneMatch The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
 	IfNoneMatch *string `json:"if-none-match,omitempty"`
 }
 
 // SchemaGetVersionParams defines parameters for SchemaGetVersion.
 type SchemaGetVersionParams struct {
-	// IfNoneMatch The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+	// IfNoneMatch The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
 	IfNoneMatch *string `json:"if-none-match,omitempty"`
 }
 

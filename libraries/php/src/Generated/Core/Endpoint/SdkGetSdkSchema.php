@@ -5,7 +5,7 @@ namespace Voidhash\Generated\Core\Endpoint;
 class SdkGetSdkSchema extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint implements \Voidhash\Generated\Core\Runtime\Client\Endpoint
 {
     /**
-     * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. `schema.get` serves the same schema to the management API.
+     * Reads the project's products, perks and paywall locations, keyed by slug, in the shape the SDKs use, with the schema's version. The `ETag` is a `sha256:<hex>` hash of the response, which changes with anything in it, including the products' ids, which the version leaves out. Answers `304` without a body when `If-None-Match` names the current `ETag`. `schema.get` serves the same schema to the management API.
      * @param array{
      *    "x-distinct-id": string, //The distinct id of the end user the request acts for: the anonymous `vh_anon_…` id the SDK generated, or the id the app identified them with. At most 255 characters.
      *    "x-distinct-id-encoding"?: string, //`percent` when `x-distinct-id` holds the RFC 3986 percent-encoded UTF-8 form of an id that is not printable ASCII; leave it out when the header holds the id as is.

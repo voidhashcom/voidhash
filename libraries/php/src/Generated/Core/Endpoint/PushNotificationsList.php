@@ -6,7 +6,7 @@ class PushNotificationsList extends \Voidhash\Generated\Core\Runtime\Client\Base
 {
     protected $projectId;
     /**
-     * Lists the project's push notifications, newest first, with how many deliveries succeeded, failed or were skipped.
+     * Lists the project's push notifications, newest first, with how many deliveries succeeded, failed or were skipped. Fails with `invalid_request` (`invalid_cursor`) for a cursor this list did not return.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.

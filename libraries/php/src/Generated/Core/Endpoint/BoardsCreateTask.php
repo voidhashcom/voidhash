@@ -7,7 +7,7 @@ class BoardsCreateTask extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpo
     protected $projectId;
     protected $boardId;
     /**
-     * Adds a task to the end of a column, the board's first when `columnId` is left out. Repeating a create with the same `Idempotency-Key` header returns the first task instead of adding another. Assignees must be members of the project's organization or bots added to the project (`assignee_not_found`).
+     * Adds a task to the end of a column, the board's first when `columnId` is left out. Repeating a create with the same `Idempotency-Key` header returns the first task instead of adding another. Keys are kept per project: a key whose task is not on this board (made on another board, or deleted since) fails with `conflict` (`idempotency_key_reused`). Assignees must be members of the project's organization or bots added to the project (`assignee_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $boardId
      * @param \Voidhash\Generated\Core\Model\CreateBoardTaskBodyJsonEncoding $requestBody

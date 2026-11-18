@@ -6,10 +6,10 @@ class SchemaGet extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint imp
 {
     protected $projectId;
     /**
-     * Reads the project's products, perks, paywall locations, enabled providers and the natively rendered components of its deployed paywalls, behind a `sha256:<hex>` `ETag`. Answers `304` without a body when `If-None-Match` names the current version.
+     * Reads the project's products, perks, paywall locations, enabled providers and the natively rendered components of its deployed paywalls. The `ETag` is a `sha256:<hex>` hash of the response, which changes with anything in it, including what the version leaves out. Answers `304` without a body when `If-None-Match` names the current `ETag`.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
-     *    "if-none-match"?: string, //The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+     *    "if-none-match"?: string, //The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
      * } $headerParameters
      */
     public function __construct(string $projectId, array $headerParameters = [])

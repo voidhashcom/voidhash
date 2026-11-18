@@ -6,10 +6,10 @@ class SchemaGetVersion extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpo
 {
     protected $projectId;
     /**
-     * Reads only the schema's version, to check for changes without the body. Same `ETag` and `If-None-Match` rules as reading the schema.
+     * Reads only the schema's version, to check whether generated code is out of date without the body. The `ETag` is the version. Answers `304` without a body when `If-None-Match` names it.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
-     *    "if-none-match"?: string, //The `ETag` of a previous response; when the schema has not changed since, the answer is `304` without a body.
+     *    "if-none-match"?: string, //The `ETag` of a previous response, or several separated by commas; when the response would be the same, the answer is `304` without a body.
      * } $headerParameters
      */
     public function __construct(string $projectId, array $headerParameters = [])

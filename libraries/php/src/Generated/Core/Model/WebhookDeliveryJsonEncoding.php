@@ -43,7 +43,7 @@ class WebhookDeliveryJsonEncoding
      */
     protected $payload;
     /**
-     * `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+     * `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
      *
      * @var string
      */
@@ -195,7 +195,7 @@ class WebhookDeliveryJsonEncoding
         return $this;
     }
     /**
-     * `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+     * `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
      *
      * @return string
      */
@@ -204,7 +204,7 @@ class WebhookDeliveryJsonEncoding
         return $this->status;
     }
     /**
-     * `failed` is retried at `nextAttemptAt`; `exhausted` ran out of attempts and is sent again only when you retry it.
+     * `failed` is retried at `nextAttemptAt`. `pending` and `failed` deliveries wait while their webhook is turned off and are sent once it is back on. `exhausted` ran out of attempts, or its webhook was deleted before it was sent; it is sent again only when you retry it.
      *
      * @param string $status
      *

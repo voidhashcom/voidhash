@@ -7,7 +7,7 @@ class PushNotificationsListDeliveries extends \Voidhash\Generated\Core\Runtime\C
     protected $projectId;
     protected $pushNotificationId;
     /**
-     * Lists the deliveries of a push notification, one per device, oldest first, optionally only those with one `status` (such as `failed`). Fails with `not_found` (`push_notification_not_found`).
+     * Lists the deliveries of a push notification, one per device, oldest first, optionally only those with one `status` (such as `failed`). Fails with `not_found` (`push_notification_not_found`), and with `invalid_request` (`invalid_cursor`) for a cursor this list did not return.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $pushNotificationId The push notification's id, `push_send_...`.
      * @param array{

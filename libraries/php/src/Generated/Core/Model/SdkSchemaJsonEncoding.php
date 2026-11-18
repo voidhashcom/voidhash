@@ -31,7 +31,7 @@ class SdkSchemaJsonEncoding
      */
     protected $products;
     /**
-     * The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+     * The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
      *
      * @var string
      */
@@ -103,7 +103,7 @@ class SdkSchemaJsonEncoding
         return $this;
     }
     /**
-     * The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+     * The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
      *
      * @return string
      */
@@ -112,7 +112,7 @@ class SdkSchemaJsonEncoding
         return $this->version;
     }
     /**
-     * The schema's version, `sha256:<hex>`, which changes whenever the schema does; also the `ETag` of the response.
+     * The schema's version, `sha256:<hex>`, which changes whenever code generated from the schema would: its perks, products, store mappings, locations or native component contracts. Enabling a store or another paywall using a component leaves it as it is.
      *
      * @param string $version
      *
