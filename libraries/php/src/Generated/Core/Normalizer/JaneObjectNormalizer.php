@@ -528,6 +528,22 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\SchemaPerkJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaPerkJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\SchemaNativeComponentJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeComponentJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativePropJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaNativePropJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativeListType::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeListTypeNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativeEnumType::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeEnumTypeNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativeValueType::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeValueTypeNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativeComponentPaywallJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeComponentPaywallJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativeEventJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaNativeEventJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SchemaNativePayloadFieldJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaNativePayloadFieldJsonEncodingNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\SchemaLocationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SchemaLocationJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PushNotificationConfigurationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PushNotificationConfigurationJsonEncodingNormalizer::class,
@@ -1591,6 +1607,14 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\SchemaProductJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SchemaProductProviderJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SchemaPerkJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeComponentJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativePropJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeListType::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeEnumType::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeValueType::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeComponentPaywallJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativeEventJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SchemaNativePayloadFieldJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SchemaLocationJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PushNotificationConfigurationJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdatePushNotificationConfigurationBodyJsonEncoding::class => false,

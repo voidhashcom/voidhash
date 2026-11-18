@@ -29,9 +29,12 @@ internal object PaywallImageLoader {
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
     /** Downloads [url] and reports the outcome to [onResult] on the main thread. */
-    fun fetch(url: String, onResult: (Result<ByteArray>) -> Unit) {
+    fun fetch(url: String, onResult: (Result<ByteArray>) -> Unit) = background({ download(url) }, onResult)
+
+    /** Runs [work] off the main thread, on the image threads, and reports its outcome to [onResult] on the main thread. */
+    fun <T> background(work: () -> T, onResult: (Result<T>) -> Unit) {
         executor.execute {
-            val result = runCatching { download(url) }
+            val result = runCatching(work)
             mainHandler.post { onResult(result) }
         }
     }

@@ -23,7 +23,6 @@ import android.view.inputmethod.InputConnection
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeProvider
 import org.json.JSONObject
-import kotlin.math.ceil
 
 private const val PHASE_DOWN = 0
 private const val PHASE_MOVE = 1
@@ -181,29 +180,13 @@ class VoidhashPaywallView @JvmOverloads constructor(
      * Hosts that stand in for the app, such as a preview where a person answers app calls by
      * hand, hold it while the person answers. Main thread only.
      */
-    var isClockHeld: Boolean = false
+    var isClockHeld: Boolean
+        get() = clock.isHeld
         set(value) {
-            if (value == field) return
-            field = value
-            val now = System.nanoTime() / 1_000_000_000.0
-            val heldSince = clockHeldSince
-            if (value) {
-                clockHeldSince = now
-            } else if (heldSince != null) {
-                clockOffset += now - heldSince
-                clockHeldSince = null
-            }
-            scheduleFrame()
+            if (clock.hold(value)) scheduleFrame()
         }
 
-    /** When the flow's time was held, in seconds on the frame clock; `null` while it runs. */
-    private var clockHeldSince: Double? = null
-
-    /** How long the flow's time stood still in all, which it lags the frame clock by. */
-    private var clockOffset = 0.0
-
-    /** The flow's time of a moment, in seconds on the frame clock. */
-    private fun flowTime(real: Double): Double = minOf(real, clockHeldSince ?: real) - clockOffset
+    private val clock = FlowClock()
 
     /** Draws a frame when a component's timer is due while the paywall is otherwise idle. */
     private val wakeHandler = Handler(Looper.getMainLooper())
@@ -211,7 +194,7 @@ class VoidhashPaywallView @JvmOverloads constructor(
 
     private val frameCallback = Choreographer.FrameCallback { frameTimeNanos ->
         framePosted = false
-        val outcome = controller.frame(flowTime(frameTimeNanos / 1_000_000_000.0))
+        val outcome = controller.frame(clock.flowTime(frameTimeNanos / 1_000_000_000.0))
         textInput.afterFrame()
         when (outcome) {
             FrameOutcome.NextFrame -> scheduleFrame()
@@ -327,7 +310,7 @@ class VoidhashPaywallView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // Event times run on the same monotonic clock as frames.
-        val timestamp = flowTime(event.eventTime / 1000.0)
+        val timestamp = clock.flowTime(event.eventTime / 1000.0)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN ->
                 sendPointer(event, event.actionIndex, PHASE_DOWN, timestamp)
@@ -452,13 +435,7 @@ class VoidhashPaywallView @JvmOverloads constructor(
      * settles the paywall's own transitions at once.
      */
     private fun postContext(configuration: Configuration) {
-        val reducedMotion = Settings.Global.getFloat(
-            context.contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f,
-        ) == 0f
-        val dark = configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        val message = contextMessage(reducedMotion, dark, primaryLocale(configuration))
+        val message = contextMessage(reducedMotion(context), darkTheme(configuration), primaryLocale(configuration))
         if (message == postedContext) return
         postedContext = message
         controller.postMessage(message)
@@ -475,10 +452,8 @@ class VoidhashPaywallView @JvmOverloads constructor(
     /** Draws the next frame at [atSeconds] on the flow's clock; nothing falls due while it is held. */
     private fun scheduleWake(atSeconds: Double) {
         wakeHandler.removeCallbacks(wake)
-        if (!atSeconds.isFinite() || clockHeldSince != null) return
-        val delayMillis =
-            ((atSeconds + clockOffset - System.nanoTime() / 1_000_000_000.0) * 1000.0).coerceAtLeast(0.0)
-        wakeHandler.postDelayed(wake, ceil(delayMillis).toLong())
+        val delayMillis = clock.millisUntil(atSeconds) ?: return
+        wakeHandler.postDelayed(wake, delayMillis)
     }
 
     private fun stopFrames() {
@@ -487,34 +462,42 @@ class VoidhashPaywallView @JvmOverloads constructor(
         framePosted = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
     }
-
-    /** System bars and display cutout, in pixels: top, right, bottom, left. */
-    private fun safeAreaInsets(windowInsets: WindowInsets): IntArray {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val safe = windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-            return intArrayOf(safe.top, safe.right, safe.bottom, safe.left)
-        }
-        // Before Android 11 the bottom inset grows by the keyboard while it is shown, which is
-        // not part of the safe area: the stable inset is the system bar alone.
-        @Suppress("DEPRECATION")
-        val bars = intArrayOf(
-            windowInsets.systemWindowInsetTop,
-            windowInsets.systemWindowInsetRight,
-            minOf(windowInsets.systemWindowInsetBottom, windowInsets.stableInsetBottom),
-            windowInsets.systemWindowInsetLeft,
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val cutout = windowInsets.displayCutout ?: return bars
-            return intArrayOf(
-                maxOf(bars[0], cutout.safeInsetTop),
-                maxOf(bars[1], cutout.safeInsetRight),
-                maxOf(bars[2], cutout.safeInsetBottom),
-                maxOf(bars[3], cutout.safeInsetLeft),
-            )
-        }
-        return bars
-    }
 }
+
+/** System bars and display cutout, in pixels: top, right, bottom, left. */
+internal fun safeAreaInsets(windowInsets: WindowInsets): IntArray {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val safe = windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+        return intArrayOf(safe.top, safe.right, safe.bottom, safe.left)
+    }
+    // Before Android 11 the bottom inset grows by the keyboard while it is shown, which is
+    // not part of the safe area: the stable inset is the system bar alone.
+    @Suppress("DEPRECATION")
+    val bars = intArrayOf(
+        windowInsets.systemWindowInsetTop,
+        windowInsets.systemWindowInsetRight,
+        minOf(windowInsets.systemWindowInsetBottom, windowInsets.stableInsetBottom),
+        windowInsets.systemWindowInsetLeft,
+    )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val cutout = windowInsets.displayCutout ?: return bars
+        return intArrayOf(
+            maxOf(bars[0], cutout.safeInsetTop),
+            maxOf(bars[1], cutout.safeInsetRight),
+            maxOf(bars[2], cutout.safeInsetBottom),
+            maxOf(bars[3], cutout.safeInsetLeft),
+        )
+    }
+    return bars
+}
+
+/** Whether the device's "Remove animations" setting is on: it sets the animator duration scale to zero. */
+internal fun reducedMotion(context: Context): Boolean =
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+
+/** Whether [configuration] is in the dark theme. */
+internal fun darkTheme(configuration: Configuration): Boolean =
+    configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
 /** The `context` envelope reporting the device's settings to the paywall. */
 internal fun contextMessage(reducedMotion: Boolean, dark: Boolean, locale: String?): String {
@@ -527,7 +510,7 @@ internal fun contextMessage(reducedMotion: Boolean, dark: Boolean, locale: Strin
 
 /** The first preferred locale, as the SDK reports the device's locale. */
 @Suppress("DEPRECATION")
-private fun primaryLocale(configuration: Configuration): String? =
+internal fun primaryLocale(configuration: Configuration): String? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         configuration.locales.takeIf { it.size() > 0 }?.get(0)?.toLanguageTag()
     } else {

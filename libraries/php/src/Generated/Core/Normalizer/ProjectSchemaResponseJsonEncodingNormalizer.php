@@ -51,19 +51,26 @@ class ProjectSchemaResponseJsonEncodingNormalizer implements DenormalizerInterfa
             }
             $object->setLocations($values_1);
         }
-        if (\array_key_exists('perks', $data)) {
+        if (\array_key_exists('nativeComponents', $data)) {
             $values_2 = [];
-            foreach ($data['perks'] as $value_2) {
-                $values_2[] = $this->denormalizer->denormalize($value_2, \Voidhash\Generated\Core\Model\SchemaPerkJsonEncoding::class, 'json', $context);
+            foreach ($data['nativeComponents'] as $value_2) {
+                $values_2[] = $this->denormalizer->denormalize($value_2, \Voidhash\Generated\Core\Model\SchemaNativeComponentJsonEncoding::class, 'json', $context);
             }
-            $object->setPerks($values_2);
+            $object->setNativeComponents($values_2);
+        }
+        if (\array_key_exists('perks', $data)) {
+            $values_3 = [];
+            foreach ($data['perks'] as $value_3) {
+                $values_3[] = $this->denormalizer->denormalize($value_3, \Voidhash\Generated\Core\Model\SchemaPerkJsonEncoding::class, 'json', $context);
+            }
+            $object->setPerks($values_3);
         }
         if (\array_key_exists('products', $data)) {
-            $values_3 = [];
-            foreach ($data['products'] as $value_3) {
-                $values_3[] = $this->denormalizer->denormalize($value_3, \Voidhash\Generated\Core\Model\SchemaProductJsonEncoding::class, 'json', $context);
+            $values_4 = [];
+            foreach ($data['products'] as $value_4) {
+                $values_4[] = $this->denormalizer->denormalize($value_4, \Voidhash\Generated\Core\Model\SchemaProductJsonEncoding::class, 'json', $context);
             }
-            $object->setProducts($values_3);
+            $object->setProducts($values_4);
         }
         if (\array_key_exists('version', $data)) {
             $object->setVersion($data['version']);
@@ -84,15 +91,20 @@ class ProjectSchemaResponseJsonEncodingNormalizer implements DenormalizerInterfa
         }
         $dataArray['locations'] = $values_1;
         $values_2 = [];
-        foreach ($data->getPerks() as $value_2) {
+        foreach ($data->getNativeComponents() as $value_2) {
             $values_2[] = $this->normalizer->normalize($value_2, 'json', $context);
         }
-        $dataArray['perks'] = $values_2;
+        $dataArray['nativeComponents'] = $values_2;
         $values_3 = [];
-        foreach ($data->getProducts() as $value_3) {
+        foreach ($data->getPerks() as $value_3) {
             $values_3[] = $this->normalizer->normalize($value_3, 'json', $context);
         }
-        $dataArray['products'] = $values_3;
+        $dataArray['perks'] = $values_3;
+        $values_4 = [];
+        foreach ($data->getProducts() as $value_4) {
+            $values_4[] = $this->normalizer->normalize($value_4, 'json', $context);
+        }
+        $dataArray['products'] = $values_4;
         $dataArray['version'] = $data->getVersion();
         return $dataArray;
     }

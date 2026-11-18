@@ -1,7 +1,9 @@
 // Package codegen writes the type files `voidhash types generate` produces:
-// the slugs of a project's products, paywall locations and perks, and what
-// the app exchanges with the flow at each location, as types of the app's
-// language, so a typo in a slug or a missing action handler fails to compile.
+// the slugs of a project's products, paywall locations and perks, what the
+// app exchanges with the flow at each location, and the views it may give
+// for components the paywalls render natively, as types of the app's
+// language, so a typo in a slug, a missing action handler or a mistyped
+// component property fails to compile.
 //
 // Every language is an [Emitter] in its own file (typescript.go, swift.go,
 // kotlin.go). All of them read the same [Schema] and write the same header
@@ -53,6 +55,12 @@ type Schema struct {
 	// Flags are the project's feature flags apps receive, by key (see
 	// [Schema.WithFlags]).
 	Flags []Flag
+	// NativeComponents are the contracts of the components the project's
+	// deployed paywalls render with the app's own views, by name and version
+	// (see [Schema.WithNativeComponents]). The Swift and Kotlin emitters
+	// write them to a second file; TypeScript types none, since React Native
+	// apps cannot provide such views yet.
+	NativeComponents []NativeComponent
 }
 
 // Flag is a feature flag as the TypeScript declarations type it: its key,
@@ -107,7 +115,8 @@ func (schema Schema) WithFlows(flows []Flow) Schema {
 }
 
 // Companion is a second file an emitter writes beside its type file, for
-// what the type file's format cannot hold.
+// what the type file's format cannot hold, or what needs an import the type
+// file must not have.
 type Companion struct {
 	// Output is the path of the file, derived from the type file's.
 	Output  string
@@ -117,7 +126,8 @@ type Companion struct {
 // WithCompanion is an emitter that may write a second file.
 type WithCompanion interface {
 	// Companion returns the file to write beside the type file; ok is false
-	// when this schema needs none.
+	// when this schema needs none. Output may still name the file then, and
+	// a generated file there is outdated and removed.
 	Companion(schema Schema, options Options) (companion Companion, ok bool)
 }
 

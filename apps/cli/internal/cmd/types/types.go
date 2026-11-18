@@ -154,6 +154,44 @@ type projectSchema struct {
 	Perks []struct {
 		Slug string `json:"slug"`
 	} `json:"perks"`
+	NativeComponents []struct {
+		Name    string `json:"name"`
+		ID      string `json:"id"`
+		Version string `json:"version"`
+		Props   []struct {
+			Key        string     `json:"key"`
+			Type       nativeType `json:"type"`
+			IsWritable bool       `json:"isWritable"`
+		} `json:"props"`
+		Events []struct {
+			Key     string `json:"key"`
+			Payload []struct {
+				Key  string     `json:"key"`
+				Type nativeType `json:"type"`
+			} `json:"payload"`
+		} `json:"events"`
+		Paywalls []struct {
+			Slug string `json:"slug"`
+			Name string `json:"name"`
+		} `json:"paywalls"`
+	} `json:"nativeComponents"`
+}
+
+// nativeType is the type of a native component's value as the schema
+// writes it.
+type nativeType struct {
+	Kind    string      `json:"kind"`
+	Options []string    `json:"options"`
+	Of      *nativeType `json:"of"`
+}
+
+func (declared nativeType) codegen() codegen.NativeType {
+	converted := codegen.NativeType{Kind: declared.Kind, Options: declared.Options}
+	if declared.Of != nil {
+		of := declared.Of.codegen()
+		converted.Of = &of
+	}
+	return converted
 }
 
 // Fetch reads what the type files are made from: the project's schema and
@@ -206,7 +244,25 @@ func fetchSchema(ctx context.Context, app *cli.App, projectID string) (codegen.S
 	for _, perk := range fetched.Value.Perks {
 		perks = append(perks, perk.Slug)
 	}
-	schema := codegen.NewSchema(products, locations, perks).WithFlows(flows).WithProductTypes(productTypes)
+	var natives []codegen.NativeComponent
+	for _, declared := range fetched.Value.NativeComponents {
+		native := codegen.NativeComponent{Name: declared.Name, ID: declared.ID, Version: declared.Version}
+		for _, prop := range declared.Props {
+			native.Props = append(native.Props, codegen.NativeProp{Key: prop.Key, Type: prop.Type.codegen(), Writable: prop.IsWritable})
+		}
+		for _, event := range declared.Events {
+			converted := codegen.NativeEvent{Key: event.Key}
+			for _, field := range event.Payload {
+				converted.Payload = append(converted.Payload, codegen.NativeField{Key: field.Key, Type: field.Type.codegen()})
+			}
+			native.Events = append(native.Events, converted)
+		}
+		for _, paywall := range declared.Paywalls {
+			native.Paywalls = append(native.Paywalls, codegen.NativePaywall{Slug: paywall.Slug, Name: paywall.Name})
+		}
+		natives = append(natives, native)
+	}
+	schema := codegen.NewSchema(products, locations, perks).WithFlows(flows).WithProductTypes(productTypes).WithNativeComponents(natives)
 	return schema, fetched.Value.Version, nil
 }
 
@@ -314,8 +370,55 @@ func generate(ctx context.Context, app *cli.App, projectID string, targets []tar
 	return schema, version, write(app, schema, version, targets)
 }
 
+// bindsNatives reports whether any of the files is one whose language gets
+// bindings for the project's native components: Swift or Kotlin.
+func bindsNatives(targets []target) bool {
+	for _, file := range targets {
+		if file.Language == codegen.Swift || file.Language == codegen.Kotlin {
+			return true
+		}
+	}
+	return false
+}
+
+// nativeConflict is the error of paywalls using one native component name
+// at different versions, which no single view can serve.
+func nativeConflict(schema codegen.Schema) error {
+	conflicts := codegen.NativeConflicts(schema)
+	if len(conflicts) == 0 {
+		return nil
+	}
+	var described []string
+	for _, conflict := range conflicts {
+		var versions []string
+		for _, version := range conflict.Versions {
+			var paywalls []string
+			for _, paywall := range version.Paywalls {
+				paywalls = append(paywalls, fmt.Sprintf("%q (%s)", paywall.Name, paywall.Slug))
+			}
+			versions = append(versions, fmt.Sprintf("version %s in %s", version.Version, strings.Join(paywalls, ", ")))
+		}
+		described = append(described, fmt.Sprintf("The native component %q has %s; one view cannot serve both.", conflict.Name, strings.Join(versions, " and ")))
+	}
+	return cli.Failf("%s", strings.Join(described, "\n")).
+		WithHint("Make the component's properties and events the same in each paywall and deploy it, or give one of them another native name.")
+}
+
+// noteUntypedNatives says that TypeScript files type no native components,
+// when the project has some and no file of another language is configured.
+func noteUntypedNatives(app *cli.App, schema codegen.Schema, targets []target) {
+	if len(schema.NativeComponents) > 0 && !bindsNatives(targets) {
+		app.Notef("The project's paywalls have components the app can render with its own views. Swift and Kotlin files get bindings for them; TypeScript files do not, since React Native apps cannot provide such views yet.")
+	}
+}
+
 // write writes every target from schema.
 func write(app *cli.App, schema codegen.Schema, version string, targets []target) error {
+	if bindsNatives(targets) {
+		if err := nativeConflict(schema); err != nil {
+			return err
+		}
+	}
 	packages := sdkPackages(app)
 	for _, file := range targets {
 		emitter, ok := codegen.For(file.Language)
@@ -342,10 +445,20 @@ func write(app *cli.App, schema codegen.Schema, version string, targets []target
 		// What the type file's format cannot hold goes in a file beside it.
 		if emitter, ok := emitter.(codegen.WithCompanion); ok {
 			companion, needed := emitter.Companion(schema, options)
+			beside := filepath.Join(filepath.Dir(file.path), filepath.Base(companion.Output))
 			if !needed {
+				// A file this command wrote for what the project no longer has
+				// would keep compiling against it.
+				if companion.Output != "" {
+					if content, err := os.ReadFile(beside); err == nil && codegen.IsGenerated(string(content)) {
+						if err := os.Remove(beside); err != nil {
+							return cli.Failf("Could not remove %s: %s.", companion.Output, pathProblem(err))
+						}
+						app.Printf("Removed %s, which the project no longer needs\n", companion.Output)
+					}
+				}
 				continue
 			}
-			beside := filepath.Join(filepath.Dir(file.path), filepath.Base(companion.Output))
 			if err := os.WriteFile(beside, []byte(companion.Content), 0o644); err != nil {
 				return cli.Failf("Could not write %s: %s.", companion.Output, pathProblem(err))
 			}
@@ -396,8 +509,12 @@ voidhash types generate --language swift --output App/VoidhashTypes.swift`,
 			return err
 		}
 		schema, version, err := generate(ctx, app, project.Id, targets)
-		if err != nil || !*watch {
+		if err != nil {
 			return err
+		}
+		noteUntypedNatives(app, schema, targets)
+		if !*watch {
+			return nil
 		}
 		withFlags := typesFlags(targets)
 		flags := flagsFingerprint(schema)
@@ -482,6 +599,26 @@ func problem(err error) string {
 	return "the API did not answer"
 }
 
+// staleness says what is wrong with the generated file at path for a
+// project at version current; empty when nothing is.
+func staleness(path, current string) string {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "could not be read: " + pathProblem(err)
+		}
+		return "is missing"
+	}
+	local, ok := codegen.ReadVersion(string(content))
+	if !ok {
+		return "has no @voidhash:version line, so it was not generated or was edited"
+	}
+	if local != current {
+		return fmt.Sprintf("is stale: generated from %s, the project is at %s", local, current)
+	}
+	return ""
+}
+
 // newCheck creates `voidhash types check`.
 func newCheck(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -505,39 +642,53 @@ voidhash types check --language kotlin`,
 		if err != nil {
 			return err
 		}
-		current, err := fetchVersion(ctx, app, project.Id)
+		// Native bindings need the schema itself: which components it has,
+		// and whether paywalls disagree on one.
+		var schema codegen.Schema
+		var current string
+		if bindsNatives(targets) {
+			schema, current, err = fetchSchema(ctx, app, project.Id)
+			if err == nil {
+				err = nativeConflict(schema)
+			}
+		} else {
+			current, err = fetchVersion(ctx, app, project.Id)
+		}
 		if err != nil {
 			return err
 		}
 
 		style := app.Style()
-		behind := 0
-		for _, file := range targets {
-			verdict := ""
-			content, err := os.ReadFile(file.path)
-			if err != nil {
-				verdict = "is missing"
-				if !os.IsNotExist(err) {
-					verdict = "could not be read: " + pathProblem(err)
-				}
-			} else if local, ok := codegen.ReadVersion(string(content)); !ok {
-				verdict = "has no @voidhash:version line, so it was not generated or was edited"
-			} else if local != current {
-				verdict = fmt.Sprintf("is stale: generated from %s, the project is at %s", local, current)
-			}
+		checked, behind := 0, 0
+		report := func(output, verdict string) {
+			checked++
 			if verdict == "" {
-				app.Printf("%s %s is up to date (version %s)\n", style.Green("✓"), file.Output, short(current))
-				continue
+				app.Printf("%s %s is up to date (version %s)\n", style.Green("✓"), output, short(current))
+				return
 			}
 			behind++
-			app.Printf("%s %s %s\n", style.Red("✗"), file.Output, verdict)
+			app.Printf("%s %s %s\n", style.Red("✗"), output, verdict)
+		}
+		for _, file := range targets {
+			report(file.Output, staleness(file.path, current))
+			if file.Language != codegen.Swift && file.Language != codegen.Kotlin {
+				continue
+			}
+			emitter, _ := codegen.For(file.Language)
+			companion, needed := emitter.(codegen.WithCompanion).Companion(schema, codegen.Options{Output: file.Output, Package: file.Package})
+			beside := filepath.Join(filepath.Dir(file.path), filepath.Base(companion.Output))
+			if needed {
+				report(companion.Output, staleness(beside, current))
+			} else if content, err := os.ReadFile(beside); err == nil && codegen.IsGenerated(string(content)) {
+				report(companion.Output, "is stale: the project has no native components now")
+			}
 		}
 		if behind == 0 {
 			return nil
 		}
 		message := "The type file is not up to date with the project."
-		if len(targets) > 1 {
-			message = fmt.Sprintf("%d of %d type files are not up to date with the project.", behind, len(targets))
+		if checked > 1 {
+			message = fmt.Sprintf("%d of %d type files are not up to date with the project.", behind, checked)
 		}
 		return cli.Failf("%s", message).WithHint("Run 'voidhash types generate', then commit the files it wrote.")
 	}

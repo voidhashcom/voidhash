@@ -24,7 +24,28 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Robolectric reads the module's manifest; its native graphics draw the views host.
+        unitTests.isIncludeAndroidResources = true
     }
+}
+
+// The views host's JVM tests load the views core built for this machine, with its JNI
+// bindings, from the Cargo workspace; without a Rust toolchain they skip what needs it.
+val cratesDir = file("../../../crates")
+val viewsCoreDir = File(cratesDir, "target/debug")
+val buildViewsCoreForTests by tasks.registering(Exec::class) {
+    description = "Builds the views core with its JNI bindings for the JVM tests."
+    workingDir = cratesDir
+    commandLine("cargo", "build", "-p", "voidhash-ui-views", "--features", "jni")
+    isIgnoreExitValue = true
+    onlyIf { cratesDir.isDirectory }
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(buildViewsCoreForTests)
+    systemProperty("java.library.path", viewsCoreDir.absolutePath)
+    systemProperty("voidhash.sourceRoot", file("../../..").absolutePath)
+    System.getenv("VOIDHASH_VIEWS_SNAPSHOT_DIR")?.let { environment("VOIDHASH_VIEWS_SNAPSHOT_DIR", it) }
 }
 
 kotlin {
@@ -43,4 +64,5 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 }

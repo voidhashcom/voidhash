@@ -25,6 +25,12 @@ class ProjectSchemaResponseJsonEncoding
      */
     protected $locations;
     /**
+     * The editor-built components rendered natively in the paywalls' deployed releases, one entry per contract. Two entries share a name when paywalls use different versions of it.
+     *
+     * @var list<SchemaNativeComponentJsonEncoding>
+     */
+    protected $nativeComponents;
+    /**
      * The project's perks.
      *
      * @var list<SchemaPerkJsonEncoding>
@@ -84,6 +90,28 @@ class ProjectSchemaResponseJsonEncoding
     {
         $this->initialized['locations'] = true;
         $this->locations = $locations;
+        return $this;
+    }
+    /**
+     * The editor-built components rendered natively in the paywalls' deployed releases, one entry per contract. Two entries share a name when paywalls use different versions of it.
+     *
+     * @return list<SchemaNativeComponentJsonEncoding>
+     */
+    public function getNativeComponents(): array
+    {
+        return $this->nativeComponents;
+    }
+    /**
+     * The editor-built components rendered natively in the paywalls' deployed releases, one entry per contract. Two entries share a name when paywalls use different versions of it.
+     *
+     * @param list<SchemaNativeComponentJsonEncoding> $nativeComponents
+     *
+     * @return self
+     */
+    public function setNativeComponents(array $nativeComponents): self
+    {
+        $this->initialized['nativeComponents'] = true;
+        $this->nativeComponents = $nativeComponents;
         return $this;
     }
     /**

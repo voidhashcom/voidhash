@@ -481,12 +481,7 @@ internal class PaywallSurfaceController(
                 return
             }
         }
-        val url = try {
-            JSONObject(message).getJSONObject("payload").getString("url")
-        } catch (error: JSONException) {
-            onWarning("Ignoring an image request without a URL")
-            return
-        }
+        val url = imageRequestUrl(message) ?: return onWarning("Ignoring an image request without a URL")
         images[url]?.let { return provideImage(url, it) }
         if (!pendingImages.add(url)) return
         fetchImage(url) { result ->
@@ -521,9 +516,18 @@ internal class PaywallSurfaceController(
         onFailure(message)
     }
 
-    private fun messageType(message: String): String? = try {
-        JSONObject(message).optString("type")
-    } catch (error: JSONException) {
-        null
-    }
+}
+
+/** The `type` of a bridge envelope, or `null` when it is not JSON. */
+internal fun messageType(message: String): String? = try {
+    JSONObject(message).optString("type")
+} catch (error: JSONException) {
+    null
+}
+
+/** The `url` of a `loadImage` envelope's payload, or `null` when it has none. */
+internal fun imageRequestUrl(message: String): String? = try {
+    JSONObject(message).getJSONObject("payload").getString("url")
+} catch (error: JSONException) {
+    null
 }

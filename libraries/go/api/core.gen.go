@@ -2299,6 +2299,24 @@ const (
 	SandboxSubscriptionJsonEncodingStatusCanceled SandboxSubscriptionJsonEncodingStatus = "canceled"
 )
 
+// Defines values for SchemaNativeEnumTypeKind.
+const (
+	SchemaNativeEnumTypeKindEnum SchemaNativeEnumTypeKind = "enum"
+)
+
+// Defines values for SchemaNativeListTypeKind.
+const (
+	SchemaNativeListTypeKindList SchemaNativeListTypeKind = "list"
+)
+
+// Defines values for SchemaNativeValueTypeKind.
+const (
+	SchemaNativeValueTypeKindBoolean SchemaNativeValueTypeKind = "boolean"
+	SchemaNativeValueTypeKindNumber  SchemaNativeValueTypeKind = "number"
+	SchemaNativeValueTypeKindProduct SchemaNativeValueTypeKind = "product"
+	SchemaNativeValueTypeKindString  SchemaNativeValueTypeKind = "string"
+)
+
 // Defines values for SchemaProductJsonEncodingDuration.
 const (
 	SchemaProductJsonEncodingDurationAnnual     SchemaProductJsonEncodingDuration = "annual"
@@ -11042,6 +11060,9 @@ type ProjectSchemaResponseJsonEncoding struct {
 	// Locations The project's paywall locations.
 	Locations []SchemaLocationJsonEncoding `json:"locations"`
 
+	// NativeComponents The editor-built components rendered natively in the paywalls' deployed releases, one entry per contract. Two entries share a name when paywalls use different versions of it.
+	NativeComponents []SchemaNativeComponentJsonEncoding `json:"nativeComponents"`
+
 	// Perks The project's perks.
 	Perks []SchemaPerkJsonEncoding `json:"perks"`
 
@@ -11911,6 +11932,111 @@ type SchemaLocationJsonEncoding struct {
 	// Slug The location's slug, which the app shows paywalls by.
 	Slug string `json:"slug"`
 }
+
+// SchemaNativeComponentJsonEncoding defines model for SchemaNativeComponentJsonEncoding.
+type SchemaNativeComponentJsonEncoding struct {
+	// Events The events the view emits, by key.
+	Events []SchemaNativeEventJsonEncoding `json:"events"`
+
+	// Id The component's id, `native/<name>`, which the app registers its view under.
+	Id string `json:"id"`
+
+	// Name The name the designer gave the component's native rendering.
+	Name string `json:"name"`
+
+	// Paywalls The paywalls whose deployed release uses this contract, by slug.
+	Paywalls []SchemaNativeComponentPaywallJsonEncoding `json:"paywalls"`
+
+	// Props The properties the view reads, by key.
+	Props []SchemaNativePropJsonEncoding `json:"props"`
+
+	// Version 12 hex characters naming the contract; any change to its properties or events changes it, and apps with a view of another version show the designed component instead.
+	Version string `json:"version"`
+}
+
+// SchemaNativeComponentPaywallJsonEncoding defines model for SchemaNativeComponentPaywallJsonEncoding.
+type SchemaNativeComponentPaywallJsonEncoding struct {
+	// Name The paywall's name.
+	Name string `json:"name"`
+
+	// Slug The paywall's slug.
+	Slug string `json:"slug"`
+}
+
+// SchemaNativeEnumType One of a fixed set of text values.
+type SchemaNativeEnumType struct {
+	// Kind Always `enum`.
+	Kind SchemaNativeEnumTypeKind `json:"kind"`
+
+	// Options The values the property can hold, in the designer's order.
+	Options []string `json:"options"`
+}
+
+// SchemaNativeEnumTypeKind Always `enum`.
+type SchemaNativeEnumTypeKind string
+
+// SchemaNativeEventJsonEncoding defines model for SchemaNativeEventJsonEncoding.
+type SchemaNativeEventJsonEncoding struct {
+	// Key The event's key, the camel case of its name in the designer.
+	Key string `json:"key"`
+
+	// Payload The fields the event carries, by key; empty when it carries none.
+	Payload []SchemaNativePayloadFieldJsonEncoding `json:"payload"`
+}
+
+// SchemaNativeListType An ordered list of distinct values.
+type SchemaNativeListType struct {
+	// Kind Always `list`.
+	Kind SchemaNativeListTypeKind `json:"kind"`
+
+	// Of The type of the list's items, which is not a list.
+	Of SchemaNativeListType_Of `json:"of"`
+}
+
+// SchemaNativeListTypeKind Always `list`.
+type SchemaNativeListTypeKind string
+
+// SchemaNativeListType_Of The type of the list's items, which is not a list.
+type SchemaNativeListType_Of struct {
+	union json.RawMessage
+}
+
+// SchemaNativePayloadFieldJsonEncoding defines model for SchemaNativePayloadFieldJsonEncoding.
+type SchemaNativePayloadFieldJsonEncoding struct {
+	// Key The field's key.
+	Key string `json:"key"`
+
+	// Type The type of a value a native view exchanges with the flow.
+	Type SchemaNativePropType `json:"type"`
+}
+
+// SchemaNativePropJsonEncoding defines model for SchemaNativePropJsonEncoding.
+type SchemaNativePropJsonEncoding struct {
+	Default interface{} `json:"default"`
+
+	// IsWritable Whether the view can write the property; false for a computed one.
+	IsWritable bool `json:"isWritable"`
+
+	// Key The property's key, the camel case of its name in the designer.
+	Key string `json:"key"`
+
+	// Type The type of a value a native view exchanges with the flow.
+	Type SchemaNativePropType `json:"type"`
+}
+
+// SchemaNativePropType The type of a value a native view exchanges with the flow.
+type SchemaNativePropType struct {
+	union json.RawMessage
+}
+
+// SchemaNativeValueType A plain value type.
+type SchemaNativeValueType struct {
+	// Kind `string`, `number`, `boolean`, or `product`: a product's id when written, the product's details when read.
+	Kind SchemaNativeValueTypeKind `json:"kind"`
+}
+
+// SchemaNativeValueTypeKind `string`, `number`, `boolean`, or `product`: a product's id when written, the product's details when read.
+type SchemaNativeValueTypeKind string
 
 // SchemaPerkJsonEncoding defines model for SchemaPerkJsonEncoding.
 type SchemaPerkJsonEncoding struct {
@@ -18537,6 +18663,156 @@ func (t PersonAttributeValues_AdditionalProperties) MarshalJSON() ([]byte, error
 }
 
 func (t *PersonAttributeValues_AdditionalProperties) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSchemaNativeValueType returns the union data inside the SchemaNativeListType_Of as a SchemaNativeValueType
+func (t SchemaNativeListType_Of) AsSchemaNativeValueType() (SchemaNativeValueType, error) {
+	var body SchemaNativeValueType
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSchemaNativeValueType overwrites any union data inside the SchemaNativeListType_Of as the provided SchemaNativeValueType
+func (t *SchemaNativeListType_Of) FromSchemaNativeValueType(v SchemaNativeValueType) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSchemaNativeValueType performs a merge with any union data inside the SchemaNativeListType_Of, using the provided SchemaNativeValueType
+func (t *SchemaNativeListType_Of) MergeSchemaNativeValueType(v SchemaNativeValueType) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSchemaNativeEnumType returns the union data inside the SchemaNativeListType_Of as a SchemaNativeEnumType
+func (t SchemaNativeListType_Of) AsSchemaNativeEnumType() (SchemaNativeEnumType, error) {
+	var body SchemaNativeEnumType
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSchemaNativeEnumType overwrites any union data inside the SchemaNativeListType_Of as the provided SchemaNativeEnumType
+func (t *SchemaNativeListType_Of) FromSchemaNativeEnumType(v SchemaNativeEnumType) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSchemaNativeEnumType performs a merge with any union data inside the SchemaNativeListType_Of, using the provided SchemaNativeEnumType
+func (t *SchemaNativeListType_Of) MergeSchemaNativeEnumType(v SchemaNativeEnumType) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SchemaNativeListType_Of) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SchemaNativeListType_Of) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSchemaNativeValueType returns the union data inside the SchemaNativePropType as a SchemaNativeValueType
+func (t SchemaNativePropType) AsSchemaNativeValueType() (SchemaNativeValueType, error) {
+	var body SchemaNativeValueType
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSchemaNativeValueType overwrites any union data inside the SchemaNativePropType as the provided SchemaNativeValueType
+func (t *SchemaNativePropType) FromSchemaNativeValueType(v SchemaNativeValueType) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSchemaNativeValueType performs a merge with any union data inside the SchemaNativePropType, using the provided SchemaNativeValueType
+func (t *SchemaNativePropType) MergeSchemaNativeValueType(v SchemaNativeValueType) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSchemaNativeEnumType returns the union data inside the SchemaNativePropType as a SchemaNativeEnumType
+func (t SchemaNativePropType) AsSchemaNativeEnumType() (SchemaNativeEnumType, error) {
+	var body SchemaNativeEnumType
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSchemaNativeEnumType overwrites any union data inside the SchemaNativePropType as the provided SchemaNativeEnumType
+func (t *SchemaNativePropType) FromSchemaNativeEnumType(v SchemaNativeEnumType) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSchemaNativeEnumType performs a merge with any union data inside the SchemaNativePropType, using the provided SchemaNativeEnumType
+func (t *SchemaNativePropType) MergeSchemaNativeEnumType(v SchemaNativeEnumType) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSchemaNativeListType returns the union data inside the SchemaNativePropType as a SchemaNativeListType
+func (t SchemaNativePropType) AsSchemaNativeListType() (SchemaNativeListType, error) {
+	var body SchemaNativeListType
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSchemaNativeListType overwrites any union data inside the SchemaNativePropType as the provided SchemaNativeListType
+func (t *SchemaNativePropType) FromSchemaNativeListType(v SchemaNativeListType) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSchemaNativeListType performs a merge with any union data inside the SchemaNativePropType, using the provided SchemaNativeListType
+func (t *SchemaNativePropType) MergeSchemaNativeListType(v SchemaNativeListType) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SchemaNativePropType) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SchemaNativePropType) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

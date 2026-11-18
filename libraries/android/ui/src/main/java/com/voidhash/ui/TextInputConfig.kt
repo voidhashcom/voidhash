@@ -9,7 +9,11 @@ import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import org.json.JSONObject
 
-/** How a text input asks the keyboard to be set up: the `config` of a `textInput` message. */
+/**
+ * How a text input asks the keyboard to be set up: the `config` of the engine's `textInput`
+ * message, and the keyboard set-up props of a views `textInput` view, which carry the same
+ * values with the same meaning. Both renderers map it to Android through this.
+ */
 internal data class TextInputConfig(
     val keyboard: String = "text",
     val returnKey: String = "default",
