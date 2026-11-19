@@ -1,5 +1,11 @@
 # @voidhash/android
 
+## 0.2.0
+
+### Minor Changes
+
+- A purchase goes to the person who made it. When another account of your app on the same Apple ID or Google account had the subscription before, the new purchase now moves to the buyer instead of staying with that account. `reportTransaction` reports a purchase unless you pass `isRestore`, and launch scans, renewals and `syncPurchases()` never move a purchase. On iOS, purchases and restores carry the transaction as StoreKit signed it on the device, so a transaction ID alone can no longer move someone's purchase.
+
 ## 0.1.1
 
 ### Patch Changes
