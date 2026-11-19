@@ -22,19 +22,13 @@ apply plugin: "com.android.library"
 apply plugin: 'org.jetbrains.kotlin.android'
 apply from: '../nitrogen/generated/android/NitroVoidhash+autolinking.gradle'
 
-if (isNewArchitectureEnabled()) {
-  apply plugin: "com.facebook.react"
-
-  // The module's native interface comes from Nitro, not React Native codegen. Codegen's default
-  // input is the package folder, which in a checkout with its own node_modules includes a copy of
-  // React Native: it would compile that copy's core module specs into this library, and they
-  // would replace the app's own React Native classes at runtime (a newer app then reads
-  // StatusBarManager's constants as undefined and fails at launch). Point it at the specs folder,
-  // which holds no codegen specs.
-  react {
-    jsRootDir = file("../src/specs")
-  }
-}
+// No `com.facebook.react` plugin: for a library it only runs React Native codegen, and this
+// module's native interface comes from Nitro (`nitrogen/`), not codegen. Codegen would scan the
+// package folder, including any node_modules the package manager nests inside it, and compile
+// other packages' specs into this library: copies of React Native's core modules, which replace
+// the app's own classes at runtime, or of view managers such as react-native-screens', which fail
+// the app's dex merge as duplicates. The app's own plugin still configures this module's
+// React Native dependency, build config and namespace.
 
 def getExtOrDefault(name) {
   return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["NitroVoidhash_" + name]
@@ -179,13 +173,6 @@ android {
       if (voidhashRendererEnabled()) {
         java.srcDirs += [new File(voidhashRendererDir(), "java").absolutePath]
         jniLibs.srcDirs += [new File(voidhashRendererDir(), "jniLibs").absolutePath]
-      }
-
-      if (isNewArchitectureEnabled()) {
-        java.srcDirs += [
-          // React Codegen files
-          "${project.buildDir}/generated/source/codegen/java"
-        ]
       }
     }
   }
