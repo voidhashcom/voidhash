@@ -118,6 +118,9 @@ struct ReceiptTransaction: Sendable, Equatable {
     let revocationDate: Double?
     /// `nil` when unknown, as for a transaction a host reported by id.
     let environment: VoidhashEnvironment?
+    /// The transaction as StoreKit signed it on the device, which a purchase or restore claim
+    /// sends; `nil` when unknown, and for a development purchase.
+    let signedTransaction: String?
 
     init(
         transactionId: String,
@@ -130,7 +133,8 @@ struct ReceiptTransaction: Sendable, Equatable {
         isDevelopment: Bool = false,
         originalTransactionId: String? = nil,
         revocationDate: Double? = nil,
-        environment: VoidhashEnvironment? = nil
+        environment: VoidhashEnvironment? = nil,
+        signedTransaction: String? = nil
     ) {
         self.transactionId = transactionId
         self.originalTransactionId = originalTransactionId
@@ -143,6 +147,7 @@ struct ReceiptTransaction: Sendable, Equatable {
         self.isDevelopment = isDevelopment
         self.revocationDate = revocationDate
         self.environment = environment
+        self.signedTransaction = signedTransaction.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// A transaction the store engine handed over.
@@ -164,7 +169,8 @@ struct ReceiptTransaction: Sendable, Equatable {
             revocationDate: storeTransaction.appStore.revocationDate.map {
                 $0.timeIntervalSince1970 * 1000
             },
-            environment: storeTransaction.environment
+            environment: storeTransaction.environment,
+            signedTransaction: isDevelopment ? nil : storeTransaction.appStore.jwsRepresentation
         )
     }
 

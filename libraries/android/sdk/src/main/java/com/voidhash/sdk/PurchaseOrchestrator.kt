@@ -7,6 +7,7 @@ import com.voidhash.core.billing.BillingProductType
 import com.voidhash.core.billing.BillingSubscriptionReplacement
 import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.PurchasePaywallContext
+import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_PURCHASE
 import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_RESTORE
 import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_SYNC
 import com.voidhash.sdk.api.SyncTransactionRequest
@@ -864,15 +865,14 @@ internal class PurchaseOrchestrator(
         // Queued here, on the caller's coroutine, before anything is handed to [scope]: should the
         // client be released while the sheet was open, work handed off would never start, and the
         // receipt is the only record that the user paid.
-        // One the purchase observer's run of it already delivered is not queued again.
-        val alreadyAccepted = readProcessedState(PROCESSED_TRANSACTION_KEY_PREFIX + transaction.processingKey)
-            ?.backendAccepted == true ||
-            outbox?.acceptedReceipts?.find(transaction.processingKey)?.covers(transaction) == true
-        if (!transaction.isDevelopment && outbox != null && !alreadyAccepted) {
+        // Queued as the buyer's claim, even when the purchase observer's run of it already had it
+        // accepted as a `sync`; one claimed already is not queued again.
+        if (!transaction.isDevelopment && outbox != null && claimsPurchase(transaction)) {
             outbox.enqueue(
                 transaction.processingKey,
                 distinctId,
-                syncRequest(transaction, schema).copy(isStartedBySdk = true, paywallContext = paywallContext),
+                syncRequest(transaction, schema, SYNC_TRANSACTION_INTENT_PURCHASE)
+                    .copy(isStartedBySdk = true, paywallContext = paywallContext),
             )
         }
         val callerWaiting = AtomicBoolean(true)
@@ -1108,7 +1108,8 @@ internal class PurchaseOrchestrator(
      * receipt the call listed is on disk before the call can return, so a host that consumes a
      * purchase right after syncing it cannot lose it. A receipt Voidhash already accepted is not
      * queued again, unless [restoreDistinctId] asks for it as a restore, which the queued record
-     * keeps. Returns the keys of the receipts a scan of [owned] delivers.
+     * keeps, or it is this SDK's purchase still to be claimed (see [claimsPurchase]). Returns the
+     * keys of the receipts a scan of [owned] delivers.
      */
     private suspend fun stageOwned(
         owned: Collection<StoreTransaction>,
@@ -1123,7 +1124,8 @@ internal class PurchaseOrchestrator(
             listed += processingKey
             val outbox = outbox ?: continue
             if (transaction.isDevelopment || transaction.purchaseToken.isNullOrEmpty()) continue
-            if (restoreDistinctId == null) {
+            val claim = restoreDistinctId == null && claimsPurchase(transaction)
+            if (restoreDistinctId == null && !claim) {
                 val accepted = readProcessedState(PROCESSED_TRANSACTION_KEY_PREFIX + processingKey)?.backendAccepted == true ||
                     outbox.acceptedReceipts.find(processingKey)?.covers(transaction) == true
                 if (accepted) continue
@@ -1134,7 +1136,11 @@ internal class PurchaseOrchestrator(
                 syncRequest(
                     transaction,
                     schema,
-                    if (restoreDistinctId != null) SYNC_TRANSACTION_INTENT_RESTORE else SYNC_TRANSACTION_INTENT_SYNC,
+                    when {
+                        restoreDistinctId != null -> SYNC_TRANSACTION_INTENT_RESTORE
+                        claim -> SYNC_TRANSACTION_INTENT_PURCHASE
+                        else -> SYNC_TRANSACTION_INTENT_SYNC
+                    },
                 ).copy(
                     isStartedBySdk = isStartedBySdk(transaction),
                     paywallContext = if (restoreDistinctId == null) purchasePaywall(transaction) else null,
@@ -1282,9 +1288,10 @@ internal class PurchaseOrchestrator(
      * This never talks to Billing or the backend, and leaves acknowledgment and
      * consumption with the host app.
      *
-     * A duplicate of a receipt Voidhash already accepted is not staged again, unless
-     * [restoreDistinctId] stages it as an explicit restore for that identity. Returns `false`
-     * only when the receipt could not be written to storage and is held in memory alone.
+     * Without [restoreDistinctId] the receipt is staged as a `purchase` claim, also when Voidhash
+     * accepted it before as a `sync`. A purchase this device claimed already is not staged again.
+     * [restoreDistinctId] stages it as an explicit restore for that identity instead. Returns
+     * `false` only when the receipt could not be written to storage and is held in memory alone.
      */
     suspend fun stageReportedTransaction(
         transaction: StoreTransaction,
@@ -1295,19 +1302,18 @@ internal class PurchaseOrchestrator(
         val processingKey = transaction.processingKey
         val processedCacheKey = PROCESSED_TRANSACTION_KEY_PREFIX + processingKey
         val accepted = outbox?.acceptedReceipts?.find(processingKey)
-        if (restoreDistinctId == null) {
-            if (readProcessedState(processedCacheKey)?.backendAccepted == true) return true
-            if (accepted != null && accepted.covers(transaction)) return true
-        }
+        if (restoreDistinctId == null && !claimsPurchase(transaction)) return true
         val distinctId = outbox?.capturedDistinctId(processingKey)
             ?: restoreDistinctId ?: accepted?.distinctId ?: capturedDistinctId
+        val intent = if (restoreDistinctId != null) SYNC_TRANSACTION_INTENT_RESTORE else SYNC_TRANSACTION_INTENT_PURCHASE
         val durable = outbox?.enqueue(
-            processingKey, distinctId, syncRequest(transaction, schema), restoreDistinctId,
+            processingKey, distinctId, syncRequest(transaction, schema, intent), restoreDistinctId,
         )?.durable ?: true
         writeProcessedState(
             processedCacheKey,
             backendAccepted = false,
-            storeFinalized = false,
+            // A claim of a purchase Voidhash accepted before may follow its store finish.
+            storeFinalized = readProcessedState(processedCacheKey)?.storeFinalized == true,
             externallyManaged = true,
         )
         inFlightMutex.withLock { inFlightTransactions[processingKey]?.hostClaimed = true }
@@ -1326,7 +1332,9 @@ internal class PurchaseOrchestrator(
      * Observations prefer the restored owner, then the owner Voidhash accepted the receipt for,
      * then the original account-token mapping, and only then the current identity.
      * [restoring] revalidates the receipt even when a previous submission was accepted, and is
-     * the only submission sent with the `restore` intent.
+     * the only submission sent with the `restore` intent. Otherwise a purchase this SDK started, or
+     * one the host reported, is sent as a `purchase` claim until this device has claimed it once
+     * (see [claimsPurchase]), also after Voidhash accepted it as a `sync`; anything else is a `sync`.
      *
      * [deferStoreFinalization] leaves the finish to a later call, for a caller without a schema
      * to tell a consumable from the rest. Unlike a host's claim it is not remembered: the next
@@ -1431,11 +1439,12 @@ internal class PurchaseOrchestrator(
                 currentCoroutineContext().ensureActive()
                 continue
             }
-            if (restoring) {
-                // A restore needs its own submission after the shared scan releases the receipt.
+            if (restoring || claimsPurchase(transaction)) {
+                // A restore needs its own submission after the shared scan releases the receipt,
+                // and so does a purchase claim that run did not send.
                 yield()
                 return runOrJoinTransaction(
-                    transaction, schema, readOnlyOverride, distinctId, restoring = true,
+                    transaction, schema, readOnlyOverride, distinctId, restoring = restoring,
                     deferStoreFinalization = deferStoreFinalization, onAccepted = onAccepted,
                 )
             }
@@ -1514,10 +1523,14 @@ internal class PurchaseOrchestrator(
         if (cachedState?.externallyManaged == true) {
             inFlightMutex.withLock { entry.hostClaimed = true }
         }
+        val claim = restoreIdentity == null && claimsPurchase(transaction)
         // Outlives the 30-minute marker: without it a later scan would resubmit the receipt
-        // under whoever is signed in by then.
-        val backendAccepted = cachedState?.backendAccepted == true ||
-            outbox?.acceptedReceipts?.find(processingKey)?.covers(transaction) == true
+        // under whoever is signed in by then. A purchase still to be claimed is sent whatever
+        // Voidhash accepted before.
+        val backendAccepted = !claim && (
+            cachedState?.backendAccepted == true ||
+                outbox?.acceptedReceipts?.find(processingKey)?.covers(transaction) == true
+            )
         if (backendAccepted && cachedState?.storeFinalized == true && !revalidating) {
             return ACCEPTED
         }
@@ -1559,7 +1572,11 @@ internal class PurchaseOrchestrator(
                 var request = syncRequest(
                     transaction,
                     schema,
-                    if (restoreIdentity != null) SYNC_TRANSACTION_INTENT_RESTORE else SYNC_TRANSACTION_INTENT_SYNC,
+                    when {
+                        restoreIdentity != null -> SYNC_TRANSACTION_INTENT_RESTORE
+                        claim -> SYNC_TRANSACTION_INTENT_PURCHASE
+                        else -> SYNC_TRANSACTION_INTENT_SYNC
+                    },
                 ).copy(
                     // Only this SDK's own purchase pins owner mode, and that pin always wins, so the
                     // server may acknowledge it.
@@ -1759,6 +1776,21 @@ internal class PurchaseOrchestrator(
             false
         }
         if (!acknowledged) throw failure
+    }
+
+    /**
+     * Whether [transaction] is reported as a `purchase` claim, which gives it to the person it is
+     * reported for even when another person owns it: a purchase this SDK started, or one the host
+     * reported ([StoreTransaction.externallyManaged]), that this device has not claimed yet. A
+     * purchase is claimed once ([AcceptedReceipt.purchaseClaimed]), so a later report of it, made
+     * for whoever is signed in by then, is a `sync` and cannot move it. A restore is never a claim.
+     */
+    private suspend fun claimsPurchase(transaction: StoreTransaction): Boolean {
+        if (transaction.isDevelopment || !(transaction.externallyManaged || isStartedBySdk(transaction))) return false
+        // Without an outbox nothing remembers a claim past the processed marker.
+        val ledger = outbox?.acceptedReceipts
+            ?: return readProcessedState(PROCESSED_TRANSACTION_KEY_PREFIX + transaction.processingKey)?.backendAccepted != true
+        return ledger.find(transaction.processingKey)?.purchaseClaimed != true
     }
 
     /** The paywall [purchase] started [transaction]'s purchase from, if it did. */

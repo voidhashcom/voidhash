@@ -49,6 +49,12 @@ class SdkSyncIosTransactionBodyNormalizer implements DenormalizerInterface, Norm
         elseif (\array_key_exists('intent', $data) && $data['intent'] === null) {
             $object->setIntent(null);
         }
+        if (\array_key_exists('signedTransaction', $data) && $data['signedTransaction'] !== null) {
+            $object->setSignedTransaction($data['signedTransaction']);
+        }
+        elseif (\array_key_exists('signedTransaction', $data) && $data['signedTransaction'] === null) {
+            $object->setSignedTransaction(null);
+        }
         if (\array_key_exists('paywallContext', $data)) {
             $object->setPaywallContext($this->denormalizer->denormalize($data['paywallContext'], \Voidhash\Generated\Core\Model\SdkPurchasePaywallContext::class, 'json', $context));
         }
@@ -61,6 +67,9 @@ class SdkSyncIosTransactionBodyNormalizer implements DenormalizerInterface, Norm
         $dataArray['transactionId'] = $data->getTransactionId();
         if ($data->isInitialized('intent')) {
             $dataArray['intent'] = $data->getIntent();
+        }
+        if ($data->isInitialized('signedTransaction')) {
+            $dataArray['signedTransaction'] = $data->getSignedTransaction();
         }
         if ($data->isInitialized('paywallContext') && null !== $data->getPaywallContext()) {
             $dataArray['paywallContext'] = $this->normalizer->normalize($data->getPaywallContext(), 'json', $context);

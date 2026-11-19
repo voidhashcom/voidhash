@@ -113,7 +113,11 @@ public struct ReconcileTransactionsError: Error, Sendable, CustomStringConvertib
 ///
 /// A receipt is sent with the intent ``SdkSyncTransactionIntent/restore`` only from
 /// ``restorePurchases(schema:distinctId:deliveryDeadline:)``, or for a transaction the host's own
-/// restore returned (``reportTransaction(_:schema:restoreDistinctId:)``). Everything else is a
+/// restore returned (``reportTransaction(_:schema:restoreDistinctId:purchaseDistinctId:)``). One
+/// is sent with the intent ``SdkSyncTransactionIntent/purchase`` only for a purchase this SDK
+/// made, or one the host reported, and only once per transaction from this device (see
+/// ``claimsPurchase(_:)``). Both carry the transaction's StoreKit JWS, which the backend needs to
+/// move a purchase. Everything else (scans, store observations, renewals) is a
 /// ``SdkSyncTransactionIntent/sync``, which the backend never answers by moving a purchase to
 /// another person.
 public actor PurchaseOrchestrator {
@@ -257,6 +261,10 @@ public actor PurchaseOrchestrator {
     /// With `paywallContext`, the receipt names the paywall the purchase was started from. A
     /// transaction the store observer is already reporting keeps that report, which has none.
     ///
+    /// The receipt is sent as a purchase with the transaction's JWS, which gives it to the person
+    /// who bought it even when an earlier purchase of the Apple Account belongs to another, also
+    /// after the store observer or a scan got it accepted as a sync.
+    ///
     /// - Parameter deliveryDeadline: Returns once the caller has waited on Voidhash for the
     ///   receipt long enough, counted from when the store handed the transaction over. The call
     ///   then returns; the receipt stays queued, the transaction unfinished until Voidhash accepts
@@ -329,10 +337,12 @@ public actor PurchaseOrchestrator {
             isDevelopment: isDevelopmentMode,
             isAcknowledgedOverride: isDevelopmentMode
         )
+        let claimingPurchase = await claimsPurchase(transaction)
         let processing = Task {
             try await self.process(
                 transaction, schema: schema, readOnlyOverride: readOnlyAtPurchaseStart,
-                distinctIdOverride: distinctId, paywallContext: paywallContext)
+                distinctIdOverride: distinctId, claimingPurchase: claimingPurchase,
+                paywallContext: paywallContext)
         }
         if let deliveryDeadline {
             let deadline = Task { await deliveryDeadline() }
@@ -743,16 +753,34 @@ public actor PurchaseOrchestrator {
     ///
     /// - Parameter restoreDistinctId: Sends the receipt as an explicit restore for this identity,
     ///   for a transaction the host's own restore flow returned.
+    /// - Parameter purchaseDistinctId: Sends the receipt as a purchase for this identity, for a
+    ///   purchase the host made, once ``claimsPurchase(_:)`` allowed it.
     func reportTransaction(
-        _ transaction: ReceiptTransaction, schema: RuntimeSchema, restoreDistinctId: String? = nil
+        _ transaction: ReceiptTransaction, schema: RuntimeSchema, restoreDistinctId: String? = nil,
+        purchaseDistinctId: String? = nil
     ) async throws {
         await acceptedReceipts.claimForHost(transaction.transactionId)
         let outcome = try await process(
             transaction, schema: schema, readOnlyOverride: true,
-            distinctIdOverride: restoreDistinctId, restoring: restoreDistinctId != nil)
+            distinctIdOverride: restoreDistinctId ?? purchaseDistinctId,
+            restoring: restoreDistinctId != nil,
+            claimingPurchase: restoreDistinctId == nil && purchaseDistinctId != nil)
         if outcome == .accepted {
             await schedulePersonRefresh()
         }
+    }
+
+    /// Whether `transaction` is sent as a purchase: an App Store transaction that stands, with its
+    /// JWS, that this device has not sent as a purchase before. Records the claim durably, so a
+    /// purchase reported again, after another person signed in for instance, is sent as a sync
+    /// and stays with the person it went to.
+    func claimsPurchase(_ transaction: ReceiptTransaction) async -> Bool {
+        guard !transaction.isDevelopment, transaction.revocationDate == nil,
+            transaction.signedTransaction != nil
+        else {
+            return false
+        }
+        return await acceptedReceipts.claimPurchase(transaction.transactionId)
     }
 
     /// Preserves host ownership when reporting joins an observed transaction already in flight.
@@ -838,6 +866,8 @@ public actor PurchaseOrchestrator {
     ///   stored account-token identity, or the identity at observation when no mapping exists.
     /// - Parameter restoring: Sends the receipt as an explicit restore, even one the backend
     ///   accepted before.
+    /// - Parameter claimingPurchase: Sends the receipt as a purchase, even one the backend
+    ///   accepted before as a sync; for a transaction ``claimsPurchase(_:)`` allowed.
     /// - Returns: `true` once the backend has accepted the receipt, now or before. `false` leaves
     ///   the receipt queued and the store transaction unfinished.
     @discardableResult
@@ -846,11 +876,13 @@ public actor PurchaseOrchestrator {
         schema: RuntimeSchema,
         readOnlyOverride: Bool? = nil,
         distinctIdOverride: String? = nil,
-        restoring: Bool = false
+        restoring: Bool = false,
+        claimingPurchase: Bool = false
     ) async throws -> Bool {
         return try await process(
             transaction, schema: schema, readOnlyOverride: readOnlyOverride,
-            distinctIdOverride: distinctIdOverride, restoring: restoring) != .pending
+            distinctIdOverride: distinctIdOverride, restoring: restoring,
+            claimingPurchase: claimingPurchase) != .pending
     }
 
     /// What processing a transaction established about its receipt.
@@ -863,8 +895,8 @@ public actor PurchaseOrchestrator {
         case accepted
     }
 
-    /// ``processTransaction(_:schema:readOnlyOverride:distinctIdOverride:restoring:)``, telling
-    /// whether the backend learned something from it.
+    /// ``processTransaction(_:schema:readOnlyOverride:distinctIdOverride:restoring:claimingPurchase:)``,
+    /// telling whether the backend learned something from it.
     ///
     /// - Parameter delivered: The outbox just delivered the receipt, so the backend has it and
     ///   nothing is sent.
@@ -874,6 +906,7 @@ public actor PurchaseOrchestrator {
         readOnlyOverride: Bool? = nil,
         distinctIdOverride: String? = nil,
         restoring: Bool = false,
+        claimingPurchase: Bool = false,
         paywallContext: SdkPurchasePaywallContext? = nil,
         delivered: Bool = false
     ) async throws -> ProcessingOutcome {
@@ -887,13 +920,15 @@ public actor PurchaseOrchestrator {
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(key)
 
         if let existing = inFlightTransactions[key] {
-            if restoring {
-                // A restore needs its own submission after the shared scan releases the receipt.
+            if restoring || claimingPurchase {
+                // A claim needs its own submission after the shared run releases the receipt: the
+                // store observer may be sending the same transaction as a sync.
                 _ = try await existing.task?.value
                 await Task.yield()
                 return try await process(
                     transaction, schema: schema, readOnlyOverride: readOnlyOverride,
-                    distinctIdOverride: capturedDistinctId, restoring: true)
+                    distinctIdOverride: capturedDistinctId, restoring: restoring,
+                    claimingPurchase: claimingPurchase, paywallContext: paywallContext)
             }
             if readOnlyOverride == true { existing.hostClaimed = true }
             if readOnlyOverride == false { existing.ownerClaimed = true }
@@ -926,6 +961,7 @@ public actor PurchaseOrchestrator {
                 processedCacheKey: processedCacheKey,
                 distinctId: capturedDistinctId,
                 restoring: restoring,
+                claimingPurchase: claimingPurchase,
                 paywallContext: paywallContext,
                 delivered: delivered
             )
@@ -944,13 +980,14 @@ public actor PurchaseOrchestrator {
         processedCacheKey: String,
         distinctId: String,
         restoring: Bool,
+        claimingPurchase: Bool,
         paywallContext: SdkPurchasePaywallContext?,
         delivered: Bool
     ) async throws -> ProcessingOutcome {
         let cachedState = await processingState(transaction, processedCacheKey: processedCacheKey)
         entry.hostClaimed = entry.hostClaimed || cachedState?.externallyManaged == true
 
-        // An explicit restore always asks the backend.
+        // An explicit restore and a purchase claim always ask the backend.
         let receipt = transaction.receiptReference
         // A purchase made here, or one that may turn out to be, is not taken for an older
         // transaction of its series. Read in one step with the check: a sheet still open and
@@ -958,7 +995,7 @@ public actor PurchaseOrchestrator {
         let mayBeNewPurchase =
             purchasesInStoreSheet > 0 || purchasedHere[transaction.transactionId] != nil
         let alreadyAccepted: Bool
-        if restoring {
+        if restoring || claimingPurchase {
             alreadyAccepted = false
         } else if delivered {
             alreadyAccepted = true
@@ -1015,7 +1052,7 @@ public actor PurchaseOrchestrator {
                     // A restore is not a sale, so it never names a paywall.
                     let body = PurchaseOrchestrator.syncPayload(
                         transaction, products: schema.products,
-                        intent: restoring ? .restore : .sync,
+                        intent: restoring ? .restore : claimingPurchase ? .purchase : .sync,
                         paywallContext: restoring ? nil : paywallContext)
                     response = restoring
                         ? try await api.restoreTransaction(
@@ -1223,6 +1260,8 @@ public actor PurchaseOrchestrator {
 
     /// Builds the iOS `sync-transaction` payload, mirroring `transaction-service.ts`.
     ///
+    /// A purchase or restore carries the transaction's JWS; a sync goes without it.
+    ///
     /// - Parameter intent: `nil` leaves it to the outbox, which sends the intent of the record the
     ///   payload is queued in.
     static func syncPayload(
@@ -1233,6 +1272,8 @@ public actor PurchaseOrchestrator {
     ) -> SdkSyncTransactionBody {
         return SdkSyncTransactionBody(
             platform: "ios", transactionId: transaction.transactionId, intent: intent,
+            signedTransaction: intent == .purchase || intent == .restore
+                ? transaction.signedTransaction : nil,
             paywallContext: paywallContext)
     }
 

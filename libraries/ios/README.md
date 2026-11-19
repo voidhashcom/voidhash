@@ -538,8 +538,8 @@ let observing = voidhash.isReadOnly
 
 ### Report purchases from another billing SDK
 
-In observer mode, call `reportTransaction(...)` after each successful host purchase and for each
-restored transaction.
+In observer mode, call `reportTransaction(...)` after each successful host purchase, and with
+`isRestore: true` for each restored transaction.
 Only an Apple transaction ID or Google Play purchase token is required. Voidhash supplies the current
 SDK identity and configured bundle/package; the backend fetches and verifies the store purchase.
 
@@ -549,9 +549,11 @@ try await voidhash.reportTransaction(transactionId: transactionId)
 
 The transaction ID is a string; preserve every digit. You can also pass a `StoreKit.Transaction`
 or `VerificationResult<StoreKit.Transaction>` directly to `reportTransaction(...)`. The SDK sends
-only the ID. It keeps the product ID, original transaction ID, purchase date and revocation date on
-the device to recognise receipts Voidhash already accepted, and discards raw JSON and signed
-receipts. An older renewal of a subscription whose latest one Voidhash accepted is not sent again;
+the ID and the transaction as StoreKit signed it on the device, which it takes from a verified
+result or reads from the device's purchase history; the signature proves the user's Apple Account
+holds the purchase. It keeps the product ID, original transaction ID, purchase date and revocation
+date on the device to recognise receipts Voidhash already accepted, and discards raw JSON. An
+older renewal of a subscription whose latest one Voidhash accepted is not sent again;
 an upgrade or crossgrade, which is another product, always is. The
 verified-result overload rejects unverified results. The direct transaction overload leaves local
 verification with the host. Transactions from a local StoreKit configuration in Xcode are not
@@ -590,14 +592,22 @@ Connect your Restore Purchases button to `restorePurchases()`. It revalidates re
 for the identity that requested the restore, including receipts already accepted for another user.
 Previously queued purchases retain their original identity and are delivered before the restore.
 
-Only `restorePurchases()`, or a report marked as a restore, can share or move a purchase that
-already gives another user access.
-The project's paid access sharing setting then decides whether both keep access, access moves to
-the restoring user, or it stays with the original user. Reports, recovery scans, observed renewals
-and `syncPurchases()` record such a purchase for the user who has it, so signing out or switching
-accounts on a shared Apple ID never takes a subscription away from its owner. Because the user
-asked for it, a restore sends its receipts at once: a receipt waiting out a retry or parked after a
-refusal goes immediately, and a circuit breaker opened by an outage lets a probe through.
+A purchase made with `purchase(_:options:)`, or one you report, goes to the current user, even when
+the Apple Account's earlier purchase or subscription belongs to another user, who keeps access only
+when the project's paid access sharing setting shares it. Voidhash moves only a purchase the App
+Store made in the last 24 hours, and the SDK claims each transaction this way once: reported again
+after another user signed in, it stays where it went. When the device has no signed transaction for
+a report, it is recorded for the user who has the purchase, and the SDK emits a
+`TRANSACTION_SIGNATURE_UNAVAILABLE` diagnostic.
+
+`restorePurchases()`, or a report marked as a restore, can share or move a purchase that already
+gives another user access: the project's paid access sharing setting decides whether both keep
+access, access moves to the restoring user, or it stays with the original user. Recovery scans,
+observed renewals and `syncPurchases()` record such a purchase for the user who has it, so signing
+out or switching accounts on a shared Apple ID never takes a subscription away from its owner.
+Because the user asked for it, a restore sends its receipts at once: a receipt waiting out a retry
+or parked after a refusal goes immediately, and a circuit breaker opened by an outage lets a probe
+through.
 
 Restore calls `AppStore.sync()` and reads verified non-consumable transaction history; this may
 prompt for App Store authentication. It sends the latest transaction of each subscription or
@@ -612,11 +622,10 @@ successfully. A successful restore refreshes the person and returns it (`nil` wh
 none for the identity): check its entitlements to decide whether to unlock access, which also tells
 the customer whether anything was restored.
 Use silent sync after a host restore for discovery; call explicit restore when Voidhash must
-revalidate cached receipts for the current user or give them a purchase another user has. Reports
-of a host restore leave such a purchase with its owner unless you mark them as restores. When the
+revalidate cached receipts for the current user or give them a purchase another user has. When the
 user asked your own billing integration to restore purchases, report each transaction it returns
-with `isRestore: true`: it is sent as an explicit restore for the current user, like
-`restorePurchases()`, even when Voidhash already accepted it, and stays one across retries and
+with `isRestore: true`, not as a purchase: it is sent as an explicit restore for the current user,
+like `restorePurchases()`, even when Voidhash already accepted it, and stays one across retries and
 relaunches.
 
 ```swift

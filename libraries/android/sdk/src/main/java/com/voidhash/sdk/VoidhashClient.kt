@@ -1666,14 +1666,20 @@ class VoidhashClient internal constructor(
      * Reports a Google Play purchase token; no other purchase metadata is required.
      * The current SDK identity is captured before delivery. The server verifies the purchase
      * with Google Play. Delivery failures stay queued and never fail the host purchase callback.
-     * A token Voidhash already accepted is not sent again.
+     *
+     * Without [isRestore] the report is a purchase the user just made, and it goes to the
+     * identity it is reported for even when the Google account's purchase belonged to another
+     * user; Google Play must show it was made in the last 24 hours, or it is recorded like a
+     * background sync, for its current owner. The report is sent even when a background scan had
+     * it accepted already, and keeps its intent across retries and relaunches. A purchase is
+     * claimed once from a device: reporting it again, also after another user signed in, sends
+     * nothing and cannot move it.
      *
      * Pass [isRestore] for a purchase the host's own restore flow returned after the user asked
      * to restore purchases. It is sent as an explicit restore for the current identity, like
      * [restorePurchases], even when Voidhash accepted it before, and keeps that intent across
      * retries and relaunches: the project's paid access sharing setting then decides whether a
-     * purchase another user has is shared, moved or kept. Any other report leaves such a purchase
-     * with its owner.
+     * purchase another user has is shared, moved or kept.
      *
      * Throws `TRANSACTION_NOT_DURABLE` when the device could not write the receipt to storage
      * (for example, a full disk). Delivery is still attempted from memory, but the receipt would
@@ -4007,8 +4013,9 @@ class VoidhashClient internal constructor(
      * user and Voidhash recording it is recovered on the next launch. Never throws for
      * transport or for the backend refusing the receipt: an undelivered receipt is queued and
      * a refused one is kept but not retried until the next launch; both report `accepted = false`.
-     * Only a `restore` [SyncTransactionRequest.intent] lets the project's paid access sharing
-     * share or move a purchase another person owns. A restore stays one for [distinctId] however
+     * Only a `restore` [SyncTransactionRequest.intent], which the project's paid access sharing
+     * applies to, and a `purchase` claim of a purchase just made can share or move a purchase
+     * another person owns; a queued claim stays one across retries and relaunches. A restore stays one for [distinctId] however
      * the receipt was queued before, across retries and relaunches: a receipt queued for another
      * identity is delivered for that identity first, then the restore is sent, and the result is
      * the restore's.

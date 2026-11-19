@@ -989,7 +989,7 @@ export interface SdkSyncTransactionParams {
  */
 export type SdkSyncIosTransactionBodyPlatform = "ios";
 
-export type SdkSyncIosTransactionBodyIntentEnum = "sync" | "restore";
+export type SdkSyncIosTransactionBodyIntentEnum = "sync" | "restore" | "purchase";
 
 /**
  * The paywall a purchase was made on. The server checks the showing and derives the rest; a context it cannot use is dropped and the purchase still records.
@@ -1026,9 +1026,13 @@ export interface SdkSyncIosTransactionBody {
    */
   readonly transactionId: string;
   /**
-   * Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+   * Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
    */
   readonly intent?: SdkSyncIosTransactionBodyIntentEnum | null | undefined;
+  /**
+   * The transaction as StoreKit signed it on the device (`jwsRepresentation`). It proves the device's Apple Account holds the purchase, which a `purchase` or `restore` needs to move it from another user; a transaction id alone does not.
+   */
+  readonly signedTransaction?: string | null | undefined;
   /**
    * The paywall the purchase was made on, when the SDK started it from one.
    */
@@ -1040,7 +1044,7 @@ export interface SdkSyncIosTransactionBody {
  */
 export type SdkSyncAndroidTransactionBodyPlatform = "android";
 
-export type SdkSyncAndroidTransactionBodyIntentEnum = "sync" | "restore";
+export type SdkSyncAndroidTransactionBodyIntentEnum = "sync" | "restore" | "purchase";
 
 /**
  * A Google Play purchase for the server to verify with Google and record.
@@ -1055,7 +1059,7 @@ export interface SdkSyncAndroidTransactionBody {
    */
   readonly purchaseToken: string;
   /**
-   * Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+   * Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
    */
   readonly intent?: SdkSyncAndroidTransactionBodyIntentEnum | null | undefined;
   /**

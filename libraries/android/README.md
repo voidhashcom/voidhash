@@ -852,7 +852,7 @@ finishes, acknowledges or consumes a transaction. It writes the identifier to di
 and delivers it in the background. When the device cannot store it (a full disk, for example) it
 throws `TRANSACTION_NOT_DURABLE` after starting delivery from memory; delay consuming the purchase
 and report it again. Duplicate reports preserve the original captured identity across retries and
-relaunches, and a token Voidhash already accepted is not sent again. Each delivery attempt that
+relaunches. Each delivery attempt that
 fails or is not confirmed is reported through `onDiagnostic` as `TRANSACTION_SYNC_DEFERRED`.
 
 Use `syncPurchases()` for a silent recovery scan when a host callback exposes no usable store
@@ -865,18 +865,26 @@ behind it when Google Play lists a purchase the first did not know. Either way e
 call listed is stored on the device before it returns, so you can consume a purchase once
 `syncPurchases()` has returned.
 
-Silent syncs, background scans, observer callbacks and reports not marked as restores never move
-a purchase to another person. The SDK remembers on disk which receipts Voidhash accepted and for whom, so a scan after a
-sign-out or an account switch does not resubmit the previous user's purchases for the new one, and
-a renewal (a new order on the same purchase token) is reported for the purchase's owner. These
-submissions are sent as `sync`.
+A report not marked as a restore is a purchase the user just made, sent as a `purchase`: it goes to
+the user it was reported for, even when the Google account's earlier purchase gave another user
+access, as do purchases the SDK makes itself. The server honours it only for a purchase Google Play
+made in the last 24 hours and records an older one for its current owner. It is sent even when a
+scan had the purchase accepted already, and stays a `purchase` across retries and relaunches. A
+purchase is claimed once from a device: reporting it again, also after another user signed in,
+sends nothing.
+
+Silent syncs, background scans and observer callbacks never move a purchase to another person. The
+SDK remembers on disk which receipts Voidhash accepted, for whom and whether they were claimed, so
+a scan after a sign-out or an account switch does not resubmit the previous user's purchases for
+the new one, and a renewal (a new order on the same purchase token) is reported for the purchase's
+owner. These submissions are sent as `sync`.
 
 Connect your Restore Purchases button to `restorePurchases()`. It revalidates restorable purchases
 for the identity that requested the restore, including receipts already accepted for another user.
 It and reports marked as restores are the only submissions sent as a `restore`; a restore queued
-offline keeps that intent across relaunches. Only a restore can share or move a purchase that already gives another user access:
-the project's paid access sharing setting decides whether it is shared, transferred or kept with
-that user. Previously queued purchases retain their original identity and are delivered before the
+offline keeps that intent across relaunches. For a restore, the project's paid access sharing
+setting decides whether a purchase that already gives another user access is shared, transferred
+or kept with that user. Previously queued purchases retain their original identity and are delivered before the
 restore.
 
 Restore queries currently owned Play purchases. Google Play has no separate restore prompt and
@@ -892,8 +900,7 @@ an unknown token, an environment mismatch) is kept but not retried until the nex
 hours, whichever comes first, and is reported once through `onDiagnostic` as `TRANSACTION_REJECTED`. An empty store can restore
 successfully. Check the refreshed person's entitlements to decide whether to unlock access.
 Use silent sync after a host restore for discovery; call explicit restore when Voidhash must
-revalidate cached receipts for the current user or give them a purchase another user has. Reports
-of a host restore leave such a purchase with its owner unless you mark them as restores. When the
+revalidate cached receipts for the current user or give them a purchase another user has. When the
 user asked your own billing integration to restore purchases, report each purchase it returns with
 `isRestore = true`: it is sent as an explicit restore for the current user, like
 `restorePurchases()`, even when Voidhash already accepted it, and stays one across retries and
@@ -1603,10 +1610,10 @@ The other changes are behaviour changes; existing call sites keep compiling.
 - **`VoidhashProduct.price` is read from Play's price in micros.** Comma-decimal prices such as
   "59,99 €" used to come out 100 times too high, and a subscription could take its price from
   another base plan or a free-trial phase.
-- **Only an explicit restore can move a purchase to another person.** Background scans used to
-  resubmit accepted purchases under whoever was signed in once a 30-minute marker lapsed. Accepted
-  receipts are now remembered on disk, and every other submission is a `sync` that keeps the
-  existing owner.
+- **Background scans never move a purchase to another person.** They used to resubmit accepted
+  purchases under whoever was signed in once a 30-minute marker lapsed. Accepted receipts are now
+  remembered on disk, and scans are a `sync` that keeps the existing owner; only a restore or a
+  purchase just made can move one.
 - **Only the API's own errors are verdicts.** A `5xx` outside `500`–`504`, an edge or proxy
   `4xx`, or an unreadable `2xx` used to drop queued analytics and person writes, throw from
   `identify` and `setPersonAttributes`, or clear a cached person. They are now retried like any

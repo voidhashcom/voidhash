@@ -461,7 +461,10 @@ enum class TransactionSyncVerdict {
     INDETERMINATE,
 }
 
-/** [SyncTransactionRequest.intent] of every submission except an explicit restore. */
+/**
+ * [SyncTransactionRequest.intent] of a background submission: scans, renewals, purchases made
+ * outside the app. It records the purchase for the person who already owns it.
+ */
 const val SYNC_TRANSACTION_INTENT_SYNC = "sync"
 
 /**
@@ -469,6 +472,14 @@ const val SYNC_TRANSACTION_INTENT_SYNC = "sync"
  * receipts already accepted for another user.
  */
 const val SYNC_TRANSACTION_INTENT_RESTORE = "restore"
+
+/**
+ * [SyncTransactionRequest.intent] of a purchase the end user just made: one this SDK bought, or
+ * one the host reported. It gives the purchase to the reporting person even when another person
+ * owns it; the server treats it as a `sync` unless Google Play made the purchase in the last 24
+ * hours. Sent at most once per purchase token from a device (see `AcceptedReceipt.purchaseClaimed`).
+ */
+const val SYNC_TRANSACTION_INTENT_PURCHASE = "purchase"
 
 /**
  * The paywall a purchase was started from, sent with it so its revenue is credited to the
@@ -505,9 +516,10 @@ data class PurchasePaywallContext(
 /**
  * Payload of `POST /api/v1/sdk/sync-transaction` for Android transactions.
  *
- * @property intent [SYNC_TRANSACTION_INTENT_RESTORE] only for an explicit restore. A `sync`
- *   records a receipt already bound to another person for its existing owner instead of
- *   moving it.
+ * @property intent [SYNC_TRANSACTION_INTENT_PURCHASE] for a purchase just made,
+ *   [SYNC_TRANSACTION_INTENT_RESTORE] for an explicit restore, and [SYNC_TRANSACTION_INTENT_SYNC]
+ *   otherwise. A `sync` records a receipt already bound to another person for its existing owner
+ *   instead of moving it.
  * @property isStartedBySdk whether this SDK bought the purchase itself in owner mode, so the
  *   server may acknowledge it too in case the app stops first. Sent only when true, and kept
  *   with a receipt waiting in the outbox, which is sent the same way later.

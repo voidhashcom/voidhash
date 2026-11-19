@@ -8,8 +8,14 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
     public let distinctId: String
     /// Explicit restore waiting behind this capture; retained until that identity is accepted.
     public var restoreDistinctId: String?
-    /// The sync payload, persisted verbatim so a relaunch needs nothing from the store.
-    public let body: SdkSyncTransactionBody
+    /// Purchase claim waiting behind this capture, for the identity that made or reported the
+    /// purchase; retained until that identity is accepted. A record waits behind one claim at a
+    /// time: the restore or the purchase staged last, except that a restore for the identity
+    /// a purchase is claimed for leaves the purchase claim in place.
+    public var purchaseDistinctId: String?
+    /// The sync payload, persisted so a relaunch needs nothing from the store. A later report
+    /// of the transaction can add its ``SdkSyncTransactionBody/signedTransaction``.
+    public var body: SdkSyncTransactionBody
     /// Send attempts so far, driving the backoff.
     public var attempts: Int
     /// Millisecond epoch before which the record is not retried.
@@ -27,8 +33,8 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
     /// whenever the receipt is delivered: now, after a long outage or by a later launch.
     public var hostClaimed: Bool
     private enum CodingKeys: String, CodingKey {
-        case transactionId, distinctId, restoreDistinctId, body, attempts, availableAt, parked,
-            rejectionReported, receipt, hostClaimed
+        case transactionId, distinctId, restoreDistinctId, purchaseDistinctId, body, attempts,
+            availableAt, parked, rejectionReported, receipt, hostClaimed
     }
 
     public init(
@@ -41,11 +47,13 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
         parked: Bool = false,
         rejectionReported: Bool = false,
         receipt: ReceiptReference? = nil,
-        hostClaimed: Bool = false
+        hostClaimed: Bool = false,
+        purchaseDistinctId: String? = nil
     ) {
         self.transactionId = transactionId
         self.distinctId = distinctId
         self.restoreDistinctId = restoreDistinctId
+        self.purchaseDistinctId = purchaseDistinctId
         self.body = body
         self.attempts = attempts
         self.availableAt = availableAt
@@ -60,6 +68,8 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
         transactionId = try container.decode(String.self, forKey: .transactionId)
         distinctId = try container.decode(String.self, forKey: .distinctId)
         restoreDistinctId = try container.decodeIfPresent(String.self, forKey: .restoreDistinctId)
+        purchaseDistinctId = try container.decodeIfPresent(
+            String.self, forKey: .purchaseDistinctId)
         body = try container.decode(SdkSyncTransactionBody.self, forKey: .body)
         attempts = try container.decode(Int.self, forKey: .attempts)
         availableAt = try container.decode(Double.self, forKey: .availableAt)
@@ -70,13 +80,24 @@ public struct OutboxRecord: Codable, Sendable, Equatable {
         hostClaimed = try container.decodeIfPresent(Bool.self, forKey: .hostClaimed) ?? false
     }
 
-    /// The intent the record's next send carries: a restore once the explicit restore waiting
-    /// behind the capture is the one being sent, a sync until then.
+    /// The intent the record's next send carries: a purchase or a restore once the claim
+    /// waiting behind the capture is the one being sent, a sync until then.
     ///
-    /// Derived from the persisted identities, so a restore queued by a previous launch, or by
-    /// a version that predates intents, is still sent as one.
+    /// Derived from the persisted identities, so a claim queued by a previous launch, or a
+    /// restore queued by a version that predates intents, is still sent as one.
     public var intent: SdkSyncTransactionIntent {
+        if purchaseDistinctId != nil && purchaseDistinctId == distinctId {
+            return .purchase
+        }
         return restoreDistinctId != nil && restoreDistinctId == distinctId ? .restore : .sync
+    }
+
+    /// The claim the record waits behind, and the identity it is for.
+    var pendingClaim: (distinctId: String, intent: SdkSyncTransactionIntent)? {
+        if let purchaseDistinctId {
+            return (purchaseDistinctId, .purchase)
+        }
+        return restoreDistinctId.map { ($0, .restore) }
     }
 }
 
@@ -257,16 +278,22 @@ public actor TransactionOutbox {
     /// a batch and drains once.
     ///
     /// A body whose intent is ``SdkSyncTransactionIntent/restore`` is staged as an explicit
-    /// restore for `distinctId`, as ``restore(_:distinctId:receipt:)`` does.
+    /// restore for `distinctId`, as ``restore(_:distinctId:receipt:)`` does, and one whose intent
+    /// is ``SdkSyncTransactionIntent/purchase`` as a purchase claim for it.
+    ///
+    /// A body carrying a ``SdkSyncTransactionBody/signedTransaction`` gives it to a receipt
+    /// already queued without one, so a claim staged onto a receipt a scan queued is sent with it.
     ///
     /// - Parameter hostClaimed: The host reported the transaction as its own to finish. The
     ///   claim is kept with the receipt, also when it joins one already queued without it.
+    /// - Parameter purchaseDistinctId: Sends the receipt as a purchase for this identity.
     /// - Returns: Whether the receipt reached the store. `false` leaves it in memory, and the
     ///   write is retried before the next stage, drain or count.
     @discardableResult
     public func stage(
         _ body: SdkSyncTransactionBody, distinctId: String, restoreDistinctId: String? = nil,
-        receipt: ReceiptReference? = nil, hostClaimed: Bool = false
+        receipt: ReceiptReference? = nil, hostClaimed: Bool = false,
+        purchaseDistinctId: String? = nil
     ) async -> Bool {
         activeStages += 1
         defer { finishStage() }
@@ -274,6 +301,14 @@ public actor TransactionOutbox {
         var restoreDistinctId = restoreDistinctId ?? (body.intent == .restore ? distinctId : nil)
         if let requested = restoreDistinctId {
             restoreDistinctId = await capturingIdentity(requested)
+        }
+        var purchaseDistinctId =
+            purchaseDistinctId ?? (body.intent == .purchase ? distinctId : nil)
+        if let requested = purchaseDistinctId {
+            purchaseDistinctId = await capturingIdentity(requested)
+        }
+        if purchaseDistinctId != nil {
+            restoreDistinctId = nil
         }
         await loadIfNeeded()
         await persistIfNeeded()
@@ -285,7 +320,13 @@ public actor TransactionOutbox {
             let learnsReceipt =
                 receipt != nil && receipt != known && (known == nil || receipt?.isRevoked == true)
             let claims = hostClaimed && !records[index].hostClaimed
-            guard restoreDistinctId != nil || learnsReceipt || claims else {
+            let learnsSignature =
+                body.signedTransaction != nil
+                && records[index].body.signedTransaction != body.signedTransaction
+            guard
+                restoreDistinctId != nil || purchaseDistinctId != nil || learnsReceipt || claims
+                    || learnsSignature
+            else {
                 return !needsPersist
             }
             if learnsReceipt {
@@ -294,8 +335,19 @@ public actor TransactionOutbox {
             if claims {
                 records[index].hostClaimed = true
             }
-            if let restoreDistinctId {
+            if learnsSignature {
+                records[index].body.signedTransaction = body.signedTransaction
+            }
+            if let purchaseDistinctId {
+                records[index].purchaseDistinctId = purchaseDistinctId
+                records[index].restoreDistinctId = nil
+            } else if let restoreDistinctId,
+                records[index].purchaseDistinctId != restoreDistinctId
+            {
                 records[index].restoreDistinctId = restoreDistinctId
+                records[index].purchaseDistinctId = nil
+            }
+            if restoreDistinctId != nil || purchaseDistinctId != nil {
                 records[index].availableAt = 0
                 records[index].parked = false
             }
@@ -303,7 +355,8 @@ public actor TransactionOutbox {
         } else {
             record = OutboxRecord(
                 transactionId: body.transactionId, distinctId: distinctId, body: body,
-                restoreDistinctId: restoreDistinctId, receipt: receipt, hostClaimed: hostClaimed)
+                restoreDistinctId: restoreDistinctId, receipt: receipt, hostClaimed: hostClaimed,
+                purchaseDistinctId: purchaseDistinctId)
             records.append(record)
         }
         if storeReadFailed || lifecycle == .retired {
@@ -456,7 +509,10 @@ public actor TransactionOutbox {
 
     /// The identities the queued receipts are, or will be, sent under.
     private func sendingIdentities() -> Set<String> {
-        return Set(records.flatMap { [$0.distinctId, $0.restoreDistinctId].compactMap { $0 } })
+        return Set(
+            records.flatMap {
+                [$0.distinctId, $0.restoreDistinctId, $0.purchaseDistinctId].compactMap { $0 }
+            })
     }
 
     /// The transactions acknowledged after the first `since` acknowledgements, as far back as
@@ -512,8 +568,8 @@ public actor TransactionOutbox {
         }.map(\.transactionId)
         var next = 0
         while next < due.count {
-            // Sends what is queued now: a restore staged since the drain started makes the send a
-            // restore.
+            // Sends what is queued now: a claim staged since the drain started makes the send a
+            // purchase or a restore.
             guard let record = records.first(where: { $0.transactionId == due[next] }) else {
                 next += 1
                 continue
@@ -531,6 +587,10 @@ public actor TransactionOutbox {
             let sentIntent = record.intent
             var body = record.body
             body.intent = sentIntent
+            // Only a claim needs the proof the device holds the transaction.
+            if sentIntent == .sync {
+                body.signedTransaction = nil
+            }
             let accepted: Bool
             do {
                 accepted = try await sync(body, record.distinctId)
@@ -597,17 +657,19 @@ public actor TransactionOutbox {
             else {
                 continue
             }
-            // A restore staged while the capture was in flight still has to be sent as one, under
-            // the identity that asked for it, before the receipt may leave.
-            if let restoreId = records[index].restoreDistinctId,
-                restoreId != record.distinctId || sentIntent != .restore
+            // A claim staged while the capture was in flight, or onto a receipt the backend took
+            // as a sync, still has to be sent as one, under the identity it is for, before the
+            // receipt may leave.
+            if let claim = records[index].pendingClaim,
+                claim.distinctId != record.distinctId || sentIntent != claim.intent
             {
                 let captured = records[index]
                 let restored = OutboxRecord(
-                    transactionId: captured.transactionId, distinctId: restoreId,
-                    body: captured.body, restoreDistinctId: restoreId,
+                    transactionId: captured.transactionId, distinctId: claim.distinctId,
+                    body: captured.body, restoreDistinctId: captured.restoreDistinctId,
                     rejectionReported: captured.rejectionReported, receipt: captured.receipt,
-                    hostClaimed: captured.hostClaimed)
+                    hostClaimed: captured.hostClaimed,
+                    purchaseDistinctId: captured.purchaseDistinctId)
                 records[index] = restored
                 // Persist the promotion before attempting it, including across process death.
                 await persist()
@@ -747,7 +809,12 @@ public actor TransactionOutbox {
                 first.availableAt = max(first.availableAt, record.availableAt)
                 first.parked = first.parked || record.parked
                 first.rejectionReported = first.rejectionReported || record.rejectionReported
-                first.restoreDistinctId = record.restoreDistinctId ?? first.restoreDistinctId
+                if record.restoreDistinctId != nil || record.purchaseDistinctId != nil {
+                    first.restoreDistinctId = record.restoreDistinctId
+                    first.purchaseDistinctId = record.purchaseDistinctId
+                }
+                first.body.signedTransaction =
+                    record.body.signedTransaction ?? first.body.signedTransaction
                 first.receipt = first.receipt ?? record.receipt
                 first.hostClaimed = first.hostClaimed || record.hostClaimed
                 merged[record.transactionId] = first

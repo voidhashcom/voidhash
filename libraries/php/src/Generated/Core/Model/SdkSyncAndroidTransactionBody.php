@@ -25,7 +25,7 @@ class SdkSyncAndroidTransactionBody
      */
     protected $purchaseToken;
     /**
-     * Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+     * Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
      *
      * @var string|null
      */
@@ -87,7 +87,7 @@ class SdkSyncAndroidTransactionBody
         return $this;
     }
     /**
-     * Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+     * Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
      *
      * @return string|null
      */
@@ -96,7 +96,7 @@ class SdkSyncAndroidTransactionBody
         return $this->intent;
     }
     /**
-     * Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+     * Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
      *
      * @param string|null $intent
      *

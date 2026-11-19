@@ -25,18 +25,23 @@ internal const val ACCEPTED_RECEIPT_RETENTION_MS = 30L * 24 * 60 * 60 * 1000
  *   but carries a new order id, so it does not match and is reported again.
  * @property distinctId the identity the backend accepted the receipt for: its owner.
  * @property acceptedAt wall-clock time of the acceptance.
+ * @property purchaseClaimed whether the backend accepted the receipt as a `purchase` from this
+ *   device. A purchase is claimed once: a later report of it, made for whoever is signed in by
+ *   then, is a `sync` and cannot move it.
  */
 data class AcceptedReceipt(
     val key: String,
     val transactionId: String,
     val distinctId: String,
     val acceptedAt: Long,
+    val purchaseClaimed: Boolean = false,
 ) {
     internal fun toRecord(): String = JSONObject()
         .put("key", key)
         .put("transactionId", transactionId)
         .put("distinctId", distinctId)
         .put("acceptedAt", acceptedAt)
+        .apply { if (purchaseClaimed) put("purchaseClaimed", true) }
         .toString()
 
     internal companion object {
@@ -49,6 +54,7 @@ data class AcceptedReceipt(
                 transactionId = json.optString("transactionId"),
                 distinctId = distinctId,
                 acceptedAt = json.optLong("acceptedAt"),
+                purchaseClaimed = json.optBoolean("purchaseClaimed"),
             )
         }
     }
@@ -88,11 +94,13 @@ class AcceptedReceipts(
     private fun restoreFromStore() {
         val loaded = store.load()
         synchronized(receipts) {
-            // Acceptances recorded before the load finished are newer than anything on disk.
+            // Acceptances recorded before the load finished are newer than anything on disk. A
+            // purchase claimed by any of a receipt's records stays claimed.
             val recordedThisSession = receipts.values.toList()
             receipts.clear()
-            (loaded.records.mapNotNull(AcceptedReceipt::fromRecord) + recordedThisSession)
-                .forEach { receipts[it.key] = it }
+            (loaded.records.mapNotNull(AcceptedReceipt::fromRecord) + recordedThisSession).forEach {
+                receipts[it.key] = it.copy(purchaseClaimed = it.purchaseClaimed || receipts[it.key]?.purchaseClaimed == true)
+            }
             storeReadFailed = loaded.readFailed
         }
         restored.complete(Unit)
@@ -104,12 +112,20 @@ class AcceptedReceipts(
         return synchronized(receipts) { receipts[key] }
     }
 
-    /** Records that the backend accepted order [transactionId] of receipt [key] for [distinctId]. */
-    fun record(key: String, transactionId: String, distinctId: String) {
+    /**
+     * Records that the backend accepted order [transactionId] of receipt [key] for [distinctId], as
+     * a `purchase` when [purchaseClaimed]. A claim, once recorded, stays with the receipt.
+     */
+    fun record(key: String, transactionId: String, distinctId: String, purchaseClaimed: Boolean = false) {
         val receipt = synchronized(receipts) {
             val current = receipts[key]
-            if (current?.transactionId == transactionId && current.distinctId == distinctId) return
-            AcceptedReceipt(key, transactionId, distinctId, clock.now()).also { receipts[key] = it }
+            val claimed = purchaseClaimed || current?.purchaseClaimed == true
+            if (current?.transactionId == transactionId && current.distinctId == distinctId &&
+                current.purchaseClaimed == claimed
+            ) {
+                return
+            }
+            AcceptedReceipt(key, transactionId, distinctId, clock.now(), claimed).also { receipts[key] = it }
         }
         persist {
             if (storeReadFailed || detached) {

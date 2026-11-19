@@ -2546,8 +2546,9 @@ const (
 
 // Defines values for SdkSyncAndroidTransactionBodyIntent.
 const (
-	SdkSyncAndroidTransactionBodyIntentRestore SdkSyncAndroidTransactionBodyIntent = "restore"
-	SdkSyncAndroidTransactionBodyIntentSync    SdkSyncAndroidTransactionBodyIntent = "sync"
+	SdkSyncAndroidTransactionBodyIntentPurchase SdkSyncAndroidTransactionBodyIntent = "purchase"
+	SdkSyncAndroidTransactionBodyIntentRestore  SdkSyncAndroidTransactionBodyIntent = "restore"
+	SdkSyncAndroidTransactionBodyIntentSync     SdkSyncAndroidTransactionBodyIntent = "sync"
 )
 
 // Defines values for SdkSyncAndroidTransactionBodyPlatform.
@@ -2557,8 +2558,9 @@ const (
 
 // Defines values for SdkSyncIosTransactionBodyIntent.
 const (
-	SdkSyncIosTransactionBodyIntentRestore SdkSyncIosTransactionBodyIntent = "restore"
-	SdkSyncIosTransactionBodyIntentSync    SdkSyncIosTransactionBodyIntent = "sync"
+	SdkSyncIosTransactionBodyIntentPurchase SdkSyncIosTransactionBodyIntent = "purchase"
+	SdkSyncIosTransactionBodyIntentRestore  SdkSyncIosTransactionBodyIntent = "restore"
+	SdkSyncIosTransactionBodyIntentSync     SdkSyncIosTransactionBodyIntent = "sync"
 )
 
 // Defines values for SdkSyncIosTransactionBodyPlatform.
@@ -12788,7 +12790,7 @@ type SdkSubscriptionPendingPriceJsonEncodingConsent string
 
 // SdkSyncAndroidTransactionBody A Google Play purchase for the server to verify with Google and record.
 type SdkSyncAndroidTransactionBody struct {
-	// Intent Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+	// Intent Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
 	Intent *SdkSyncAndroidTransactionBodyIntent `json:"intent"`
 
 	// IsStartedBySdk Whether the SDK started this purchase itself, so the server acknowledges it with Google Play once it is recorded. Leave out or `false` for a purchase the app's own billing integration made: the server never acknowledges those.
@@ -12804,7 +12806,7 @@ type SdkSyncAndroidTransactionBody struct {
 	PurchaseToken string `json:"purchaseToken"`
 }
 
-// SdkSyncAndroidTransactionBodyIntent Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+// SdkSyncAndroidTransactionBodyIntent Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
 type SdkSyncAndroidTransactionBodyIntent string
 
 // SdkSyncAndroidTransactionBodyPlatform A Google Play purchase.
@@ -12812,7 +12814,7 @@ type SdkSyncAndroidTransactionBodyPlatform string
 
 // SdkSyncIosTransactionBody An App Store transaction for the server to verify with Apple and record.
 type SdkSyncIosTransactionBody struct {
-	// Intent Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+	// Intent Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
 	Intent *SdkSyncIosTransactionBodyIntent `json:"intent"`
 
 	// PaywallContext The paywall a purchase was made on. The server checks the showing and derives the rest; a context it cannot use is dropped and the purchase still records.
@@ -12821,11 +12823,14 @@ type SdkSyncIosTransactionBody struct {
 	// Platform An App Store transaction.
 	Platform SdkSyncIosTransactionBodyPlatform `json:"platform"`
 
+	// SignedTransaction The transaction as StoreKit signed it on the device (`jwsRepresentation`). It proves the device's Apple Account holds the purchase, which a `purchase` or `restore` needs to move it from another user; a transaction id alone does not.
+	SignedTransaction *string `json:"signedTransaction"`
+
 	// TransactionId StoreKit's transaction id, a decimal integer.
 	TransactionId string `json:"transactionId"`
 }
 
-// SdkSyncIosTransactionBodyIntent Why the SDK reports the transaction: `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for this user.
+// SdkSyncIosTransactionBodyIntent Why the SDK reports the transaction: `purchase` for a purchase the end user just made, which goes to this user even when the store account's earlier purchase belongs to another user; `restore` for a restore the end user asked for, which may share or move a purchase another user owns as the project's paid access sharing setting allows; `sync` (the default) for anything else, which records it for the user who owns it. On the App Store, `purchase` and `restore` need `signedTransaction`; without it, or for a purchase the store did not make in the last 24 hours, the server treats the report as `sync`.
 type SdkSyncIosTransactionBodyIntent string
 
 // SdkSyncIosTransactionBodyPlatform An App Store transaction.

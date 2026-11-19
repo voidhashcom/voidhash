@@ -73,6 +73,10 @@ public protocol StoreKitEngineProtocol: AnyObject, Sendable {
     func currentEntitlements() async throws -> [StoreKitTransactionInfo]
     /// The App Store's record of the user getting the app; from iOS 16.
     func appTransaction() async throws -> VoidhashAppTransaction
+    /// The JWS StoreKit verified the transaction `transactionId` from, which proves to a server
+    /// that this device's Apple Account holds it; `nil` when the device has no verified
+    /// transaction with that id.
+    func signedTransaction(transactionId: String) async -> String?
 }
 
 extension StoreKitEngineProtocol {
@@ -118,6 +122,10 @@ extension StoreKitEngineProtocol {
 
     public func appTransaction() async throws -> VoidhashAppTransaction {
         throw VoidhashStoreError.methodNotAvailableOnPlatform("This store has no app transaction")
+    }
+
+    public func signedTransaction(transactionId: String) async -> String? {
+        return nil
     }
 }
 
@@ -237,6 +245,23 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
             }
             transactions.retain(id: transactionId, value: retained)
             return retained.info
+        }
+        return nil
+    }
+
+    /// Reads the transaction the engine holds, else the device's purchase history, which lists
+    /// every transaction but finished consumables.
+    public func signedTransaction(transactionId: String) async -> String? {
+        if let retained = transactions.value(for: transactionId) {
+            return retained.jwsRepresentation
+        }
+        for await verification in Transaction.all {
+            guard case .verified(let transaction) = verification,
+                String(transaction.id) == transactionId
+            else {
+                continue
+            }
+            return verification.jwsRepresentation
         }
         return nil
     }

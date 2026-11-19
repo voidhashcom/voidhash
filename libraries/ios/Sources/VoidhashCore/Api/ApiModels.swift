@@ -735,13 +735,20 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
 }
 
 /// Why a receipt is sent to `POST /api/v1/sdk/sync-transaction`.
+///
+/// ``purchase`` and ``restore`` count only with the transaction's
+/// ``SdkSyncTransactionBody/signedTransaction``; without it the backend treats them as ``sync``.
 public enum SdkSyncTransactionIntent: String, Codable, Sendable, Equatable {
-    /// Reports a purchase, a renewal or a revocation. A receipt the backend already holds for
-    /// another person is recorded for that person; ownership never moves.
+    /// Reports a renewal, a revocation or a transaction a scan found. A receipt the backend
+    /// already holds for another person is recorded for that person; ownership never moves.
     case sync
-    /// An explicit restore by the user: the backend applies the project's ownership-transfer
-    /// policy, which can move the purchase to the requesting person.
+    /// An explicit restore by the user: the backend applies the project's paid access sharing
+    /// setting, which can share or move the purchase to the requesting person.
     case restore
+    /// A purchase the user just made: the backend gives it to the reporting person, whoever had
+    /// the store account's earlier purchase. It counts only for a purchase the store made in the
+    /// last 24 hours; anything else is treated as ``sync``.
+    case purchase
 }
 
 /// Body of `POST /api/v1/sdk/sync-transaction`.
@@ -779,6 +786,11 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
     /// Why the receipt is sent; the backend reads an absent intent as
     /// ``SdkSyncTransactionIntent/sync``.
     public var intent: SdkSyncTransactionIntent?
+    /// The transaction as StoreKit signed it on the device (its `jwsRepresentation`), which
+    /// proves the device's Apple Account holds it. A ``SdkSyncTransactionIntent/purchase`` or
+    /// ``SdkSyncTransactionIntent/restore`` needs it; a ``SdkSyncTransactionIntent/sync`` is sent
+    /// without it.
+    public var signedTransaction: String?
     /// The paywall the purchase was started from; `nil` for every other report. It is part of
     /// the queued body, so it survives retries and restarts.
     public let paywallContext: SdkPurchasePaywallContext?
@@ -794,6 +806,7 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
         receipt: String? = nil,
         transactionId: String,
         intent: SdkSyncTransactionIntent? = nil,
+        signedTransaction: String? = nil,
         paywallContext: SdkPurchasePaywallContext? = nil
     ) {
         self.appAccountToken = appAccountToken
@@ -806,6 +819,7 @@ public struct SdkSyncTransactionBody: Codable, Sendable, Equatable {
         self.receipt = receipt
         self.transactionId = transactionId
         self.intent = intent
+        self.signedTransaction = signedTransaction.flatMap { $0.isEmpty ? nil : $0 }
         self.paywallContext = paywallContext
     }
 }

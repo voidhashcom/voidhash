@@ -3,6 +3,7 @@ package com.voidhash.sdk.transactions
 import com.voidhash.sdk.VoidhashApiException
 import com.voidhash.sdk.VoidhashException
 import com.voidhash.sdk.api.PurchasePaywallContext
+import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_PURCHASE
 import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_RESTORE
 import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_SYNC
 import com.voidhash.sdk.api.SyncTransactionRequest
@@ -148,9 +149,11 @@ data class OutboxRecord(
  *
  * A record is sent as a `restore` only for the identity an explicit restore asked for (see
  * [OutboxRecord.outgoingRequest]), so a queued restore survives relaunch as a restore and the
- * original buyer's capture ahead of it stays a `sync`. A restore staged while a `sync` of the
- * same receipt is in flight is still sent once that `sync` is accepted (see [acknowledge]).
- * Acceptances are remembered in [acceptedReceipts].
+ * original buyer's capture ahead of it stays a `sync`. A `purchase` claim is kept with the record's
+ * request the same way, and a later `sync` capture of the receipt does not turn it back. A restore
+ * or a claim staged while another request for the same receipt is in flight is still sent once
+ * that one is accepted (see [acknowledge]). Acceptances are remembered in [acceptedReceipts],
+ * with whether they claimed the purchase.
  */
 class TransactionOutbox(
     private val store: RecordStore = InMemoryRecordStore(),
@@ -227,7 +230,8 @@ class TransactionOutbox(
 
     /**
      * Records a receipt for [key], preserving the identity and retry state of any earlier attempt.
-     * A receipt the SDK started stays marked so once any capture of it says so.
+     * A receipt the SDK started stays marked so once any capture of it says so, and one queued as a
+     * `sync` becomes a `purchase` claim once a capture of it is one.
      *
      * [restoreDistinctId] marks an explicit restore for that identity. A receipt already queued
      * for another identity is sent for that one first, and the restore is promoted once it is
@@ -246,11 +250,10 @@ class TransactionOutbox(
             if (index >= 0) {
                 val existing = records[index]
                 existing.copy(
-                    request = if (request.isStartedBySdk && !existing.request.isStartedBySdk) {
-                        existing.request.copy(isStartedBySdk = true)
-                    } else {
-                        existing.request
-                    },
+                    request = existing.request.copy(
+                        isStartedBySdk = existing.request.isStartedBySdk || request.isStartedBySdk,
+                        intent = if (request.intent == SYNC_TRANSACTION_INTENT_PURCHASE) request.intent else existing.request.intent,
+                    ),
                     restoreDistinctId = restoreDistinctId ?: existing.restoreDistinctId,
                 ).also { records[index] = it }
             } else {
@@ -293,9 +296,11 @@ class TransactionOutbox(
      * Acknowledges one owner, remembers the acceptance in [acceptedReceipts], and promotes a
      * waiting restore. Returns true when complete.
      *
-     * [intent] is the intent of the accepted request. A `sync` accepted for a receipt that now
-     * waits to be sent as a restore, because the restore was staged while the sync was in
-     * flight, leaves the receipt queued and due: the restore has not been sent yet.
+     * [intent] is the intent of the accepted request; an accepted `purchase` is remembered as the
+     * receipt's claim. An acceptance for a receipt that now waits to be sent with another intent,
+     * because a restore or a claim was staged while it was in flight, leaves the receipt queued and
+     * due: that request has not been sent yet. Only a `sync` waiting behind another request is
+     * covered by it.
      */
     fun acknowledge(key: String, distinctId: String? = null, intent: String? = null): Boolean {
         var accepted: OutboxRecord? = null
@@ -315,8 +320,9 @@ class TransactionOutbox(
                 )
                 false
             } else if (
-                intent == SYNC_TRANSACTION_INTENT_SYNC &&
-                record.outgoingRequest.intent == SYNC_TRANSACTION_INTENT_RESTORE
+                intent != null &&
+                intent != record.outgoingRequest.intent &&
+                record.outgoingRequest.intent != SYNC_TRANSACTION_INTENT_SYNC
             ) {
                 records[index] = record.copy(attempts = 0, availableAt = clock.now(), rejectionReason = null)
                 false
@@ -325,7 +331,12 @@ class TransactionOutbox(
                 true
             }
         }
-        accepted?.let { acceptedReceipts.record(it.key, it.request.transactionId, it.distinctId) }
+        accepted?.let {
+            acceptedReceipts.record(
+                it.key, it.request.transactionId, it.distinctId,
+                purchaseClaimed = intent == SYNC_TRANSACTION_INTENT_PURCHASE,
+            )
+        }
         persist()
         return complete
     }

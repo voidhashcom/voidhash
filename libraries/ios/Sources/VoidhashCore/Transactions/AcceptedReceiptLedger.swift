@@ -71,6 +71,10 @@ public struct ReceiptReference: Codable, Sendable, Equatable {
 /// The host's claims are kept in the same store: the ids of the transactions the host reported,
 /// which the SDK then never finishes with the store, whatever mode it is in and however long
 /// ago the report was. The latest ``hostClaimCapacity`` are remembered.
+///
+/// So are the transactions this device sent as a purchase, which gives a purchase to the person
+/// it is sent for: each goes out as one once, so a purchase reported again after another person
+/// signed in stays with the first. The latest ``purchaseClaimCapacity`` are remembered.
 public actor AcceptedReceiptLedger {
     /// Most series the ledger remembers.
     public static let capacity = 500
@@ -81,10 +85,18 @@ public actor AcceptedReceiptLedger {
     /// Most transactions the host claimed that are remembered; the one claimed longest ago is
     /// forgotten first.
     public static let hostClaimCapacity = 500
+    /// Most transactions sent as a purchase that are remembered; the one claimed longest ago is
+    /// forgotten first. The backend counts a purchase claim for a day only.
+    public static let purchaseClaimCapacity = 500
 
     /// The line of the store that holds the host's claims, next to the entries.
     private struct HostClaims: Codable {
         let hostClaimedTransactionIds: [String]
+    }
+
+    /// The line of the store that holds the transactions sent as a purchase.
+    private struct PurchaseClaims: Codable {
+        let purchaseClaimedTransactionIds: [String]
     }
 
     private struct Entry: Codable, Equatable {
@@ -146,6 +158,8 @@ public actor AcceptedReceiptLedger {
     private var entries: [String: Entry] = [:]
     /// The transactions the host claimed, the one claimed last at the end.
     private var hostClaimed: [String] = []
+    /// The transactions sent as a purchase, the one claimed last at the end.
+    private var purchaseClaimed: [String] = []
     private var loadTask: Task<Void, Never>?
     /// The last load could not read the store, so the file must not be rewritten from memory.
     private var storeReadFailed = false
@@ -327,6 +341,29 @@ public actor AcceptedReceiptLedger {
         return hostClaimed.contains(transactionId)
     }
 
+    /// Whether `transactionId` was sent as a purchase from this device.
+    public func isPurchaseClaimed(_ transactionId: String) async -> Bool {
+        await loadIfNeeded()
+        return purchaseClaimed.contains(transactionId)
+    }
+
+    /// Records, durably, that `transactionId` is sent as a purchase from this device, unless it
+    /// was before.
+    ///
+    /// - Returns: Whether this is the transaction's first purchase claim, which the caller then
+    ///   sends; `false` leaves it a sync.
+    public func claimPurchase(_ transactionId: String) async -> Bool {
+        await loadIfNeeded()
+        guard !purchaseClaimed.contains(transactionId) else {
+            return false
+        }
+        purchaseClaimed.append(transactionId)
+        purchaseClaimed.removeFirst(
+            max(purchaseClaimed.count - AcceptedReceiptLedger.purchaseClaimCapacity, 0))
+        await persist()
+        return true
+    }
+
     /// Hands the file over to a replacing ledger over the same store: afterwards acceptances and
     /// claims are only remembered in memory.
     public func retire() {
@@ -369,6 +406,13 @@ public actor AcceptedReceiptLedger {
                 hostClaimed =
                     claims.hostClaimedTransactionIds.filter { !claimedMeanwhile.contains($0) }
                     + hostClaimed
+            } else if let claims = try? decoder.decode(
+                PurchaseClaims.self, from: Data(line.utf8))
+            {
+                let claimedMeanwhile = Set(purchaseClaimed)
+                purchaseClaimed =
+                    claims.purchaseClaimedTransactionIds.filter { !claimedMeanwhile.contains($0) }
+                    + purchaseClaimed
             }
             // A line that cannot be decoded costs one redundant sync of its series, no more.
         }
@@ -387,6 +431,12 @@ public actor AcceptedReceiptLedger {
         }
         if !hostClaimed.isEmpty,
             let claims = try? encoder.encode(HostClaims(hostClaimedTransactionIds: hostClaimed))
+        {
+            lines.append(String(decoding: claims, as: UTF8.self))
+        }
+        if !purchaseClaimed.isEmpty,
+            let claims = try? encoder.encode(
+                PurchaseClaims(purchaseClaimedTransactionIds: purchaseClaimed))
         {
             lines.append(String(decoding: claims, as: UTF8.self))
         }

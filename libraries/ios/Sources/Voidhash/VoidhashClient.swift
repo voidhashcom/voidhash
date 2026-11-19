@@ -1073,8 +1073,11 @@ public actor VoidhashClient {
             return
         }
         let transaction = ReceiptTransaction(storeTransaction: storeTransaction)
-        if (try? await orchestrator().processTransaction(
-            transaction, schema: schema, readOnlyOverride: readOnly)) == true
+        let purchases = orchestrator()
+        let claimingPurchase = await purchases.claimsPurchase(transaction)
+        if (try? await purchases.processTransaction(
+            transaction, schema: schema, readOnlyOverride: readOnly,
+            claimingPurchase: claimingPurchase)) == true
         {
             scheduleGrantRefresh()
         }
@@ -1132,24 +1135,30 @@ public actor VoidhashClient {
         return await cachedPerson(distinctId: distinctId)?.value ?? nil
     }
 
-    /// Reports a verified StoreKit result. Only its transaction ID is sent.
-    /// Unverified results throw; the host remains responsible for finishing. `isRestore` as for
-    /// a reported ``VoidhashTransaction``.
+    /// Reports a verified StoreKit result, with the JWS StoreKit verified it from. Unverified
+    /// results throw; the host remains responsible for finishing. `isRestore` as for a reported
+    /// ``VoidhashTransaction``.
     public func reportTransaction(
         _ result: VerificationResult<StoreKit.Transaction>, isRestore: Bool = false
     ) async throws {
         guard options.enabled else { return }
-        try await reportTransaction(try result.payloadValue, isRestore: isRestore)
+        try await reportReceipt(
+            ReceiptTransaction(
+                storeTransaction: StoreKitTransactionInfo(
+                    transaction: try result.payloadValue,
+                    jwsRepresentation: result.jwsRepresentation)),
+            isRestore: isRestore)
     }
 
     /// Reports a StoreKit transaction. The host owns local verification and finishing.
     ///
-    /// Only the transaction ID is sent for server verification. The device keeps its product,
-    /// original transaction, purchase date and revocation, so a receipt Voidhash accepted is not
-    /// sent again while a refund of it is, and neither is an older renewal of a subscription
-    /// whose latest one Voidhash accepted. An upgrade or crossgrade is another product and is
-    /// sent. A transaction from a local StoreKit configuration in Xcode is not
-    /// sent at all: the App Store cannot verify it.
+    /// The transaction's ID is sent for server verification, with its JWS, which the SDK reads
+    /// from the device's purchase history. The device keeps its product, original transaction,
+    /// purchase date and revocation, so a receipt Voidhash accepted is not sent again while a
+    /// refund of it is, and neither is an older renewal of a subscription whose latest one
+    /// Voidhash accepted. An upgrade or crossgrade is another product and is sent. A
+    /// transaction from a local StoreKit configuration in Xcode is not sent at all: the App
+    /// Store cannot verify it. `isRestore` as for a reported ``VoidhashTransaction``.
     public func reportTransaction(_ transaction: StoreKit.Transaction, isRestore: Bool = false)
         async throws
     {
@@ -1161,7 +1170,10 @@ public actor VoidhashClient {
             isRestore: isRestore)
     }
 
-    /// Reports a store transaction ID, using the current SDK identity automatically.
+    /// Reports a store transaction ID, using the current SDK identity automatically. Its JWS is
+    /// read from the device's purchase history. `isRestore` as for a reported
+    /// ``VoidhashTransaction``.
+    ///
     /// Capture is durable before return unless storage fails (reported as the
     /// `TRANSACTION_CAPTURE_NOT_DURABLE` diagnostic); delivery failures stay queued in the
     /// background.
@@ -1178,16 +1190,24 @@ public actor VoidhashClient {
     /// later one. It remembers the 500 transactions reported most recently.
     ///
     /// Reports a transaction the SDK handed over, such as one of
-    /// ``VoidhashAppStore/currentEntitlements()``. Only its transaction ID is sent; the product
-    /// ID, original transaction ID, purchase date and revocation date stay on the device to
-    /// recognise a receipt Voidhash already accepted. The host retains store finalization.
+    /// ``VoidhashAppStore/currentEntitlements()``. Its transaction ID and JWS are sent; the
+    /// product ID, original transaction ID, purchase date and revocation date stay on the device
+    /// to recognise a receipt Voidhash already accepted. The host retains store finalization.
+    ///
+    /// A report is a purchase the host made: it goes to the current identity, even when an
+    /// earlier purchase of the Apple Account, or this transaction, belongs to another user. It is
+    /// sent once as a purchase, also when Voidhash accepted the transaction before, and keeps
+    /// that intent across retries and relaunches. Reported again, after another user signed in
+    /// for instance, it stays where it went. Voidhash moves only a purchase the App Store made in
+    /// the last 24 hours, proven by the transaction's JWS; when the device has no JWS for it, the
+    /// report is recorded for the current owner and a `TRANSACTION_SIGNATURE_UNAVAILABLE`
+    /// diagnostic is emitted.
     ///
     /// Pass `isRestore` for a transaction the host's own restore flow returned after the user
     /// asked to restore purchases. It is sent as an explicit restore for the current identity,
     /// like ``restorePurchases()``, even when Voidhash accepted it before, and keeps that intent
     /// across retries and relaunches: the project's paid access sharing setting then decides
-    /// whether a purchase another user has is shared, moved or kept. Any other report leaves such
-    /// a purchase with its owner.
+    /// whether a purchase another user has is shared, moved or kept.
     public func reportTransaction(_ input: VoidhashTransaction, isRestore: Bool = false)
         async throws
     {
@@ -1203,11 +1223,13 @@ public actor VoidhashClient {
                 originalTransactionId: input.originalId,
                 revocationDate: input.appStore?.revocationDate.map {
                     $0.timeIntervalSince1970 * 1000
-                }, environment: input.environment),
+                }, environment: input.environment,
+                signedTransaction: input.appStore?.jwsRepresentation),
             isRestore: isRestore)
     }
 
-    /// Captures a host-reported transaction durably, then delivers it in the background. A
+    /// Captures a host-reported transaction durably, then delivers it in the background: a
+    /// restore with `isRestore`, else this device's first purchase claim on it, else a sync. A
     /// pending one is ignored.
     func reportReceipt(_ input: ReceiptTransaction, isRestore: Bool = false) async throws {
         guard input.purchaseState == .purchased else { return }
@@ -1215,14 +1237,26 @@ public actor VoidhashClient {
             throw VoidhashStoreError(
                 code: "INVALID_TRANSACTION", message: "A store transaction ID is required")
         }
-        let transaction = ReceiptTransaction(
+        var reported = ReceiptTransaction(
             transactionId: input.transactionId, productId: input.productId,
             purchaseDate: input.purchaseDate, quantity: 1,
             originalTransactionId: input.originalTransactionId,
-            revocationDate: input.revocationDate, environment: input.environment)
-        guard await !orchestrator().skipsLocalTesting(transaction) else {
+            revocationDate: input.revocationDate, environment: input.environment,
+            signedTransaction: input.signedTransaction)
+        guard await !orchestrator().skipsLocalTesting(reported) else {
             return
         }
+        // Only a claim sends the JWS: one already claimed or revoked is a sync, which needs none.
+        if reported.signedTransaction == nil {
+            var mayClaim = isRestore
+            if !isRestore, reported.revocationDate == nil {
+                mayClaim = !(await acceptedReceipts.isPurchaseClaimed(reported.transactionId))
+            }
+            if mayClaim {
+                reported = await withDeviceSignature(reported)
+            }
+        }
+        let transaction = reported
         switch await writeRoute() {
         case .direct:
             break
@@ -1247,18 +1281,25 @@ public actor VoidhashClient {
         let processingKey = PurchaseOrchestrator.processingKey(transaction)
         let processedCacheKey = PurchaseOrchestrator.processedCacheKey(processingKey)
         let restoreDistinctId = isRestore ? distinctId : nil
+        // Claimed here, before anything is queued, so the same transaction never goes out as a
+        // purchase twice from this device, whoever reports it.
+        var purchaseDistinctId: String?
+        if !isRestore, await orchestrator().claimsPurchase(transaction) {
+            purchaseDistinctId = distinctId
+        }
+        let isClaim = restoreDistinctId != nil || purchaseDistinctId != nil
         // A receipt Voidhash accepted is not sent again, unless it now arrives revoked or the host
-        // restored it.
+        // restored or claimed it.
         if let cached = await cacheManager.get(
             processedCacheKey, as: PurchaseOrchestrator.TransactionProcessingState.self)
         {
             if cached.isExpired {
                 await cacheManager.delete(processedCacheKey)
-            } else if cached.value.backendAccepted, transaction.revocationDate == nil, !isRestore {
+            } else if cached.value.backendAccepted, transaction.revocationDate == nil, !isClaim {
                 return
             }
         }
-        if !isRestore, await acceptedReceipts.covers(transaction.receiptReference) {
+        if !isClaim, await acceptedReceipts.covers(transaction.receiptReference) {
             return
         }
         // The report is the host's claim on the transaction: recorded durably before anything
@@ -1276,9 +1317,12 @@ public actor VoidhashClient {
             ttl: PurchaseOrchestrator.processedTransactionTtlMilliseconds
         )
         let durable = await outbox.stage(
-            PurchaseOrchestrator.syncPayload(transaction, products: schema.products),
+            PurchaseOrchestrator.syncPayload(
+                transaction, products: schema.products,
+                intent: isRestore ? .restore : purchaseDistinctId != nil ? .purchase : nil),
             distinctId: distinctId, restoreDistinctId: restoreDistinctId,
-            receipt: transaction.receiptReference, hostClaimed: true
+            receipt: transaction.receiptReference, hostClaimed: true,
+            purchaseDistinctId: purchaseDistinctId
         )
         if !durable {
             reportCaptureNotDurable(
@@ -1287,10 +1331,36 @@ public actor VoidhashClient {
         }
         await orchestrator().retainHostOwnership(transaction)
 
-        Task { [weak self] in
+        Task { [weak self, purchaseDistinctId] in
             await self?.deliverReportedTransaction(
-                transaction, schema: schema, restoreDistinctId: restoreDistinctId)
+                transaction, schema: schema, restoreDistinctId: restoreDistinctId,
+                purchaseDistinctId: purchaseDistinctId)
         }
+    }
+
+    /// `transaction` with the JWS StoreKit verified it from on this device, which a purchase or
+    /// restore claim needs. Without one the report goes out as a sync, which records the purchase
+    /// for its current owner, and `TRANSACTION_SIGNATURE_UNAVAILABLE` says so.
+    private func withDeviceSignature(_ transaction: ReceiptTransaction) async
+        -> ReceiptTransaction
+    {
+        guard
+            let signed = await engine.signedTransaction(
+                transactionId: transaction.transactionId), !signed.isEmpty
+        else {
+            diagnostics.emit(
+                .store, code: "TRANSACTION_SIGNATURE_UNAVAILABLE", operation: "reportTransaction",
+                message:
+                    "This device has no signed App Store transaction \(transaction.transactionId), so it is reported without one: Voidhash records it for the user who has it and does not move it to the current one"
+            )
+            return transaction
+        }
+        return ReceiptTransaction(
+            transactionId: transaction.transactionId, productId: transaction.productId,
+            purchaseDate: transaction.purchaseDate, quantity: transaction.quantity,
+            originalTransactionId: transaction.originalTransactionId,
+            revocationDate: transaction.revocationDate, environment: transaction.environment,
+            signedTransaction: signed)
     }
 
     /// Reports pending purchases and current store entitlements to Voidhash.
@@ -4965,12 +5035,14 @@ public actor VoidhashClient {
     private func deliverReportedTransaction(
         _ transaction: ReceiptTransaction,
         schema: RuntimeSchema,
-        restoreDistinctId: String?
+        restoreDistinctId: String?,
+        purchaseDistinctId: String?
     ) async {
         guard !isShutDown else { return }
         do {
             try await orchestrator().reportTransaction(
-                transaction, schema: schema, restoreDistinctId: restoreDistinctId)
+                transaction, schema: schema, restoreDistinctId: restoreDistinctId,
+                purchaseDistinctId: purchaseDistinctId)
         } catch is CancellationError {
             return
         } catch {
@@ -5110,7 +5182,8 @@ public actor VoidhashClient {
         // the client that delivers the receipt records the claim in its own.
         let durable = await outbox.stage(
             PurchaseOrchestrator.syncPayload(
-                transaction, products: (currentSchema ?? RuntimeSchema.empty).products),
+                transaction, products: (currentSchema ?? RuntimeSchema.empty).products,
+                intent: isRestore ? .restore : nil),
             distinctId: distinctId, restoreDistinctId: isRestore ? distinctId : nil,
             receipt: transaction.receiptReference, hostClaimed: true)
         if !durable {
