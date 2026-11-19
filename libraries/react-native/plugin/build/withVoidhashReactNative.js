@@ -67,14 +67,14 @@ const withVoidhashPods = (config, { renderer }) =>
     const pods = [
       { directory: coreDirectory, name: "VoidhashCore" },
       { directory: coreDirectory, name: "Voidhash" },
-      ...(renderer
-        ? [
+      ...(renderer === "none"
+        ? []
+        : [
             {
               directory: (0, node_path_1.resolve)(coreDirectory, "..", "ios-ui"),
-              name: "VoidhashUI",
+              name: renderer === "views" ? "VoidhashUIViews" : "VoidhashUI",
             },
-          ]
-        : []),
+          ]),
     ].filter((pod) => !hasManualPodDeclaration(contents, pod.name));
     if (pods.length === 0) {
       return podfileConfig;
@@ -113,13 +113,18 @@ const withRendererGradleProperty = (config, { renderer }) =>
     const properties = gradleConfig.modResults.filter(
       (item) => item.type !== "property" || item.key !== exports.RENDERER_GRADLE_PROPERTY,
     );
-    gradleConfig.modResults = renderer
-      ? [...properties, { key: exports.RENDERER_GRADLE_PROPERTY, type: "property", value: "true" }]
-      : properties;
+    gradleConfig.modResults =
+      renderer !== "none"
+        ? [
+            ...properties,
+            { key: exports.RENDERER_GRADLE_PROPERTY, type: "property", value: "true" },
+          ]
+        : properties;
     return gradleConfig;
   });
 const withVoidhashReactNative = (config, options) => {
-  const renderer = (options ?? {}).renderer === true;
+  const option = (options ?? {}).renderer;
+  const renderer = option === "views" ? "views" : option === true ? "engine" : "none";
   return withRendererGradleProperty(withVoidhashPods(config, { renderer }), { renderer });
 };
 exports.default = (0, config_plugins_1.createRunOncePlugin)(

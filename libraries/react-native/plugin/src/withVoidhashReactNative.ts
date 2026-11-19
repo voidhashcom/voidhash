@@ -19,12 +19,17 @@ const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
 /** Options of the Voidhash config plugin. */
 export interface VoidhashPluginOptions {
   /**
-   * Adds the native flow renderer, which `presentFlow()` needs: the
-   * `VoidhashUI` pod on iOS and the renderer module on Android. Off by
-   * default, so apps that do not show flows do not ship it.
+   * Adds the native flow renderer, which `presentFlow()` needs: on iOS the
+   * `VoidhashUI` pod, or with `"views"` the `VoidhashUIViews` pod, which draws
+   * flows with UIKit's own views (the two cannot be linked into one app); on
+   * Android the renderer module, which carries both. Off by default, so apps
+   * that do not show flows do not ship it.
    */
-  renderer?: boolean;
+  renderer?: boolean | "views";
 }
+
+/** The renderer the app adds. */
+type Renderer = "engine" | "views" | "none";
 
 /** Gradle property the Android module reads to compile the renderer in. */
 export const RENDERER_GRADLE_PROPERTY = "Voidhash_renderer";
@@ -76,16 +81,21 @@ const hasManualPodDeclaration = (contents: string, podName: string): boolean => 
   );
 };
 
-const withVoidhashPods: ConfigPlugin<{ renderer: boolean }> = (config, { renderer }) =>
+const withVoidhashPods: ConfigPlugin<{ renderer: Renderer }> = (config, { renderer }) =>
   withPodfile(config, (podfileConfig) => {
     const contents = podfileConfig.modResults.contents;
     const coreDirectory = resolveCorePodDirectory();
     const pods = [
       { directory: coreDirectory, name: "VoidhashCore" },
       { directory: coreDirectory, name: "Voidhash" },
-      ...(renderer
-        ? [{ directory: resolve(coreDirectory, "..", "ios-ui"), name: "VoidhashUI" }]
-        : []),
+      ...(renderer === "none"
+        ? []
+        : [
+            {
+              directory: resolve(coreDirectory, "..", "ios-ui"),
+              name: renderer === "views" ? "VoidhashUIViews" : "VoidhashUI",
+            },
+          ]),
     ].filter((pod) => !hasManualPodDeclaration(contents, pod.name));
 
     if (pods.length === 0) {
@@ -124,19 +134,21 @@ const withVoidhashPods: ConfigPlugin<{ renderer: boolean }> = (config, { rendere
  * Sets the Gradle property the Android module reads to compile the renderer in, and removes it
  * when the option is off so turning it off takes effect on the next prebuild.
  */
-const withRendererGradleProperty: ConfigPlugin<{ renderer: boolean }> = (config, { renderer }) =>
+const withRendererGradleProperty: ConfigPlugin<{ renderer: Renderer }> = (config, { renderer }) =>
   withGradleProperties(config, (gradleConfig) => {
     const properties = gradleConfig.modResults.filter(
       (item) => item.type !== "property" || item.key !== RENDERER_GRADLE_PROPERTY,
     );
-    gradleConfig.modResults = renderer
-      ? [...properties, { key: RENDERER_GRADLE_PROPERTY, type: "property", value: "true" }]
-      : properties;
+    gradleConfig.modResults =
+      renderer !== "none"
+        ? [...properties, { key: RENDERER_GRADLE_PROPERTY, type: "property", value: "true" }]
+        : properties;
     return gradleConfig;
   });
 
 const withVoidhashReactNative: ConfigPlugin<VoidhashPluginOptions | void> = (config, options) => {
-  const renderer = (options ?? {}).renderer === true;
+  const option = (options ?? {}).renderer;
+  const renderer: Renderer = option === "views" ? "views" : option === true ? "engine" : "none";
   return withRendererGradleProperty(withVoidhashPods(config, { renderer }), { renderer });
 };
 

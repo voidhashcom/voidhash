@@ -751,12 +751,22 @@ class VoidhashViewsPaywallView internal constructor(
         }
     }
 
-    internal companion object {
+    companion object {
+        /** Newest flow package format version this renderer reads; 0 without its native library. */
+        @JvmStatic
+        val packageAbiVersion: Int
+            get() = if (VoidhashViewsNative.isAvailable) VoidhashViewsNative.nativePackageAbiVersion() else 0
+
+        /** Oldest flow package format version this renderer reads; 0 without its native library. */
+        @JvmStatic
+        val minPackageAbiVersion: Int
+            get() = if (VoidhashViewsNative.isAvailable) VoidhashViewsNative.nativeMinPackageAbiVersion() else 0
+
         /**
          * Decodes an image off the main thread, at most [MAX_IMAGE_SIDE] pixels on a side;
          * `null` when the bytes are not an image Android decodes.
          */
-        fun decode(bytes: ByteArray): Bitmap? {
+        internal fun decode(bytes: ByteArray): Bitmap? {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -769,7 +779,7 @@ class VoidhashViewsPaywallView internal constructor(
          * The bytes a `data:` URL (RFC 2397) carries, base64 or percent-encoded; `null` when [url]
          * is not one or its payload is malformed.
          */
-        fun dataUrlBytes(url: String): ByteArray? {
+        internal fun dataUrlBytes(url: String): ByteArray? {
             if (!url.startsWith("data:")) return null
             val comma = url.indexOf(',')
             if (comma < 0) return null
