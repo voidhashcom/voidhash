@@ -1,6 +1,6 @@
 {
   "name": "@voidhash/ios",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "description": "Voidhash iOS SDK and shared native core for in-app purchases.",
   "keywords": [

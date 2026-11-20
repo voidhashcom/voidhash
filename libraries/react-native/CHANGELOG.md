@@ -1,5 +1,14 @@
 # @voidhash/react-native
 
+## 0.2.1
+
+### Patch Changes
+
+- In observer mode, `restorePurchases()` on iOS no longer calls `AppStore.sync()`, so you can call it after your other billing SDK's restore without the user being asked to sign in again: it sends what the device already has as a restore. The Restore button of a Voidhash paywall still refreshes the App Store. On React Native, a StoreKit JWS you report is now sent as the purchase's proof instead of being looked up again on the device, and on iOS `reportTransaction(transactionId:)` takes it as `signedTransaction:`.
+- Updated dependencies
+  - @voidhash/ios@0.2.1
+  - @voidhash/android@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
