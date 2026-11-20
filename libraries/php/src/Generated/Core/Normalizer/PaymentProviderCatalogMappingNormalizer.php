@@ -40,6 +40,9 @@ class PaymentProviderCatalogMappingNormalizer implements DenormalizerInterface, 
         if (\array_key_exists('isActive', $data) && \is_int($data['isActive'])) {
             $data['isActive'] = (bool) $data['isActive'];
         }
+        if (\array_key_exists('isSold', $data) && \is_int($data['isSold'])) {
+            $data['isSold'] = (bool) $data['isSold'];
+        }
         if (\array_key_exists('id', $data)) {
             $object->setId($data['id']);
         }
@@ -48,6 +51,9 @@ class PaymentProviderCatalogMappingNormalizer implements DenormalizerInterface, 
         }
         if (\array_key_exists('isActive', $data)) {
             $object->setIsActive($data['isActive']);
+        }
+        if (\array_key_exists('isSold', $data)) {
+            $object->setIsSold($data['isSold']);
         }
         if (\array_key_exists('environment', $data)) {
             $object->setEnvironment($data['environment']);
@@ -60,6 +66,7 @@ class PaymentProviderCatalogMappingNormalizer implements DenormalizerInterface, 
         $dataArray['id'] = $data->getId();
         $dataArray['productId'] = $data->getProductId();
         $dataArray['isActive'] = $data->getIsActive();
+        $dataArray['isSold'] = $data->getIsSold();
         $dataArray['environment'] = $data->getEnvironment();
         return $dataArray;
     }

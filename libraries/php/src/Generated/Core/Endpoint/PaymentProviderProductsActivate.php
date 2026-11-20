@@ -8,7 +8,7 @@ class PaymentProviderProductsActivate extends \Voidhash\Generated\Core\Runtime\C
     protected $paymentProviderId;
     protected $mappingId;
     /**
-     * Activates a mapping, so purchases of its store product grant its product's perks again; the product's other mappings stay active. Fails with `conflict` (`store_product_already_mapped`) while the store product is active for another product: create the mapping with `isReassignment` to move it.
+     * Activates a mapping, so purchases of its store product grant its product's perks again; the product's other mappings stay active, and the product is sold as this one only when it is sold as no other store product of this provider. Fails with `conflict` (`store_product_already_mapped`) while the store product is active for another product: `move` that mapping instead.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.

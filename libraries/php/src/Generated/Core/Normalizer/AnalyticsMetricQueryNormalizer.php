@@ -91,6 +91,8 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsStoreDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'product')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'store_product')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'billing_period')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'plan')) {
@@ -162,6 +164,8 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         if ($data->isInitialized('split') && null !== $data->getSplit()) {
             $value_3 = $data->getSplit();
             if (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);

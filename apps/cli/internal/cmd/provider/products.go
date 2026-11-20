@@ -104,7 +104,7 @@ func productCell(mappings []mapping, products []api.ProductJsonEncoding) string 
 				slug = product.Slug
 			}
 		}
-		cells = append(cells, slug+catalog.MappingNote(string(candidate.Environment), candidate.IsActive))
+		cells = append(cells, slug+catalog.MappingNote(string(candidate.Environment), candidate.IsActive, candidate.IsSold))
 	}
 	if len(cells) == 0 {
 		return "-"
@@ -117,6 +117,8 @@ func newProducts(app *cli.App) *cobra.Command {
 		Use:   "products",
 		Short: "List the store products providers sell and what each is mapped to.",
 		Long: `List the store products the App Store, Google Play, Stripe or a payment source sells, with the product each is mapped to and the purchases waiting for one.
+
+A product with several store products on one provider is sold as one of them, the one apps are offered; the others read "recognized only": they still grant the product to those who bought them. 'voidhash provider sell' chooses which one is sold.
 
 --quiet prints the store product keys, which 'voidhash provider map' takes.`,
 		Example: `voidhash provider products
@@ -195,9 +197,12 @@ voidhash provider products app-store --refresh --json`,
 		if *unmapped {
 			empty = "Every store product is mapped to a product."
 		}
-		anyUnmapped := false
+		anyUnmapped, anyRecognizedOnly := false, false
 		for _, row := range loaded.rows {
 			anyUnmapped = anyUnmapped || len(row.mappings.Items) == 0
+			for _, candidate := range row.mappings.Items {
+				anyRecognizedOnly = anyRecognizedOnly || (candidate.IsActive && !candidate.IsSold)
+			}
 		}
 		cli.PrintTable(app, []cli.Column[storeProduct]{
 			{Header: "PROVIDER", Cell: func(row storeProduct) string { return catalog.ProviderLabel(row.provider) }},
@@ -221,6 +226,9 @@ voidhash provider products app-store --refresh --json`,
 		}
 		if anyUnmapped {
 			app.Notef("Map one to a product with 'voidhash provider map <store-product> <product>'.")
+		}
+		if anyRecognizedOnly {
+			app.Notef("Sell a product as a store product it only recognizes with 'voidhash provider sell <store-product>'.")
 		}
 		return nil
 	}
@@ -346,7 +354,7 @@ func newMap(app *cli.App) *cobra.Command {
 		Short: "Map a store product to a product, so buying it grants the product's perks.",
 		Long: `Map a store product to a product, so buying it grants the product's perks. Without arguments it asks for both in a terminal, offering the store products not mapped yet.
 
-Moving one mapped to another product asks first; --yes skips that. A payment source whose test system names products differently maps each key with --environment production or test.`,
+A store product mapped to another product moves to this one with the purchases and subscriptions recorded under it, as 'voidhash provider move' does; it shows what moves and asks first, and --yes skips that. A product with several store products on one provider is sold as the first one mapped; 'voidhash provider sell' chooses another. A payment source whose test system names products differently maps each key with --environment production or test.`,
 		Example: `voidhash provider map com.acme.pro.monthly pro-monthly
 voidhash provider map prod_123:price_456 pro-annual --provider stripe
 voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK50`,
@@ -480,9 +488,20 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 					previousLabel = catalog.ProductKind.Label(candidate)
 				}
 			}
+			if !*yes {
+				previousName := activeOther.Value.ProductId
+				for _, candidate := range products.Items {
+					if candidate.Id == activeOther.Value.ProductId {
+						previousName = candidate.Name
+					}
+				}
+				if err := explainMove(ctx, app, projectID, store, activeOther.Value, previousName, product); err != nil {
+					return err
+				}
+			}
 			if err := app.ConfirmChange(ctx, *yes, fmt.Sprintf(
-				"%s is mapped to %s. Move it to %s? Its purchases and renewals from now on grant %s's perks instead.",
-				where, previousLabel, productLabel, product.Name)); err != nil {
+				"%s is mapped to %s. Move it to %s, with the purchases and subscriptions recorded under it?",
+				where, previousLabel, productLabel)); err != nil {
 				return err
 			}
 			configuration := activeOther.Value.Configuration
@@ -501,9 +520,10 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 				return c.PaymentProviderProductsCreateWithBody(ctx, projectID, store.provider.Id, catalog.JSON, catalog.Body(body))
 			})
 			if err != nil {
-				return err
+				return cli.APIError(err, nil)
 			}
-			return app.PrintItem(mode, moved, fmt.Sprintf("Moved %s from %s to %s.", where, previousLabel, productLabel))
+			return app.PrintItem(mode, moved, fmt.Sprintf("Moved %s from %s to %s, with the purchases and subscriptions recorded under it.%s",
+				where, previousLabel, productLabel, soldNote(moved.Value, store, product.Name)))
 		}
 
 		if hasInactiveSame {
@@ -545,7 +565,7 @@ func newUnmap(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unmap",
 		Short: "Remove a store product's mapping to a product made by mistake.",
-		Long:  "Remove a store product's mapping to a product made by mistake. Asks first when the mapping is active; --yes skips that. A mapping purchases were recorded under stays; move it with 'voidhash provider map' instead.",
+		Long:  "Remove a store product's mapping to a product made by mistake. Asks first when the mapping is active; --yes skips that. A mapping purchases were recorded under stays; move it with 'voidhash provider move' instead.",
 		Example: `voidhash provider unmap com.acme.pro.monthly --yes
 voidhash provider unmap prod_123:price_456 --provider stripe --product pro-annual`,
 	}
@@ -617,7 +637,7 @@ voidhash provider unmap prod_123:price_456 --provider stripe --product pro-annua
 			return c.PaymentProviderProductsDelete(ctx, projectID, store.provider.Id, found.Value.Id)
 		}); err != nil {
 			return cli.APIError(err, map[string]string{
-				"product_mapping_has_purchases": fmt.Sprintf("Purchases were recorded under it, so it stays. Move it to another product with 'voidhash provider map %s <product>'.", store.key),
+				"product_mapping_has_purchases": fmt.Sprintf("Purchases were recorded under it, so it stays. Move it to another product with 'voidhash provider move %s <product>'.", store.key),
 			})
 		}
 		return app.PrintItem(mode, found, fmt.Sprintf("Unmapped %s from %s.", where, fromLabel))

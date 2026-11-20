@@ -1,0 +1,32 @@
+Sell the product a store product is mapped to as that store product on its provider: apps are
+offered it and paywalls list it, with its offers, from then on. A product with several store
+products on one provider is sold as one of them; the others stay mapped and only recognize purchases
+made under them, so their buyers keep their access.
+
+It changes what new buyers are offered, so it asks first; --yes skips that.
+
+Usage:
+  voidhash provider sell [store-product] [flags]
+
+Arguments:
+  store-product  The store's id for it, as 'provider products' lists it
+
+Flags:
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --project <project>    Project to act on: its id, slug, organization/slug or name (default:
+                             this directory's project, then your default project)
+      --provider <provider>  The provider selling it (app-store, google-play, stripe, a payment
+                             source's slug); needed only when several do
+  -q, --quiet                Print only ids, one per line
+  -y, --yes                  Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider sell com.acme.pro.monthly.v2
+  voidhash provider sell prod_123:price_789 --provider stripe --yes

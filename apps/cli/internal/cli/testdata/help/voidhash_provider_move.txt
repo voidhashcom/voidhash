@@ -1,0 +1,35 @@
+Move a store product to another product of the same type and duration. The purchases, subscriptions
+and revenue recorded under it move with it: reports by product then count them under the other
+product, and totals do not change. Its buyers get the other product's perks instead.
+
+To split a product sold as several store products, create a product with the same type, duration and
+perks, then move one of them to it.
+
+It shows what moves and asks first; --yes skips that.
+
+Usage:
+  voidhash provider move [store-product] [product] [flags]
+
+Arguments:
+  store-product  The store's id for it, as 'provider products' lists it
+  product        The product to move it to: its slug, name or id
+
+Flags:
+  -h, --help                 Show help for this command
+      --json                 Print the API objects as JSON, for scripts
+      --project <project>    Project to act on: its id, slug, organization/slug or name (default:
+                             this directory's project, then your default project)
+      --provider <provider>  The provider selling it (app-store, google-play, stripe, a payment
+                             source's slug); needed only when several do
+  -q, --quiet                Print only ids, one per line
+  -y, --yes                  Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash provider move com.acme.pro.monthly.intro pro-intro
+  voidhash provider move prod_123:price_456 pro-legacy --provider stripe --yes

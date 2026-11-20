@@ -15,6 +15,9 @@ Commands:
   edit                 Rename a provider, turn it on or off, or change a payment source's endpoints.
   products             List the store products providers sell and what each is mapped to.
   map                  Map a store product to a product, so buying it grants the product's perks.
+  move                 Move a store product to another product, with the purchases recorded under
+                       it.
+  sell                 Sell a product as one of its store products: the one apps are offered.
   unmap                Remove a store product's mapping to a product made by mistake.
   import               Import the purchases Stripe or a payment source recorded earlier.
   delete               Delete a payment provider that no store product is mapped to.

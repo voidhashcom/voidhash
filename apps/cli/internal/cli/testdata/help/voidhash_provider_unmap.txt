@@ -1,6 +1,6 @@
 Remove a store product's mapping to a product made by mistake. Asks first when the mapping is
 active; --yes skips that. A mapping purchases were recorded under stays; move it with 'voidhash
-provider map' instead.
+provider move' instead.
 
 Usage:
   voidhash provider unmap [store-product] [flags]

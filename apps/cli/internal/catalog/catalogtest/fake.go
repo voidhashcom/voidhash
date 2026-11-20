@@ -29,6 +29,9 @@ type Fake struct {
 	Unreadable map[string]bool
 	// Waiting are the store products purchases wait for, by provider id.
 	Waiting map[string][]M
+	// Explanations are what explaining the move of each mapping answers, by
+	// mapping id; by default the move is allowed and moves nothing recorded.
+	Explanations map[string]M
 	// Imports are the history imports, by provider id.
 	Imports map[string][]M
 	// Tests are what a payment source's endpoints answer, by environment.
@@ -60,11 +63,12 @@ func Provider(id, kind, name string, key any, configuration M) M {
 	}
 }
 
-// Mapping is a store product's mapping to a product.
+// Mapping is a store product's mapping to a product; an active one is the
+// one its product is sold as.
 func Mapping(id, providerID, productID, key string, isActive bool) M {
 	return M{
 		"id": id, "paymentProviderId": providerID, "productId": productID, "providerProductKey": key,
-		"isActive": isActive, "environment": "all", "configuration": M{"productId": key},
+		"isActive": isActive, "isSold": isActive, "environment": "all", "configuration": M{"productId": key},
 	}
 }
 
@@ -112,10 +116,11 @@ func New() *Fake {
 			{"providerProductKey": "com.acme.pro.monthly", "name": "Pro Monthly", "configuration": M{"productId": "com.acme.pro.monthly"}},
 			{"providerProductKey": "com.acme.pro.annual", "name": "Pro Annual", "configuration": M{"productId": "com.acme.pro.annual"}},
 		}},
-		Unreadable: map[string]bool{},
-		Waiting:    map[string][]M{},
-		Imports:    map[string][]M{},
-		Tests:      map[string]clitest.Answer{},
+		Unreadable:   map[string]bool{},
+		Explanations: map[string]M{},
+		Waiting:      map[string][]M{},
+		Imports:      map[string][]M{},
+		Tests:        map[string]clitest.Answer{},
 		Persons: []M{{
 			"id": "person_kim", "projectId": "proj_app", "distinctId": "user-42", "email": "kim@example.com",
 			"name": "Kim", "isIdentified": true, "createdAt": nil,
@@ -352,7 +357,9 @@ func (f *Fake) providerRoutes() {
 				if r.Body["isReassignment"] != true {
 					return clitest.Failure(409, "conflict", "product_mapping_exists", "This store product is mapped already.")
 				}
-				mapping["isActive"] = false
+				// Reassigning moves the mapping, keeping its id.
+				mapping["productId"], mapping["configuration"] = r.Text("productId"), configuration
+				return clitest.JSON(201, mapping)
 			}
 		}
 		created := Mapping(f.id("pp_prod"), r.Param("id"), r.Text("productId"), key, true)
@@ -376,6 +383,30 @@ func (f *Fake) providerRoutes() {
 	f.Handle("POST "+providers+"/{id}/products/{mappingId}/activate", func(r *clitest.Request) clitest.Answer {
 		found, _ := find(f.Mappings, r.Param("mappingId"))
 		found["isActive"] = true
+		return clitest.OK(found)
+	})
+	f.Handle("POST "+providers+"/{id}/products/{mappingId}/explain-move", func(r *clitest.Request) clitest.Answer {
+		if explanation, ok := f.Explanations[r.Param("mappingId")]; ok {
+			return clitest.OK(explanation)
+		}
+		return clitest.OK(M{
+			"refusal": nil, "subscriptionCount": 0, "activeSubscriptionCount": 0, "purchaseCount": 0,
+			"perksGained": []any{}, "perksLost": []any{}, "isSoldOnTarget": true, "promotedMappingId": nil,
+		})
+	})
+	f.Handle("POST "+providers+"/{id}/products/{mappingId}/move", func(r *clitest.Request) clitest.Answer {
+		found, _ := find(f.Mappings, r.Param("mappingId"))
+		found["productId"] = r.Text("productId")
+		return clitest.OK(found)
+	})
+	f.Handle("POST "+providers+"/{id}/products/{mappingId}/sell", func(r *clitest.Request) clitest.Answer {
+		found, _ := find(f.Mappings, r.Param("mappingId"))
+		for _, sibling := range f.Mappings {
+			if sibling["paymentProviderId"] == found["paymentProviderId"] && sibling["productId"] == found["productId"] {
+				sibling["isSold"] = false
+			}
+		}
+		found["isSold"] = true
 		return clitest.OK(found)
 	})
 	f.Handle("DELETE "+providers+"/{id}/products/{mappingId}", func(r *clitest.Request) clitest.Answer {

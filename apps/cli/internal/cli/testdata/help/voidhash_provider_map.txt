@@ -1,8 +1,11 @@
 Map a store product to a product, so buying it grants the product's perks. Without arguments it asks
 for both in a terminal, offering the store products not mapped yet.
 
-Moving one mapped to another product asks first; --yes skips that. A payment source whose test
-system names products differently maps each key with --environment production or test.
+A store product mapped to another product moves to this one with the purchases and subscriptions
+recorded under it, as 'voidhash provider move' does; it shows what moves and asks first, and --yes
+skips that. A product with several store products on one provider is sold as the first one mapped;
+'voidhash provider sell' chooses another. A payment source whose test system names products
+differently maps each key with --environment production or test.
 
 Usage:
   voidhash provider map [store-product] [product] [flags]

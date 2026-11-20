@@ -1403,6 +1403,11 @@ const (
 	AnalyticsStoreDimensionKindStore AnalyticsStoreDimensionKind = "store"
 )
 
+// Defines values for AnalyticsStoreProductDimensionKind.
+const (
+	StoreProduct AnalyticsStoreProductDimensionKind = "store_product"
+)
+
 // Defines values for AnalyticsTraitDimensionKind.
 const (
 	AnalyticsTraitDimensionKindTrait AnalyticsTraitDimensionKind = "trait"
@@ -2000,6 +2005,16 @@ const (
 	PaymentProviderProductEnvironmentAll        PaymentProviderProductEnvironment = "all"
 	PaymentProviderProductEnvironmentProduction PaymentProviderProductEnvironment = "production"
 	PaymentProviderProductEnvironmentTest       PaymentProviderProductEnvironment = "test"
+)
+
+// Defines values for PaymentProviderProductMoveRefusalCode.
+const (
+	PaymentProviderProductMoveRefusalCodeProductDurationMismatch      PaymentProviderProductMoveRefusalCode = "product_duration_mismatch"
+	PaymentProviderProductMoveRefusalCodeProductTypeMismatch          PaymentProviderProductMoveRefusalCode = "product_type_mismatch"
+	PaymentProviderProductMoveRefusalCodeRevenueHistoryNotReady       PaymentProviderProductMoveRefusalCode = "revenue_history_not_ready"
+	PaymentProviderProductMoveRefusalCodeStoreProductAlreadyMapped    PaymentProviderProductMoveRefusalCode = "store_product_already_mapped"
+	PaymentProviderProductMoveRefusalCodeStoreProductAlreadyOnProduct PaymentProviderProductMoveRefusalCode = "store_product_already_on_product"
+	PaymentProviderProductMoveRefusalCodeTargetMappingHasPurchases    PaymentProviderProductMoveRefusalCode = "target_mapping_has_purchases"
 )
 
 // Defines values for PaymentProviderType.
@@ -6931,6 +6946,14 @@ type AnalyticsStoreDimension struct {
 // AnalyticsStoreDimensionKind defines model for AnalyticsStoreDimension.Kind.
 type AnalyticsStoreDimensionKind string
 
+// AnalyticsStoreProductDimension The product in a store a purchase was made as, such as an App Store product id or a Stripe price, by its Voidhash id; a split labels it with the store's product id and the store. Revenue and MRR only. MRR by store product is exact only once the project's revenue history is ready for store products to move (always for a project that recognized no MRR before store products could move, else after its history was repaired); until then a subscription's MRR can stay on a store product it moved off within a product.
+type AnalyticsStoreProductDimension struct {
+	Kind AnalyticsStoreProductDimensionKind `json:"kind"`
+}
+
+// AnalyticsStoreProductDimensionKind defines model for AnalyticsStoreProductDimension.Kind.
+type AnalyticsStoreProductDimensionKind string
+
 // AnalyticsSummary An insight's headline number.
 type AnalyticsSummary struct {
 	// Currency The ISO 4217 code of the organization's reporting currency, on monetary insights only.
@@ -8456,7 +8479,7 @@ type CreatePaymentProviderProductMappingBodyJsonEncoding struct {
 	// Environment Which purchases a store product key names: `production`, `test`, or `all` when every environment uses the same key. App Store and Google Play mappings are always `all`; a Stripe price's is read from Stripe.
 	Environment *PaymentProviderProductEnvironment `json:"environment,omitempty"`
 
-	// IsReassignment `true` moves a store product active for another product to this one, deactivating that mapping; otherwise mapping it is refused. Defaults to `false`.
+	// IsReassignment `true` moves a store product active for another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
 	IsReassignment *bool `json:"isReassignment"`
 
 	// ProductId The product to map the store product to.
@@ -9822,6 +9845,12 @@ type MetricsReportResultJsonEncoding struct {
 	Results []AnalyticsMetricResponseItem `json:"results"`
 }
 
+// MovePaymentProviderProductMappingBodyJsonEncoding defines model for MovePaymentProviderProductMappingBodyJsonEncoding.
+type MovePaymentProviderProductMappingBodyJsonEncoding struct {
+	// ProductId The product to move the store product to: another product of the project, of the same type and, for a subscription, renewing over the same period.
+	ProductId string `json:"productId"`
+}
+
 // NotFoundErrorJsonEncoding defines model for NotFoundErrorJsonEncoding.
 type NotFoundErrorJsonEncoding struct {
 	// Error The error: `type` is `not_found`, and `code` says why. Codes name what is missing, such as `project_not_found`, `organization_not_found` or `product_not_found`.
@@ -10123,6 +10152,9 @@ type PaymentProviderCatalogMapping struct {
 	// IsActive Whether purchases of the store product resolve to this product.
 	IsActive bool `json:"isActive"`
 
+	// IsSold Whether the product is sold as this store product on this provider.
+	IsSold bool `json:"isSold"`
+
 	// ProductId The product the store product is mapped to.
 	ProductId string `json:"productId"`
 }
@@ -10237,6 +10269,9 @@ type PaymentProviderProductMappingJsonEncoding struct {
 	// IsActive Whether purchases of the store product resolve to this product; a store product is active for at most one product.
 	IsActive bool `json:"isActive"`
 
+	// IsSold Whether the product is sold as this store product on this provider: the one apps are offered and paywalls list. A product is sold as one of its active store products per provider and environment; its other active ones only recognize purchases made under them.
+	IsSold bool `json:"isSold"`
+
 	// PaymentProviderId The payment provider that sells the store product.
 	PaymentProviderId string `json:"paymentProviderId"`
 
@@ -10246,6 +10281,45 @@ type PaymentProviderProductMappingJsonEncoding struct {
 	// ProviderProductKey The store's id for the product, as the provider's catalog lists it.
 	ProviderProductKey string `json:"providerProductKey"`
 }
+
+// PaymentProviderProductMoveExplanationJsonEncoding defines model for PaymentProviderProductMoveExplanationJsonEncoding.
+type PaymentProviderProductMoveExplanationJsonEncoding struct {
+	// ActiveSubscriptionCount How many of those subscriptions are active.
+	ActiveSubscriptionCount int `json:"activeSubscriptionCount"`
+
+	// IsSoldOnTarget Whether the target product would be sold as this store product; `false` when it is already sold as another store product of this provider.
+	IsSoldOnTarget bool `json:"isSoldOnTarget"`
+
+	// PerksGained Slugs of the perks its buyers would gain: those the target product grants and the current one does not.
+	PerksGained []string `json:"perksGained"`
+
+	// PerksLost Slugs of the perks its buyers would lose: those the current product grants and the target does not.
+	PerksLost []string `json:"perksLost"`
+
+	// PromotedMappingId The mapping the current product would be sold as instead, when it is sold as this one and has another active store product of this provider; `null` otherwise.
+	PromotedMappingId *string `json:"promotedMappingId"`
+
+	// PurchaseCount One-time purchases recorded under the store product, which move with it.
+	PurchaseCount int `json:"purchaseCount"`
+
+	// Refusal Why moving the store product to the product would be refused.
+	Refusal PaymentProviderProductMoveRefusal `json:"refusal"`
+
+	// SubscriptionCount Subscriptions recorded under the store product, which move with it.
+	SubscriptionCount int `json:"subscriptionCount"`
+}
+
+// PaymentProviderProductMoveRefusal Why moving the store product to the product would be refused.
+type PaymentProviderProductMoveRefusal struct {
+	// Code The `code` of the error `move` would fail with: `store_product_already_on_product`, `product_type_mismatch`, `product_duration_mismatch`, `store_product_already_mapped`, `target_mapping_has_purchases` or `revenue_history_not_ready`.
+	Code PaymentProviderProductMoveRefusalCode `json:"code"`
+
+	// Message Why, written for the person reading it.
+	Message string `json:"message"`
+}
+
+// PaymentProviderProductMoveRefusalCode The `code` of the error `move` would fail with: `store_product_already_on_product`, `product_type_mismatch`, `product_duration_mismatch`, `store_product_already_mapped`, `target_mapping_has_purchases` or `revenue_history_not_ready`.
+type PaymentProviderProductMoveRefusalCode string
 
 // PaymentProviderType Where the project takes payments: `app_store`, `google_play` or `stripe`, or a `payment_source` that reports its own purchases through the API, such as bank transfers or vouchers.
 type PaymentProviderType string
@@ -16143,6 +16217,12 @@ type PaymentProviderProductsCreateJSONRequestBody = CreatePaymentProviderProduct
 // PaymentProviderProductsUpdateJSONRequestBody defines body for PaymentProviderProductsUpdate for application/json ContentType.
 type PaymentProviderProductsUpdateJSONRequestBody = UpdatePaymentProviderProductMappingBodyJsonEncoding
 
+// PaymentProviderProductsExplainMoveJSONRequestBody defines body for PaymentProviderProductsExplainMove for application/json ContentType.
+type PaymentProviderProductsExplainMoveJSONRequestBody = MovePaymentProviderProductMappingBodyJsonEncoding
+
+// PaymentProviderProductsMoveJSONRequestBody defines body for PaymentProviderProductsMove for application/json ContentType.
+type PaymentProviderProductsMoveJSONRequestBody = MovePaymentProviderProductMappingBodyJsonEncoding
+
 // PaymentSourcesUpsertSubscriptionJSONRequestBody defines body for PaymentSourcesUpsertSubscription for application/json ContentType.
 type PaymentSourcesUpsertSubscriptionJSONRequestBody = RecordPaymentSourceSubscriptionBody
 
@@ -17802,6 +17882,32 @@ func (t *AnalyticsMetricDimension) FromAnalyticsProductDimension(v AnalyticsProd
 
 // MergeAnalyticsProductDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsProductDimension
 func (t *AnalyticsMetricDimension) MergeAnalyticsProductDimension(v AnalyticsProductDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsStoreProductDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsStoreProductDimension
+func (t AnalyticsMetricDimension) AsAnalyticsStoreProductDimension() (AnalyticsStoreProductDimension, error) {
+	var body AnalyticsStoreProductDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsStoreProductDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsStoreProductDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsStoreProductDimension(v AnalyticsStoreProductDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsStoreProductDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsStoreProductDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsStoreProductDimension(v AnalyticsStoreProductDimension) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -20450,6 +20556,19 @@ type ClientInterface interface {
 
 	// PaymentProviderProductsActivate request
 	PaymentProviderProductsActivate(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaymentProviderProductsExplainMoveWithBody request with any body
+	PaymentProviderProductsExplainMoveWithBody(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaymentProviderProductsExplainMove(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsExplainMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaymentProviderProductsMoveWithBody request with any body
+	PaymentProviderProductsMoveWithBody(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaymentProviderProductsMove(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaymentProviderProductsSell request
+	PaymentProviderProductsSell(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PaymentSourcesUpsertSubscriptionWithBody request with any body
 	PaymentSourcesUpsertSubscriptionWithBody(ctx context.Context, projectId string, paymentProviderId string, externalId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -24617,6 +24736,66 @@ func (c *Client) PaymentProviderProductsUpdate(ctx context.Context, projectId st
 
 func (c *Client) PaymentProviderProductsActivate(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaymentProviderProductsActivateRequest(c.Server, projectId, paymentProviderId, mappingId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderProductsExplainMoveWithBody(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderProductsExplainMoveRequestWithBody(c.Server, projectId, paymentProviderId, mappingId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderProductsExplainMove(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsExplainMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderProductsExplainMoveRequest(c.Server, projectId, paymentProviderId, mappingId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderProductsMoveWithBody(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderProductsMoveRequestWithBody(c.Server, projectId, paymentProviderId, mappingId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderProductsMove(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderProductsMoveRequest(c.Server, projectId, paymentProviderId, mappingId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderProductsSell(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderProductsSellRequest(c.Server, projectId, paymentProviderId, mappingId)
 	if err != nil {
 		return nil, err
 	}
@@ -39110,6 +39289,176 @@ func NewPaymentProviderProductsActivateRequest(server string, projectId string, 
 	return req, nil
 }
 
+// NewPaymentProviderProductsExplainMoveRequest calls the generic PaymentProviderProductsExplainMove builder with application/json body
+func NewPaymentProviderProductsExplainMoveRequest(server string, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsExplainMoveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaymentProviderProductsExplainMoveRequestWithBody(server, projectId, paymentProviderId, mappingId, "application/json", bodyReader)
+}
+
+// NewPaymentProviderProductsExplainMoveRequestWithBody generates requests for PaymentProviderProductsExplainMove with any type of body
+func NewPaymentProviderProductsExplainMoveRequestWithBody(server string, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "mappingId", runtime.ParamLocationPath, mappingId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/products/%s/explain-move", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPaymentProviderProductsMoveRequest calls the generic PaymentProviderProductsMove builder with application/json body
+func NewPaymentProviderProductsMoveRequest(server string, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsMoveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaymentProviderProductsMoveRequestWithBody(server, projectId, paymentProviderId, mappingId, "application/json", bodyReader)
+}
+
+// NewPaymentProviderProductsMoveRequestWithBody generates requests for PaymentProviderProductsMove with any type of body
+func NewPaymentProviderProductsMoveRequestWithBody(server string, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "mappingId", runtime.ParamLocationPath, mappingId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/products/%s/move", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPaymentProviderProductsSellRequest generates requests for PaymentProviderProductsSell
+func NewPaymentProviderProductsSellRequest(server string, projectId string, paymentProviderId string, mappingId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "mappingId", runtime.ParamLocationPath, mappingId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/products/%s/sell", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPaymentSourcesUpsertSubscriptionRequest calls the generic PaymentSourcesUpsertSubscription builder with application/json body
 func NewPaymentSourcesUpsertSubscriptionRequest(server string, projectId string, paymentProviderId string, externalId string, body PaymentSourcesUpsertSubscriptionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -48900,6 +49249,19 @@ type ClientWithResponsesInterface interface {
 	// PaymentProviderProductsActivateWithResponse request
 	PaymentProviderProductsActivateWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*PaymentProviderProductsActivateResponse, error)
 
+	// PaymentProviderProductsExplainMoveWithBodyWithResponse request with any body
+	PaymentProviderProductsExplainMoveWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderProductsExplainMoveResponse, error)
+
+	PaymentProviderProductsExplainMoveWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsExplainMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderProductsExplainMoveResponse, error)
+
+	// PaymentProviderProductsMoveWithBodyWithResponse request with any body
+	PaymentProviderProductsMoveWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderProductsMoveResponse, error)
+
+	PaymentProviderProductsMoveWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderProductsMoveResponse, error)
+
+	// PaymentProviderProductsSellWithResponse request
+	PaymentProviderProductsSellWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*PaymentProviderProductsSellResponse, error)
+
 	// PaymentSourcesUpsertSubscriptionWithBodyWithResponse request with any body
 	PaymentSourcesUpsertSubscriptionWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, externalId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentSourcesUpsertSubscriptionResponse, error)
 
@@ -55753,6 +56115,89 @@ func (r PaymentProviderProductsActivateResponse) StatusCode() int {
 	return 0
 }
 
+type PaymentProviderProductsExplainMoveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaymentProviderProductMoveExplanationJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderProductsExplainMoveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderProductsExplainMoveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaymentProviderProductsMoveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaymentProviderProductMappingJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderProductsMoveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderProductsMoveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaymentProviderProductsSellResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaymentProviderProductMappingJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderProductsSellResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderProductsSellResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PaymentSourcesUpsertSubscriptionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -61786,6 +62231,49 @@ func (c *ClientWithResponses) PaymentProviderProductsActivateWithResponse(ctx co
 		return nil, err
 	}
 	return ParsePaymentProviderProductsActivateResponse(rsp)
+}
+
+// PaymentProviderProductsExplainMoveWithBodyWithResponse request with arbitrary body returning *PaymentProviderProductsExplainMoveResponse
+func (c *ClientWithResponses) PaymentProviderProductsExplainMoveWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderProductsExplainMoveResponse, error) {
+	rsp, err := c.PaymentProviderProductsExplainMoveWithBody(ctx, projectId, paymentProviderId, mappingId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderProductsExplainMoveResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaymentProviderProductsExplainMoveWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsExplainMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderProductsExplainMoveResponse, error) {
+	rsp, err := c.PaymentProviderProductsExplainMove(ctx, projectId, paymentProviderId, mappingId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderProductsExplainMoveResponse(rsp)
+}
+
+// PaymentProviderProductsMoveWithBodyWithResponse request with arbitrary body returning *PaymentProviderProductsMoveResponse
+func (c *ClientWithResponses) PaymentProviderProductsMoveWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderProductsMoveResponse, error) {
+	rsp, err := c.PaymentProviderProductsMoveWithBody(ctx, projectId, paymentProviderId, mappingId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderProductsMoveResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaymentProviderProductsMoveWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, body PaymentProviderProductsMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderProductsMoveResponse, error) {
+	rsp, err := c.PaymentProviderProductsMove(ctx, projectId, paymentProviderId, mappingId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderProductsMoveResponse(rsp)
+}
+
+// PaymentProviderProductsSellWithResponse request returning *PaymentProviderProductsSellResponse
+func (c *ClientWithResponses) PaymentProviderProductsSellWithResponse(ctx context.Context, projectId string, paymentProviderId string, mappingId string, reqEditors ...RequestEditorFn) (*PaymentProviderProductsSellResponse, error) {
+	rsp, err := c.PaymentProviderProductsSell(ctx, projectId, paymentProviderId, mappingId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderProductsSellResponse(rsp)
 }
 
 // PaymentSourcesUpsertSubscriptionWithBodyWithResponse request with arbitrary body returning *PaymentSourcesUpsertSubscriptionResponse
@@ -77691,6 +78179,203 @@ func ParsePaymentProviderProductsActivateResponse(rsp *http.Response) (*PaymentP
 	}
 
 	response := &PaymentProviderProductsActivateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaymentProviderProductMappingJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaymentProviderProductsExplainMoveResponse parses an HTTP response from a PaymentProviderProductsExplainMoveWithResponse call
+func ParsePaymentProviderProductsExplainMoveResponse(rsp *http.Response) (*PaymentProviderProductsExplainMoveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderProductsExplainMoveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaymentProviderProductMoveExplanationJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaymentProviderProductsMoveResponse parses an HTTP response from a PaymentProviderProductsMoveWithResponse call
+func ParsePaymentProviderProductsMoveResponse(rsp *http.Response) (*PaymentProviderProductsMoveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderProductsMoveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaymentProviderProductMappingJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaymentProviderProductsSellResponse parses an HTTP response from a PaymentProviderProductsSellWithResponse call
+func ParsePaymentProviderProductsSellResponse(rsp *http.Response) (*PaymentProviderProductsSellResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderProductsSellResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

@@ -217,7 +217,7 @@ voidhash product view "Pro Monthly" --json`,
 			for index, storeProduct := range storeProducts {
 				mapping := storeProduct.Mapping
 				lines[index] = catalog.StoreLabel(storeProduct.Provider) + ": " + mapping.ProviderProductKey +
-					catalog.MappingNote(string(mapping.Environment), mapping.IsActive)
+					catalog.MappingNote(string(mapping.Environment), mapping.IsActive, mapping.IsSold)
 			}
 			stores = strings.Join(lines, "\n")
 		}

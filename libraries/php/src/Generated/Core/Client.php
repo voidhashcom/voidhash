@@ -2441,7 +2441,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsList($projectId, $paymentProviderId, $queryParameters), $fetch);
     }
     /**
-     * Maps a store product, named by `configuration` as the provider's catalog entry shows, to a product. The mapping is active at once, and purchases of the store product, including ones that waited for a mapping, grant the product's perks. A product can sell several store products. A store product active for another product needs `isReassignment: true`, which moves it to this product and deactivates the other mapping; reassigning a store product already mapped to this product updates that mapping. Fails with `invalid_request` (`invalid_product_mapping`) for a store product active for another product without `isReassignment`. Fails with `not_found` (`payment_provider_not_found`, `product_not_found`).
+     * Maps a store product, named by `configuration` as the provider's catalog entry shows, to a product. The mapping is active at once, and purchases of the store product, including ones that waited for a mapping, grant the product's perks. A product can have several store products on one provider; it is sold as the first one mapped until `sell` chooses another, and the others only recognize purchases made under them. A store product active for another product needs `isReassignment: true`, which moves its mapping to this product with everything recorded under it, as `move` does; reassigning a store product already mapped to this product updates that mapping. Fails with `invalid_request` (`invalid_product_mapping`) for a store product active for another product without `isReassignment`, or one that cannot move to this product. Fails with `not_found` (`payment_provider_not_found`, `product_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaymentProviderProductMappingBodyJsonEncoding $requestBody
@@ -2459,7 +2459,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsCreate($projectId, $paymentProviderId, $requestBody), $fetch);
     }
     /**
-     * Deletes a mapping; purchases of the store product fall back to an earlier mapping of it, if any. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
+     * Deletes a mapping; purchases of the store product fall back to an earlier mapping of it, if any. A product sold as it is then sold as its most recently mapped remaining store product of this provider. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2515,7 +2515,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsUpdate($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
     }
     /**
-     * Activates a mapping, so purchases of its store product grant its product's perks again; the product's other mappings stay active. Fails with `conflict` (`store_product_already_mapped`) while the store product is active for another product: create the mapping with `isReassignment` to move it.
+     * Activates a mapping, so purchases of its store product grant its product's perks again; the product's other mappings stay active, and the product is sold as this one only when it is sold as no other store product of this provider. Fails with `conflict` (`store_product_already_mapped`) while the store product is active for another product: `move` that mapping instead.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2532,6 +2532,64 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     public function paymentProviderProductsActivate(string $projectId, string $paymentProviderId, string $mappingId, string $fetch = self::FETCH_OBJECT)
     {
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsActivate($projectId, $paymentProviderId, $mappingId), $fetch);
+    }
+    /**
+     * Says what `move` would do with the same body, without changing anything: whether it would be refused and why, the subscriptions and purchases that would move, the perks buyers would gain and lose, and what each product would be sold as afterwards. Safe to repeat. Fails with `not_found` (`product_mapping_not_found`, `product_not_found`).
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $mappingId The mapping's id, `pp_prod_...`.
+     * @param \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsExplainMoveBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsExplainMoveUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsExplainMoveForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsExplainMoveNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsExplainMoveInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaymentProviderProductMoveExplanationJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderProductsExplainMove(string $projectId, string $paymentProviderId, string $mappingId, \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsExplainMove($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
+    }
+    /**
+     * Moves the mapping to another product of the project, keeping its id: the purchases, subscriptions and revenue recorded under the store product move with it, so reports by product change and totals do not. Its buyers get the target product's perks instead of the current product's. The target is sold as the store product unless it is already sold as another one of this provider; the current product, if it was sold as this one, is then sold as its most recently mapped remaining store product. Moving it to the product it already belongs to changes nothing, so a retried move succeeds. `explain-move` shows the impact first. Fails with `invalid_request` (`product_type_mismatch`, `product_duration_mismatch`) for a product of another type or renewal period. Fails with `conflict` (`store_product_already_mapped`) when the target already has an active mapping of the store product, and `conflict` (`target_mapping_has_purchases`) when it has an earlier one with purchases recorded under it. Fails with `conflict` (`revenue_history_not_ready`) for a project whose revenue history has to be prepared before store products can move. Fails with `not_found` (`product_mapping_not_found`, `product_not_found`).
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $mappingId The mapping's id, `pp_prod_...`.
+     * @param \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsMoveInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaymentProviderProductMappingJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderProductsMove(string $projectId, string $paymentProviderId, string $mappingId, \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsMove($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
+    }
+    /**
+     * Sells the mapping's product as this store product on this provider: apps are offered it and paywalls list its offers from then on. The store product the product was sold as before stays active, so purchases made under it still grant the product. Selling the one already sold changes nothing. Fails with `conflict` (`product_mapping_inactive`) for an inactive mapping: activate it first. Fails with `not_found` (`product_mapping_not_found`).
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $mappingId The mapping's id, `pp_prod_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsSellInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaymentProviderProductMappingJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderProductsSell(string $projectId, string $paymentProviderId, string $mappingId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsSell($projectId, $paymentProviderId, $mappingId), $fetch);
     }
     /**
      * Records a charge or refund the payment source took, under the source's own id for it. Idempotent on `externalId`: the same request again returns the recorded transaction; correct a payment with a refund. Fails with `conflict` (`transaction_conflict`) for a different request with the same `externalId`. Fails with `invalid_request` (`invalid_transaction`) for a transaction that cannot be recorded as sent, which records nothing. Only a payment source records purchases. Fails with `not_found` (`payment_provider_not_found`) for an unknown provider, `invalid_request` (`payment_source_required`) for a store, and `conflict` (`payment_source_disabled`) for a disabled source.

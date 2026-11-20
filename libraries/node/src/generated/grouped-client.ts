@@ -1721,6 +1721,18 @@ export const groupCoreClient = <ProjectIdError>(
           request.params["mappingId"],
         ),
       ),
+    explainMove: (request: {
+      params: { readonly paymentProviderId: string; readonly mappingId: string };
+      payload: Parameters<VoidhashCoreClient["paymentProviderProductsExplainMove"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderProductsExplainMove(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["mappingId"],
+          request.payload,
+        ),
+      ),
     get: (request: {
       params: { readonly paymentProviderId: string; readonly mappingId: string };
     }) =>
@@ -1749,6 +1761,28 @@ export const groupCoreClient = <ProjectIdError>(
           providerProductKey: request.params["providerProductKey"],
           isActive: request.params["isActive"],
         }),
+      ),
+    move: (request: {
+      params: { readonly paymentProviderId: string; readonly mappingId: string };
+      payload: Parameters<VoidhashCoreClient["paymentProviderProductsMove"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderProductsMove(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["mappingId"],
+          request.payload,
+        ),
+      ),
+    sell: (request: {
+      params: { readonly paymentProviderId: string; readonly mappingId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderProductsSell(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["mappingId"],
+        ),
       ),
     update: (request: {
       params: { readonly paymentProviderId: string; readonly mappingId: string };

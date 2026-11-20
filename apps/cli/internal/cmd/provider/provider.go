@@ -27,7 +27,7 @@ func New(app *cli.App) *cobra.Command {
 	}
 	cmd.AddCommand(
 		newList(app), newView(app), newConnect(app), newTest(app), newEdit(app),
-		newProducts(app), newMap(app), newUnmap(app), newImport(app), newDelete(app),
+		newProducts(app), newMap(app), newMove(app), newSell(app), newUnmap(app), newImport(app), newDelete(app),
 		newRecordPayment(app), newRefund(app), newCancelSubscription(app),
 	)
 	return cmd

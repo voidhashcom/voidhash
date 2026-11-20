@@ -51,7 +51,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     protected $split;
     /**
@@ -207,7 +207,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     public function getSplit()
     {
@@ -216,7 +216,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
+     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
      *
      * @return self
      */

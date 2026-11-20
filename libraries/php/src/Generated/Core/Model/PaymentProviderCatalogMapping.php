@@ -31,6 +31,12 @@ class PaymentProviderCatalogMapping
      */
     protected $isActive;
     /**
+     * Whether the product is sold as this store product on this provider.
+     *
+     * @var bool
+     */
+    protected $isSold;
+    /**
      * Which purchases a store product key names: `production`, `test`, or `all` when every environment uses the same key. App Store and Google Play mappings are always `all`; a Stripe price's is read from Stripe.
      *
      * @var string
@@ -100,6 +106,28 @@ class PaymentProviderCatalogMapping
     {
         $this->initialized['isActive'] = true;
         $this->isActive = $isActive;
+        return $this;
+    }
+    /**
+     * Whether the product is sold as this store product on this provider.
+     *
+     * @return bool
+     */
+    public function getIsSold(): bool
+    {
+        return $this->isSold;
+    }
+    /**
+     * Whether the product is sold as this store product on this provider.
+     *
+     * @param bool $isSold
+     *
+     * @return self
+     */
+    public function setIsSold(bool $isSold): self
+    {
+        $this->initialized['isSold'] = true;
+        $this->isSold = $isSold;
         return $this;
     }
     /**

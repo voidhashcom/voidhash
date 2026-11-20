@@ -40,6 +40,9 @@ class PaymentProviderProductMappingJsonEncodingNormalizer implements Denormalize
         if (\array_key_exists('isActive', $data) && \is_int($data['isActive'])) {
             $data['isActive'] = (bool) $data['isActive'];
         }
+        if (\array_key_exists('isSold', $data) && \is_int($data['isSold'])) {
+            $data['isSold'] = (bool) $data['isSold'];
+        }
         if (\array_key_exists('id', $data)) {
             $object->setId($data['id']);
         }
@@ -54,6 +57,9 @@ class PaymentProviderProductMappingJsonEncodingNormalizer implements Denormalize
         }
         if (\array_key_exists('isActive', $data)) {
             $object->setIsActive($data['isActive']);
+        }
+        if (\array_key_exists('isSold', $data)) {
+            $object->setIsSold($data['isSold']);
         }
         if (\array_key_exists('environment', $data)) {
             $object->setEnvironment($data['environment']);
@@ -75,6 +81,7 @@ class PaymentProviderProductMappingJsonEncodingNormalizer implements Denormalize
         $dataArray['productId'] = $data->getProductId();
         $dataArray['providerProductKey'] = $data->getProviderProductKey();
         $dataArray['isActive'] = $data->getIsActive();
+        $dataArray['isSold'] = $data->getIsSold();
         $dataArray['environment'] = $data->getEnvironment();
         $values = [];
         foreach ($data->getConfiguration() as $key => $value) {

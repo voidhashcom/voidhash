@@ -682,6 +682,12 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\PaymentProviderProductMappingJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderProductMappingJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\MovePaymentProviderProductMappingBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaymentProviderProductMoveExplanationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderProductMoveExplanationJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaymentProviderProductMoveRefusal::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderProductMoveRefusalNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\UpdatePaymentProviderProductMappingBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdatePaymentProviderProductMappingBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\CreatePaymentProviderProductMappingBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePaymentProviderProductMappingBodyJsonEncodingNormalizer::class,
@@ -961,6 +967,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsPlanDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsBillingPeriodDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsStoreProductDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsProductDimensionNormalizer::class,
         
@@ -1684,6 +1692,9 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\RefundPaymentSourceTransactionBody::class => false,
             \Voidhash\Generated\Core\Model\RecordPaymentSourceTransactionBody::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderProductMappingJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\MovePaymentProviderProductMappingBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaymentProviderProductMoveExplanationJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaymentProviderProductMoveRefusal::class => false,
             \Voidhash\Generated\Core\Model\UpdatePaymentProviderProductMappingBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePaymentProviderProductMappingBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderUnmappedProduct::class => false,
@@ -1824,6 +1835,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsTraitDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsStoreDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricFilter::class => false,
