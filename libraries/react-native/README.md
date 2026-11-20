@@ -17,11 +17,13 @@ explicitly; a plain `npm install effect` resolves an incompatible major. The pac
 code, so it requires a development build. In Expo Go the package still imports and the app runs, but
 `init()` fails with `FAILED_TO_INITIALIZE_VOIDHASH_CLIENT`.
 
-The iOS layer links the shared `VoidhashCore` pod from `@voidhash/ios`, which is installed
-automatically as a dependency but is not on the CocoaPods trunk, so the app's Podfile has to point
-at it. Android needs no extra setup.
+The package holds the React Native layer only. It runs on the native iOS and Android SDKs of the
+same version, which the native build installs: on iOS from Swift Package Manager (the
+`https://github.com/voidhashcom/voidhash` package, through `pod install`), on Android from Maven
+Central (`com.voidhash:voidhash`). Updating `@voidhash/react-native` updates both; nothing else in
+the app names their version.
 
-**Expo:** register the config plugin, which adds the pod during prebuild, then rebuild the app.
+**Expo:** register the config plugin, then rebuild the app.
 
 ```json
 {
@@ -35,26 +37,35 @@ at it. Android needs no extra setup.
 npx expo prebuild
 ```
 
-**Bare React Native:** add the two pods inside your app target, above `use_native_modules!`, then
-run `npx pod-install`. The path is resolved through Node, so it works with hoisted and isolated
-`node_modules` layouts alike.
+To show paywalls and flows, add the flow renderer: `["@voidhash/react-native", { "renderer": true }]`
+(see [Paywalls](#paywalls)).
+
+**Bare React Native:** autolinking adds the SDK; run `npx pod-install`. For the flow renderer, set
+the Podfile global inside your app target, above `use_native_modules!`, and the Gradle property in
+`android/gradle.properties`:
 
 ```ruby
-pod "VoidhashCore", :path => File.dirname(`node --print "require.resolve('@voidhash/ios/package.json', { paths: [require.resolve('@voidhash/react-native/package.json')] })"`.strip)
-pod "Voidhash", :path => File.dirname(`node --print "require.resolve('@voidhash/ios/package.json', { paths: [require.resolve('@voidhash/react-native/package.json')] })"`.strip)
+$VoidhashRenderer = true
 ```
+
+```properties
+Voidhash_renderer=true
+```
+
+On iOS the SDK comes in as a Swift package of the CocoaPods project, which needs React Native 0.75
+or later; `pod install` resolves it, and Xcode downloads it on the first build.
 
 ## Compatibility
 
-| Dependency                   | Requirement                                                  |
-| ---------------------------- | ------------------------------------------------------------ |
-| `react-native-nitro-modules` | Peer `^0.37.1` — 0.37.x                                      |
-| `effect`                     | Peer `4.0.7`                                                 |
-| Expo SDK                     | Verified on 55; developed against 54. Optional for bare apps |
-| React Native                 | Verified on 0.83; developed against 0.81                     |
-| Google Play Billing Library  | 9, shared with the app's own billing library                 |
-| `react-native-iap`, if used  | 16.6.2 or later                                              |
-| Platforms                    | iOS and Android                                              |
+| Dependency                   | Requirement                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| `react-native-nitro-modules` | Peer `^0.37.1` — 0.37.x                                    |
+| `effect`                     | Peer `4.0.7`                                               |
+| Expo SDK                     | 52 or later; verified on 55 and 58. Optional for bare apps |
+| React Native                 | 0.75 or later; verified on 0.83 and 0.88                   |
+| Google Play Billing Library  | 9, shared with the app's own billing library               |
+| `react-native-iap`, if used  | 16.6.2 or later                                            |
+| Platforms                    | iOS and Android                                            |
 
 Every Nitro-based module in the app resolves against one shared native runtime. Mixing Nitro
 versions across modules produces native build or load failures that do not point back at Voidhash.
@@ -1212,16 +1223,34 @@ createVoidhashClient("vh_pk_...", {
 
 ## Native artifact smoke tests
 
-`pnpm test:artifact ios` packs the SDK and the native packages it depends on, installs them in an
-isolated Expo 55 project with the peer versions from the packed manifest, and checks prebuild and
-Podfile idempotency. It fails when the packed package references a private workspace package, when
-the documented install commands pin other peer versions, or when the README's bare React Native
-Podfile line does not resolve the installed core package. Set `EXPO_SMOKE_VERSION` to test another
-Expo version, and add `--with-react-native-iap` to install the latest `react-native-iap` next to
-the SDK and check that both accept the same Nitro version. Add `--compile` to compile the packed
-Swift and C++ bridges with Xcode and CocoaPods and check that the app contains the core privacy
-manifest. `pnpm test:artifact android --compile` checks the packed Kotlin and JNI/C++ bridges with
-the Android SDK and JDK 17. The runner prints its temporary fixture path for inspection.
+`pnpm test:artifact ios` packs the SDK, installs it in an isolated Expo 55 project with the peer
+versions from the packed manifest, and checks prebuild and Podfile idempotency. It fails when the
+packed package references a private workspace package or the npm packages of the native SDKs, or
+when the documented install commands pin other peer versions. Set `EXPO_SMOKE_VERSION` to test
+another Expo version, and add `--with-react-native-iap` to install the latest `react-native-iap`
+next to the SDK and check that both accept the same Nitro version. Add `--compile` to compile the
+packed Swift and C++ bridges with Xcode and CocoaPods and check that the app contains the core
+privacy manifest. `pnpm test:artifact android --compile` checks the packed Kotlin and JNI/C++
+bridges with the Android SDK and JDK 17. Compiling installs the native SDKs of the package's
+version from Swift Package Manager and Maven Central; before that version is released, add
+`--native-sdk-from-source` to build them from this checkout instead. The runner prints its
+temporary fixture path for inspection.
+
+### Native SDKs from source
+
+An app in this repository builds the native SDKs from their sources, without a release, with the
+config plugin's `nativeSdk` option, the directory that holds them, relative to the app:
+
+```json
+["@voidhash/react-native", { "renderer": true, "nativeSdk": { "path": "../../libraries" } }]
+```
+
+On iOS it adds the `VoidhashCore`, `Voidhash` and (with `renderer`) `VoidhashUI` pods by `:path`
+and sets `$VoidhashNativeSdkPods = true`, which makes `NitroVoidhash.podspec` depend on those pods
+instead of the Swift package. On Android it includes the SDK's modules as projects of the app,
+named after their artifacts (`:voidhash-core`, `:voidhash`, `:voidhash-ui`), which the module then
+depends on instead of the Maven artifacts. With `renderer`, the renderer's native cores have to be
+built first.
 
 UUID generation uses native platform APIs and needs no app-owned Web Crypto polyfill. Rebuild
 the native app after updating the SDK so its Nitro specs and native implementation match.

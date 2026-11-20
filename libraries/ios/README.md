@@ -1,4 +1,4 @@
-# @voidhash/ios
+# Voidhash iOS SDK
 
 The Voidhash iOS SDK: in-app purchases, entitlements, paywalls and flows, feature flags and
 analytics for bare Swift apps.
@@ -8,13 +8,15 @@ StoreKit. An app whose existing billing SDK owns purchases can run it in observe
 (see [Observer mode](#observer-mode)). Paywalls and flows are drawn by the native `VoidhashUI`
 renderer (see [Paywalls and flows](#paywalls-and-flows)).
 
-The package ships two library products:
+The Swift package ships three library products:
 
 - **`Voidhash`** — the SDK you integrate against (`Voidhash.configure(…)` → `VoidhashClient`).
 - **`VoidhashCore`** — the shared native core (StoreKit engine, API client, identity, caching,
   schema). Also consumed by `@voidhash/react-native`'s native
   layer. It defines the model and error types the SDK returns, such as `SdkPerson` and
   `VoidhashStoreError`: depend on it directly when your code names one of them.
+- **`VoidhashUI`** — the renderer that draws paywalls and flows, with a prebuilt core. Its sources
+  live in `libraries/ios-ui`.
 
 Requirements: iOS 15+, Swift 6 toolchain (the sources build with Swift 5.9 language mode too). The
 sources also build for visionOS and for app extensions (see [App extensions](#app-extensions)).
@@ -152,18 +154,19 @@ no flow package.
 
 ## Install
 
-### Swift Package Manager
-
-In Xcode: _File → Add Package Dependencies…_, enter the repository URL
-`https://github.com/voidhashcom/voidhash`, set the dependency rule to the `main` branch, and add
-the **Voidhash** library to your app target. Add **VoidhashCore** as well when your code names its
-types, such as `SdkPerson` or `VoidhashStoreError`, and `import VoidhashCore` where it does.
+The SDK installs with Swift Package Manager from `https://github.com/voidhashcom/voidhash`, whose
+releases are tagged with their version, such as `0.1.2`. In Xcode: _File → Add Package
+Dependencies…_, enter the repository URL, set the dependency rule to _Exact Version_ with the
+latest release, and add the **Voidhash** library to your app target. Add **VoidhashCore** as well
+when your code names its types, such as `SdkPerson` or `VoidhashStoreError`, and
+`import VoidhashCore` where it does. Add **VoidhashUI** to present paywalls and flows (see
+[Paywalls and flows](#paywalls-and-flows)).
 
 In a `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/voidhashcom/voidhash", branch: "main")
+    .package(url: "https://github.com/voidhashcom/voidhash", exact: "0.1.2")
 ],
 targets: [
     .target(
@@ -171,28 +174,18 @@ targets: [
         dependencies: [
             .product(name: "Voidhash", package: "voidhash"),
             .product(name: "VoidhashCore", package: "voidhash"),
+            .product(name: "VoidhashUI", package: "voidhash"), // paywalls and flows
         ]
     )
 ]
 ```
 
-The repository has no release tags yet, so the dependency follows the `main` branch. Pin a commit
-with `revision:` when you need a reproducible build, and switch to `from:` with a version once
-releases are tagged.
+The SDK is an alpha: a new version can change its API, so pin an exact version and read the
+changelog before updating. `VoidhashUI` is in the package from the first release that includes its
+prebuilt core.
 
-### CocoaPods
-
-The pods are not published to the CocoaPods trunk. Install the npm package
-(`npm install @voidhash/ios`) and point both pods at it:
-
-```ruby
-pod "VoidhashCore", :path => "../node_modules/@voidhash/ios"
-pod "Voidhash", :path => "../node_modules/@voidhash/ios"
-```
-
-`Voidhash` depends on `VoidhashCore`, and both podspecs live at the package root. A `:path` pod
-is resolved from your `Podfile`, not from a spec repo, so declare **both** lines — CocoaPods
-cannot find the local `VoidhashCore` from the `Voidhash` dependency alone.
+The SDK is not published for CocoaPods. The `@voidhash/ios` npm package, which earlier releases
+offered for CocoaPods, is deprecated: install with Swift Package Manager instead.
 
 ## Configure
 
@@ -966,17 +959,14 @@ ones the platform reports.
 ## Paywalls and flows
 
 Paywalls and multi-screen flows (onboarding, surveys) are drawn natively by the `VoidhashUI`
-package, which renders them with Metal. A paywall is a flow with one screen. `VoidhashUI` isn't in
-the published package yet: build it from source as
-[Add the paywall renderer](https://voidhash.com/docs/sdks/swift/paywalls#add-the-paywall-renderer)
-describes, then pass the renderer when configuring and grant what flows may do:
+product, which renders them with UIKit's own views. A paywall is a flow with one screen. Add
+`VoidhashUI` to your app target (see [Install](#install)). Linking it is enough, the SDK finds the
+renderer without an option; then grant what flows may do:
 
 ```swift
 import Voidhash
-import VoidhashUI
 
 var options = VoidhashOptions()
-options.paywallRenderer = VoidhashUIPaywallRenderer()
 options.flowCapabilities = [.links, .notifications, .attributes]
 let voidhash = Voidhash.configure(publishableKey: "vh_pk_…", options: options)
 
@@ -1101,7 +1091,7 @@ A flow that could not be shown is not an outcome: `presentFlow` throws a `FlowEr
 why nothing was shown: `.notAssigned` when nothing is published for the
 location, `.unavailable` when it was never downloaded and the backend cannot be reached, or it
 was not ready within 15 seconds,
-`.rendererMissing` without `options.paywallRenderer`, `.unsupportedPackage` when the flow needs
+`.rendererMissing` when the app does not link `VoidhashUI`, `.unsupportedPackage` when the flow needs
 a newer SDK, `.presentationFailed` when there is nothing to present from or the flow can no longer
 be drawn, and `.disabled` for a disabled or shut-down client. Without a renderer no location is
 resolved or preloaded and no paywall request is made.

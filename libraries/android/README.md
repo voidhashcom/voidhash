@@ -1,74 +1,67 @@
-# @voidhash/android
+# Voidhash Android SDK
 
 The bare Voidhash Android SDK plus the shared native core every Voidhash Android surface reuses.
 
-Three Gradle modules live here:
+Three Gradle modules live here, each with the Maven coordinate it is published under:
 
-- **`:sdk`** (`com.voidhash.sdk`) — the public SDK: configuration, identity, products, purchases,
-  transaction reporting, feature flags and analytics.
-- **`:core`** (`com.voidhash.core`) — the shared engine. The React Native SDK includes its sources
-  directly; `:sdk` depends on the module.
-- **`:ui`** (`com.voidhash.ui`) — the optional renderer that draws flows; see [Flows](#flows).
+- **`sdk/`**, `com.voidhash:voidhash` (`com.voidhash.sdk`) — the public SDK: configuration,
+  identity, products, purchases, transaction reporting, feature flags and analytics.
+- **`core/`**, `com.voidhash:voidhash-core` (`com.voidhash.core`) — the shared engine the SDK and
+  the React Native SDK depend on.
+- **`ui/`**, `com.voidhash:voidhash-ui` (`com.voidhash.ui`) — the renderer that draws flows, with
+  its native library; see [Flows](#flows).
+
+The Gradle task `publishToMavenLocal` builds the three artifacts with their sources and javadoc
+jars. They are signed only when a signing key is configured (`signingInMemoryKey`, or the `signing.*`
+properties); Maven Central refuses unsigned ones. The version is this package's.
 
 ## Install
 
-The SDK is an Android library module in this directory. A React Native app gets it in
-`node_modules/@voidhash/android`; a native app includes it from a checkout of the repository (see the
-[Kotlin quickstart](https://voidhash.com/docs/sdks/kotlin/quickstart)). Include the directory in
-your Gradle build and depend on the `com.voidhash:sdk` coordinate. Gradle substitutes
-the included build's `:sdk` module for it, so it is never resolved from a repository and needs no
-version:
+The SDK is on Maven Central. Resolve dependencies from it, as new Android projects do, and depend
+on `com.voidhash:voidhash` in your app module; add `com.voidhash:voidhash-ui`, with the same
+version, to present flows (see [Flows](#flows)):
 
 ```kotlin
 // settings.gradle.kts
-includeBuild("node_modules/@voidhash/android")
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
 ```
 
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("com.voidhash:sdk")
+    implementation("com.voidhash:voidhash:0.1.2")
 }
 ```
 
-To vendor the sources instead, copy `core/` and `sdk/` into your build, include both, and tell the
-SDK module where the core module lives. Modules included under the paths `:core` and `:sdk` need
-no property. Your build has to apply the Android Gradle Plugin and the Kotlin Android plugin
-already, as any Android app build does.
+The three artifacts always share one version. The SDK is an alpha: a new version can change its
+API, so read the changelog before updating. The `@voidhash/android` npm package, which earlier
+releases offered as source, is deprecated: install from Maven Central instead.
 
-```kotlin
-// settings.gradle.kts
-include(":voidhash-core", ":voidhash-sdk")
-project(":voidhash-core").projectDir = file("third_party/voidhash/core")
-project(":voidhash-sdk").projectDir = file("third_party/voidhash/sdk")
-```
+To build from a checkout of this directory instead, include it with
+`includeBuild("path/to/libraries/android")` and depend on the same coordinates without a version:
+Gradle substitutes the included modules for them. Built this way, the `ui` module has no native
+library and can't draw flows; use the Maven Central artifacts to present them.
 
-```properties
-# gradle.properties
-voidhash.coreProjectPath=:voidhash-core
-```
-
-```kotlin
-// app/build.gradle.kts
-dependencies {
-    implementation(project(":voidhash-sdk"))
-}
-```
-
-Both modules compile against `compileSdk` 35 with `minSdk` 23 unless your build sets the
-`Voidhash_compileSdkVersion` and `Voidhash_minSdkVersion` properties.
+Built from source, the modules compile against `compileSdk` 35 with `minSdk` 23 unless your build
+sets the `Voidhash_compileSdkVersion` and `Voidhash_minSdkVersion` properties.
 
 Requirements:
 
 - Android Gradle Plugin 8.9.0, Kotlin 2.0.21, Java 8 bytecode target
 - `minSdk` 23, `compileSdk` 35 (Play Billing 9 requires it of the app too)
-- The Android SDK resolved via `ANDROID_HOME` (or a local, uncommitted `local.properties`)
+- Built from source: the Android SDK resolved via `ANDROID_HOME` (or a local, uncommitted
+  `local.properties`)
 - Play Billing 9.1.0, Play Services Base, OkHttp 4.x and kotlinx-coroutines on the runtime
   classpath
-- AndroidX Navigation is optional. `:sdk` ships the R8 rule that lets an app without it shrink;
+- AndroidX Navigation is optional. The SDK ships the R8 rule that lets an app without it shrink;
   such an app only goes without the Navigation names under [Screen tracking](#screen-tracking)
 
-`:sdk` contributes `android.permission.INTERNET` and `ACCESS_NETWORK_STATE` through its
+The SDK contributes `android.permission.INTERNET` and `ACCESS_NETWORK_STATE` through its
 manifest, and the core module contributes the background purchase check: the
 `com.voidhash.core.billing.PlayFinishJobService` job service and `RECEIVE_BOOT_COMPLETED`, which
 keeps that check scheduled across reboots (see [Products and purchases](#products-and-purchases)).
@@ -385,7 +378,7 @@ one that ran into it, report `WriteStatus.DEFERRED` instead of throwing.
 | `dev`                    | `false`                    | Requests development mode (debug builds only); see [Development mode](#development-mode)              |
 | `preloadLocations`       | `emptyList()`              | Locations whose flows are fetched and cached on the first launch; inert without a renderer            |
 | `flowRevisions`          | `emptyMap()`               | The interface revision the app was built against, per location; see [Flows](#flows)                   |
-| `paywallRenderer`        | `null`                     | Draws flows; see [Flows](#flows)                                                                      |
+| `flowRenderer`           | `null`                     | Draws flows instead of the linked `voidhash-ui` renderer; see [Flows](#flows)                         |
 | `flowCapabilities`       | `setOf(LINKS)`             | What flows may do besides purchasing and restoring; see [Flows](#flows)                               |
 | `onDiagnostic`           | `null`                     | Receives reports about situations the SDK handled itself, on a background thread, in order            |
 | `runInSecondaryProcess`  | `false`                    | Runs the SDK in a process other than the main one; see [Configure](#configure)                        |
@@ -1211,15 +1204,16 @@ fragments created in code or keep their names:
 ### Flows
 
 A flow is a paywall, or another sequence of screens such as an onboarding, designed in Studio and
-published to a location, the spot in your app where it is shown. Flows are drawn natively by the optional `:ui` module. Depend on
-`com.voidhash:ui` and pass its renderer at configure time, together with the capabilities your
-flows may use:
+published to a location, the spot in your app where it is shown. Flows are drawn with Android's own
+views by the `ui` module. Depend on `com.voidhash:voidhash-ui` and the SDK finds its renderer by
+itself (`FlowRendererDiscovery`); configure the capabilities your flows may use. Set
+`VoidhashOptions.flowRenderer` only to draw flows with a renderer of your own.
 
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("com.voidhash:sdk")
-    implementation("com.voidhash:ui")
+    implementation("com.voidhash:voidhash:0.1.2")
+    implementation("com.voidhash:voidhash-ui:0.1.2")
 }
 ```
 
@@ -1228,7 +1222,6 @@ val voidhash = Voidhash.configure(
     context,
     "vh_pk_…",
     VoidhashOptions(
-        paywallRenderer = VoidhashUiPaywallRenderer(),
         flowCapabilities = setOf(FlowCapability.LINKS, FlowCapability.ATTRIBUTES),
     ),
 )
@@ -1246,7 +1239,7 @@ val result = try {
     when (error.reason) {
         FlowFailure.NOT_ASSIGNED -> Unit // nothing published to this location for this user
         FlowFailure.UNAVAILABLE -> Unit // nothing cached and Voidhash unreachable, or not ready within 15 s
-        FlowFailure.RENDERER_MISSING -> Unit // paywallRenderer is not set
+        FlowFailure.RENDERER_MISSING -> Unit // the app does not depend on com.voidhash:voidhash-ui
         FlowFailure.UNSUPPORTED_PACKAGE -> Unit // published for a newer SDK; update it
         FlowFailure.PRESENTATION_FAILED -> Unit // could not be shown, or stopped while on screen
         FlowFailure.DISABLED -> Unit // the client is disabled or shut down
@@ -1381,7 +1374,7 @@ replaced, and while it has the keyboard the cursor moves by character, word and 
 copy and paste. A password input's text is never read out. A disabled input or button is announced
 as unavailable, and a slider is adjusted with the usual swipe up and down.
 
-`presentFlow` needs nothing from your activity for this. If you put a `VoidhashPaywallView` in a
+`presentFlow` needs nothing from your activity for this. If you put a `FlowView` in a
 layout of your own, it works best in a window drawn edge to edge or one with
 `android:windowSoftInputMode="adjustResize"`. `adjustPan` is not recommended: Android then moves
 the window as well as the flow making room.
@@ -1425,8 +1418,8 @@ disk, so a flow shown once still shows offline. A location's configuration is ca
 days, and a location the device has resolved before is preloaded on the next launch, package
 included, so `presentFlow` renders without waiting on the network. `preloadLocations` covers the
 first launch, which has nothing to remember yet. Preloading asks for the revision in
-`flowRevisions`, or else the one the location was last presented with. The `:ui` module ships native code for
-`arm64-v8a` and `x86_64`; on other devices flows report `UNSUPPORTED_PACKAGE`.
+`flowRevisions`, or else the one the location was last presented with. The `ui` module ships native code for
+`arm64-v8a`, `armeabi-v7a` and `x86_64`; on other devices flows report `UNSUPPORTED_PACKAGE`.
 
 A flow's images are kept on disk too, so a cached flow shows its backgrounds, product art and icons
 while the host serving them cannot be reached. The SDK fetches the images a package lists, up to
@@ -1450,6 +1443,17 @@ for the location shows the flow from the cache. A flow that is on screen has no 
 
 Without a renderer no flow can be shown: `presentFlow` throws `RENDERER_MISSING`,
 `resolvePaywall(...)` returns `null` and `preloadLocations` is inert.
+
+#### Runtime modules
+
+By default flows run on the flow runtime built into the `ui` module, so a release is shown only in a
+package format this SDK reads. With `FlowViewRenderer.runtimeMode = FlowViewRenderer.RuntimeMode.MODULE`,
+set before the SDK resolves its first flow, each release runs on the runtime module it names
+instead, whatever its package format: the SDK downloads the module once, verifies it by hash, keeps
+it in `cacheDir/voidhash/runtime-modules` and, while it cannot, runs the module it bundles when that
+runs the release. A presentation waits at most three seconds for a module. Two differences remain
+in this mode: a native component cannot write its props back, and a text input in a package format
+only the module reads gets its keyboard settings when first focused.
 
 ### Shutdown
 
@@ -1498,8 +1502,8 @@ next client you configure with the same publishable key and base URL.
   `purchases.history`. A schema cached by an earlier
   release is fetched again, as it lacks the product ids.
 - **Paywalls are flows.** `presentPaywall`, `presentPaywallForStatus`, `PaywallStatus` and
-  `PaywallListener` are removed, and so is the WebView paywall. Add the `:ui` module, pass
-  `VoidhashUiPaywallRenderer()` as `paywallRenderer`, and call `presentFlow(activity, location)`,
+  `PaywallListener` are removed, and so is the WebView paywall. Add the
+  `com.voidhash:voidhash-ui` dependency and call `presentFlow(activity, location)`,
   which returns how the flow ended. React to the outcomes `purchased` and `restored` where you used
   `onPurchaseCompleted` and `onRestoreCompleted`. Flows that open links, set attributes or ask
   for permissions need the matching `flowCapabilities`. `ResolvedPaywall` now describes the
@@ -1576,7 +1580,7 @@ The other changes are behaviour changes; existing call sites keep compiling.
   used to stay in the preferences file forever; expired ones are removed at launch.
 - **`preloadLocations` is inert without a renderer.** It used to resolve paywalls and warm a
   WebView on every launch.
-- **The install coordinate is `com.voidhash:sdk`.** The documented `includeBuild` now works
+- **The install coordinate is `com.voidhash:voidhash`.** The documented `includeBuild` now works
   without a substitution block, and vendored modules can live under any project path.
 - **`initialize()` no longer throws for transport.** It used to raise `FAILED_TO_FETCH_SCHEMA` on
   a cold cache with no connectivity, which crashed apps calling it from a bare

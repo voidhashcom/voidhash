@@ -43,6 +43,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "test:kotlin": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json', { paths: [process.cwd(), '../react-native'] }))\")/gradlew\" -p . :core:testDebugUnitTest :sdk:testDebugUnitTest :ui:testDebugUnitTest --no-daemon"
+    "test:kotlin": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json', { paths: [process.cwd(), '../react-native'] }))\")/gradlew\" -p . :voidhash-core:testDebugUnitTest :voidhash:testDebugUnitTest :voidhash-ui:testDebugUnitTest --no-daemon"
   }
 }

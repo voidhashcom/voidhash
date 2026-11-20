@@ -1,6 +1,5 @@
 package com.voidhash.ui
 
-import android.content.Context
 import com.voidhash.sdk.api.RuntimeModuleReference
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -12,13 +11,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * Gets the flow runtime module a release needs, in module mode
- * ([VoidhashUiPaywallRenderer.runtimeMode]).
+ * Gets the flow runtime module a release needs, in module mode ([FlowViewRenderer.runtimeMode]).
  *
- * The engine chooses: a cached module that runs the release, else the one the release names once
- * downloaded, else the module the SDK bundles when it runs the release, else nothing after a short
- * wait. It verifies every module by hash and keeps the downloaded ones in
- * `cacheDir/voidhash/runtime-modules`; this object only fetches what the engine asks for. A runtime
+ * The views core chooses: a cached module that runs the release, else the one the release names
+ * once downloaded, else the module the SDK bundles when it runs the release, else nothing after a
+ * short wait. It verifies every module by hash and keeps the downloaded ones in
+ * `cacheDir/voidhash/runtime-modules`; this object only fetches what the core asks for. A runtime
  * module is public code, the same for every project, so one cache serves them all. Nothing here
  * runs before a flow is presented.
  */
@@ -36,16 +34,17 @@ internal object RuntimeModules {
     private var configured = false
 
     /**
-     * Waits until a module that runs the release is ready to draw it with; the engine bounds the
-     * wait (3 seconds).
+     * Waits until a module that runs the release is ready to draw it with; the core bounds the
+     * wait (3 seconds). [cacheDirectory] is the app's cache directory; the first call fixes it for
+     * the process.
      *
      * @throws IllegalStateException when no module that runs the release is available.
      */
-    suspend fun prepare(context: Context, runtime: RuntimeModuleReference) = withContext(Dispatchers.Default) {
-        configure(context)
+    suspend fun prepare(cacheDirectory: File, runtime: RuntimeModuleReference) = withContext(Dispatchers.Default) {
+        configure(cacheDirectory)
         while (true) {
             // Compiling a module the first time takes tens of milliseconds: never on the main thread.
-            val status = VoidhashUiNative.nativeRuntimePrepare(runtime.version, runtime.sha256, runtime.url)
+            val status = ViewsNative.nativeRuntimePrepare(runtime.version, runtime.sha256, runtime.url)
             // Downloads the choice started for a later presentation are fetched too.
             fetchDownloads()
             when {
@@ -56,26 +55,25 @@ internal object RuntimeModules {
         }
     }
 
-    private fun configure(context: Context) {
+    private fun configure(cacheDirectory: File) {
         if (configured) return
         synchronized(this) {
             if (configured) return
-            val directory = File(context.cacheDir, "voidhash/runtime-modules")
-            VoidhashUiNative.nativeRuntimeSetCacheDirectory(directory.path)
+            ViewsNative.nativeRuntimeSetCacheDirectory(File(cacheDirectory, "voidhash/runtime-modules").path)
             configured = true
         }
     }
 
     private fun fetchDownloads() {
         while (true) {
-            val request = VoidhashUiNative.nativeRuntimeTakeDownload() ?: return
+            val request = ViewsNative.nativeRuntimeTakeDownload() ?: return
             val sha256 = request.substringBefore(' ')
             val url = request.substringAfter(' ')
             downloads.execute {
                 try {
-                    VoidhashUiNative.nativeRuntimeDownloadFinished(sha256, download(url))
+                    ViewsNative.nativeRuntimeDownloadFinished(sha256, download(url))
                 } catch (error: Exception) {
-                    VoidhashUiNative.nativeRuntimeDownloadFailed(sha256, error.message ?: error.toString())
+                    ViewsNative.nativeRuntimeDownloadFailed(sha256, error.message ?: error.toString())
                 }
             }
         }

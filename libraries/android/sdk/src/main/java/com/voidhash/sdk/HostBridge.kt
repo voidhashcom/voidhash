@@ -6,12 +6,30 @@ import com.voidhash.sdk.billing.VoidhashTransactionUpdate
 import java.util.concurrent.atomic.AtomicLong
 
 /*
- * What a host that wraps the client — the React Native module, which compiles these sources into
- * its own module — needs beyond the public API. Internal, so the bare SDK's surface stays as it is.
+ * What a host SDK that wraps the client — the React Native SDK — needs beyond the public API.
+ * Each part is marked [VoidhashHostApi], so an app does not use it by accident.
  */
 
+/**
+ * Marks what the SDK offers a host SDK built on it, such as the React Native SDK, beyond its
+ * documented API. It may change in any release; apps do not use it.
+ */
+@RequiresOptIn(
+    message = "For SDKs built on Voidhash, such as the React Native SDK. It may change in any release.",
+    level = RequiresOptIn.Level.ERROR,
+)
+@Retention(AnnotationRetention.BINARY)
+@Target(
+    AnnotationTarget.CLASS,
+    AnnotationTarget.FUNCTION,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.CONSTRUCTOR,
+)
+annotation class VoidhashHostApi
+
 /** Why a read answered with the freshness it has. */
-internal enum class FreshnessReason {
+@VoidhashHostApi
+enum class FreshnessReason {
     /** Confirmed by the server just now, or cached and within its refresh window. */
     FRESH,
 
@@ -26,7 +44,8 @@ internal enum class FreshnessReason {
 }
 
 /** The person of [distinctId] as read under identity [generation]. */
-internal data class PersonState(
+@VoidhashHostApi
+data class PersonState(
     val distinctId: String,
     val generation: Long,
     val person: VoidhashPerson?,
@@ -36,7 +55,8 @@ internal data class PersonState(
 )
 
 /** A flag evaluation of [keys] (every flag when `null`) for [distinctId], under [generation]. */
-internal data class FlagsState(
+@VoidhashHostApi
+data class FlagsState(
     val distinctId: String,
     val generation: Long,
     val keys: List<String>?,
@@ -45,7 +65,8 @@ internal data class FlagsState(
 )
 
 /** A state change the client announces to its host, in the order it happened. */
-internal sealed class ClientEvent {
+@VoidhashHostApi
+sealed class ClientEvent {
     /** The client adopted [distinctId] under [generation]; [previousDistinctId] is empty at start. */
     data class Identity(val distinctId: String, val previousDistinctId: String, val generation: Long) : ClientEvent()
 
@@ -70,7 +91,8 @@ internal sealed class ClientEvent {
  * @property onEvent receives every [ClientEvent], synchronously where it happened, from
  *   `initialize` on.
  */
-internal data class HostSettings(
+@VoidhashHostApi
+data class HostSettings(
     val sdkName: String = "android",
     val sdkVersion: String = VOIDHASH_SDK_VERSION,
     val onEvent: ((ClientEvent) -> Unit)? = null,

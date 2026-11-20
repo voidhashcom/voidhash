@@ -259,13 +259,13 @@ func swiftNativeFile(components []NativeComponent, options Options, output strin
 	example := strings.TrimSuffix(names[0], "Native") + "View"
 	lines := nativeHeader(output, options, []string{
 		"//   final class " + example + ": " + names[0] + ".Component { … }",
-		"//   options.paywallRenderer = try VoidhashUIKitPaywallRenderer(registrations: [",
+		"//   options.flowRenderer = try FlowViewRenderer(registrations: [",
 		"//       " + names[0] + ".registration(" + example + ".self),",
 		"//   ])",
 	})
-	// The paywall renderer's native component APIs are SPI, and so is what is
+	// The flow renderer's native component APIs are SPI, and so is what is
 	// written against them.
-	lines = append(lines, "", "#if os(iOS)", "    import UIKit", "    @_spi(NativeComponents) import VoidhashUIViews")
+	lines = append(lines, "", "#if os(iOS)", "    import UIKit", "    @_spi(NativeComponents) import VoidhashUI")
 	if usesProducts(components) {
 		lines = append(lines, swiftNativeProduct()...)
 	}
@@ -530,7 +530,7 @@ func swiftNativeComponent(name string, component NativeComponent) []string {
 		"            func dispose()",
 		"        }",
 		"",
-		"        /// What the renderer registers the component with, for VoidhashUIKitPaywallRenderer(registrations:).",
+		"        /// What the renderer registers the component with, for FlowViewRenderer(registrations:).",
 		"        public static func registration<Implementation: Component>(",
 		"            _ type: Implementation.Type",
 		"        ) -> VoidhashNativeComponentRegistration {",
@@ -615,11 +615,11 @@ func kotlinNativeFile(components []NativeComponent, options Options, output stri
 	names := nativeTypeNames(components, kotlinReserved)
 	example := strings.TrimSuffix(names[0], "Native") + "View"
 	lines := nativeHeader(output, options, []string{
-		"//   VoidhashViewsPaywallRenderer(components = listOf(",
+		"//   FlowViewRenderer(components = listOf(",
 		"//       " + names[0] + ".factory { context, component -> " + example + "(context, component) },",
 		"//   ))",
 	})
-	// The paywall renderer's native component APIs need an opt-in.
+	// The flow renderer's native component APIs need an opt-in.
 	lines = append(lines, "", "@file:OptIn(ExperimentalNativeComponents::class)")
 	packageName := options.Package
 	if packageName == "" {
@@ -630,11 +630,11 @@ func kotlinNativeFile(components []NativeComponent, options Options, output stri
 	}
 	lines = append(lines, "",
 		"import android.view.View",
-		"import com.voidhash.ui.views.ExperimentalNativeComponents",
-		"import com.voidhash.ui.views.NativeComponent",
-		"import com.voidhash.ui.views.NativeComponentContext",
-		"import com.voidhash.ui.views.NativeComponentEnvironment",
-		"import com.voidhash.ui.views.NativeComponentFactory",
+		"import com.voidhash.ui.ExperimentalNativeComponents",
+		"import com.voidhash.ui.NativeComponent",
+		"import com.voidhash.ui.NativeComponentContext",
+		"import com.voidhash.ui.NativeComponentEnvironment",
+		"import com.voidhash.ui.NativeComponentFactory",
 	)
 	if usesProducts(components) {
 		lines = append(lines, kotlinNativeProduct()...)
@@ -867,7 +867,7 @@ func kotlinNativeComponent(name string, component NativeComponent) []string {
 		"        fun dispose() {}",
 		"    }",
 		"",
-		"    /** The factory to give VoidhashViewsPaywallRenderer(components = …), making each view with [make]. */",
+		"    /** The factory to give FlowViewRenderer(components = …), making each view with [make]. */",
 		"    fun factory(make: (context: android.content.Context, component: Context) -> Component): NativeComponentFactory =",
 		"        object : NativeComponentFactory {",
 		"            override val id: String = ID",

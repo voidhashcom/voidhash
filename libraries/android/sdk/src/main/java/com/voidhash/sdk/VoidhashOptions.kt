@@ -2,7 +2,7 @@ package com.voidhash.sdk
 
 import com.voidhash.sdk.analytics.ScreenView
 import com.voidhash.sdk.diagnostics.VoidhashDiagnostic
-import com.voidhash.sdk.paywall.PaywallRenderer
+import com.voidhash.sdk.flows.FlowRenderer
 
 /** SDK version reported through `x-sdk-version`; matches the npm package version. */
 const val VOIDHASH_SDK_VERSION: String = "0.0.1-alpha.1"
@@ -52,14 +52,15 @@ fun isAnonymousDistinctId(distinctId: String): Boolean =
  * @property preloadLocations locations whose flows are fetched and cached on the first launch,
  *   so a flow can be presented before the device has ever resolved it online. Locations the
  *   device has already resolved are remembered and preloaded without being listed here. Inert
- *   without a [paywallRenderer].
+ *   without a flow renderer.
  * @property flowRevisions the revision of each location's interface the app was built against,
  *   by location slug. It is what [VoidhashClient.presentFlow] reports for a location when the
  *   call names no revision, and what preloading reports, so the flow fetched ahead is one this
  *   build of the app can run. A location without an entry counts as revision 0.
- * @property paywallRenderer draws flows. Add the `ui` module and pass
- *   `VoidhashUiPaywallRenderer()`; without a renderer, [VoidhashClient.presentFlow] throws
- *   [FlowFailure.RENDERER_MISSING]. Flow packages are downloaded, verified and cached for
+ * @property flowRenderer draws flows instead of the renderer the app links. Leave it `null`: with
+ *   the `com.voidhash:voidhash-ui` dependency the SDK finds that artifact's renderer itself, and
+ *   without one [VoidhashClient.presentFlow] throws [FlowFailure.RENDERER_MISSING]. Pass one only
+ *   for a renderer of your own or in tests. Flow packages are downloaded, verified and cached for
  *   offline use.
  * @property flowCapabilities what flows may do beyond showing screens, purchasing and restoring.
  *   Only [FlowCapability.LINKS] is granted by default.
@@ -106,7 +107,7 @@ data class VoidhashOptions(
     val automaticLifecycleEvents: Boolean = true,
     val preloadLocations: List<String> = emptyList(),
     val flowRevisions: Map<String, Int> = emptyMap(),
-    val paywallRenderer: PaywallRenderer? = null,
+    val flowRenderer: FlowRenderer? = null,
     val flowCapabilities: Set<FlowCapability> = setOf(FlowCapability.LINKS),
     val onDiagnostic: ((VoidhashDiagnostic) -> Unit)? = null,
     val runInSecondaryProcess: Boolean = false,

@@ -1,5 +1,8 @@
+@file:OptIn(VoidhashHostApi::class)
+
 package com.margelo.nitro.voidhash
 
+import com.voidhash.sdk.VoidhashHostApi
 import android.app.Activity
 import android.content.Context
 import androidx.annotation.Keep
@@ -302,7 +305,7 @@ class HybridVoidhashNativeClient internal constructor(
             automaticLifecycleEvents = configuration.automaticLifecycleEvents,
             preloadLocations = configuration.preloadLocations.toList(),
             flowRevisions = configuration.flowRevisions.associate { it.location to it.revision.toInt() },
-            paywallRenderer = VoidhashFlowsCore.linkedRenderer(
+            flowRenderer = VoidhashFlowsCore.linkedRenderer(
                 runtimeModules = configuration.flowRuntime == NativeFlowRuntime.MODULE,
             ),
             flowCapabilities = configuration.flowCapabilities.map(::flowCapability).toSet(),

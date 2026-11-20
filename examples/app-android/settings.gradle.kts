@@ -18,13 +18,11 @@ rootProject.name = "nimbus-android"
 
 include(":app")
 
-// A real project installs the SDK from npm and includes the package directory:
-//
-//     includeBuild("node_modules/@voidhash/android")
-//
-// This example lives inside the SDK repository, so it points at the sources.
-// Gradle substitutes the included build's `:sdk` and `:ui` modules for the
-// `com.voidhash:sdk` and `com.voidhash:ui` coordinates used in
-// `gradle/libs.versions.toml`; the version declared there is never resolved
-// from a repository.
-includeBuild("../../libraries/android")
+// The SDK resolves from Maven Central at the version in `gradle/libs.versions.toml`, as in an
+// app. `-Pvoidhash.sdkFromSource=true` (or the property in gradle.properties) builds it from the
+// sources in this repository instead: Gradle substitutes the included build's modules for the
+// `com.voidhash:voidhash` and `com.voidhash:voidhash-ui` coordinates. The renderer's native
+// library is not part of those sources, so a source build draws flows only once it is built.
+if (providers.gradleProperty("voidhash.sdkFromSource").orNull == "true") {
+    includeBuild("../../libraries/android")
+}

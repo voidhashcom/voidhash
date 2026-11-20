@@ -475,7 +475,7 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
             screenTracking: ScreenTrackingOptions(automatic: false),
             automaticLifecycleEvents: configuration.automaticLifecycleEvents,
             analyticsConsent: configuration.analyticsConsent,
-            paywallRenderer: PaywallRendererDiscovery.linkedRenderer(
+            flowRenderer: FlowRendererDiscovery.linkedRenderer(
                 runtimeModules: configuration.flowRuntimeModules),
             flowCapabilities: configuration.flowCapabilities,
             featureFlags: FeatureFlagOptions(

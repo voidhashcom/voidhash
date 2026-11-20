@@ -133,7 +133,10 @@ enum class FlowFailure {
      */
     UNAVAILABLE,
 
-    /** The app did not configure a renderer ([VoidhashOptions.paywallRenderer]). */
+    /**
+     * The app links no flow renderer: it depends on neither `com.voidhash:voidhash-ui` nor sets
+     * [VoidhashOptions.flowRenderer].
+     */
     RENDERER_MISSING,
 
     /** This SDK cannot draw the flow's package version; update the SDK. */

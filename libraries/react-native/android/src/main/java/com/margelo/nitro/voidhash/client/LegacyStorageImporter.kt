@@ -1,5 +1,8 @@
+@file:OptIn(VoidhashHostApi::class)
+
 package com.margelo.nitro.voidhash.client
 
+import com.voidhash.sdk.VoidhashHostApi
 import android.content.Context
 import android.content.SharedPreferences
 import com.voidhash.sdk.analytics.AnalyticsEvent

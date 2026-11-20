@@ -18,7 +18,7 @@
         <!-- Asks for a runtime permission a presented flow requested, and reports the answer. The
              shared SDK sources are compiled into this module without their own manifest. -->
         <activity
-            android:name="com.voidhash.sdk.paywall.VoidhashPermissionActivity"
+            android:name="com.voidhash.sdk.flows.VoidhashPermissionActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />

@@ -17,17 +17,9 @@ Read first: [[codeList .Platform.Reference]] (the API of the installed SDK)[[if 
    Keep every provider that is already there. Do not create another client: `[[.ClientFile]]` is the only call to `createVoidhashClient`.
    [[if eq .Platform.ID "expo"]]
 
-2. **Register the config plugin.** Add `"@voidhash/react-native"` to `expo.plugins` in `app.json` (or the `plugins` array of `app.config.js`/`app.config.ts`), keeping the existing plugins. It adds the native iOS code on the next prebuild.
+2. **Register the config plugin.** Add `"@voidhash/react-native"` to `expo.plugins` in `app.json` (or the `plugins` array of `app.config.js`/`app.config.ts`), keeping the existing plugins. It configures the native projects on the next prebuild.
    [[else]]
-3. **Add the iOS pods.** In `ios/Podfile`, inside the app target and above `use_native_modules!`, add:
-
-   ```ruby
-   voidhash_ios = File.dirname(`node --print "require.resolve('@voidhash/ios/package.json', { paths: [require.resolve('@voidhash/react-native/package.json')] })"`.strip)
-   pod "VoidhashCore", :path => voidhash_ios
-   pod "Voidhash", :path => voidhash_ios
-   ```
-
-   Do not run `pod install`. Android needs no change.
+3. **Native setup.** Nothing to add: autolinking links the SDK, which installs the native iOS SDK with Swift Package Manager on the next `pod install` and the Android SDK from Maven Central. Do not run `pod install`.
    [[end]]
 
 4. **Identify the user.** Where the app has a signed-in user (after sign-in and when a stored session is restored), call `await voidhash.client.identify(userId, { email, name })` with the app's own stable user id; pass only the traits the app already has. It returns a `Result` and does not throw. Where the user signs out, call `await voidhash.client.signOut()`. If the app has no accounts, skip this step and say so in the report: Voidhash then keeps an anonymous id per install.

@@ -6,7 +6,6 @@ import com.voidhash.sdk.Voidhash
 import com.voidhash.sdk.VoidhashClient
 import com.voidhash.sdk.VOIDHASH_DEFAULT_BASE_URL
 import com.voidhash.sdk.VoidhashOptions
-import com.voidhash.ui.VoidhashUiPaywallRenderer
 
 /**
  * Configures Voidhash once for the process.
@@ -41,8 +40,6 @@ class NimbusApplication : Application() {
                 // ignore the flag and always use real Play Billing.
                 dev = true,
                 debug = BuildConfig.DEBUG,
-                // Draws the flows published in Studio.
-                paywallRenderer = VoidhashUiPaywallRenderer(),
                 // What flows may do besides purchasing and restoring. Asking for
                 // notifications also needs POST_NOTIFICATIONS in the manifest.
                 flowCapabilities = setOf(

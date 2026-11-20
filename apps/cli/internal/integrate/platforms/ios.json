@@ -16,7 +16,7 @@
   "sources": [".swift"],
   "run": "the app from Xcode",
   "leftForYou": [
-    "Add the Swift package in Xcode: File → Add Package Dependencies, https://github.com/voidhashcom/voidhash, branch main, products Voidhash and VoidhashCore. The CLI does not edit Xcode project files.",
+    "Add the Swift package in Xcode: File → Add Package Dependencies, https://github.com/voidhashcom/voidhash, rule Exact Version with the latest release, products Voidhash and VoidhashCore. The CLI does not edit Xcode project files.",
     "Add the generated types file to your app's target if Xcode does not pick it up.",
     "Build the app in Xcode, or run 'voidhash integrate --check \"xcodebuild ...\"' with your own build command to have it checked.",
     "Connect the App Store and map your products to App Store products before you sell for real: 'voidhash provider --help'."

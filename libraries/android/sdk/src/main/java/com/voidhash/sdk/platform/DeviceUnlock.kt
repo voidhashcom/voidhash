@@ -1,5 +1,6 @@
 package com.voidhash.sdk.platform
 
+import com.voidhash.sdk.VoidhashHostApi
 import android.app.Activity
 import android.app.Application
 import android.content.BroadcastReceiver
@@ -61,7 +62,8 @@ internal fun whenUserUnlocked(context: Context, action: () -> Unit): (() -> Unit
  * it marks them `directBootAware`. Returns what stops waiting for it; without an [Application] to
  * watch, nothing is waited for.
  */
-internal fun whenStartedUnlocked(context: Context, isUnlocked: () -> Boolean, action: () -> Unit): () -> Unit {
+@VoidhashHostApi
+fun whenStartedUnlocked(context: Context, isUnlocked: () -> Boolean, action: () -> Unit): () -> Unit {
     val application = context.applicationContext as? Application ?: return {}
     val done = AtomicBoolean(false)
     val callbacks = object : Application.ActivityLifecycleCallbacks {

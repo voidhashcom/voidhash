@@ -1,5 +1,6 @@
 package com.voidhash.sdk.transactions
 
+import com.voidhash.sdk.VoidhashHostApi
 import com.voidhash.sdk.network.SdkClock
 import com.voidhash.sdk.network.SystemSdkClock
 import com.voidhash.sdk.storage.InMemoryRecordStore
@@ -36,7 +37,8 @@ data class AcceptedReceipt(
     val acceptedAt: Long,
     val purchaseClaimed: Boolean = false,
 ) {
-    internal fun toRecord(): String = JSONObject()
+    @VoidhashHostApi
+    fun toRecord(): String = JSONObject()
         .put("key", key)
         .put("transactionId", transactionId)
         .put("distinctId", distinctId)
@@ -44,7 +46,8 @@ data class AcceptedReceipt(
         .apply { if (purchaseClaimed) put("purchaseClaimed", true) }
         .toString()
 
-    internal companion object {
+    @VoidhashHostApi
+    companion object {
         fun fromRecord(record: String): AcceptedReceipt? {
             val json = runCatching { JSONObject(record) }.getOrNull() ?: return null
             val key = json.optString("key").takeIf { it.isNotEmpty() } ?: return null

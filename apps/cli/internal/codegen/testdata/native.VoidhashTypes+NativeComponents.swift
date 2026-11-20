@@ -7,7 +7,7 @@
 // it with the renderer, for example
 //
 //   final class BadgeView: BadgeNative.Component { … }
-//   options.paywallRenderer = try VoidhashUIKitPaywallRenderer(registrations: [
+//   options.flowRenderer = try FlowViewRenderer(registrations: [
 //       BadgeNative.registration(BadgeView.self),
 //   ])
 //
@@ -18,7 +18,7 @@
 
 #if os(iOS)
     import UIKit
-    @_spi(NativeComponents) import VoidhashUIViews
+    @_spi(NativeComponents) import VoidhashUI
 
     /// A product as a native component's properties carry it.
     @_spi(NativeComponents)
@@ -128,7 +128,7 @@
             func dispose()
         }
 
-        /// What the renderer registers the component with, for VoidhashUIKitPaywallRenderer(registrations:).
+        /// What the renderer registers the component with, for FlowViewRenderer(registrations:).
         public static func registration<Implementation: Component>(
             _ type: Implementation.Type
         ) -> VoidhashNativeComponentRegistration {
@@ -351,7 +351,7 @@
             func dispose()
         }
 
-        /// What the renderer registers the component with, for VoidhashUIKitPaywallRenderer(registrations:).
+        /// What the renderer registers the component with, for FlowViewRenderer(registrations:).
         public static func registration<Implementation: Component>(
             _ type: Implementation.Type
         ) -> VoidhashNativeComponentRegistration {

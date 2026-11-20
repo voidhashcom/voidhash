@@ -104,11 +104,15 @@ public actor VoidhashClient {
         /// Whether the client listens to App Store messages and purchase intents, which only a
         /// real app receives.
         var observesAppStoreEvents = false
+        /// The renderer used when ``VoidhashOptions/flowRenderer`` names none. A real app finds
+        /// the one it linked; tests link a stand-in provider, so they find none unless they ask.
+        var linkedFlowRenderer: @Sendable () -> (any FlowRenderer)? = { nil }
 
         /// The dependencies of a client in a real app.
         static func live() -> Dependencies {
             var dependencies = Dependencies()
             dependencies.adServicesToken = InstallAttribution.systemTokenFetch
+            dependencies.linkedFlowRenderer = { FlowRendererDiscovery.linkedRenderer() }
             dependencies.observesAppStoreEvents = true
             return dependencies
         }
@@ -201,7 +205,7 @@ public actor VoidhashClient {
     /// remembering and warming locations all follow it, so no location costs a request while
     /// nothing can show it.
     private var paywallsEnabled: Bool {
-        return options.paywallRenderer != nil || dependencies.host?.resolvesPaywalls == true
+        return options.flowRenderer != nil || dependencies.host?.resolvesPaywalls == true
     }
     private let readOnlyFlag: AtomicBool
     /// The end user's analytics consent, read synchronously by the header builder and the
@@ -456,6 +460,7 @@ public actor VoidhashClient {
         let options = { (options: VoidhashOptions) -> VoidhashOptions in
             var options = options
             options.enabled = options.enabled && hasKey
+            options.flowRenderer = options.flowRenderer ?? dependencies.linkedFlowRenderer()
             return options
         }(options)
         self.options = options
@@ -3887,7 +3892,7 @@ public actor VoidhashClient {
         _ = try await ensureInitialized()
         let revision = revision ?? flowRevision(of: location)
         let distinctId = await identityStore.getDistinctId()
-        let engine = options.paywallRenderer?.engineCapabilities
+        let engine = options.flowRenderer?.engineCapabilities
 
         let unassigned = await cacheManager.get(
             VoidhashClient.unassignedPaywallCacheKey(
@@ -3973,7 +3978,7 @@ public actor VoidhashClient {
         }
         let cacheKey = VoidhashClient.paywallCacheKey(
             distinctId: distinctId, location: location,
-            engine: options.paywallRenderer?.engineCapabilities, revision: revision)
+            engine: options.flowRenderer?.engineCapabilities, revision: revision)
         return try await paywallFlight.run(key: cacheKey) { [weak self] in
             guard let self else {
                 return nil
@@ -3992,7 +3997,7 @@ public actor VoidhashClient {
             return nil
         }
         let headers = headerFactory.build(distinctId: distinctId)
-        let engine = options.paywallRenderer?.engineCapabilities
+        let engine = options.flowRenderer?.engineCapabilities
         let resolved: SdkResolvedPaywall?
         do {
             resolved = try await guarded("paywall.resolve") { [apiClient] in
@@ -4169,7 +4174,7 @@ public actor VoidhashClient {
         }
         return try await apiClient.resolvePaywall(
             headers: headers(for: distinctId), locationSlug: locationSlug,
-            engine: options.paywallRenderer?.engineCapabilities)
+            engine: options.flowRenderer?.engineCapabilities)
     }
 
     /// Records a store transaction in the durable outbox and tries to sync it.
@@ -4880,7 +4885,7 @@ public actor VoidhashClient {
                 resolved = await cacheManager.get(
                     VoidhashClient.paywallCacheKey(
                         distinctId: distinctId, location: location,
-                        engine: options.paywallRenderer?.engineCapabilities, revision: revision),
+                        engine: options.flowRenderer?.engineCapabilities, revision: revision),
                     as: SdkResolvedPaywall.self
                 )?.value
             }
@@ -5396,23 +5401,23 @@ public actor VoidhashClient {
         return client
     }
 
-    private func makeFlowPresenter(imageStore: FlowImageStore) -> (any FlowPaywallPresenting)? {
-        guard let renderer = options.paywallRenderer else {
+    private func makeFlowPresenter(imageStore: FlowImageStore) -> (any FlowPresenting)? {
+        guard let renderer = options.flowRenderer else {
             return nil
         }
         #if canImport(UIKit)
             let target = presentationTarget
             return renderer.makePresenter(
-                context: PaywallRendererContext(
+                context: FlowRendererContext(
                     warn: warn,
                     presentingViewController: {
                         target.viewController
-                            ?? PaywallRendererContext.keyWindowTopViewController()
+                            ?? FlowRendererContext.keyWindowTopViewController()
                     },
                     imageStore: imageStore))
         #else
             return renderer.makePresenter(
-                context: PaywallRendererContext(warn: warn, imageStore: imageStore))
+                context: FlowRendererContext(warn: warn, imageStore: imageStore))
         #endif
     }
 
@@ -6115,7 +6120,7 @@ public actor VoidhashClient {
     private func isPaywallStale(_ location: String, revision: Int, distinctId: String) async
         -> Bool
     {
-        let engine = options.paywallRenderer?.engineCapabilities
+        let engine = options.flowRenderer?.engineCapabilities
         if let assigned = await cacheManager.get(
             VoidhashClient.paywallCacheKey(
                 distinctId: distinctId, location: location, engine: engine, revision: revision),

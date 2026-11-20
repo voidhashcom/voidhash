@@ -38,51 +38,27 @@ def getExtOrIntegerDefault(name) {
   return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["NitroVoidhash_" + name]).toInteger()
 }
 
-// The shared Kotlin core (`@voidhash/android`) is compiled straight into this module instead of
-// being a separate gradle project, so consumer apps keep a single library to build. Node resolution
-// works for published/installed consumers; the relative fallback covers the in-repo checkout, where
-// the package may not be linked into node_modules yet.
-def voidhashCoreSourceDir() {
-  return new File(voidhashAndroidPackageDir(), "core/src/main/java").absolutePath
+// An artifact of the Android SDK this bridge runs on: from Maven Central at this package's own
+// version, since the React Native, iOS and Android SDKs are released together under one version.
+// An app that builds the SDK from source (the config plugin's `nativeSdk` option) has its modules
+// as projects named after the artifacts, and gets those instead.
+def voidhashSdk(artifact) {
+  def sourceProject = rootProject.findProject(":${artifact}")
+  if (sourceProject != null) {
+    return sourceProject
+  }
+  // A preview build (pkg.voidha.sh) names the released version it runs on.
+  def manifest = new groovy.json.JsonSlurper().parse(new File(projectDir.parentFile, "package.json"))
+  def version = manifest.voidhash?.nativeSdkVersion ?: manifest.version
+  return "com.voidhash:${artifact}:${version}"
 }
 
-// The bare-native SDK (`sdk` module of `@voidhash/android`) is compiled in next to the core
-// sources: the storage, platform and flow hybrids build on it.
-def voidhashSdkSourceDir() {
-  return new File(voidhashAndroidPackageDir(), "sdk/src/main/java").absolutePath
-}
-
-// The native flow renderer (`ui` module of `@voidhash/android`) is compiled in only when the app
-// opts in with `Voidhash_renderer=true` in its gradle.properties, which the config plugin's
-// `renderer` option writes. It carries a native library per ABI, so apps without flows skip it.
+// The flow renderer (`com.voidhash:voidhash-ui`), which `presentFlow()` needs, is added only when
+// the app opts in with `Voidhash_renderer=true` in its gradle.properties, which the config
+// plugin's `renderer` option writes. It carries a native library per ABI, so apps without flows
+// skip it. The SDK finds it on its own once it is on the classpath.
 def voidhashRendererEnabled() {
   return rootProject.findProperty("Voidhash_renderer") == "true"
-}
-
-def voidhashRendererDir() {
-  return new File(voidhashAndroidPackageDir(), "ui/src/main")
-}
-
-def voidhashAndroidPackageDir() {
-  def rnPackageDir = projectDir.parentFile
-
-  try {
-    def script = "console.log(require('node:path').dirname(require.resolve('@voidhash/android/package.json', { paths: [process.argv[1]] })))"
-    def process = new ProcessBuilder("node", "-e", script, rnPackageDir.absolutePath)
-      .directory(rnPackageDir)
-      .redirectError(ProcessBuilder.Redirect.DISCARD)
-      .start()
-    def resolved = process.inputStream.text.trim()
-    process.waitFor()
-
-    if (process.exitValue() == 0 && !resolved.isEmpty()) {
-      return resolved
-    }
-  } catch (Exception ignored) {
-    // fall through to the physical sibling path below
-  }
-
-  return new File(rnPackageDir, "../android").absolutePath
 }
 
 android {
@@ -97,9 +73,6 @@ android {
     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
 
     consumerProguardFiles "consumer-rules.pro"
-    if (voidhashRendererEnabled()) {
-      consumerProguardFiles new File(voidhashAndroidPackageDir(), "ui/consumer-rules.pro").absolutePath
-    }
 
     externalNativeBuild {
       cmake {
@@ -165,17 +138,6 @@ android {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
   }
-
-  sourceSets {
-    main {
-      java.srcDirs += [voidhashCoreSourceDir(), voidhashSdkSourceDir()]
-
-      if (voidhashRendererEnabled()) {
-        java.srcDirs += [new File(voidhashRendererDir(), "java").absolutePath]
-        jniLibs.srcDirs += [new File(voidhashRendererDir(), "jniLibs").absolutePath]
-      }
-    }
-  }
 }
 
 repositories {
@@ -192,16 +154,12 @@ dependencies {
 
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
-  implementation 'com.android.billingclient:billing:9.1.0'
-  implementation 'com.android.installreferrer:installreferrer:2.2'
-  implementation 'com.google.android.gms:play-services-base:18.7.2'
-  // Dependencies of the bare-native SDK sources compiled into this module.
-  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+  // `api`, as when the SDK's sources were compiled into this module: the app's own code and its
+  // local modules can use the SDK and the renderer directly. The SDK brings Google Play Billing.
+  api voidhashSdk("voidhash")
+  if (voidhashRendererEnabled()) {
+    api voidhashSdk("voidhash-ui")
+  }
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
   implementation 'androidx.annotation:annotation:1.8.0'
-  // The shared SDK sources reach AndroidX Fragment and Navigation reflectively
-  // and through optional helpers; they must be on the compile classpath here
-  // exactly as in the bare SDK module, without becoming runtime dependencies.
-  compileOnly 'androidx.fragment:fragment:1.1.0'
-  compileOnly 'androidx.navigation:navigation-runtime:2.8.9'
 }

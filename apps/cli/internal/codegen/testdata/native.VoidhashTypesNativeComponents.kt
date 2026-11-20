@@ -6,7 +6,7 @@
 // types for the app's own views of them. Implement a component's Component and register
 // it with the renderer, for example
 //
-//   VoidhashViewsPaywallRenderer(components = listOf(
+//   FlowViewRenderer(components = listOf(
 //       BadgeNative.factory { context, component -> BadgeView(context, component) },
 //   ))
 //
@@ -20,11 +20,11 @@
 package com.example.app
 
 import android.view.View
-import com.voidhash.ui.views.ExperimentalNativeComponents
-import com.voidhash.ui.views.NativeComponent
-import com.voidhash.ui.views.NativeComponentContext
-import com.voidhash.ui.views.NativeComponentEnvironment
-import com.voidhash.ui.views.NativeComponentFactory
+import com.voidhash.ui.ExperimentalNativeComponents
+import com.voidhash.ui.NativeComponent
+import com.voidhash.ui.NativeComponentContext
+import com.voidhash.ui.NativeComponentEnvironment
+import com.voidhash.ui.NativeComponentFactory
 
 /** A product as a native component's properties carry it; [id] is what the component writes and emits. */
 data class VoidhashNativeProduct(
@@ -132,7 +132,7 @@ object BadgeNative {
         fun dispose() {}
     }
 
-    /** The factory to give VoidhashViewsPaywallRenderer(components = …), making each view with [make]. */
+    /** The factory to give FlowViewRenderer(components = …), making each view with [make]. */
     fun factory(make: (context: android.content.Context, component: Context) -> Component): NativeComponentFactory =
         object : NativeComponentFactory {
             override val id: String = ID
@@ -306,7 +306,7 @@ object PlanPickerNative {
         fun dispose() {}
     }
 
-    /** The factory to give VoidhashViewsPaywallRenderer(components = …), making each view with [make]. */
+    /** The factory to give FlowViewRenderer(components = …), making each view with [make]. */
     fun factory(make: (context: android.content.Context, component: Context) -> Component): NativeComponentFactory =
         object : NativeComponentFactory {
             override val id: String = ID

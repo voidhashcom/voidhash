@@ -10,7 +10,7 @@ coroutines = "1.8.1"
 lifecycle = "2.8.7"
 # Version of the npm package the SDK sources come from. Never resolved from a
 # repository: `settings.gradle.kts` substitutes the included build for it.
-voidhash = "0.0.1-alpha.1"
+voidhash = "0.1.2"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -25,8 +25,8 @@ androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-ru
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
-voidhash-android = { module = "com.voidhash:sdk", version.ref = "voidhash" }
-voidhash-android-ui = { module = "com.voidhash:ui", version.ref = "voidhash" }
+voidhash-android = { module = "com.voidhash:voidhash", version.ref = "voidhash" }
+voidhash-android-ui = { module = "com.voidhash:voidhash-ui", version.ref = "voidhash" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

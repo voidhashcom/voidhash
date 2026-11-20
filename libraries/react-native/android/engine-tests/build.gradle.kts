@@ -1,8 +1,9 @@
 // JVM harness for the React Native Android layer: the Nitro-free flows core and the
 // `VoidhashNativeClient` hybrid with its legacy storage importer. Included from
-// `libraries/android/settings.gradle.kts`. Like the React Native module, it compiles the bare SDK's
-// and core's sources into itself rather than depending on their modules, so the hybrid reaches
-// the SDK's `internal` members exactly as it does when shipped. The Nitro-generated classes the
+// `libraries/android/settings.gradle.kts`. It compiles the bare SDK's and core's sources into
+// itself rather than depending on their modules, so its tests can replace the SDK's internal
+// platform services; the React Native module itself depends on the SDK's artifacts and reaches
+// only their public and `@VoidhashHostApi` members. The Nitro-generated classes the
 // hybrid implements are compiled from `nitrogen/generated`, over small stand-ins for Nitro's
 // runtime (`src/nitroStubs`), which the JVM cannot load.
 plugins {
@@ -62,6 +63,8 @@ tasks.matching { it.name.startsWith("compile") && it.name.endsWith("Kotlin") }.c
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+        // The hybrid uses what the SDK offers host SDKs, as in the React Native module.
+        optIn.add("com.voidhash.sdk.VoidhashHostApi")
     }
 }
 

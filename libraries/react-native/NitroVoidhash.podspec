@@ -30,8 +30,28 @@ Pod::Spec.new do |s|
   load 'nitrogen/generated/ios/NitroVoidhash+autolinking.rb'
   add_nitrogen_files(s)
 
-  s.dependency 'VoidhashCore'
-  s.dependency 'Voidhash'
+  # The iOS SDK this bridge runs on, from Swift Package Manager: the public repository at this
+  # package's own version, since the React Native, iOS and Android SDKs are released together.
+  # Podfile globals, which the config plugin writes into the app target, choose what is linked:
+  # `$VoidhashRenderer = true` adds the flow renderer (`VoidhashUI`), and
+  # `$VoidhashNativeSdkPods = true` takes the SDK from pods the Podfile declares with `:path`
+  # instead, to build it from source.
+  # A preview build (pkg.voidha.sh) names the released version it runs on.
+  native_sdk_version = package.dig("voidhash", "nativeSdkVersion") || package["version"]
+  voidhash_products = ["VoidhashCore", "Voidhash"]
+  voidhash_products << "VoidhashUI" if defined?($VoidhashRenderer) && $VoidhashRenderer
+  if defined?($VoidhashNativeSdkPods) && $VoidhashNativeSdkPods
+    voidhash_products.each { |product| s.dependency product }
+  else
+    unless defined?(spm_dependency)
+      raise "#{s.name} installs the Voidhash iOS SDK with Swift Package Manager through React Native's `spm_dependency`, which needs React Native 0.75 or later."
+    end
+    spm_dependency(s,
+      url: "https://github.com/voidhashcom/voidhash",
+      requirement: { kind: "exactVersion", version: native_sdk_version },
+      products: voidhash_products
+    )
+  end
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
   install_modules_dependencies(s)

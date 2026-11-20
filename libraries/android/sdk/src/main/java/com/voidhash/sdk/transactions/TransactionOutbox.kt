@@ -1,5 +1,6 @@
 package com.voidhash.sdk.transactions
 
+import com.voidhash.sdk.VoidhashHostApi
 import com.voidhash.sdk.VoidhashApiException
 import com.voidhash.sdk.VoidhashException
 import com.voidhash.sdk.api.PurchasePaywallContext
@@ -85,7 +86,8 @@ data class OutboxRecord(
             request
         }
 
-    internal fun toRecord(): String = JSONObject().apply {
+    @VoidhashHostApi
+    fun toRecord(): String = JSONObject().apply {
         put("key", key)
         put("distinctId", distinctId)
         put("restoreDistinctId", restoreDistinctId)
@@ -95,7 +97,8 @@ data class OutboxRecord(
         put("request", request.toStorageJson())
     }.toString()
 
-    internal companion object {
+    @VoidhashHostApi
+    companion object {
         fun fromRecord(record: String): OutboxRecord? {
             val json = runCatching { JSONObject(record) }.getOrNull() ?: return null
             val key = json.optString("key").takeIf { it.isNotEmpty() } ?: return null

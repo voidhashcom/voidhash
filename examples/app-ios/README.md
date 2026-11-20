@@ -1,7 +1,7 @@
 # app-ios
 
 Nimbus, the notes app from the [examples spec](../README.md), built as a bare SwiftUI app on
-[`@voidhash/ios`](../../libraries/ios). Free accounts keep 3 notes; Pro is unlimited and can
+the [iOS SDK](../../libraries/ios). Free accounts keep 3 notes; Pro is unlimited and can
 export. Three tabs, one `VoidhashClient`, no other dependencies.
 
 Nimbus buys through the SDK, which syncs each purchase with Voidhash and finishes it with the App
@@ -20,7 +20,7 @@ Store. Paywalls and flows are drawn natively by the `VoidhashUI` package.
   finished with) and its `output`, and throws a `FlowError` when nothing could be shown. A
   project with no published paywall throws `FlowError.notAssigned` — the normal state on day
   one, not an error — and the app quietly falls back to its own Upgrade tab.
-  The flow is drawn by `VoidhashUIPaywallRenderer`, passed as `options.paywallRenderer`. A
+  The flow is drawn by the `VoidhashUI` renderer, which the SDK finds once the app links it. A
   purchase tapped on it runs through the same SDK purchase, and a paywall then ends with
   `.purchased`.
 - **Granting flow capabilities.** `options.flowCapabilities = [.links, .notifications,
@@ -84,22 +84,23 @@ packages:
     path: ../../libraries/ios
 ```
 
-In your own app, use the package from the repository instead. It has no release tags yet, so
-follow the `main` branch:
+In your own app, use the package from the repository at an exact release instead:
 
 ```yaml
 packages:
   Voidhash:
     url: https://github.com/voidhashcom/voidhash
-    branch: main
+    exactVersion: 0.1.2
 ```
 
 or, in Xcode, _File → Add Package Dependencies…_ with
-`https://github.com/voidhashcom/voidhash` and the `main` branch.
+`https://github.com/voidhashcom/voidhash` and the rule _Exact Version_.
 
-The target links **two** products: `Voidhash` is the SDK, and `VoidhashCore` carries the wire
-model types its public API hands back (`SdkPerson`, `SdkEntitlementGrant`, `JSONValue`,
-`VoidhashStoreError`). Any app that reads a person or branches on an error code needs both.
+The target links three products: `Voidhash` is the SDK, `VoidhashCore` carries the wire model
+types its public API hands back (`SdkPerson`, `SdkEntitlementGrant`, `JSONValue`,
+`VoidhashStoreError`), and `VoidhashUI` draws flows. Any app that reads a person or branches on an
+error code needs the first two. All three come from the one `Voidhash` package, which this
+example takes at an exact release, as an app does (`project.yml`).
 
 ## Test purchases
 

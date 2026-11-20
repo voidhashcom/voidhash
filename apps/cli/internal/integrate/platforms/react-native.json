@@ -43,7 +43,7 @@
   "sources": [".ts", ".tsx", ".js", ".jsx"],
   "run": "npx react-native run-ios   (or: npx react-native run-android)",
   "leftForYou": [
-    "Install the iOS pods and rebuild the app: run 'npx pod-install', then build it again. The SDK has native code.",
+    "Run 'npx pod-install', then rebuild the app: the SDK has native code, and pod install adds the iOS SDK with Swift Package Manager.",
     "Connect the App Store or Google Play and map your products to store products before you sell for real: 'voidhash provider --help'. Until then, debug builds simulate purchases."
   ]
 }

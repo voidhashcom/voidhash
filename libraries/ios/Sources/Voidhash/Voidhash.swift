@@ -36,7 +36,7 @@ public struct VoidhashOptions: Sendable {
     public var onDiagnostic: VoidhashDiagnosticHandler?
     /// Locations to fetch and warm on the first launch, before the app asks for them.
     ///
-    /// Inert while no flow can be shown: without a ``paywallRenderer`` the SDK resolves,
+    /// Inert while no flow can be shown: without a ``flowRenderer`` or a linked one the SDK resolves,
     /// remembers and warms no location. Otherwise locations the device has already resolved are
     /// remembered and preloaded automatically; this option covers the very first launch, where
     /// there is no history yet.
@@ -47,11 +47,11 @@ public struct VoidhashOptions: Sendable {
     /// and a presentation that names no revision uses it. A location that is not listed counts
     /// as revision 0, or, once presented, as the revision it was last presented with.
     public var flowRevisions: [String: Int]
-    /// Native renderer for paywalls and flows, `VoidhashUIPaywallRenderer()` from the
-    /// `VoidhashUI` package. Without one,
-    /// ``VoidhashClient/presentFlow(location:revision:input:actions:)`` throws
-    /// ``FlowError/rendererMissing``.
-    public var paywallRenderer: (any PaywallRenderer)?
+    /// Native renderer for flows. `nil`, the default, uses the renderer of the `VoidhashUI`
+    /// product when the app links it (see ``FlowRendererDiscovery``); set one only for tests or a
+    /// custom host. Without either, ``VoidhashClient/presentFlow(location:revision:input:actions:)``
+    /// throws ``FlowError/rendererMissing``.
+    public var flowRenderer: (any FlowRenderer)?
     /// What flows may do beyond purchases, restores and analytics. Defaults to opening links.
     ///
     /// Grant ``FlowCapability/notifications`` or ``FlowCapability/tracking`` only when the app
@@ -126,7 +126,7 @@ public struct VoidhashOptions: Sendable {
         screenTracking: ScreenTrackingOptions = ScreenTrackingOptions(),
         automaticLifecycleEvents: Bool = true,
         analyticsConsent: AnalyticsConsent = .granted,
-        paywallRenderer: (any PaywallRenderer)? = nil,
+        flowRenderer: (any FlowRenderer)? = nil,
         flowCapabilities: Set<FlowCapability> = [.links],
         featureFlags: FeatureFlagOptions = FeatureFlagOptions(),
         installAttribution: Bool = true,
@@ -149,7 +149,7 @@ public struct VoidhashOptions: Sendable {
         self.screenTracking = screenTracking
         self.automaticLifecycleEvents = automaticLifecycleEvents
         self.analyticsConsent = analyticsConsent
-        self.paywallRenderer = paywallRenderer
+        self.flowRenderer = flowRenderer
         self.flowCapabilities = flowCapabilities
         self.featureFlags = featureFlags
         self.installAttribution = installAttribution

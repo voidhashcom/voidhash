@@ -1,5 +1,7 @@
 package com.voidhash.sdk.cache
 
+import com.voidhash.sdk.VoidhashHostApi
+
 /** Version of the on-disk cache layout; bumping it retires every entry written before it. */
 const val CACHE_SCHEMA_VERSION: Int = 1
 
@@ -21,7 +23,8 @@ fun cacheKeyPrefix(publishableKey: String, baseUrl: String): String =
  * The prefix earlier releases derived from [baseUrl] exactly as configured, or `null` when it is
  * the same as [cacheKeyPrefix]'s, as it is for a base URL already written in normalized form.
  */
-internal fun unnormalizedCacheKeyPrefix(publishableKey: String, baseUrl: String): String? =
+@VoidhashHostApi
+fun unnormalizedCacheKeyPrefix(publishableKey: String, baseUrl: String): String? =
     "vh:$CACHE_SCHEMA_VERSION:${fnv1aHex("$publishableKey|$baseUrl")}:"
         .takeIf { it != cacheKeyPrefix(publishableKey, baseUrl) }
 
@@ -55,7 +58,8 @@ internal fun normalizedBaseUrl(baseUrl: String): String {
  * The prefix has to be identical for the same inputs across processes and releases, which
  * rules out `String.hashCode` (unspecified across platforms) and anything seeded.
  */
-internal fun fnv1aHex(value: String): String {
+@VoidhashHostApi
+fun fnv1aHex(value: String): String {
     var hash = 0x811C9DC5u
     for (byte in value.toByteArray(Charsets.UTF_8)) {
         hash = hash xor (byte.toUInt() and 0xFFu)

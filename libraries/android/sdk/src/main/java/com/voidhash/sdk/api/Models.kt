@@ -347,7 +347,7 @@ data class FeatureFlag(
 )
 
 /**
- * The compiled flow package of a paywall release, drawn by a native [com.voidhash.sdk.paywall.PaywallRenderer].
+ * The compiled flow package of a paywall release, drawn by a native [com.voidhash.sdk.flows.FlowRenderer].
  *
  * @property url where the package bytes are downloaded from.
  * @property sha256 lowercase hex SHA-256 of the package bytes; a download that does not match

@@ -1,5 +1,6 @@
 package com.voidhash.sdk.identity
 
+import com.voidhash.sdk.VoidhashHostApi
 import com.voidhash.sdk.ANONYMOUS_DISTINCT_ID_PREFIX
 import com.voidhash.sdk.isAnonymousDistinctId
 import com.voidhash.sdk.cache.CacheManager
@@ -46,7 +47,8 @@ internal fun invalidDistinctIdReason(distinctId: String): String? = when {
  * lower-case letter followed by up to 63 lower-case letters, digits or underscores, and a key holds
  * 1 to 256 characters.
  */
-internal fun invalidGroupReason(type: String, key: String): String? = when {
+@VoidhashHostApi
+fun invalidGroupReason(type: String, key: String): String? = when {
     !GROUP_TYPE.matches(type) ->
         "the group type must be a lower-case letter followed by up to 63 lower-case letters, " +
             "digits or underscores, like company or team_1"

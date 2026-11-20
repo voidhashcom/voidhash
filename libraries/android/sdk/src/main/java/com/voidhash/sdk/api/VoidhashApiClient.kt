@@ -15,7 +15,7 @@ import com.voidhash.sdk.network.lazySdkHttpClient
 import com.voidhash.sdk.network.classifyStatus
 import com.voidhash.sdk.network.parseApiErrorTag
 import com.voidhash.sdk.network.parseRetryAfterMs
-import com.voidhash.sdk.paywall.FlowEngineCapabilities
+import com.voidhash.sdk.flows.FlowEngineCapabilities
 import com.voidhash.sdk.storage.sanitizeJsonObject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers

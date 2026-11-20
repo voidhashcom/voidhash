@@ -31,7 +31,7 @@ public enum FlowError: Error, Sendable, Equatable, CustomStringConvertible {
     /// Nothing is cached for the location and the backend cannot be reached, or the flow's
     /// package could not be downloaded.
     case unavailable
-    /// The app did not add the `VoidhashUI` renderer.
+    /// The app did not link the `VoidhashUI` renderer.
     case rendererMissing
     /// The flow was published in a package format this SDK version cannot read.
     case unsupportedPackage(abiVersion: Int)
@@ -50,7 +50,7 @@ public enum FlowError: Error, Sendable, Equatable, CustomStringConvertible {
                 "FLOW_UNAVAILABLE: the flow is not cached on this device and could not be loaded"
         case .rendererMissing:
             return
-                "FLOW_RENDERER_MISSING: add the VoidhashUI package and set VoidhashOptions.paywallRenderer = VoidhashUIPaywallRenderer()"
+                "FLOW_RENDERER_MISSING: add the VoidhashUI product to the app; no option is needed"
         case .unsupportedPackage(let abiVersion):
             return
                 "FLOW_UNSUPPORTED_PACKAGE: the flow uses package format \(abiVersion), which this SDK cannot read; update the SDK"
@@ -236,7 +236,7 @@ public actor FlowCoordinator {
         var loading: CheckedContinuation<Void, Never>?
     }
 
-    private let presenter: (any FlowPaywallPresenting)?
+    private let presenter: (any FlowPresenting)?
     private let loadPackage: PackageLoader
     private let resolvePaywall: PaywallResolver
     private let host: FlowHost
@@ -262,7 +262,7 @@ public actor FlowCoordinator {
     ///     presenter, ``NetworkPolicy/flowPresentationDeadlineSeconds`` unless a test says
     ///     otherwise.
     public init(
-        presenter: (any FlowPaywallPresenting)?,
+        presenter: (any FlowPresenting)?,
         loadPackage: @escaping PackageLoader,
         resolvePaywall: @escaping PaywallResolver,
         host: FlowHost,
@@ -361,7 +361,7 @@ public actor FlowCoordinator {
         let actions: [String: FlowActionHandler]
     }
 
-    private func present(id: Int, request: Request, presenter: any FlowPaywallPresenting) async
+    private func present(id: Int, request: Request, presenter: any FlowPresenting) async
         -> Ending
     {
         let presentation = pending[id]
@@ -398,10 +398,10 @@ public actor FlowCoordinator {
         // The flow announces `ready` once it is on screen, through the handler registered
         // here, and is configured in answer.
         let onBridgeEvent = messageHandler(for: session)
-        let onDismiss: PaywallDismissedHandler = { [weak self] in
+        let onDismiss: FlowDismissedHandler = { [weak self] in
             Task { await self?.presenterDidDismiss(sessionId: id) }
         }
-        let onFailure: PaywallFailedHandler = { [weak self] message in
+        let onFailure: FlowFailedHandler = { [weak self] message in
             Task { await self?.presenterDidFail(sessionId: id, message: message) }
         }
         // On its own task, so cancelling the caller cannot interrupt the presentation halfway
@@ -486,7 +486,7 @@ public actor FlowCoordinator {
 
     /// The session of presentation `id` and the package to present, or why there is none; `nil`
     /// when the presentation was cancelled first.
-    private func load(id: Int, request: Request, presenter: any FlowPaywallPresenting) async
+    private func load(id: Int, request: Request, presenter: any FlowPresenting) async
         -> Result<Loaded, FlowError>?
     {
         guard pending[id]?.isCancelled == false else {
@@ -511,7 +511,7 @@ public actor FlowCoordinator {
         return presentation.loaded
     }
 
-    private func resolveSession(id: Int, request: Request, presenter: any FlowPaywallPresenting)
+    private func resolveSession(id: Int, request: Request, presenter: any FlowPresenting)
         async
     {
         let loaded = await makeSession(id: id, request: request, presenter: presenter)
@@ -523,7 +523,7 @@ public actor FlowCoordinator {
         presentation.loading = nil
     }
 
-    private func makeSession(id: Int, request: Request, presenter: any FlowPaywallPresenting)
+    private func makeSession(id: Int, request: Request, presenter: any FlowPresenting)
         async -> Result<Loaded, FlowError>
     {
         let location = request.location
@@ -700,7 +700,7 @@ public actor FlowCoordinator {
 
     /// Feeds a presentation's messages to ``dispatch(sessionId:rawMessage:)`` in the order the
     /// flow emitted them.
-    private func messageHandler(for session: Session) -> PaywallRawEventHandler {
+    private func messageHandler(for session: Session) -> FlowMessageHandler {
         let sessionId = session.id
         let (messages, continuation) = AsyncStream<String>.makeStream()
         // A stream does not finish when its continuation is released, so the session finishes

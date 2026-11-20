@@ -67,9 +67,9 @@ import com.voidhash.sdk.transactions.PersonWriteKind
 import com.voidhash.sdk.transactions.PersonWriteOutbox
 import com.voidhash.sdk.transactions.TransactionOutbox
 import com.voidhash.sdk.transactions.isScalarTraitValue
-import com.voidhash.sdk.paywall.FlowEngineCapabilities
-import com.voidhash.sdk.paywall.FlowHost
-import com.voidhash.sdk.paywall.PaywallCoordinator
+import com.voidhash.sdk.flows.FlowEngineCapabilities
+import com.voidhash.sdk.flows.FlowHost
+import com.voidhash.sdk.flows.FlowCoordinator
 import com.voidhash.sdk.platform.PlatformInfo
 import com.voidhash.sdk.schema.RuntimeSchema
 import com.voidhash.sdk.schema.SchemaManager
@@ -468,7 +468,7 @@ class VoidhashClient internal constructor(
     private val flowRevisions: Map<String, Int> = emptyMap(),
     private val featureFlagOptions: FeatureFlagOptions = FeatureFlagOptions(),
     /** Builds the flow coordinator around the client; `null` when the app configured no renderer. */
-    flowCoordinatorFactory: ((FlowHost) -> PaywallCoordinator)? = null,
+    flowCoordinatorFactory: ((FlowHost) -> FlowCoordinator)? = null,
     /**
      * What the renderer's engine can run, sent when resolving a paywall. Read per resolve, so
      * building the client never loads the engine.
@@ -725,7 +725,7 @@ class VoidhashClient internal constructor(
     }
 
     /** Presents flows; `null` when the app configured no renderer, so no flow can show. */
-    private val flowCoordinator: PaywallCoordinator? = flowCoordinatorFactory?.invoke(flowHost)
+    private val flowCoordinator: FlowCoordinator? = flowCoordinatorFactory?.invoke(flowHost)
 
     /** The interface revision each location was last presented with in this process. */
     private val presentedRevisions = java.util.concurrent.ConcurrentHashMap<String, Int>()
@@ -820,7 +820,8 @@ class VoidhashClient internal constructor(
 
     /** The generation of the identity in effect; see [identityGenerations]. `0` before [initialize]. */
     @Volatile
-    internal var identityGeneration: Long = 0L
+    @VoidhashHostApi
+    var identityGeneration: Long = 0L
         private set
 
     /**
@@ -836,7 +837,8 @@ class VoidhashClient internal constructor(
     private var schemaJson: String? = null
 
     /** Whether this client was shut down or replaced by a later `configure`. */
-    internal val isClosed: Boolean get() = closed.get()
+    @VoidhashHostApi
+    val isClosed: Boolean get() = closed.get()
 
     /** The schema in effect; `null` until one was loaded, fetched or injected. */
     internal val currentSchema: RuntimeSchema? get() = takenOverBy?.currentSchema ?: schemaRef.get()
@@ -991,7 +993,8 @@ class VoidhashClient internal constructor(
      * once the session's last event is older than the timeout. Unlike [sessionId] it never starts
      * a session, so nothing is handed out that no event carries.
      */
-    internal val activeSessionId: String?
+    @VoidhashHostApi
+    val activeSessionId: String?
         get() {
             takenOverBy?.let { return it.activeSessionId }
             return if (enabled && initialized && !closed.get() && consentStore.isGranted) sessionManager.activeId() else null
@@ -1801,7 +1804,8 @@ class VoidhashClient internal constructor(
      * [surfaceAuthFailure], answering with nothing because the key was rejected throws once per
      * pause (see [surfaceAuthenticationFailure]).
      */
-    internal suspend fun readPerson(forceFetch: Boolean, surfaceAuthFailure: Boolean = false): PersonState {
+    @VoidhashHostApi
+    suspend fun readPerson(forceFetch: Boolean, surfaceAuthFailure: Boolean = false): PersonState {
         takenOverBy?.let { return it.readPerson(forceFetch, surfaceAuthFailure) }
         if (!enabled) return PersonState(identityStore.getDistinctId(), identityGeneration, null, false, false, FreshnessReason.NO_CACHE)
 
@@ -1844,7 +1848,8 @@ class VoidhashClient internal constructor(
      * Until it answers, [person] is `null` and the host hears of the identity's person as not
      * cached, as on iOS: what was dropped is no longer what the device knows.
      */
-    internal suspend fun resetPersonCache() {
+    @VoidhashHostApi
+    suspend fun resetPersonCache() {
         takenOverBy?.let { return it.resetPersonCache() }
         if (!enabled) return
         cacheManager.awaitWarm()
@@ -1923,10 +1928,12 @@ class VoidhashClient internal constructor(
     ): PersonWriteResult = identifyForHost(externalUserId, email, name).result
 
     /** An identify's result with the identity it left in effect, as adopted under the identity lock. */
-    internal class HostIdentify(val result: PersonWriteResult, val distinctId: String, val generation: Long)
+    @VoidhashHostApi
+    class HostIdentify(val result: PersonWriteResult, val distinctId: String, val generation: Long)
 
     /** [identifyWithStatus] for a host, which needs the identity the identify adopted. */
-    internal suspend fun identifyForHost(
+    @VoidhashHostApi
+    suspend fun identifyForHost(
         externalUserId: String,
         email: String?,
         name: String?,
@@ -2348,7 +2355,8 @@ class VoidhashClient internal constructor(
      * [setPersonAttributesWithStatus] with the person's [email] and [name] besides the traits, as
      * the React Native facade writes them. Each is sent only when not `null`.
      */
-    internal suspend fun setPersonAttributesWithStatus(
+    @VoidhashHostApi
+    suspend fun setPersonAttributesWithStatus(
         attributes: Map<String, Any?>,
         email: String?,
         name: String?,
@@ -2461,7 +2469,8 @@ class VoidhashClient internal constructor(
      * wait for the API but must keep its place before a later identity change. Validated, and
      * written whatever the consent, as [setPersonAttributesWithStatus] is.
      */
-    internal suspend fun queuePersonAttributes(attributes: Map<String, Any?>, email: String?, name: String?) {
+    @VoidhashHostApi
+    suspend fun queuePersonAttributes(attributes: Map<String, Any?>, email: String?, name: String?) {
         if (untilUnlock != null) {
             validatedTraits(attributes)
             return when (val admission = untilUnlock.admit { it.queuePersonAttributes(attributes, email, name) }) {
@@ -2603,7 +2612,8 @@ class VoidhashClient internal constructor(
      * a new analytics session starts. The two differ for an anonymous id: [signOut] leaves it
      * alone, and otherwise it is replaced like that without `$sign_out` or a flush.
      */
-    internal suspend fun switchToAnonymous(signOut: Boolean): String {
+    @VoidhashHostApi
+    suspend fun switchToAnonymous(signOut: Boolean): String {
         if (untilUnlock != null) {
             // Never refused: a sign-out that got lost would leave the user it ends signed in.
             val admission = untilUnlock.admit(always = true) { it.switchToAnonymous(signOut) }
@@ -2754,7 +2764,8 @@ class VoidhashClient internal constructor(
     }
 
     /** A flag read with the identity and generation it was made under. */
-    internal class FlagsRead(val state: FlagsState, val isExpired: Boolean) {
+    @VoidhashHostApi
+    class FlagsRead(val state: FlagsState, val isExpired: Boolean) {
         val flags: List<FeatureFlag> get() = state.flags
         val isStale: Boolean get() = state.isStale
     }
@@ -2763,7 +2774,8 @@ class VoidhashClient internal constructor(
      * [getFeatureFlagsState] for a host: every flag when [keys] is empty, also reported as `null`.
      * [surfaceAuthFailure] as for [readPerson].
      */
-    internal suspend fun readFlags(keys: List<String>, surfaceAuthFailure: Boolean = false): FlagsRead {
+    @VoidhashHostApi
+    suspend fun readFlags(keys: List<String>, surfaceAuthFailure: Boolean = false): FlagsRead {
         takenOverBy?.let { return it.readFlags(keys, surfaceAuthFailure) }
         if (!enabled) {
             // Before the first unlock nothing was evaluated: the defaults answer, flagged as no evaluation.
@@ -2905,7 +2917,8 @@ class VoidhashClient internal constructor(
     }
 
     /** [capture] for an event made at [capturedAt] (epoch millis) that a host held back until now. */
-    internal fun capture(name: String, properties: Map<String, Any?>, capturedAt: Long) {
+    @VoidhashHostApi
+    fun capture(name: String, properties: Map<String, Any?>, capturedAt: Long) {
         captureIfCollected(name, properties, capturedAt, reportDenied = true)
     }
 
@@ -3537,8 +3550,7 @@ class VoidhashClient internal constructor(
         }
         val coordinator = flowCoordinator ?: throw FlowException(
             FlowFailure.RENDERER_MISSING,
-            "No flow renderer is configured: add the Voidhash `ui` module and pass " +
-                "VoidhashOptions(paywallRenderer = VoidhashUiPaywallRenderer())",
+            "No flow renderer is linked: add the com.voidhash:voidhash-ui dependency to the app",
         )
         val interfaceRevision = (revision ?: flowRevisions[location] ?: 0).coerceAtLeast(0)
         // What a refresh of the location asks for from now on, when the options name no revision.
@@ -3851,7 +3863,8 @@ class VoidhashClient internal constructor(
      * without a renderer too. Cache-first like it; throws `PAYWALL_UNAVAILABLE` when nothing is
      * cached and the server gives no answer.
      */
-    internal suspend fun resolvePaywallJson(location: String): String {
+    @VoidhashHostApi
+    suspend fun resolvePaywallJson(location: String): String {
         takenOverBy?.let { return it.resolvePaywallJson(location) }
         if (untilUnlock != null) throw deviceLocked("resolve a paywall")
         if (!enabled) return "null"
@@ -3918,7 +3931,8 @@ class VoidhashClient internal constructor(
     }
 
     /** [injectInternalSchema] from the server's JSON, which the host hears of as it is. */
-    internal fun injectInternalSchemaJson(json: String) {
+    @VoidhashHostApi
+    fun injectInternalSchemaJson(json: String) {
         if (untilUnlock != null) {
             val admission = untilUnlock.admit(always = true) { it.injectInternalSchemaJson(json) }
             if (admission is DeferredUntilUnlock.Admission.Live) return admission.client.injectInternalSchemaJson(json)

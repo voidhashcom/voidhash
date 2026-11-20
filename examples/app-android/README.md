@@ -1,6 +1,6 @@
 # Nimbus for Android
 
-The reference integration of [`@voidhash/android`](../../libraries/android) — a
+The reference integration of the [Android SDK](../../libraries/android) — a
 single-activity Jetpack Compose app with three screens: notes, upgrade, account.
 It is the Android member of the [examples suite](../README.md); every example
 implements the same product, so the perk, product and event names below match
@@ -189,25 +189,13 @@ purchase made before sign in follows the user.
 | [`ActivityFinder.kt`](app/src/main/java/com/voidhash/example/nimbus/ActivityFinder.kt)       | Unwrapping `LocalContext` to the real `Activity`. Casting it directly is the classic first crash.          |
 | [`ui/NimbusApp.kt`](app/src/main/java/com/voidhash/example/nimbus/ui/NimbusApp.kt)           | The loading / failure / ready gate with a retry button.                                                    |
 | [`app/build.gradle.kts`](app/build.gradle.kts)                                               | Reading a key out of `local.properties` into `BuildConfig`.                                                |
-| [`settings.gradle.kts`](settings.gradle.kts)                                                 | Wiring the SDK in as an included build.                                                                    |
+| [`settings.gradle.kts`](settings.gradle.kts)                                                 | Optionally building the SDK from this repository's sources.                                                |
 
 ### How this example depends on the SDK
 
-It lives inside the SDK repository, so it includes the sources directly:
-
-```kotlin
-includeBuild("../../libraries/android")
-```
-
-Your project installs the npm package and points at that instead:
-
-```kotlin
-includeBuild("node_modules/@voidhash/android")
-```
-
-Either way the app module depends on the `com.voidhash:sdk` coordinate (the
-`voidhash-android` entry in `gradle/libs.versions.toml`). Gradle substitutes the
-included build's `:sdk` module for it, so it is never resolved from a repository:
+As in your own project, the app module resolves the SDK from `mavenCentral()`:
+`com.voidhash:voidhash` and `com.voidhash:voidhash-ui` (the `voidhash-android`
+entries in `gradle/libs.versions.toml`, at the version set there):
 
 ```kotlin
 dependencies {
@@ -216,8 +204,14 @@ dependencies {
 }
 ```
 
-`com.voidhash:ui` is the optional renderer that draws flows. `NimbusApplication`
-passes it to the SDK as `VoidhashOptions.paywallRenderer` and grants the flows
+To build against the SDK sources in this repository instead, pass
+`-Pvoidhash.sdkFromSource=true`: `settings.gradle.kts` then includes them and
+Gradle substitutes their modules for those coordinates. Built from source, the
+`ui` module has no native library, so the example then draws flows only once
+that library has been added to `ui/src/main/jniLibs`.
+
+`com.voidhash:voidhash-ui` is the renderer that draws flows; the SDK finds it
+on its own once the app depends on it. `NimbusApplication` grants the flows
 the `LINKS`, `ATTRIBUTES` and `NOTIFICATIONS` capabilities through
 `VoidhashOptions.flowCapabilities`, so a flow can open links, set person
 attributes and ask for the notification permission.

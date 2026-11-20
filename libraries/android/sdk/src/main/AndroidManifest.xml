@@ -12,7 +12,7 @@
     <application>
         <!-- Asks for a runtime permission a presented flow requested, and reports the answer. -->
         <activity
-            android:name="com.voidhash.sdk.paywall.VoidhashPermissionActivity"
+            android:name="com.voidhash.sdk.flows.VoidhashPermissionActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />

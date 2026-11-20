@@ -1,5 +1,6 @@
 package com.voidhash.sdk.transactions
 
+import com.voidhash.sdk.VoidhashHostApi
 import com.voidhash.sdk.VoidhashApiException
 import com.voidhash.sdk.api.VoidhashPerson
 import com.voidhash.sdk.diagnostics.DiagnosticEmitter
@@ -57,7 +58,8 @@ internal const val REVOCATION_MIN_WAIT_MS = 30_000L
  * Whether [value] is a trait value the person API accepts: a string, a number, a boolean or
  * `null`. Traits are flat; a map, a list or any other object is not one.
  */
-internal fun isScalarTraitValue(value: Any?): Boolean =
+@VoidhashHostApi
+fun isScalarTraitValue(value: Any?): Boolean =
     value == null || value === JSONObject.NULL || value is String || value is Number || value is Boolean
 
 /**
@@ -99,7 +101,8 @@ data class PersonWrite(
             PersonWriteKind.AD_DATA_SHARING_REVOCATION -> "AD_DATA_SHARING_REVOCATION:$distinctId"
         }
 
-    internal fun toRecord(): String = JSONObject().apply {
+    @VoidhashHostApi
+    fun toRecord(): String = JSONObject().apply {
         put("kind", kind.name)
         put("distinctId", distinctId)
         put("externalUserId", externalUserId ?: JSONObject.NULL)
@@ -112,7 +115,8 @@ data class PersonWrite(
         queuedAt?.let { put("queuedAt", it) }
     }.toString()
 
-    internal companion object {
+    @VoidhashHostApi
+    companion object {
         fun fromRecord(record: String): PersonWrite? {
             val json = runCatching { JSONObject(record) }.getOrNull() ?: return null
             val kind = runCatching { PersonWriteKind.valueOf(json.optString("kind")) }
@@ -143,7 +147,8 @@ data class PersonWrite(
 }
 
 /** Merges [newer] into [older], both queued under the same key; newer fields win. */
-internal fun mergePersonWrites(older: PersonWrite, newer: PersonWrite): PersonWrite = when (newer.kind) {
+@VoidhashHostApi
+fun mergePersonWrites(older: PersonWrite, newer: PersonWrite): PersonWrite = when (newer.kind) {
     PersonWriteKind.TRAITS -> newer.copy(
         traits = older.traits + newer.traits,
         email = newer.email ?: older.email,

@@ -25,16 +25,16 @@ still change between releases.
 
 ## SDKs
 
-| Platform         | Package                                                | Source                                             |
-| ---------------- | ------------------------------------------------------ | -------------------------------------------------- |
-| React Native     | `@voidhash/react-native`                               | [`libraries/react-native`](libraries/react-native) |
-| iOS (Swift)      | Swift package from this repository, or `@voidhash/ios` | [`libraries/ios`](libraries/ios)                   |
-| Android (Kotlin) | `@voidhash/android`                                    | [`libraries/android`](libraries/android)           |
-| Web              | `@voidhash/web`                                        | [`libraries/web`](libraries/web)                   |
-| Node.js          | `@voidhash/node`                                       | [`libraries/node`](libraries/node)                 |
-| Go               | `github.com/voidhashcom/voidhash-go`                   | [`libraries/go`](libraries/go)                     |
-| PHP              | `voidhash/voidhash-php`                                | [`libraries/php`](libraries/php)                   |
-| Rust             | `voidhash`                                             | [`libraries/rust`](libraries/rust)                 |
+| Platform         | Package                                  | Source                                             |
+| ---------------- | ---------------------------------------- | -------------------------------------------------- |
+| React Native     | `@voidhash/react-native`                 | [`libraries/react-native`](libraries/react-native) |
+| iOS (Swift)      | Swift package from this repository       | [`libraries/ios`](libraries/ios)                   |
+| Android (Kotlin) | `com.voidhash:voidhash` on Maven Central | [`libraries/android`](libraries/android)           |
+| Web              | `@voidhash/web`                          | [`libraries/web`](libraries/web)                   |
+| Node.js          | `@voidhash/node`                         | [`libraries/node`](libraries/node)                 |
+| Go               | `github.com/voidhashcom/voidhash-go`     | [`libraries/go`](libraries/go)                     |
+| PHP              | `voidhash/voidhash-php`                  | [`libraries/php`](libraries/php)                   |
+| Rust             | `voidhash`                               | [`libraries/rust`](libraries/rust)                 |
 
 The [`voidhash-cli`](apps/cli) package manages your projects from the terminal,
 in scripts and in CI.

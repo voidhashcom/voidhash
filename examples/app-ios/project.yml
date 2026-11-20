@@ -8,17 +8,12 @@ options:
   groupSortPosition: top
 
 packages:
-  # This example builds against the SDK sources sitting next to it in the repository.
-  # In your own app, use the package from the repository instead (it has no release tags yet):
-  #
-  #   Voidhash:
-  #     url: https://github.com/voidhashcom/voidhash
-  #     branch: main
+  # The SDK as an app adds it: the repository's package at an exact release, whose VoidhashUI
+  # product presents flows. To build against the sources in this repository instead, replace
+  # `url` and `exactVersion` with `path: ../..`.
   Voidhash:
-    path: ../../libraries/ios
-  # Native paywall renderer. Needs its prebuilt engine in libraries/ios-ui/Artifacts.
-  VoidhashUI:
-    path: ../../libraries/ios-ui
+    url: https://github.com/voidhashcom/voidhash
+    exactVersion: 0.1.2
 
 configFiles:
   Debug: Config/Nimbus.xcconfig
@@ -47,8 +42,9 @@ targets:
         product: Voidhash
       - package: Voidhash
         product: VoidhashCore
-      # Shows paywalls and flows natively; without it `presentFlow` throws `FlowError.rendererMissing`.
-      - package: VoidhashUI
+      # Shows paywalls and flows natively; the SDK finds it without an option. Without it
+      # `presentFlow` throws `FlowError.rendererMissing`.
+      - package: Voidhash
         product: VoidhashUI
     settings:
       base:

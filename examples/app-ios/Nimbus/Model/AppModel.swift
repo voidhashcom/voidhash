@@ -3,7 +3,6 @@ import StoreKit
 import SwiftUI
 import Voidhash
 import VoidhashCore
-import VoidhashUI
 
 /// Owns the Voidhash client and everything the three screens render.
 ///
@@ -53,8 +52,6 @@ final class AppModel: ObservableObject {
         if let apiBaseUrl = NimbusConfiguration.apiBaseUrl {
             options.baseUrl = apiBaseUrl
         }
-        // Draws published paywalls and flows natively.
-        options.paywallRenderer = VoidhashUIPaywallRenderer()
         // What flows may do beyond purchases and analytics. Nimbus lets its onboarding flow
         // open links, ask for notification permission and store the answers as attributes.
         options.flowCapabilities = [.links, .notifications, .attributes]

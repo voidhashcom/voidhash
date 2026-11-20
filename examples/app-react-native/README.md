@@ -96,6 +96,11 @@ Paywalls are drawn by a native renderer that the Voidhash config plugin adds to 
 `app.json` turns it on with `["@voidhash/react-native", { "renderer": true }]`; without it,
 `present()` answers `FLOW_RENDERER_MISSING` and Nimbus opens its Upgrade screen instead.
 
+The native iOS and Android SDKs install from Swift Package Manager and Maven Central at the version
+of `@voidhash/react-native`, as in your app. To build them from this repository's sources instead,
+for an SDK version not released yet, add `"nativeSdk": { "path": "../../libraries" }` to the
+plugin's options and run `pnpm prebuild --clean`.
+
 ## Development mode
 
 `lib/voidhash.ts` passes `dev: true`. In debug builds that replaces the real store adapter with a

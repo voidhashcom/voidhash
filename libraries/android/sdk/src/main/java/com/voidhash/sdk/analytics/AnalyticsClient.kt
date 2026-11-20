@@ -1,5 +1,6 @@
 package com.voidhash.sdk.analytics
 
+import com.voidhash.sdk.VoidhashHostApi
 import com.voidhash.sdk.AnalyticsConsent
 import com.voidhash.sdk.VOIDHASH_SDK_VERSION
 import com.voidhash.sdk.VoidhashNetworkException
@@ -139,7 +140,8 @@ data class AnalyticsEvent(
      * The queue-file line for this event, or `null` when it cannot be encoded even after
      * non-finite numbers were written as `null` at every depth.
      */
-    internal fun toRecord(): String? = runCatching {
+    @VoidhashHostApi
+    fun toRecord(): String? = runCatching {
         val encoded: String? = JSONObject().apply {
             put("uuid", uuid)
             put("name", name)
@@ -154,7 +156,8 @@ data class AnalyticsEvent(
         encoded
     }.getOrNull()
 
-    internal companion object {
+    @VoidhashHostApi
+    companion object {
         fun fromRecord(record: String): AnalyticsEvent? {
             val json = runCatching { JSONObject(record) }.getOrNull() ?: return null
             val uuid = json.optString("uuid").takeIf { it.isNotEmpty() } ?: return null

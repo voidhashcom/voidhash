@@ -3,10 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Gives an included build's module the coordinate `com.voidhash:<module>`, so a host can
-// substitute it (see the README's Install section).
-group = "com.voidhash"
-
 android {
     namespace = "com.voidhash.core"
     // The package's gradle.properties sets these; a build that vendors the module may not.
@@ -28,7 +24,15 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+        // The Java target set above, which an app that builds this module from source raises for every
+        // module (React Native's Gradle plugin sets 17); the two must match.
+        jvmTarget.set(
+            provider {
+                org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(
+                    project.extensions.getByType<com.android.build.api.dsl.LibraryExtension>().compileOptions.targetCompatibility.toString(),
+                )
+            },
+        )
     }
 }
 

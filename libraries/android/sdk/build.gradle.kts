@@ -3,10 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Gives an included build's module the coordinate `com.voidhash:<module>`, so a host can
-// substitute it (see the README's Install section).
-group = "com.voidhash"
-
 android {
     namespace = "com.voidhash.sdk"
     // The package's gradle.properties sets these; a build that vendors the module may not.
@@ -22,16 +18,29 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
-    sourceSets.getByName("test").resources.srcDir("../../test-fixtures")
-
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
 }
 
+// Through the `com.android.build.api.dsl` type, which reads the same under the Android Gradle plugin
+// of an app that builds this module from source; the `android` block's own accessor does not.
+extensions.getByType<com.android.build.api.dsl.LibraryExtension>().sourceSets.getByName("test")
+    .resources.srcDir("../../test-fixtures")
+
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+        // The Java target set above, which an app that builds this module from source raises for every
+        // module (React Native's Gradle plugin sets 17); the two must match.
+        jvmTarget.set(
+            provider {
+                org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(
+                    project.extensions.getByType<com.android.build.api.dsl.LibraryExtension>().compileOptions.targetCompatibility.toString(),
+                )
+            },
+        )
+        // The SDK's own code uses what it offers host SDKs freely.
+        optIn.add("com.voidhash.sdk.VoidhashHostApi")
     }
 }
 

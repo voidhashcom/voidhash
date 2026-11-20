@@ -52,14 +52,15 @@ import com.voidhash.sdk.storage.PersistenceWriter
 import com.voidhash.sdk.transactions.AcceptedReceipts
 import com.voidhash.sdk.transactions.PersonWriteOutbox
 import com.voidhash.sdk.transactions.TransactionOutbox
-import com.voidhash.sdk.paywall.FlowHost
-import com.voidhash.sdk.paywall.FlowImageStore
-import com.voidhash.sdk.paywall.FlowPackageStore
-import com.voidhash.sdk.paywall.PaywallCoordinator
-import com.voidhash.sdk.paywall.downloadFlowImage
-import com.voidhash.sdk.paywall.downloadFlowPackage
-import com.voidhash.sdk.paywall.flowPackageImages
-import com.voidhash.sdk.paywall.requestFlowPermission
+import com.voidhash.sdk.flows.FlowHost
+import com.voidhash.sdk.flows.FlowImageStore
+import com.voidhash.sdk.flows.FlowPackageStore
+import com.voidhash.sdk.flows.FlowRendererDiscovery
+import com.voidhash.sdk.flows.FlowCoordinator
+import com.voidhash.sdk.flows.downloadFlowImage
+import com.voidhash.sdk.flows.downloadFlowPackage
+import com.voidhash.sdk.flows.flowPackageImages
+import com.voidhash.sdk.flows.requestFlowPermission
 import com.voidhash.sdk.platform.PlatformInfo
 import com.voidhash.sdk.platform.currentProcessName
 import com.voidhash.sdk.platform.isAppInForeground
@@ -77,6 +78,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.lang.ref.WeakReference
+import java.util.ServiceConfigurationError
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -162,7 +164,8 @@ object Voidhash {
      * [RETIRE_WAIT_MS] for it to finish writing; for a host that changes the SDK's storage before
      * configuring again. A purchase sheet it opened keeps its store connection.
      */
-    internal suspend fun retireRunningClient() {
+    @VoidhashHostApi
+    suspend fun retireRunningClient() {
         val writer = synchronized(this) {
             current?.client?.close()
             lastWriterOwner?.get()?.close()
@@ -173,7 +176,8 @@ object Voidhash {
 
     /** [configure] over replaceable [platform] services. */
     @Synchronized
-    internal fun configure(
+    @VoidhashHostApi
+    fun configure(
         context: Context,
         publishableKey: String?,
         options: VoidhashOptions,
@@ -446,6 +450,14 @@ object Voidhash {
             onWarning = warn,
         )
 
+        // The renderer the options name, or else the one of the renderer artifact the app links.
+        val flowRenderer = if (!active) null else options.flowRenderer ?: try {
+            FlowRendererDiscovery.linkedRenderer()
+        } catch (error: ServiceConfigurationError) {
+            Log.w(LOG_TAG, "The linked flow renderer could not be created; flows report RENDERER_MISSING", error)
+            null
+        }
+
         val client = VoidhashClient(
             apiClient = apiClient,
             cacheManager = cacheManager,
@@ -484,7 +496,7 @@ object Voidhash {
             preloadLocations = options.preloadLocations,
             flowRevisions = options.flowRevisions,
             featureFlagOptions = options.featureFlags,
-            flowCoordinatorFactory = options.paywallRenderer?.takeIf { active }?.let { renderer ->
+            flowCoordinatorFactory = flowRenderer?.let { renderer ->
                 // Keyed by URL and shared by every project and person of the app: images are a
                 // paywall's public content. Built only for a client that runs, and its directory
                 // only once an image is read or stored, so nothing touches it before the unlock.
@@ -503,8 +515,8 @@ object Voidhash {
                     // Behind the load, so neither a preload nor a presentation waits for images.
                     onLoaded = { sha256, bytes -> scope.launch { images.prefetch(sha256) { flowPackageImages(bytes) } } },
                 )
-                val factory: (FlowHost) -> PaywallCoordinator = { host ->
-                    PaywallCoordinator(
+                val factory: (FlowHost) -> FlowCoordinator = { host ->
+                    FlowCoordinator(
                         host = host,
                         renderer = renderer,
                         loadPackage = packages::load,
@@ -524,7 +536,7 @@ object Voidhash {
                 }
                 factory
             },
-            flowEngine = { options.paywallRenderer?.takeIf { active }?.engineCapabilities },
+            flowEngine = { flowRenderer?.engineCapabilities },
             openUrl = { url -> openExternal(applicationContext, url) },
             requestPermission = { activity, permission -> requestFlowPermission(activity, permission, warn) },
             diagnostics = diagnostics,
@@ -730,17 +742,21 @@ internal fun sdkScope(diagnostics: DiagnosticEmitter, warn: (String) -> Unit): C
  * @property whenUserUnlocked runs an action once on that unlock; returns what stops waiting for it,
  *   or `null` when the unlock cannot be watched for.
  */
-internal class PlatformServices(
-    val processName: (Context) -> String? = ::currentProcessName,
-    val appInForeground: () -> Boolean = ::isAppInForeground,
-    val playBilling: (Context, () -> Activity?, (String) -> Unit) -> BillingEnginePort = ::playBillingPort,
-    val connectivityMonitor: (Context, DiagnosticEmitter) -> ConnectivityMonitor = ::AndroidConnectivityMonitor,
-    val diagnosticDelivery: Executor = diagnosticDeliveryExecutor,
-    val playReferrerConnection: (Context) -> PlayReferrerConnection = ::DevicePlayReferrerConnection,
-    val metaProviderLookup: (Context) -> MetaProviderLookup = ::DeviceMetaProviderLookup,
+@VoidhashHostApi
+class PlatformServices internal constructor(
+    internal val processName: (Context) -> String? = ::currentProcessName,
+    internal val appInForeground: () -> Boolean = ::isAppInForeground,
+    internal val playBilling: (Context, () -> Activity?, (String) -> Unit) -> BillingEnginePort = ::playBillingPort,
+    internal val connectivityMonitor: (Context, DiagnosticEmitter) -> ConnectivityMonitor = ::AndroidConnectivityMonitor,
+    internal val diagnosticDelivery: Executor = diagnosticDeliveryExecutor,
+    internal val playReferrerConnection: (Context) -> PlayReferrerConnection = ::DevicePlayReferrerConnection,
+    internal val metaProviderLookup: (Context) -> MetaProviderLookup = ::DeviceMetaProviderLookup,
     val userUnlocked: (Context) -> Boolean = ::isUserUnlocked,
     val whenUserUnlocked: (Context, () -> Unit) -> (() -> Unit)? = ::whenUserUnlocked,
-)
+) {
+    /** The device's own services, as a client an app configures uses. */
+    constructor() : this(processName = ::currentProcessName)
+}
 
 private fun playBillingPort(
     context: Context,

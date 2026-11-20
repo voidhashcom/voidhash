@@ -23,3 +23,32 @@ let package = Package(
         ),
     ]
 )
+
+// The prebuilt core of VoidhashUI, the flow renderer: an asset of this repository's release of
+// the same version, set by each release. Until the first release has one, the package offers no
+// VoidhashUI product. The sources live in libraries/ios-ui, whose own manifest links a local build.
+let voidhashUICore: (url: String, checksum: String)? = nil
+
+if let voidhashUICore {
+    package.products.append(.library(name: "VoidhashUI", targets: ["VoidhashUI"]))
+    package.targets += [
+        .binaryTarget(
+            name: "VoidhashUICore",
+            url: voidhashUICore.url,
+            checksum: voidhashUICore.checksum
+        ),
+        .target(
+            name: "VoidhashUI",
+            dependencies: [
+                "Voidhash",
+                "VoidhashCore",
+                .target(name: "VoidhashUICore", condition: .when(platforms: [.iOS])),
+            ],
+            path: "libraries/ios-ui/Sources/VoidhashUI",
+            linkerSettings: [
+                .linkedFramework("CoreText"),
+                .linkedFramework("QuartzCore", .when(platforms: [.iOS])),
+            ]
+        ),
+    ]
+}

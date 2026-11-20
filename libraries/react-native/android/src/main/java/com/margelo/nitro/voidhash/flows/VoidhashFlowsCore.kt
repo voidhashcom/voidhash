@@ -5,9 +5,11 @@ import com.voidhash.sdk.FlowActionHandler
 import com.voidhash.sdk.FlowException
 import com.voidhash.sdk.FlowFailure
 import com.voidhash.sdk.FlowResult
-import com.voidhash.sdk.paywall.PaywallRenderer
+import com.voidhash.sdk.flows.FlowRenderer
+import com.voidhash.sdk.flows.FlowRendererDiscovery
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.ServiceConfigurationError
 
 /**
  * What the React Native client needs around the native client's flows: the renderer the app
@@ -17,20 +19,17 @@ import org.json.JSONObject
  */
 internal object VoidhashFlowsCore {
     /**
-     * The `ui` module's renderer when the app compiles it in, found without naming it. With
-     * [runtimeModules], it draws flows with the flow runtime module each flow names.
+     * The renderer of the `ui` module when the app compiles it in, found without naming it
+     * ([FlowRendererDiscovery]); `null` without one, or when it cannot be created. With
+     * [runtimeModules] (the `flowRuntime: "module"` option), it draws flows with the flow runtime
+     * module each flow names.
      */
-    fun linkedRenderer(runtimeModules: Boolean = false): PaywallRenderer? =
+    fun linkedRenderer(runtimeModules: Boolean = false): FlowRenderer? =
         try {
-            val renderer = Class.forName("com.voidhash.ui.VoidhashUiPaywallRenderer")
-            if (runtimeModules) {
-                val mode = Class.forName("com.voidhash.ui.VoidhashUiPaywallRenderer\$RuntimeMode")
-                renderer.getMethod("setRuntimeMode", mode).invoke(null, mode.getField("MODULE").get(null))
+            FlowRendererDiscovery.linkedRenderer()?.also { renderer ->
+                if (runtimeModules) renderer.useRuntimeModules()
             }
-            renderer.getDeclaredConstructor().newInstance() as? PaywallRenderer
-        } catch (error: ClassNotFoundException) {
-            null
-        } catch (error: ReflectiveOperationException) {
+        } catch (error: ServiceConfigurationError) {
             null
         }
 
