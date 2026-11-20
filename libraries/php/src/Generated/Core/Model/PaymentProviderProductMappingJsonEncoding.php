@@ -37,13 +37,13 @@ class PaymentProviderProductMappingJsonEncoding
      */
     protected $providerProductKey;
     /**
-     * Whether purchases of the store product resolve to this product; a store product is active for at most one product.
+     * Whether the store product is linked to this product now. `false` marks an earlier link, kept because what was bought under it still counts for this product; a store product is linked to at most one product at a time.
      *
      * @var bool
      */
     protected $isActive;
     /**
-     * Whether the product is sold as this store product on this provider: the one apps are offered and paywalls list. A product is sold as one of its active store products per provider and environment; its other active ones only recognize purchases made under them.
+     * Whether the product sells this store product on this provider: the one apps are offered and paywalls list. A product sells one store product per provider and environment; its other linked store products there are not offered to new buyers, and people who bought them keep their access.
      *
      * @var bool
      */
@@ -149,7 +149,7 @@ class PaymentProviderProductMappingJsonEncoding
         return $this;
     }
     /**
-     * Whether purchases of the store product resolve to this product; a store product is active for at most one product.
+     * Whether the store product is linked to this product now. `false` marks an earlier link, kept because what was bought under it still counts for this product; a store product is linked to at most one product at a time.
      *
      * @return bool
      */
@@ -158,7 +158,7 @@ class PaymentProviderProductMappingJsonEncoding
         return $this->isActive;
     }
     /**
-     * Whether purchases of the store product resolve to this product; a store product is active for at most one product.
+     * Whether the store product is linked to this product now. `false` marks an earlier link, kept because what was bought under it still counts for this product; a store product is linked to at most one product at a time.
      *
      * @param bool $isActive
      *
@@ -171,7 +171,7 @@ class PaymentProviderProductMappingJsonEncoding
         return $this;
     }
     /**
-     * Whether the product is sold as this store product on this provider: the one apps are offered and paywalls list. A product is sold as one of its active store products per provider and environment; its other active ones only recognize purchases made under them.
+     * Whether the product sells this store product on this provider: the one apps are offered and paywalls list. A product sells one store product per provider and environment; its other linked store products there are not offered to new buyers, and people who bought them keep their access.
      *
      * @return bool
      */
@@ -180,7 +180,7 @@ class PaymentProviderProductMappingJsonEncoding
         return $this->isSold;
     }
     /**
-     * Whether the product is sold as this store product on this provider: the one apps are offered and paywalls list. A product is sold as one of its active store products per provider and environment; its other active ones only recognize purchases made under them.
+     * Whether the product sells this store product on this provider: the one apps are offered and paywalls list. A product sells one store product per provider and environment; its other linked store products there are not offered to new buyers, and people who bought them keep their access.
      *
      * @param bool $isSold
      *

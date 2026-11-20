@@ -3,9 +3,10 @@ for both in a terminal, offering the store products not mapped yet.
 
 A store product mapped to another product moves to this one with the purchases and subscriptions
 recorded under it, as 'voidhash provider move' does; it shows what moves and asks first, and --yes
-skips that. A product with several store products on one provider is sold as the first one mapped;
-'voidhash provider sell' chooses another. A payment source whose test system names products
-differently maps each key with --environment production or test.
+skips that. A product sells one store product per provider: when it already sells another, a
+terminal asks whether to sell this one from now on or keep selling the other; --sell and --keep
+answer for scripts, and without either it keeps the other one. A payment source whose test system
+names products differently maps each key with --environment production or test.
 
 Usage:
   voidhash provider map [store-product] [product] [flags]
@@ -23,6 +24,8 @@ Flags:
                                    and a Stripe price's mode decides its own
   -h, --help                       Show help for this command
       --json                       Print the API objects as JSON, for scripts
+      --keep                       When the product already sells another store product of this
+                                   provider, keep selling that one
       --offer <id=store-offer-id>  An offer a paywall can sell on it, as id=store-offer-id; repeat
                                    for each. Replaces the saved offers (can be repeated)
       --project <project>          Project to act on: its id, slug, organization/slug or name
@@ -30,6 +33,8 @@ Flags:
       --provider <provider>        The provider selling it (app-store, google-play, stripe, a
                                    payment source's slug); needed only when several do
   -q, --quiet                      Print only ids, one per line
+      --sell                       When the product already sells another store product of this
+                                   provider, sell this one from now on instead
   -y, --yes                        Make the change without asking for confirmation
 
 Global flags:

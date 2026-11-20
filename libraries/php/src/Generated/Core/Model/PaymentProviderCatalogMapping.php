@@ -25,13 +25,13 @@ class PaymentProviderCatalogMapping
      */
     protected $productId;
     /**
-     * Whether purchases of the store product resolve to this product.
+     * Whether the store product is linked to this product now; `false` marks an earlier link.
      *
      * @var bool
      */
     protected $isActive;
     /**
-     * Whether the product is sold as this store product on this provider.
+     * Whether the product sells this store product on this provider.
      *
      * @var bool
      */
@@ -87,7 +87,7 @@ class PaymentProviderCatalogMapping
         return $this;
     }
     /**
-     * Whether purchases of the store product resolve to this product.
+     * Whether the store product is linked to this product now; `false` marks an earlier link.
      *
      * @return bool
      */
@@ -96,7 +96,7 @@ class PaymentProviderCatalogMapping
         return $this->isActive;
     }
     /**
-     * Whether purchases of the store product resolve to this product.
+     * Whether the store product is linked to this product now; `false` marks an earlier link.
      *
      * @param bool $isActive
      *
@@ -109,7 +109,7 @@ class PaymentProviderCatalogMapping
         return $this;
     }
     /**
-     * Whether the product is sold as this store product on this provider.
+     * Whether the product sells this store product on this provider.
      *
      * @return bool
      */
@@ -118,7 +118,7 @@ class PaymentProviderCatalogMapping
         return $this->isSold;
     }
     /**
-     * Whether the product is sold as this store product on this provider.
+     * Whether the product sells this store product on this provider.
      *
      * @param bool $isSold
      *

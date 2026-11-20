@@ -118,7 +118,7 @@ func newProducts(app *cli.App) *cobra.Command {
 		Short: "List the store products providers sell and what each is mapped to.",
 		Long: `List the store products the App Store, Google Play, Stripe or a payment source sells, with the product each is mapped to and the purchases waiting for one.
 
-A product with several store products on one provider is sold as one of them, the one apps are offered; the others read "recognized only": they still grant the product to those who bought them. 'voidhash provider sell' chooses which one is sold.
+A product sells one store product per provider, the one apps are offered; its others there read "not offered": people who bought them keep their access. An "earlier link" is a store product linked to the product before and to another product (or none) now, kept for its history. 'voidhash provider sell' chooses which one is sold.
 
 --quiet prints the store product keys, which 'voidhash provider map' takes.`,
 		Example: `voidhash provider products
@@ -228,7 +228,7 @@ voidhash provider products app-store --refresh --json`,
 			app.Notef("Map one to a product with 'voidhash provider map <store-product> <product>'.")
 		}
 		if anyRecognizedOnly {
-			app.Notef("Sell a product as a store product it only recognizes with 'voidhash provider sell <store-product>'.")
+			app.Notef("Offer a store product marked not offered instead with 'voidhash provider sell <store-product>'.")
 		}
 		return nil
 	}
@@ -354,7 +354,7 @@ func newMap(app *cli.App) *cobra.Command {
 		Short: "Map a store product to a product, so buying it grants the product's perks.",
 		Long: `Map a store product to a product, so buying it grants the product's perks. Without arguments it asks for both in a terminal, offering the store products not mapped yet.
 
-A store product mapped to another product moves to this one with the purchases and subscriptions recorded under it, as 'voidhash provider move' does; it shows what moves and asks first, and --yes skips that. A product with several store products on one provider is sold as the first one mapped; 'voidhash provider sell' chooses another. A payment source whose test system names products differently maps each key with --environment production or test.`,
+A store product mapped to another product moves to this one with the purchases and subscriptions recorded under it, as 'voidhash provider move' does; it shows what moves and asks first, and --yes skips that. A product sells one store product per provider: when it already sells another, a terminal asks whether to sell this one from now on or keep selling the other; --sell and --keep answer for scripts, and without either it keeps the other one. A payment source whose test system names products differently maps each key with --environment production or test.`,
 		Example: `voidhash provider map com.acme.pro.monthly pro-monthly
 voidhash provider map prod_123:price_456 pro-annual --provider stripe
 voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK50`,
@@ -369,12 +369,17 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 		"For a payment source whose test system names products differently: the purchases this store product key names (default all). App Store and Google Play products name every environment, and a Stripe price's mode decides its own")
 	project := cli.AddProjectFlag(cmd)
 	yes := cli.AddYesFlag(cmd)
+	sellNew := cmd.Flags().Bool("sell", false, "When the product already sells another store product of this provider, sell this one from now on instead")
+	keepCurrent := cmd.Flags().Bool("keep", false, "When the product already sells another store product of this provider, keep selling that one")
 	output := cli.AddOutputFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		mode, err := output.Mode()
 		if err != nil {
 			return err
+		}
+		if *sellNew && *keepCurrent {
+			return cli.Usagef("--sell and --keep cannot be combined.")
 		}
 		offers, err := parseOffers(*offerInputs)
 		if err != nil {
@@ -414,6 +419,59 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 		mappings, err := catalog.ListMappings(ctx, app, projectID, store.provider.Id, catalog.MappingsFilter{ProviderProductKey: store.key})
 		if err != nil {
 			return err
+		}
+		// decideSale finds the store product the product sells on this provider for purchases of
+		// environment, and when it is another one, whether to sell this one instead: as --sell or
+		// --keep says, else as the person answers, else not.
+		decideSale := func(environment string) (current string, sell bool, err error) {
+			sold, err := catalog.ListMappings(ctx, app, projectID, store.provider.Id, catalog.MappingsFilter{ProductID: product.Id})
+			if err != nil {
+				return "", false, err
+			}
+			for _, candidate := range sold.Items {
+				if candidate.IsActive && candidate.IsSold && string(candidate.Environment) == environment && candidate.ProviderProductKey != store.key {
+					current = candidate.ProviderProductKey
+				}
+			}
+			switch {
+			case current == "" || *keepCurrent:
+				return current, false, nil
+			case *sellNew:
+				return current, true, nil
+			case !app.IsInteractive():
+				return current, false, nil
+			}
+			index, err := app.Prompter().Select(ctx, cli.Printable(fmt.Sprintf(
+				"%s already sells %s on %s. Which should new buyers be offered? Buyers of the other one keep their access either way.",
+				productLabel, current, catalog.ProviderLabel(store.provider))),
+				[]string{cli.Printable("Sell " + store.key + " from now on"), cli.Printable("Keep selling " + current)})
+			return current, index == 0, err
+		}
+		// finish reports a link made, selling its store product first when that was chosen.
+		finish := func(linked cli.Object[mapping], human, current string, sell bool) error {
+			if current == "" || linked.Value.IsSold {
+				return app.PrintItem(mode, linked, human)
+			}
+			if !sell {
+				if !*keepCurrent && !app.IsInteractive() {
+					app.Notef("Sell %s instead with 'voidhash provider sell %s'.", cli.Printable(store.key), cli.Printable(store.key))
+				}
+				return app.PrintItem(mode, linked, fmt.Sprintf("%s %s keeps selling %s, so %s is not offered to new buyers.",
+					human, product.Name, current, store.key))
+			}
+			sold, err := cli.Fetch[mapping](ctx, app, func(c *api.Client) (*http.Response, error) {
+				return c.PaymentProviderProductsSell(ctx, projectID, store.provider.Id, linked.Value.Id)
+			})
+			if err != nil {
+				return &cli.UserError{
+					Message: fmt.Sprintf("%s Selling it failed, so %s still sells %s and %s is not offered yet.",
+						human, product.Name, current, store.key),
+					Hint:  fmt.Sprintf("Sell it with 'voidhash provider sell %s'.", store.key),
+					Cause: err,
+				}
+			}
+			return app.PrintItem(mode, sold, fmt.Sprintf("%s %s sells it from now on; buyers of %s keep their access.",
+				human, product.Name, current))
 		}
 		find := func(isActive, sameProduct bool) (cli.Object[mapping], bool) {
 			for index, candidate := range mappings.Items {
@@ -504,6 +562,14 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 				where, previousLabel, productLabel)); err != nil {
 				return err
 			}
+			movedEnvironment := string(activeOther.Value.Environment)
+			if isSource && *environment != "" {
+				movedEnvironment = *environment
+			}
+			current, sell, err := decideSale(movedEnvironment)
+			if err != nil {
+				return err
+			}
 			configuration := activeOther.Value.Configuration
 			if hasInactiveSame {
 				configuration = inactiveSame.Value.Configuration
@@ -522,11 +588,19 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 			if err != nil {
 				return cli.APIError(err, nil)
 			}
-			return app.PrintItem(mode, moved, fmt.Sprintf("Moved %s from %s to %s, with the purchases and subscriptions recorded under it.%s",
-				where, previousLabel, productLabel, soldNote(moved.Value, store, product.Name)))
+			return finish(moved, fmt.Sprintf("Moved %s from %s to %s, with the purchases and subscriptions recorded under it.",
+				where, previousLabel, productLabel), current, sell)
 		}
 
 		if hasInactiveSame {
+			relinkedEnvironment := string(inactiveSame.Value.Environment)
+			if *environment != "" {
+				relinkedEnvironment = *environment
+			}
+			current, sell, err := decideSale(relinkedEnvironment)
+			if err != nil {
+				return err
+			}
 			if _, _, _, err := update(inactiveSame.Value); err != nil {
 				return err
 			}
@@ -534,11 +608,19 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 				return c.PaymentProviderProductsActivate(ctx, projectID, store.provider.Id, inactiveSame.Value.Id)
 			})
 			if err != nil {
-				return err
+				return cli.APIError(err, nil)
 			}
-			return app.PrintItem(mode, activated, fmt.Sprintf("Mapped %s to %s again.", where, productLabel))
+			return finish(activated, fmt.Sprintf("Linked %s to %s again.", where, productLabel), current, sell)
 		}
 
+		createdEnvironment := "all"
+		if *environment != "" {
+			createdEnvironment = *environment
+		}
+		current, sell, err := decideSale(createdEnvironment)
+		if err != nil {
+			return err
+		}
 		body := map[string]any{"productId": product.Id, "configuration": withOffers(decodeObject(store.configuration))}
 		if *environment != "" {
 			body["environment"] = *environment
@@ -555,7 +637,7 @@ voidhash provider map com.acme.pro.monthly pro-monthly --offer win-back=WINBACK5
 		if store.waitingEvents > 0 {
 			human += fmt.Sprintf("; the %s waiting for it are applied in the background", plural(store.waitingEvents, "purchase event"))
 		}
-		return app.PrintItem(mode, created, human+".")
+		return finish(created, human+".", current, sell)
 	}
 	return cmd
 }

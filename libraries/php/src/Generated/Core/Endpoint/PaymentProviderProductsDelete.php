@@ -8,7 +8,7 @@ class PaymentProviderProductsDelete extends \Voidhash\Generated\Core\Runtime\Cli
     protected $paymentProviderId;
     protected $mappingId;
     /**
-     * Deletes a mapping; purchases of the store product fall back to an earlier mapping of it, if any. A product sold as it is then sold as its most recently mapped remaining store product of this provider. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
+     * Deletes a mapping; purchases of the store product fall back to an earlier link of it, if any. A product sold as it then sells its most recently mapped remaining store product of this provider. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.

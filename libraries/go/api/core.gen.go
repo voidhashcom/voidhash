@@ -8479,7 +8479,7 @@ type CreatePaymentProviderProductMappingBodyJsonEncoding struct {
 	// Environment Which purchases a store product key names: `production`, `test`, or `all` when every environment uses the same key. App Store and Google Play mappings are always `all`; a Stripe price's is read from Stripe.
 	Environment *PaymentProviderProductEnvironment `json:"environment,omitempty"`
 
-	// IsReassignment `true` moves a store product active for another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
+	// IsReassignment `true` moves a store product linked to another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
 	IsReassignment *bool `json:"isReassignment"`
 
 	// ProductId The product to map the store product to.
@@ -10149,10 +10149,10 @@ type PaymentProviderCatalogMapping struct {
 	// Id The mapping's id, `pp_prod_...`.
 	Id string `json:"id"`
 
-	// IsActive Whether purchases of the store product resolve to this product.
+	// IsActive Whether the store product is linked to this product now; `false` marks an earlier link.
 	IsActive bool `json:"isActive"`
 
-	// IsSold Whether the product is sold as this store product on this provider.
+	// IsSold Whether the product sells this store product on this provider.
 	IsSold bool `json:"isSold"`
 
 	// ProductId The product the store product is mapped to.
@@ -10266,10 +10266,10 @@ type PaymentProviderProductMappingJsonEncoding struct {
 	// Id The mapping's id, `pp_prod_...`.
 	Id string `json:"id"`
 
-	// IsActive Whether purchases of the store product resolve to this product; a store product is active for at most one product.
+	// IsActive Whether the store product is linked to this product now. `false` marks an earlier link, kept because what was bought under it still counts for this product; a store product is linked to at most one product at a time.
 	IsActive bool `json:"isActive"`
 
-	// IsSold Whether the product is sold as this store product on this provider: the one apps are offered and paywalls list. A product is sold as one of its active store products per provider and environment; its other active ones only recognize purchases made under them.
+	// IsSold Whether the product sells this store product on this provider: the one apps are offered and paywalls list. A product sells one store product per provider and environment; its other linked store products there are not offered to new buyers, and people who bought them keep their access.
 	IsSold bool `json:"isSold"`
 
 	// PaymentProviderId The payment provider that sells the store product.
@@ -14628,7 +14628,7 @@ type PaymentProviderProductsListParams struct {
 	// ProviderProductKey Only the mappings of the store product with this key.
 	ProviderProductKey *string `form:"providerProductKey,omitempty" json:"providerProductKey,omitempty"`
 
-	// IsActive `true` keeps only active mappings, `false` only inactive ones.
+	// IsActive `true` keeps only current links, `false` only earlier links.
 	IsActive *PaymentProviderProductsListParamsIsActive `form:"isActive,omitempty" json:"isActive,omitempty"`
 }
 

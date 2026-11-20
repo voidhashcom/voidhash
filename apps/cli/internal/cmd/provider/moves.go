@@ -18,7 +18,7 @@ var moveHints = map[string]string{
 	"product_type_mismatch":        "A store product moves only to a product of the same type. Create one with 'voidhash product create'.",
 	"product_duration_mismatch":    "A subscription moves only to a product that renews over the same period. Create one with 'voidhash product create'.",
 	"store_product_already_mapped": "'voidhash provider products --mapped' shows its mappings.",
-	"target_mapping_has_purchases": "Move that earlier mapping to another product first, or keep this one where it is.",
+	"target_mapping_has_purchases": "Move that earlier link to another product first, or keep this one where it is.",
 	"revenue_history_not_ready":    "Nothing was changed. Prepare the project's revenue history as the message says, then move the store product.",
 }
 
@@ -82,7 +82,7 @@ func explainMove(ctx context.Context, app *cli.App, projectID string, store stor
 	if explanation.IsSoldOnTarget {
 		lines = append(lines, fmt.Sprintf("%s is sold as %s on %s.", target.Name, store.key, storeName))
 	} else {
-		lines = append(lines, fmt.Sprintf("%s stays sold as its current %s store product; %s only recognizes purchases made under it.", target.Name, storeName, store.key))
+		lines = append(lines, fmt.Sprintf("%s keeps selling its current %s store product; %s is not offered to new buyers.", target.Name, storeName, store.key))
 	}
 	if found.IsSold {
 		promoted := ""
@@ -98,7 +98,7 @@ func explainMove(ctx context.Context, app *cli.App, projectID string, store stor
 			}
 		}
 		if promoted == "" {
-			lines = append(lines, fmt.Sprintf("%s is no longer sold on %s: it has no other active store product there.", sourceName, storeName))
+			lines = append(lines, fmt.Sprintf("%s is no longer sold on %s: no other store product is linked to it there.", sourceName, storeName))
 		} else {
 			lines = append(lines, fmt.Sprintf("%s is sold as %s on %s instead.", sourceName, promoted, storeName))
 		}
@@ -114,7 +114,7 @@ func soldNote(moved mapping, store storeProduct, productName string) string {
 	if moved.IsSold {
 		return fmt.Sprintf(" %s is sold as it.", productName)
 	}
-	return fmt.Sprintf(" %s stays sold as another %s store product; this one recognizes purchases only.", productName, catalog.ProviderLabel(store.provider))
+	return fmt.Sprintf(" %s keeps selling another %s store product, so this one is not offered to new buyers; 'voidhash provider sell %s' sells it instead.", productName, catalog.ProviderLabel(store.provider), store.key)
 }
 
 func newMove(app *cli.App) *cobra.Command {
@@ -210,7 +210,7 @@ func newSell(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sell",
 		Short: "Sell a product as one of its store products: the one apps are offered.",
-		Long: `Sell the product a store product is mapped to as that store product on its provider: apps are offered it and paywalls list it, with its offers, from then on. A product with several store products on one provider is sold as one of them; the others stay mapped and only recognize purchases made under them, so their buyers keep their access.
+		Long: `Sell the product a store product is mapped to as that store product on its provider: apps are offered it and paywalls list it, with its offers, from then on. A product sells one store product per provider; the one it sold before stays linked but is no longer offered to new buyers, and people who bought it keep their access.
 
 It changes what new buyers are offered, so it asks first; --yes skips that.`,
 		Example: `voidhash provider sell com.acme.pro.monthly.v2
@@ -279,12 +279,12 @@ voidhash provider sell prod_123:price_789 --provider stripe --yes`,
 		})
 		if err != nil {
 			return cli.APIError(err, map[string]string{
-				"product_mapping_inactive": fmt.Sprintf("Map it again with 'voidhash provider map %s <product>' first.", store.key),
+				"product_mapping_inactive": fmt.Sprintf("Link it to the product again with 'voidhash provider map %s <product>' first.", store.key),
 			})
 		}
 		human := fmt.Sprintf("%s is now sold as %s.", productLabel, where)
 		if current != "" {
-			human += fmt.Sprintf(" %s stays mapped and recognizes purchases made under it.", current)
+			human += fmt.Sprintf(" %s is no longer offered to new buyers; people who bought it keep their access.", current)
 		}
 		return app.PrintItem(mode, sold, human)
 	}

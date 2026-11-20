@@ -1,9 +1,10 @@
 List the store products the App Store, Google Play, Stripe or a payment source sells, with the
 product each is mapped to and the purchases waiting for one.
 
-A product with several store products on one provider is sold as one of them, the one apps are
-offered; the others read "recognized only": they still grant the product to those who bought them.
-'voidhash provider sell' chooses which one is sold.
+A product sells one store product per provider, the one apps are offered; its others there read "not
+offered": people who bought them keep their access. An "earlier link" is a store product linked to
+the product before and to another product (or none) now, kept for its history. 'voidhash provider
+sell' chooses which one is sold.
 
 --quiet prints the store product keys, which 'voidhash provider map' takes.
 

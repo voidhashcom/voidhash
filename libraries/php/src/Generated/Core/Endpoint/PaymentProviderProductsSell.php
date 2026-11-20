@@ -8,7 +8,7 @@ class PaymentProviderProductsSell extends \Voidhash\Generated\Core\Runtime\Clien
     protected $paymentProviderId;
     protected $mappingId;
     /**
-     * Sells the mapping's product as this store product on this provider: apps are offered it and paywalls list its offers from then on. The store product the product was sold as before stays active, so purchases made under it still grant the product. Selling the one already sold changes nothing. Fails with `conflict` (`product_mapping_inactive`) for an inactive mapping: activate it first. Fails with `not_found` (`product_mapping_not_found`).
+     * Makes the mapping's product sell this store product on this provider: apps are offered it and paywalls list its offers from then on. The store product it sold before is no longer offered to new buyers; people who bought it keep their access and their purchases still count for the product. Selling the one already sold changes nothing. Fails with `conflict` (`product_mapping_inactive`) for an earlier link: link it to the product again first with `activate`. Fails with `not_found` (`product_mapping_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.

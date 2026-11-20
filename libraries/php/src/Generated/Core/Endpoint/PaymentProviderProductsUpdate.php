@@ -8,7 +8,7 @@ class PaymentProviderProductsUpdate extends \Voidhash\Generated\Core\Runtime\Cli
     protected $paymentProviderId;
     protected $mappingId;
     /**
-     * Replaces a mapping's `configuration`, such as its offers. Fails with `invalid_request` (`invalid_product_mapping`) when changing the store product of a mapping with purchases, or taking over a store product active for another product. The last update wins.
+     * Replaces a mapping's `configuration`, such as its offers. Fails with `invalid_request` (`invalid_product_mapping`) when changing the store product of a mapping with purchases, or taking over a store product linked to another product. The last update wins.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.

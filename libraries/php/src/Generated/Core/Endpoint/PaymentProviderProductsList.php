@@ -7,7 +7,7 @@ class PaymentProviderProductsList extends \Voidhash\Generated\Core\Runtime\Clien
     protected $projectId;
     protected $paymentProviderId;
     /**
-     * Lists the provider's store product mappings, optionally only those of one `productId` or `providerProductKey`, or only active ones. Fails with `not_found` (`payment_provider_not_found`).
+     * Lists the provider's store product mappings, optionally only those of one `productId` or `providerProductKey`, or only current ones (`isActive=true`) or only earlier links (`isActive=false`). Fails with `not_found` (`payment_provider_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param array{
@@ -15,7 +15,7 @@ class PaymentProviderProductsList extends \Voidhash\Generated\Core\Runtime\Clien
      *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
      *    "productId"?: string, //Only the mappings to this product.
      *    "providerProductKey"?: string, //Only the mappings of the store product with this key.
-     *    "isActive"?: string, //`true` keeps only active mappings, `false` only inactive ones.
+     *    "isActive"?: string, //`true` keeps only current links, `false` only earlier links.
      * } $queryParameters
      */
     public function __construct(string $projectId, string $paymentProviderId, array $queryParameters = [])

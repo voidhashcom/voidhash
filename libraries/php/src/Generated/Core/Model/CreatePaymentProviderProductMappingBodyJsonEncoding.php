@@ -31,7 +31,7 @@ class CreatePaymentProviderProductMappingBodyJsonEncoding
      */
     protected $environment;
     /**
-     * `true` moves a store product active for another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
+     * `true` moves a store product linked to another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
      *
      * @var bool|null
      */
@@ -103,7 +103,7 @@ class CreatePaymentProviderProductMappingBodyJsonEncoding
         return $this;
     }
     /**
-     * `true` moves a store product active for another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
+     * `true` moves a store product linked to another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
      *
      * @return bool|null
      */
@@ -112,7 +112,7 @@ class CreatePaymentProviderProductMappingBodyJsonEncoding
         return $this->isReassignment;
     }
     /**
-     * `true` moves a store product active for another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
+     * `true` moves a store product linked to another product to this one, with the purchases and subscriptions recorded under it, as the `move` action does; otherwise mapping it is refused. Defaults to `false`.
      *
      * @param bool|null $isReassignment
      *

@@ -2417,7 +2417,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProvidersListUnmappedProducts($projectId, $paymentProviderId, $queryParameters), $fetch);
     }
     /**
-     * Lists the provider's store product mappings, optionally only those of one `productId` or `providerProductKey`, or only active ones. Fails with `not_found` (`payment_provider_not_found`).
+     * Lists the provider's store product mappings, optionally only those of one `productId` or `providerProductKey`, or only current ones (`isActive=true`) or only earlier links (`isActive=false`). Fails with `not_found` (`payment_provider_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param array{
@@ -2425,7 +2425,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
      *    "productId"?: string, //Only the mappings to this product.
      *    "providerProductKey"?: string, //Only the mappings of the store product with this key.
-     *    "isActive"?: string, //`true` keeps only active mappings, `false` only inactive ones.
+     *    "isActive"?: string, //`true` keeps only current links, `false` only earlier links.
      * } $queryParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderProductsListBadRequestException
@@ -2441,7 +2441,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsList($projectId, $paymentProviderId, $queryParameters), $fetch);
     }
     /**
-     * Maps a store product, named by `configuration` as the provider's catalog entry shows, to a product. The mapping is active at once, and purchases of the store product, including ones that waited for a mapping, grant the product's perks. A product can have several store products on one provider; it is sold as the first one mapped until `sell` chooses another, and the others only recognize purchases made under them. A store product active for another product needs `isReassignment: true`, which moves its mapping to this product with everything recorded under it, as `move` does; reassigning a store product already mapped to this product updates that mapping. Fails with `invalid_request` (`invalid_product_mapping`) for a store product active for another product without `isReassignment`, or one that cannot move to this product. Fails with `not_found` (`payment_provider_not_found`, `product_not_found`).
+     * Maps a store product, named by `configuration` as the provider's catalog entry shows, to a product. The mapping is active at once, and purchases of the store product, including ones that waited for a mapping, grant the product's perks. A product sells one store product per provider: the first one mapped, until `sell` chooses another. Its other store products there are not offered to new buyers; people who bought them keep their access and their purchases still count for the product. A store product linked to another product needs `isReassignment: true`, which moves its mapping to this product with everything recorded under it, as `move` does; reassigning a store product already mapped to this product updates that mapping. Fails with `invalid_request` (`invalid_product_mapping`) for a store product linked to another product without `isReassignment`, or one that cannot move to this product. Fails with `not_found` (`payment_provider_not_found`, `product_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaymentProviderProductMappingBodyJsonEncoding $requestBody
@@ -2459,7 +2459,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsCreate($projectId, $paymentProviderId, $requestBody), $fetch);
     }
     /**
-     * Deletes a mapping; purchases of the store product fall back to an earlier mapping of it, if any. A product sold as it is then sold as its most recently mapped remaining store product of this provider. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
+     * Deletes a mapping; purchases of the store product fall back to an earlier link of it, if any. A product sold as it then sells its most recently mapped remaining store product of this provider. Fails with `conflict` (`product_mapping_has_purchases`) for a mapping purchases were recorded under, which cannot be deleted. Fails with `not_found` (`product_mapping_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2496,7 +2496,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsGet($projectId, $paymentProviderId, $mappingId), $fetch);
     }
     /**
-     * Replaces a mapping's `configuration`, such as its offers. Fails with `invalid_request` (`invalid_product_mapping`) when changing the store product of a mapping with purchases, or taking over a store product active for another product. The last update wins.
+     * Replaces a mapping's `configuration`, such as its offers. Fails with `invalid_request` (`invalid_product_mapping`) when changing the store product of a mapping with purchases, or taking over a store product linked to another product. The last update wins.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2515,7 +2515,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsUpdate($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
     }
     /**
-     * Activates a mapping, so purchases of its store product grant its product's perks again; the product's other mappings stay active, and the product is sold as this one only when it is sold as no other store product of this provider. Fails with `conflict` (`store_product_already_mapped`) while the store product is active for another product: `move` that mapping instead.
+     * Links the store product of an earlier link (`isActive: false`) to its product again, so new purchases of it grant the product's perks. The product keeps selling the store product it sells on this provider, if any; otherwise it sells this one. Fails with `conflict` (`store_product_already_mapped`) while the store product is linked to another product: `move` that mapping instead.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2553,7 +2553,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsExplainMove($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
     }
     /**
-     * Moves the mapping to another product of the project, keeping its id: the purchases, subscriptions and revenue recorded under the store product move with it, so reports by product change and totals do not. Its buyers get the target product's perks instead of the current product's. The target is sold as the store product unless it is already sold as another one of this provider; the current product, if it was sold as this one, is then sold as its most recently mapped remaining store product. Moving it to the product it already belongs to changes nothing, so a retried move succeeds. `explain-move` shows the impact first. Fails with `invalid_request` (`product_type_mismatch`, `product_duration_mismatch`) for a product of another type or renewal period. Fails with `conflict` (`store_product_already_mapped`) when the target already has an active mapping of the store product, and `conflict` (`target_mapping_has_purchases`) when it has an earlier one with purchases recorded under it. Fails with `conflict` (`revenue_history_not_ready`) for a project whose revenue history has to be prepared before store products can move. Fails with `not_found` (`product_mapping_not_found`, `product_not_found`).
+     * Moves the mapping to another product of the project, keeping its id: the purchases, subscriptions and revenue recorded under the store product move with it, so reports by product change and totals do not. Its buyers get the target product's perks instead of the current product's. The target sells the store product unless it already sells another one of this provider, in which case the moved one is not offered to new buyers; the current product, if it sold this one, then sells its most recently mapped remaining store product. Moving it to the product it already belongs to changes nothing, so a retried move succeeds. `explain-move` shows the impact first. Fails with `invalid_request` (`product_type_mismatch`, `product_duration_mismatch`) for a product of another type or renewal period. Fails with `conflict` (`store_product_already_mapped`) when the target already has an active mapping of the store product, and `conflict` (`target_mapping_has_purchases`) when it has an earlier one with purchases recorded under it. Fails with `conflict` (`revenue_history_not_ready`) for a project whose revenue history has to be prepared before store products can move. Fails with `not_found` (`product_mapping_not_found`, `product_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.
@@ -2573,7 +2573,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderProductsMove($projectId, $paymentProviderId, $mappingId, $requestBody), $fetch);
     }
     /**
-     * Sells the mapping's product as this store product on this provider: apps are offered it and paywalls list its offers from then on. The store product the product was sold as before stays active, so purchases made under it still grant the product. Selling the one already sold changes nothing. Fails with `conflict` (`product_mapping_inactive`) for an inactive mapping: activate it first. Fails with `not_found` (`product_mapping_not_found`).
+     * Makes the mapping's product sell this store product on this provider: apps are offered it and paywalls list its offers from then on. The store product it sold before is no longer offered to new buyers; people who bought it keep their access and their purchases still count for the product. Selling the one already sold changes nothing. Fails with `conflict` (`product_mapping_inactive`) for an earlier link: link it to the product again first with `activate`. Fails with `not_found` (`product_mapping_not_found`).
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param string $mappingId The mapping's id, `pp_prod_...`.

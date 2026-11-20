@@ -1,7 +1,7 @@
 Sell the product a store product is mapped to as that store product on its provider: apps are
-offered it and paywalls list it, with its offers, from then on. A product with several store
-products on one provider is sold as one of them; the others stay mapped and only recognize purchases
-made under them, so their buyers keep their access.
+offered it and paywalls list it, with its offers, from then on. A product sells one store product
+per provider; the one it sold before stays linked but is no longer offered to new buyers, and people
+who bought it keep their access.
 
 It changes what new buyers are offered, so it asks first; --yes skips that.
 

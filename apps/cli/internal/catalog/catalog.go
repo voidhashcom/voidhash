@@ -326,8 +326,9 @@ func ListStoreProducts(ctx context.Context, app *cli.App, projectID, productID s
 }
 
 // MappingNote is how a mapping's environment and state read after a store
-// product: "", " [test]", " (inactive)", " (recognized only)" for an active
-// mapping its product is not sold as.
+// product: "", " [test]", " (earlier link)" for a store product linked to
+// another product (or none) now, " (not offered)" for a linked one its
+// product does not sell.
 func MappingNote(environment string, isActive, isSold bool) string {
 	note := ""
 	if environment != "all" {
@@ -335,9 +336,9 @@ func MappingNote(environment string, isActive, isSold bool) string {
 	}
 	switch {
 	case !isActive:
-		note += " (inactive)"
+		note += " (earlier link)"
 	case !isSold:
-		note += " (recognized only)"
+		note += " (not offered)"
 	}
 	return note
 }

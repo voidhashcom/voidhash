@@ -32,6 +32,8 @@ type Fake struct {
 	// Explanations are what explaining the move of each mapping answers, by
 	// mapping id; by default the move is allowed and moves nothing recorded.
 	Explanations map[string]M
+	// SellFails makes selling a product as a store product fail.
+	SellFails bool
 	// Imports are the history imports, by provider id.
 	Imports map[string][]M
 	// Tests are what a payment source's endpoints answer, by environment.
@@ -363,6 +365,12 @@ func (f *Fake) providerRoutes() {
 			}
 		}
 		created := Mapping(f.id("pp_prod"), r.Param("id"), r.Text("productId"), key, true)
+		// A product sells the first store product linked on a provider.
+		for _, mapping := range f.Mappings {
+			if mapping["paymentProviderId"] == r.Param("id") && mapping["productId"] == r.Text("productId") && mapping["isSold"] == true {
+				created["isSold"] = false
+			}
+		}
 		created["configuration"] = configuration
 		if environment := r.Text("environment"); environment != "" {
 			created["environment"] = environment
@@ -400,6 +408,9 @@ func (f *Fake) providerRoutes() {
 		return clitest.OK(found)
 	})
 	f.Handle("POST "+providers+"/{id}/products/{mappingId}/sell", func(r *clitest.Request) clitest.Answer {
+		if f.SellFails {
+			return clitest.Failure(500, "internal", "internal", "Something went wrong.")
+		}
 		found, _ := find(f.Mappings, r.Param("mappingId"))
 		for _, sibling := range f.Mappings {
 			if sibling["paymentProviderId"] == found["paymentProviderId"] && sibling["productId"] == found["productId"] {
