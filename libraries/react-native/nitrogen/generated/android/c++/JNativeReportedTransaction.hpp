@@ -44,11 +44,14 @@ namespace margelo::nitro::voidhash {
       jni::local_ref<jni::JString> purchaseToken = this->getFieldValue(fieldPurchaseToken);
       static const auto fieldPurchaseState = clazz->getField<JNativeReportedPurchaseState>("purchaseState");
       jni::local_ref<JNativeReportedPurchaseState> purchaseState = this->getFieldValue(fieldPurchaseState);
+      static const auto fieldSignedTransaction = clazz->getField<jni::JString>("signedTransaction");
+      jni::local_ref<jni::JString> signedTransaction = this->getFieldValue(fieldSignedTransaction);
       return NativeReportedTransaction(
         platform->toCpp(),
         transactionId != nullptr ? std::make_optional(transactionId->toStdString()) : std::nullopt,
         purchaseToken != nullptr ? std::make_optional(purchaseToken->toStdString()) : std::nullopt,
-        purchaseState != nullptr ? std::make_optional(purchaseState->toCpp()) : std::nullopt
+        purchaseState != nullptr ? std::make_optional(purchaseState->toCpp()) : std::nullopt,
+        signedTransaction != nullptr ? std::make_optional(signedTransaction->toStdString()) : std::nullopt
       );
     }
 
@@ -58,7 +61,7 @@ namespace margelo::nitro::voidhash {
      */
     [[maybe_unused]]
     static jni::local_ref<JNativeReportedTransaction::javaobject> fromCpp(const NativeReportedTransaction& value) {
-      using JSignature = JNativeReportedTransaction(jni::alias_ref<JNativeStorePlatform>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeReportedPurchaseState>);
+      using JSignature = JNativeReportedTransaction(jni::alias_ref<JNativeStorePlatform>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeReportedPurchaseState>, jni::alias_ref<jni::JString>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -66,7 +69,8 @@ namespace margelo::nitro::voidhash {
         JNativeStorePlatform::fromCpp(value.platform),
         value.transactionId.has_value() ? jni::make_jstring(value.transactionId.value()) : nullptr,
         value.purchaseToken.has_value() ? jni::make_jstring(value.purchaseToken.value()) : nullptr,
-        value.purchaseState.has_value() ? JNativeReportedPurchaseState::fromCpp(value.purchaseState.value()) : nullptr
+        value.purchaseState.has_value() ? JNativeReportedPurchaseState::fromCpp(value.purchaseState.value()) : nullptr,
+        value.signedTransaction.has_value() ? jni::make_jstring(value.signedTransaction.value()) : nullptr
       );
     }
   };

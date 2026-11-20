@@ -1087,6 +1087,12 @@ public actor VoidhashClient {
     /// transactions with Voidhash. Call only after a user action; StoreKit may request sign-in.
     /// Throws ``ReconcileTransactionsError`` if any eligible transaction cannot be accepted.
     ///
+    /// In observer mode, as set when the call starts, the host's restore flow owns the App Store
+    /// refresh, so the call does not refresh App Store history or ask for sign-in: it sends what
+    /// the device's history already holds. A host whose restore flow does not refresh it calls
+    /// `AppStore.sync()` before this. The Restore button of a Voidhash paywall always refreshes
+    /// it.
+    ///
     /// Returns the person once Voidhash accepted the receipts and the person was refreshed:
     /// check its entitlements for access, which say whether anything was restored. When the
     /// refresh gets no answer, the snapshot cached for the person is returned instead, and the
@@ -1110,12 +1116,19 @@ public actor VoidhashClient {
     /// `nil` without restoring.
     @discardableResult
     public func restorePurchases() async throws -> SdkPerson? {
+        return try await restorePurchases(refreshingStore: !readOnlyFlag.value)
+    }
+
+    /// ``restorePurchases()``, refreshing App Store history first when `refreshingStore` is set:
+    /// a restore the SDK's own interface started has no host restore flow before it.
+    @discardableResult
+    func restorePurchases(refreshingStore: Bool) async throws -> SdkPerson? {
         guard options.enabled else { return nil }
         switch await writeRoute() {
         case .direct:
             break
         case .forward(let successor):
-            return try await successor.restorePurchases()
+            return try await successor.restorePurchases(refreshingStore: refreshingStore)
         case .retired, .held:
             return nil
         }
@@ -1128,7 +1141,7 @@ public actor VoidhashClient {
         // otherwise see two and apply paid access sharing between them.
         await personWrites.endBackoff()
         try await orchestrator().restorePurchases(
-            schema: schema, distinctId: distinctId,
+            schema: schema, distinctId: distinctId, refreshingStore: refreshingStore,
             deliveryDeadline: requestTimeoutDeadline(2))
         // The restore refreshed the person already: this is the cache, or the snapshot served
         // when the refresh got no answer.
@@ -1170,19 +1183,48 @@ public actor VoidhashClient {
             isRestore: isRestore)
     }
 
-    /// Reports a store transaction ID, using the current SDK identity automatically. Its JWS is
-    /// read from the device's purchase history. `isRestore` as for a reported
-    /// ``VoidhashTransaction``.
+    /// Reports a store transaction ID, using the current SDK identity automatically. `isRestore`
+    /// as for a reported ``VoidhashTransaction``.
+    ///
+    /// `signedTransaction` is the transaction's JWS, as the host's purchase or restore flow
+    /// returned it: it is sent as the proof that this Apple Account holds the transaction. One
+    /// whose payload names another transaction, or that is not a JWS, is ignored. Without a usable
+    /// one, the JWS is read from the device's purchase history.
     ///
     /// Capture is durable before return unless storage fails (reported as the
     /// `TRANSACTION_CAPTURE_NOT_DURABLE` diagnostic); delivery failures stay queued in the
     /// background.
-    public func reportTransaction(transactionId: String, isRestore: Bool = false) async throws {
+    public func reportTransaction(
+        transactionId: String, signedTransaction: String? = nil, isRestore: Bool = false
+    ) async throws {
         guard options.enabled else { return }
         try await reportReceipt(
             ReceiptTransaction(
-                transactionId: transactionId, productId: "", purchaseDate: 0, quantity: 1),
+                transactionId: transactionId, productId: "", purchaseDate: 0, quantity: 1,
+                signedTransaction: signedTransaction.flatMap {
+                    VoidhashClient.signature($0, of: transactionId)
+                }),
             isRestore: isRestore)
+    }
+
+    /// `signedTransaction` trimmed, when it is a JWS whose payload names `transactionId`; `nil`
+    /// otherwise. A proof the host passed for another transaction would spend this one's purchase
+    /// claim on a request Voidhash refuses.
+    static func signature(_ signedTransaction: String, of transactionId: String) -> String? {
+        let jws = signedTransaction.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = jws.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else {
+            return nil
+        }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+            let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return nil
+        }
+        return claims["transactionId"] as? String == transactionId ? jws : nil
     }
 
     /// Reporting a transaction also tells the SDK that finishing it is yours: the SDK never
@@ -5278,8 +5320,10 @@ public actor VoidhashClient {
                     product, options: VoidhashPurchaseOptions(offer: offerId.map { .id($0) } ?? .automatic),
                     paywallContext: paywallContext)
             },
+            // A paywall's Restore button is the only restore the user asked for: no host restore
+            // flow refreshed the App Store before it, in observer mode either.
             restorePurchases: { [weak self] in
-                _ = try await VoidhashClient.live(self).restorePurchases()
+                _ = try await VoidhashClient.live(self).restorePurchases(refreshingStore: true)
             },
             capture: { [weak self] name, properties in
                 await self?.capture(name, properties: properties)

@@ -547,6 +547,14 @@ SDK identity and configured bundle/package; the backend fetches and verifies the
 try await voidhash.reportTransaction(transactionId: transactionId)
 ```
 
+When your billing SDK returns the transaction's JWS, pass it as `signedTransaction:`; it is sent
+as the proof instead of the one the SDK reads from the device's purchase history. A value that is
+not a JWS for that transaction ID is ignored, and the SDK reads the device's history instead.
+
+```swift
+try await voidhash.reportTransaction(transactionId: transactionId, signedTransaction: jws)
+```
+
 The transaction ID is a string; preserve every digit. You can also pass a `StoreKit.Transaction`
 or `VerificationResult<StoreKit.Transaction>` directly to `reportTransaction(...)`. The SDK sends
 the ID and the transaction as StoreKit signed it on the device, which it takes from a verified
@@ -610,8 +618,11 @@ or parked after a refusal goes immediately, and a circuit breaker opened by an o
 through.
 
 Restore calls `AppStore.sync()` and reads verified non-consumable transaction history; this may
-prompt for App Store authentication. It sends the latest transaction of each subscription or
-purchase, not every renewal in its history.
+prompt for App Store authentication. In observer mode it does not call `AppStore.sync()`, so it
+never asks for sign-in: your billing SDK's restore flow owns that refresh, and Voidhash sends the
+history already on the device. If your restore flow does not refresh it, call `AppStore.sync()`
+before `restorePurchases()`. The Restore button of a Voidhash paywall always calls it. It sends
+the latest transaction of each subscription or purchase, not every renewal in its history.
 Known consumables are excluded from explicit restoration. A store error or a receipt that cannot
 be accepted fails the restore with `ReconcileTransactionsError`; deferred receipts remain queued.
 Once the store has returned its history, the restore waits for Voidhash for at most two request

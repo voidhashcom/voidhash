@@ -161,6 +161,8 @@ struct NativeReportedTransactionPayload: Sendable, Equatable {
     let purchaseToken: String?
     /// `purchased`, `pending` or `unspecified`; `nil` counts as purchased.
     let purchaseState: String?
+    /// The App Store transaction's JWS, when the host's purchase flow returned it.
+    var signedTransaction: String? = nil
 }
 
 /// One event for the bridge's listener, see `NativeClientEvent` in the spec.
@@ -975,7 +977,9 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
             throw NativeClientError.invalidArgument("an App Store transaction id is required")
         }
         try await call { client in
-            try await client.reportTransaction(transactionId: transactionId, isRestore: isRestore)
+            try await client.reportTransaction(
+                transactionId: transactionId, signedTransaction: transaction.signedTransaction,
+                isRestore: isRestore)
         }
     }
 

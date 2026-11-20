@@ -500,13 +500,16 @@ public actor PurchaseOrchestrator {
     /// receipt per series, the latest: the backend resolves a series from any of its
     /// transactions, so a long-running subscription costs one request rather than one per renewal.
     ///
+    /// - Parameter refreshingStore: Refreshes App Store history first, which may ask the user to
+    ///   sign in. `false` sends the history already on the device, for an observer-mode host
+    ///   whose own restore flow owns that refresh.
     /// - Parameter deliveryDeadline: Returns once the restore has waited on Voidhash long enough,
     ///   counted from when the store handed its history over, so a user's sign-in prompt is not
     ///   held against it. The receipts not accepted by then fail the restore and stay queued.
     ///   The first receipt that fails in transit fails the ones after it as well, rather than
     ///   sending each into the same outage. `nil` waits for Voidhash's answer to every receipt.
     public func restorePurchases(
-        schema: RuntimeSchema, distinctId: String? = nil,
+        schema: RuntimeSchema, distinctId: String? = nil, refreshingStore: Bool = true,
         deliveryDeadline: (@Sendable () async -> Void)? = nil
     ) async throws {
         let requestedDistinctId: String
@@ -520,7 +523,9 @@ public actor PurchaseOrchestrator {
         let task = Task {
             _ = try? await previous?.value
             try Task.checkCancellation()
-            try await self.engine.syncStore()
+            if refreshingStore {
+                try await self.engine.syncStore()
+            }
             let transactions = try await self.observedTransactions(schema: schema, restoring: true)
             let deadline = deliveryDeadline.map { deadline in Task { await deadline() } }
             defer { deadline?.cancel() }

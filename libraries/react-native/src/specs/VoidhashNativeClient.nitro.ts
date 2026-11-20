@@ -633,6 +633,12 @@ export interface NativeReportedTransaction {
    * again once it is purchased. Absent counts as purchased.
    */
   readonly purchaseState?: NativeReportedPurchaseState;
+  /**
+   * App Store: the transaction's JWS when the integration handed it over.
+   * Sent as the proof a purchase or restore claim needs; without it the
+   * native SDK reads it from the device's purchase history.
+   */
+  readonly signedTransaction?: string;
 }
 
 /** Outcome of a flush or a shutdown. */

@@ -49,10 +49,11 @@ namespace margelo::nitro::voidhash {
     std::optional<std::string> transactionId     SWIFT_PRIVATE;
     std::optional<std::string> purchaseToken     SWIFT_PRIVATE;
     std::optional<NativeReportedPurchaseState> purchaseState     SWIFT_PRIVATE;
+    std::optional<std::string> signedTransaction     SWIFT_PRIVATE;
 
   public:
     NativeReportedTransaction() = default;
-    explicit NativeReportedTransaction(NativeStorePlatform platform, std::optional<std::string> transactionId, std::optional<std::string> purchaseToken, std::optional<NativeReportedPurchaseState> purchaseState): platform(platform), transactionId(transactionId), purchaseToken(purchaseToken), purchaseState(purchaseState) {}
+    explicit NativeReportedTransaction(NativeStorePlatform platform, std::optional<std::string> transactionId, std::optional<std::string> purchaseToken, std::optional<NativeReportedPurchaseState> purchaseState, std::optional<std::string> signedTransaction): platform(platform), transactionId(transactionId), purchaseToken(purchaseToken), purchaseState(purchaseState), signedTransaction(signedTransaction) {}
 
   public:
     friend bool operator==(const NativeReportedTransaction& lhs, const NativeReportedTransaction& rhs) = default;
@@ -71,7 +72,8 @@ namespace margelo::nitro {
         JSIConverter<margelo::nitro::voidhash::NativeStorePlatform>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "platform"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "transactionId"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "purchaseToken"))),
-        JSIConverter<std::optional<margelo::nitro::voidhash::NativeReportedPurchaseState>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "purchaseState")))
+        JSIConverter<std::optional<margelo::nitro::voidhash::NativeReportedPurchaseState>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "purchaseState"))),
+        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "signedTransaction")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::NativeReportedTransaction& arg) {
@@ -80,6 +82,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "transactionId"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.transactionId));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "purchaseToken"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.purchaseToken));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "purchaseState"), JSIConverter<std::optional<margelo::nitro::voidhash::NativeReportedPurchaseState>>::toJSI(runtime, arg.purchaseState));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "signedTransaction"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.signedTransaction));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -94,6 +97,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "transactionId")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "purchaseToken")))) return false;
       if (!JSIConverter<std::optional<margelo::nitro::voidhash::NativeReportedPurchaseState>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "purchaseState")))) return false;
+      if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "signedTransaction")))) return false;
       return true;
     }
   };

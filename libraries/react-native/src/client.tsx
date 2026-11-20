@@ -757,10 +757,16 @@ const invalidGroups = (groups: Groups): Option.Option<InvalidArgumentError> => {
   });
 };
 
-/** A host report as the native client takes it: the store identifier only. */
+/** A host report as the native client takes it: the store identifier and, on iOS, its JWS. */
 const toNativeReport = (report: StoreReport): NativeReportedTransaction =>
   report.platform === "ios"
-    ? { platform: "appStore", transactionId: report.transactionId }
+    ? {
+        platform: "appStore",
+        transactionId: report.transactionId,
+        ...(report.signedTransaction === undefined
+          ? {}
+          : { signedTransaction: report.signedTransaction }),
+      }
     : {
         platform: "googlePlay",
         purchaseToken: report.purchaseToken,
@@ -2240,26 +2246,39 @@ export class VoidhashClient {
   }
 
   /**
-   * Reports a successful host purchase using only its Apple transaction ID or Play token.
-   * Other purchase metadata is optional and discarded.
+   * Reports a purchase your own billing integration completed: its Apple
+   * transaction (ID or JWS) or its Google Play token. Other purchase metadata
+   * is optional and discarded. On iOS, a JWS is sent as the device's proof of
+   * the purchase; with an ID only, the native SDK reads the JWS from the
+   * device's purchase history.
+   *
+   * The report is a purchase the user just made: it goes to the current
+   * user, even when an earlier purchase of the Apple Account or Google account
+   * belongs to another user. Voidhash moves a purchase only when the store
+   * shows it was made in the last 24 hours, and on iOS only with the JWS;
+   * otherwise it is recorded for its current owner. A purchase is claimed
+   * once from a device: reporting it again, also after another user signed
+   * in, cannot move it.
+   *
    * A report made after an `identify()`, `reset()` or `signOut()` that was
-   * not awaited goes to the person that call switches to: it waits until the
+   * not awaited goes to the user that call switches to: it waits until the
    * device has switched, not for Voidhash to answer.
-   * Does not query, finish, acknowledge or consume the purchase. Pending Android
-   * purchases are ignored; report them again when purchased. Delivery failures
-   * remain queued for retry, so success does not imply server acceptance.
+   *
+   * Does not query, finish, acknowledge or consume the purchase. Pending
+   * Android purchases are ignored; report them again when purchased.
+   * Delivery failures remain queued for retry, so success does not imply
+   * server acceptance.
    */
   async reportTransaction(
     transaction: StoreTransaction,
     options?: {
       /**
        * Reports a transaction your own restore flow returned after the user
-       * asked to restore purchases. It is sent as an explicit restore for the
-       * current identity, like `restorePurchases()`, even when Voidhash
-       * accepted it before, and keeps that intent across retries and
-       * relaunches: the project's paid access sharing setting then decides
-       * whether a purchase another user has is shared, moved or kept. Any
-       * other report leaves such a purchase with its owner.
+       * asked to restore purchases. It is sent as an explicit restore, like
+       * `restorePurchases()`, even when Voidhash accepted it before, and
+       * keeps that intent across retries and relaunches: the project's paid
+       * access sharing setting then decides whether a purchase another user
+       * has is shared, moved or kept.
        */
       readonly isRestore?: boolean;
     },

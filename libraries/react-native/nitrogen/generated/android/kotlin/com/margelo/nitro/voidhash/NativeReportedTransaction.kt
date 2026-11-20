@@ -29,7 +29,10 @@ data class NativeReportedTransaction(
   val purchaseToken: String?,
   @DoNotStrip
   @Keep
-  val purchaseState: NativeReportedPurchaseState?
+  val purchaseState: NativeReportedPurchaseState?,
+  @DoNotStrip
+  @Keep
+  val signedTransaction: String?
 ) {
   /* primary constructor */
 
@@ -40,6 +43,7 @@ data class NativeReportedTransaction(
       && Objects.deepEquals(this.transactionId, other.transactionId)
       && Objects.deepEquals(this.purchaseToken, other.purchaseToken)
       && Objects.deepEquals(this.purchaseState, other.purchaseState)
+      && Objects.deepEquals(this.signedTransaction, other.signedTransaction)
   }
 
   override fun hashCode(): Int {
@@ -47,7 +51,8 @@ data class NativeReportedTransaction(
       platform,
       transactionId,
       purchaseToken,
-      purchaseState
+      purchaseState,
+      signedTransaction
     ).contentDeepHashCode()
   }
 
@@ -59,8 +64,8 @@ data class NativeReportedTransaction(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(platform: NativeStorePlatform, transactionId: String?, purchaseToken: String?, purchaseState: NativeReportedPurchaseState?): NativeReportedTransaction {
-      return NativeReportedTransaction(platform, transactionId, purchaseToken, purchaseState)
+    private fun fromCpp(platform: NativeStorePlatform, transactionId: String?, purchaseToken: String?, purchaseState: NativeReportedPurchaseState?, signedTransaction: String?): NativeReportedTransaction {
+      return NativeReportedTransaction(platform, transactionId, purchaseToken, purchaseState, signedTransaction)
     }
   }
 }

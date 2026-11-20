@@ -223,7 +223,8 @@ final class HybridVoidhashNativeClient: HybridVoidhashNativeClientSpec {
             platform: transaction.platform == .appstore ? "ios" : "android",
             transactionId: transaction.transactionId,
             purchaseToken: transaction.purchaseToken,
-            purchaseState: transaction.purchaseState?.stringValue)
+            purchaseState: transaction.purchaseState?.stringValue,
+            signedTransaction: transaction.signedTransaction)
         return Self.promise { [core] in
             try await core.reportTransaction(payload, isRestore: isRestore)
         }

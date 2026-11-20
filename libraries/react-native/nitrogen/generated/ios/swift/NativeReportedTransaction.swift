@@ -18,7 +18,7 @@ public extension NativeReportedTransaction {
   /**
    * Create a new instance of `NativeReportedTransaction`.
    */
-  init(platform: NativeStorePlatform, transactionId: String?, purchaseToken: String?, purchaseState: NativeReportedPurchaseState?) {
+  init(platform: NativeStorePlatform, transactionId: String?, purchaseToken: String?, purchaseState: NativeReportedPurchaseState?, signedTransaction: String?) {
     self.init(platform, { () -> bridge.std__optional_std__string_ in
       if let __unwrappedValue = transactionId {
         return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
@@ -34,6 +34,12 @@ public extension NativeReportedTransaction {
     }(), { () -> bridge.std__optional_NativeReportedPurchaseState_ in
       if let __unwrappedValue = purchaseState {
         return bridge.create_std__optional_NativeReportedPurchaseState_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_std__string_ in
+      if let __unwrappedValue = signedTransaction {
+        return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
       } else {
         return .init()
       }
@@ -72,5 +78,17 @@ public extension NativeReportedTransaction {
   @inline(__always)
   var purchaseState: NativeReportedPurchaseState? {
     return self.__purchaseState.value
+  }
+  
+  @inline(__always)
+  var signedTransaction: String? {
+    return { () -> String? in
+      if bridge.has_value_std__optional_std__string_(self.__signedTransaction) {
+        let __unwrapped = bridge.get_std__optional_std__string_(self.__signedTransaction)
+        return String(__unwrapped)
+      } else {
+        return nil
+      }
+    }()
   }
 }

@@ -32,7 +32,12 @@ export type StoreTransaction = ReportedTransaction | string | GooglePlayPurchase
 
 /** What Voidhash needs of a reported purchase: its store identifier and, on Google Play, its state. */
 export type StoreReport =
-  | { readonly platform: "ios"; readonly transactionId: string }
+  | {
+      readonly platform: "ios";
+      readonly transactionId: string;
+      /** The JWS the report was made from, the proof a purchase or restore claim needs. */
+      readonly signedTransaction?: string;
+    }
   | {
       readonly platform: "android";
       readonly purchaseToken: string;
@@ -43,7 +48,11 @@ const identifier = Schema.String.check(Schema.isPattern(/\S/));
 const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 const decodeReport = Schema.decodeUnknownSync(
   Schema.Union([
-    Schema.Struct({ platform: Schema.Literal("ios"), transactionId: identifier }),
+    Schema.Struct({
+      platform: Schema.Literal("ios"),
+      transactionId: identifier,
+      signedTransaction: Schema.optional(identifier),
+    }),
     Schema.Struct({
       platform: Schema.Literal("android"),
       purchaseToken: identifier,
@@ -52,8 +61,9 @@ const decodeReport = Schema.decodeUnknownSync(
   ]),
 );
 
-// Only the ID is extracted; the server fetches and verifies the transaction with Apple.
-const fromStoreKitJws = (jws: string): ReportedTransaction => {
+// The server fetches the transaction with Apple by its ID; the JWS goes along as the device's
+// proof of a purchase or restore claim, so the native SDK need not look it up in the history.
+const fromStoreKitJws = (jws: string): StoreReport => {
   const parts = jws.split(".");
   if (parts.length !== 3 || !parts[1]) throw new TypeError("Expected a StoreKit transaction JWS");
   const payload = Schema.decodeUnknownSync(Schema.Struct({ transactionId: identifier }))(
@@ -64,7 +74,7 @@ const fromStoreKitJws = (jws: string): ReportedTransaction => {
       onSuccess: decodeJson,
     }),
   );
-  return { platform: "ios", transactionId: payload.transactionId };
+  return { platform: "ios", signedTransaction: jws, transactionId: payload.transactionId };
 };
 
 const fromPlayPurchase = (input: GooglePlayPurchaseData): ReportedTransaction => {
