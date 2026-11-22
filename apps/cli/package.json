@@ -1,6 +1,6 @@
 {
   "name": "voidhash-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Manage your Voidhash projects from the terminal, in scripts and in CI.",
   "homepage": "https://voidhash.com/docs/cli",
   "license": "MIT",

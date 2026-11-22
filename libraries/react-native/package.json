@@ -1,6 +1,6 @@
 {
   "name": "@voidhash/react-native",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": false,
   "description": "Voidhash React Native SDK for in-app purchases.",
   "keywords": [

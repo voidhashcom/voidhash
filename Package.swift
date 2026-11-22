@@ -27,7 +27,10 @@ let package = Package(
 // The prebuilt core of VoidhashUI, the flow renderer: an asset of this repository's release of
 // the same version, set by each release. Until the first release has one, the package offers no
 // VoidhashUI product. The sources live in libraries/ios-ui, whose own manifest links a local build.
-let voidhashUICore: (url: String, checksum: String)? = nil
+let voidhashUICore: (url: String, checksum: String)? = (
+    url: "https://github.com/voidhashcom/voidhash/releases/download/0.3.0/VoidhashUICore.xcframework.zip",
+    checksum: "f83b485801fbd12fadb88a248f702e0f0289a9c52fa27e315d78478811c18271"
+)
 
 if let voidhashUICore {
     package.products.append(.library(name: "VoidhashUI", targets: ["VoidhashUI"]))
