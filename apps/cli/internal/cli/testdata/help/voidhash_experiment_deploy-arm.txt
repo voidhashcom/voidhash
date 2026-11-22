@@ -1,0 +1,38 @@
+Move one arm of a running or paused experiment to another build of the paywall it shows at a
+location, such as a build that fixes a crash: the arm's end users get it on their next visit. Every
+arm keeps the build its paywall had deployed when the experiment started, and 'voidhash paywall
+deploy' never changes it; this is how one changes.
+
+The build must be a ready build of the same paywall deployed to that environment before; without
+--build, the paywall's deployed build. Without --env, both environments. Results go on counting
+everyone in the arm, and the move is recorded with it. Asks first; --yes skips the question. Needs
+permission to publish paywalls.
+
+Usage:
+  voidhash experiment deploy-arm [experiment] [flags]
+
+Arguments:
+  experiment  The experiment's name or id
+
+Flags:
+      --arm <arm>              The arm by name, or control
+      --build <number>         The build number or id (default: the paywall's deployed build)
+      --env <production|test>  Change this environment only (default: both)
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --location <location>    The location the arm shows the paywall at (needed when it shows one
+                               at several)
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+  -y, --yes                    Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash experiment deploy-arm "Annual-first onboarding" --arm "Annual first"
+  voidhash experiment deploy-arm exp_123 --arm control --location onboarding-end --build 4 --env production --yes

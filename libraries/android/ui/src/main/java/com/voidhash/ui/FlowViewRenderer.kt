@@ -6,6 +6,7 @@ import android.app.Activity
 import android.content.Context
 import com.voidhash.sdk.api.FlowPackageReference
 import com.voidhash.sdk.flows.FlowEngineCapabilities
+import com.voidhash.sdk.flows.FlowLoadingSession
 import com.voidhash.sdk.flows.FlowRenderer
 import com.voidhash.sdk.flows.FlowRendererHost
 import com.voidhash.sdk.flows.FlowRendererSession
@@ -31,8 +32,9 @@ import com.voidhash.sdk.flows.FlowRendererSession
  * flow's first screen; in an app that opts into predictive back, the screen going back follows
  * the gesture. The dialog goes with its activity: [present] is called again, for the same
  * flow, once an activity recreated for a configuration change is started. On a device whose CPU
- * architecture the native library does not ship for, [supportsAbiVersion] answers false and
- * flows report `FlowFailure.UNSUPPORTED_PACKAGE`.
+ * architecture the native library does not ship for, [supportsAbiVersion] answers false,
+ * [engineCapabilities] is `null`, and flows report `FlowFailure.UNSUPPORTED_PACKAGE` saying the
+ * device's CPU has no renderer library.
  *
  * By default it runs the flow runtime linked into its core: it reports no runtime bridge in
  * [engineCapabilities], so it is served releases by package format, and it draws a release whose
@@ -43,6 +45,9 @@ import com.voidhash.sdk.flows.FlowRendererSession
  * write its props back (runtime bridge 1 has no call for it), and a text field in a package
  * format only the module reads gets its keyboard set-up when first focused.
  * Text inputs are the platform's own fields, with the keyboard laid out below the flow.
+ *
+ * While a flow waits for the network it shows [loading]: the [standard][FlowLoading.Standard] one
+ * unless the app sets another.
  *
  * [components] (behind the opt-in [ExperimentalNativeComponents]) are the app's own
  * [native components][NativeComponentFactory] flows may show. The
@@ -64,6 +69,18 @@ class FlowViewRenderer @ExperimentalNativeComponents constructor(
     /** A renderer whose flows show no native component of the app's. */
     constructor() : this(emptyList())
 
+    /**
+     * What the end user sees while a flow waits for the network, from [FlowLoading.DELAY_MS] after
+     * the presentation began until the flow is shown: [FlowLoading.Standard] unless the app sets
+     * another. A flow already on the device is shown before the delay is up, without it.
+     *
+     * ```kotlin
+     * VoidhashOptions(flowRenderer = FlowViewRenderer().apply { loading = FlowLoading.None })
+     * ```
+     */
+    @Volatile
+    var loading: FlowLoading = FlowLoading.Standard
+
     /** Which flow runtime draws flows; see [runtimeMode]. */
     enum class RuntimeMode {
         /** The flow runtime linked into the views core (the default). */
@@ -80,17 +97,20 @@ class FlowViewRenderer @ExperimentalNativeComponents constructor(
         /**
          * The flow runtime flows are drawn with, process-wide: [RuntimeMode.LINKED] (the default)
          * or [RuntimeMode.MODULE]. Set it before the SDK resolves its first flow: what the
-         * renderer reports, and so which releases it is served, depends on it.
+         * renderer reports, and so which releases it is served, depends on it. It reads
+         * [RuntimeMode.LINKED] in a build that trusts no key that signs runtime modules.
          */
         @JvmStatic
         var runtimeMode: RuntimeMode
-            get() = if (ViewsNative.isAvailable && ViewsNative.nativeRuntimeMode() == 1) {
-                RuntimeMode.MODULE
-            } else {
-                RuntimeMode.LINKED
+            get() {
+                if (!ViewsNative.isAvailable) return RuntimeMode.LINKED
+                // The core runs modules only once it trusts a root; a debug build trusts its own.
+                RuntimeModules.trustDevelopmentKeys()
+                return if (ViewsNative.nativeRuntimeMode() == 1) RuntimeMode.MODULE else RuntimeMode.LINKED
             }
             set(mode) {
                 if (ViewsNative.isAvailable) {
+                    RuntimeModules.trustDevelopmentKeys()
                     ViewsNative.nativeSetRuntimeMode(if (mode == RuntimeMode.MODULE) 1 else 0)
                 }
             }
@@ -157,6 +177,8 @@ class FlowViewRenderer @ExperimentalNativeComponents constructor(
     /** In module mode, gets the runtime module the release names, or the one that runs it. */
     override suspend fun prepare(activity: Activity, reference: FlowPackageReference) {
         val runtime = reference.runtime ?: return
+        // The app's own flags, here where a context is at hand (a renderer used without the SDK).
+        if (RuntimeModules.isDebuggable(activity.applicationInfo)) RuntimeModules.trustDevelopmentKeys(debuggable = true)
         if (runtimeMode != RuntimeMode.MODULE) return
         RuntimeModules.prepare(activity.applicationContext.cacheDir, runtime)
     }
@@ -189,7 +211,10 @@ class FlowViewRenderer @ExperimentalNativeComponents constructor(
         // From the images the SDK keeps on the device, so a cached flow shows them offline too.
         view.imageSource = host::loadImage
         view.imageRejected = host::onImageRejected
-        return presentInDialog(activity, view, host, view::postMessage, view::release, view.predictiveBack) { fail ->
+        // Over a loading state the window is clear until the flow draws, so the loading state shows
+        // through rather than an empty window; it turns black like every flow's once that ends.
+        val loading = loadings.firstOrNull { it.activity === activity && it.isShowing }
+        return presentInDialog(activity, view, host, view::postMessage, view::release, view.predictiveBack, loading) { fail ->
             view.listener = object : FlowView.Listener {
                 override fun onMessage(message: String) = host.onMessage(message)
 
@@ -199,6 +224,31 @@ class FlowViewRenderer @ExperimentalNativeComponents constructor(
             }
             view.loadPackage(flowPackage, runtimeSha256)
         }
+    }
+
+    /** The loading states begun and not ended yet; main thread. A flow presented above one draws over it. */
+    private val loadings = mutableListOf<LoadingDialog>()
+
+    /**
+     * Shows [loading] above [activity] once the presentation has waited [FlowLoading.DELAY_MS];
+     * none on a device the core does not run on.
+     */
+    override fun beginLoading(activity: Activity, waitedMs: Long, onCancel: () -> Unit): FlowLoadingSession? {
+        if (!ViewsNative.isAvailable) return null
+        val createView = when (val loading = loading) {
+            FlowLoading.None -> return null
+            FlowLoading.Standard -> ::standardLoadingView
+            is FlowLoading.Custom -> loading.createView
+        }
+        val dialog = LoadingDialog(activity, createView, onCancel, (FlowLoading.DELAY_MS - waitedMs).coerceAtLeast(0))
+        loadings.add(dialog)
+        dialog.afterEnd { loadings.remove(dialog) }
+        return dialog
+    }
+
+    /** Main thread. Turns [loading] on or off, as React Native's `flowLoading` option does. */
+    override fun useLoading(shows: Boolean) {
+        loading = if (shows) FlowLoading.Standard else FlowLoading.None
     }
 
     /** A view showing flows with this renderer's native components. */

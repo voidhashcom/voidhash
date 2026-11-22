@@ -42,6 +42,7 @@ final class HybridVoidhashNativeClient: HybridVoidhashNativeClientSpec {
                         FlowCapability(rawValue: $0.stringValue)
                     }),
                 flowRuntimeModules: configuration.flowRuntime == .module,
+                showsFlowLoading: configuration.flowLoading != NativeFlowLoading.none,
                 screenTrackingEnabled: configuration.screenTrackingEnabled,
                 featureFlagMaxWaitMilliseconds: configuration.featureFlagMaxWaitMs,
                 featureFlagDefaults: configuration.featureFlagDefaults ?? [:],

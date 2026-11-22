@@ -2,10 +2,10 @@ package com.voidhash.ui
 
 import android.os.Handler
 import android.os.Looper
+import com.voidhash.sdk.flows.FlowPackageImages
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
+import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -21,15 +21,33 @@ private const val READ_TIMEOUT_MS = 15_000
  * them on the device.
  */
 internal object FlowImageLoader {
+    private const val THREADS = 2
+
     private val executor: ExecutorService by lazy {
-        Executors.newFixedThreadPool(2) { task ->
+        Executors.newFixedThreadPool(THREADS) { task ->
             Thread(task, "voidhash-paywall-images").apply { isDaemon = true }
         }
     }
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
-    /** Downloads [url] and reports the outcome to [onResult] on the main thread. */
-    fun fetch(url: String, onResult: (Result<ByteArray>) -> Unit) = background({ download(url) }, onResult)
+    /**
+     * Downloads [url] and reports the outcome to [onResult] on the main thread. An image its
+     * flow's build pinned to [sha256] fails with `FlowImageMismatchException` unless its bytes
+     * hash to it, checked off the main thread before anything decodes them; `null` is an image
+     * the build did not pin, which cannot be verified.
+     */
+    fun fetch(url: String, sha256: String?, onResult: (Result<ByteArray>) -> Unit) =
+        background({ download(url, pinned = sha256 != null).also { FlowPackageImages.verify(it, sha256) } }, onResult)
+
+    /**
+     * For tests: returns once everything handed to the image threads before it has run, its
+     * report to the main thread posted.
+     */
+    internal fun drainForTests() {
+        val barrier = CyclicBarrier(THREADS + 1)
+        repeat(THREADS) { executor.execute { barrier.await() } }
+        barrier.await()
+    }
 
     /** Runs [work] off the main thread, on the image threads, and reports its outcome to [onResult] on the main thread. */
     fun <T> background(work: () -> T, onResult: (Result<T>) -> Unit) {
@@ -39,15 +57,9 @@ internal object FlowImageLoader {
         }
     }
 
-    private fun download(url: String): ByteArray {
-        val parsed = URL(url)
-        if (parsed.protocol != "https" && parsed.protocol != "http") {
-            throw IOException("unsupported scheme ${parsed.protocol}")
-        }
-        val connection = parsed.openConnection() as HttpURLConnection
+    private fun download(url: String, pinned: Boolean): ByteArray {
+        val connection = openFlowDownload(url, "image", CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS, pinned)
         try {
-            connection.connectTimeout = CONNECT_TIMEOUT_MS
-            connection.readTimeout = READ_TIMEOUT_MS
             val status = connection.responseCode
             if (status !in 200..299) throw IOException("HTTP $status")
             if (connection.contentLength > MAX_IMAGE_BYTES) throw IOException("image too large")

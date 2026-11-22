@@ -55,10 +55,16 @@ public struct VoidhashOptions: Sendable {
     /// What flows may do beyond purchases, restores and analytics. Defaults to opening links.
     ///
     /// Grant ``FlowCapability/notifications`` or ``FlowCapability/tracking`` only when the app
-    /// wants a flow to ask for that permission (tracking also needs
-    /// `NSUserTrackingUsageDescription` in the app's Info.plist), and
-    /// ``FlowCapability/attributes`` to let flows set person attributes.
+    /// wants a flow to ask for that permission, and ``FlowCapability/attributes`` to let flows set
+    /// person attributes. Tracking also needs a handler in ``flowPermissionHandlers``: the SDK
+    /// has none of its own, so without one flows hear that tracking is unavailable.
     public var flowCapabilities: Set<FlowCapability>
+    /// The app's own handlers of the permissions flows ask for, by the permission's name
+    /// (`FlowCapability.notifications.rawValue`, `FlowCapability.tracking.rawValue`), in place of
+    /// the SDK's prompts. Notifications without one are asked by the SDK; tracking needs one. A
+    /// flow asks only for a permission ``flowCapabilities`` grants. See ``FlowPermissionHandler``
+    /// for when the SDK calls a handler.
+    public var flowPermissionHandlers: [String: FlowPermissionHandler]
     /// Configuration of the built-in `$screen` event.
     public var screenTracking: ScreenTrackingOptions
     /// Captures `$app_installed`, `$app_updated`, `$app_opened`, `$app_backgrounded`,
@@ -128,6 +134,7 @@ public struct VoidhashOptions: Sendable {
         analyticsConsent: AnalyticsConsent = .granted,
         flowRenderer: (any FlowRenderer)? = nil,
         flowCapabilities: Set<FlowCapability> = [.links],
+        flowPermissionHandlers: [String: FlowPermissionHandler] = [:],
         featureFlags: FeatureFlagOptions = FeatureFlagOptions(),
         installAttribution: Bool = true,
         analyticsWhilePending: PendingAnalytics = .drop,
@@ -151,6 +158,7 @@ public struct VoidhashOptions: Sendable {
         self.analyticsConsent = analyticsConsent
         self.flowRenderer = flowRenderer
         self.flowCapabilities = flowCapabilities
+        self.flowPermissionHandlers = flowPermissionHandlers
         self.featureFlags = featureFlags
         self.installAttribution = installAttribution
         self.analyticsWhilePending = analyticsWhilePending

@@ -19,7 +19,6 @@ import java.security.MessageDigest
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import java.util.zip.CRC32
 
 /** An image larger than this is refused rather than held in memory or stored. */
 internal const val MAX_FLOW_IMAGE_BYTES = 10 * 1024 * 1024
@@ -36,11 +35,14 @@ private const val PREFETCH_CONCURRENCY = 4
 /** How long a file being written may lie around before it counts as abandoned. */
 private const val ABANDONED_PARTIAL_AGE_MS = 10 * 60_000L
 
-/** `VHIM`, the first four bytes of a stored image. */
-private const val IMAGE_FILE_MAGIC = 0x4D494856
+/** `VHI2`, the first four bytes of a stored image. A file of any other layout is not read. */
+private const val IMAGE_FILE_MAGIC = 0x32494856
 
-/** Magic, payload length and payload CRC-32. */
-private const val IMAGE_FILE_HEADER_BYTES = 12
+/** The length of a SHA-256 digest. */
+private const val DIGEST_BYTES = 32
+
+/** Magic, payload length and the payload's SHA-256. */
+private const val IMAGE_FILE_HEADER_BYTES = 8 + DIGEST_BYTES
 
 /**
  * Keeps the images flows show on disk, so a flow whose package is cached still shows its
@@ -49,14 +51,20 @@ private const val IMAGE_FILE_HEADER_BYTES = 12
  * Images are public content of a paywall, the same for every person and project of the app, so
  * the store is keyed by the image's URL alone and nothing that resets an identity touches it. An
  * image is read from the store first and downloaded, then stored, only when it is not there.
- * Each file carries its length and a checksum: one that was cut short or damaged is deleted and
- * counts as not stored. Only `http` and `https` URLs are loaded, and no image larger than
+ * Each file carries its length and its SHA-256: one that was cut short or damaged, or written in
+ * another layout, is deleted and counts as not stored. The same hash checks an image its flow's
+ * build pinned, so reading one hashes it once. Only `http` and `https` URLs are loaded, and no image larger than
  * [MAX_FLOW_IMAGE_BYTES].
  *
  * Only what starts like an image the renderer decodes ([isDecodableImage]) is handed out or
  * stored, whether it was just downloaded or is on disk already. A successful response that is no
  * image counts as a failed download, so one bad answer cannot stand in for an image until the
  * store evicts it; and an image the renderer then cannot use after all is removed ([discard]).
+ *
+ * An image its flow's build pinned ([FlowPackageImages.sha256]) is handed out and stored only as
+ * the bytes the build recorded: a download that hashes to anything else fails with
+ * [FlowImageMismatchException] and is not stored, and a stored copy that does not hash to it is
+ * deleted on reading and downloaded again. Any other image is kept as it arrived.
  *
  * The store holds at most [maxBytes]; beyond that the images used longest ago are deleted.
  * Everything in it can be downloaded again, so it lives in a cache directory.
@@ -68,12 +76,13 @@ private const val IMAGE_FILE_HEADER_BYTES = 12
  *
  * @param directory where the images are stored. Resolved on first use, so building the store
  *   touches no storage.
- * @param download fetches the bytes at a URL, throwing when it cannot.
+ * @param download fetches the bytes at a URL, `pinned` when its flow's build pinned the image
+ *   there, throwing when it cannot.
  * @param isMetered whether the connection in use is billed by volume, such as cellular data.
  */
 internal class FlowImageStore(
     directory: () -> File,
-    private val download: suspend (String) -> ByteArray,
+    private val download: suspend (url: String, pinned: Boolean) -> ByteArray,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val maxBytes: Long = MAX_FLOW_IMAGE_STORE_BYTES,
     private val now: () -> Long = { System.currentTimeMillis() },
@@ -93,40 +102,49 @@ internal class FlowImageStore(
 
     /**
      * The image at [url]: from the store, otherwise downloaded and stored for the next time.
-     * Throws when the URL is not `http` or `https`, the image is too large, what was downloaded
-     * is not an image, or it is neither stored nor can be downloaded.
+     * [sha256] is the hex SHA-256 its flow's build recorded for it, `null` for an image the build
+     * did not pin, which cannot be verified. The bytes are hashed once, off the main thread.
+     *
+     * Throws when [FlowUrlPolicy] refuses the URL, the image is too large, what was downloaded
+     * is not an image or not the pinned one ([FlowImageMismatchException]), or it is neither
+     * stored nor can be downloaded.
      */
-    suspend fun load(url: String): ByteArray {
-        requireHttp(url)
+    suspend fun load(url: String, sha256: String?): ByteArray {
+        requireHttp(url, pinned = sha256 != null)
         return withContext(ioDispatcher) {
-            loads.run(url) { read(url) ?: fetch(url).image }
+            loads.run(loadKey(url, sha256)) { read(url, sha256) ?: fetch(url, sha256).image }
         }
     }
 
     /** A downloaded image, and how many bytes storing it took; none when it was not stored. */
     private class Fetched(val image: ByteArray, val storedBytes: Long)
 
-    private suspend fun fetch(url: String): Fetched {
-        val image = download(url)
+    private suspend fun fetch(url: String, sha256: String?): Fetched {
+        val image = download(url, sha256 != null)
         if (image.size > MAX_FLOW_IMAGE_BYTES) throw IOException("image too large")
         // Refused like a failed download, and above all never stored: kept, it would be read
         // from here before the network for good, and stay the freshest file for being read.
         if (!isDecodableImage(image)) throw IOException("the response is not a PNG, JPEG, GIF or WebP image")
-        return Fetched(image, write(url, image))
+        // Hashed once: to check the pin, and to keep with the image.
+        val digest = MessageDigest.getInstance("SHA-256").digest(image)
+        if (sha256 != null && FlowPackageStore.hex(digest) != sha256.lowercase()) throw FlowImageMismatchException()
+        return Fetched(image, write(url, image, digest))
     }
 
     /**
-     * Fetches the images the package [packageKey] lists, [urls], that are not stored yet: a few
-     * at a time, at most [MAX_PREFETCHED_IMAGES] of them, and no more than half of what the store
-     * holds. One that is stored counts as used now, so the pass keeps it. One that cannot be
-     * fetched is a warning: it is fetched again when a flow shows it.
+     * Fetches the images the package [packageKey] lists, [images], that are not stored yet: a
+     * few at a time, at most [MAX_PREFETCHED_IMAGES] of them, and no more than half of what the
+     * store holds. One that is stored counts as used now, so the pass keeps it. One that cannot
+     * be fetched, or is not the image its build pinned, is a warning: it is fetched again when a
+     * flow shows it.
      *
      * Runs once per package and process, and not at all on a metered connection, where it is
-     * left for a later load of the package. [urls] is read only when the pass runs.
+     * left for a later load of the package. [images] is read only when the pass runs.
      */
-    suspend fun prefetch(packageKey: String, urls: () -> List<String>) {
+    suspend fun prefetch(packageKey: String, images: () -> FlowPackageImages) {
         if (packageKey in prefetched || isMetered() || !prefetched.add(packageKey)) return
-        val wanted = urls().distinct().take(MAX_PREFETCHED_IMAGES)
+        val listed = images()
+        val wanted = listed.urls.distinct().take(MAX_PREFETCHED_IMAGES)
         if (wanted.isEmpty()) return
         val permits = Semaphore(PREFETCH_CONCURRENCY)
         val budget = maxBytes / 2
@@ -137,13 +155,19 @@ internal class FlowImageStore(
                     launch {
                         permits.withPermit {
                             try {
-                                requireHttp(url)
+                                requireHttp(url, pinned = listed.sha256[url] != null)
                                 val stored = imageFile(url)
                                 when {
                                     // Still wanted: not the first to go when the store fills up.
                                     stored.isFile -> stored.setLastModified(now())
                                     written.get() < budget ->
-                                        written.addAndGet(loads.run(url) { read(url)?.let { 0L } ?: fetch(url).storedBytes })
+                                        written.addAndGet(
+                                            listed.sha256[url].let { sha256 ->
+                                                loads.run(loadKey(url, sha256)) {
+                                                    read(url, sha256)?.let { 0L } ?: fetch(url, sha256).storedBytes
+                                                }
+                                            },
+                                        )
                                 }
                             } catch (error: CancellationException) {
                                 throw error
@@ -163,17 +187,22 @@ internal class FlowImageStore(
      * image again instead of reading the same bytes for good.
      */
     suspend fun discard(url: String) {
-        if (runCatching { requireHttp(url) }.isFailure) return
+        if (runCatching { requireHttp(url, pinned = true) }.isFailure) return
         withContext(ioDispatcher) { synchronized(writes) { imageFile(url).delete() } }
     }
 
-    private fun requireHttp(url: String) {
-        val scheme = url.substringBefore("://", missingDelimiterValue = "").lowercase()
-        if (scheme != "https" && scheme != "http") throw IOException("unsupported image URL scheme")
+    /** What one load shares with others in flight: a pinned image's never an unverified one's. */
+    private fun loadKey(url: String, sha256: String?) = if (sha256 == null) url else "$url\n$sha256"
+
+    private fun requireHttp(url: String, pinned: Boolean) {
+        if (FlowUrlPolicy.permitted(url, pinned) == null) throw IOException("image URL refused: flows download only over https, from hosts on the internet")
     }
 
-    /** The stored image of [url], or `null` when there is none or it does not verify. */
-    private fun read(url: String): ByteArray? {
+    /**
+     * The stored image of [url], or `null` when there is none, it does not verify or, pinned to
+     * [sha256] by its build, does not hash to it.
+     */
+    private fun read(url: String, sha256: String?): ByteArray? {
         val file = imageFile(url)
         if (!file.isFile) return null
         val stored = try {
@@ -184,9 +213,9 @@ internal class FlowImageStore(
         }
         // A file written whole can still hold what is no image: an earlier release stored
         // whatever a successful response carried.
-        val image = decode(stored)?.takeIf(::isDecodableImage)
+        val image = decode(stored, sha256)?.takeIf(::isDecodableImage)
         if (image == null) {
-            onWarning("Discarding a stored paywall image that is incomplete, damaged or not an image")
+            onWarning("Discarding a stored paywall image that is incomplete, damaged, not an image or not the one its flow pinned")
             file.delete()
             return null
         }
@@ -195,8 +224,11 @@ internal class FlowImageStore(
         return image
     }
 
-    /** Stores [image] for [url]; returns the bytes it takes on disk, `0` when it was not stored. */
-    private fun write(url: String, image: ByteArray): Long {
+    /**
+     * Stores [image], whose SHA-256 is [digest], for [url]; returns the bytes it takes on disk,
+     * `0` when it was not stored.
+     */
+    private fun write(url: String, image: ByteArray, digest: ByteArray): Long {
         // One the store could never hold is shown and not kept.
         if (image.size + IMAGE_FILE_HEADER_BYTES > maxBytes) return 0L
         try {
@@ -209,7 +241,7 @@ internal class FlowImageStore(
                 val partial = File.createTempFile("${target.nameWithoutExtension}-", PARTIAL_SUFFIX, directory)
                 try {
                     partial.outputStream().use { output ->
-                        output.write(header(image))
+                        output.write(header(image, digest))
                         output.write(image)
                     }
                     if (!partial.renameTo(target)) throw IOException("could not store the image")
@@ -239,21 +271,27 @@ internal class FlowImageStore(
         }
     }
 
-    private fun header(image: ByteArray): ByteArray =
+    private fun header(image: ByteArray, digest: ByteArray): ByteArray =
         ByteBuffer.allocate(IMAGE_FILE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
             .putInt(IMAGE_FILE_MAGIC)
             .putInt(image.size)
-            .putInt(CRC32().apply { update(image) }.value.toInt())
+            .put(digest)
             .array()
 
-    /** The image inside a stored file; `null` unless its length and checksum match. */
-    private fun decode(stored: ByteArray): ByteArray? {
+    /**
+     * The image inside a stored file; `null` unless its layout and length are this store's and
+     * it hashes to the digest kept with it and, when its flow's build pinned it, to [sha256].
+     */
+    private fun decode(stored: ByteArray, sha256: String?): ByteArray? {
         if (stored.size < IMAGE_FILE_HEADER_BYTES) return null
         val header = ByteBuffer.wrap(stored, 0, IMAGE_FILE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
         if (header.int != IMAGE_FILE_MAGIC) return null
         if (header.int != stored.size - IMAGE_FILE_HEADER_BYTES) return null
+        val kept = ByteArray(DIGEST_BYTES).also(header::get)
         val image = stored.copyOfRange(IMAGE_FILE_HEADER_BYTES, stored.size)
-        return image.takeIf { CRC32().apply { update(it) }.value.toInt() == header.int }
+        val digest = MessageDigest.getInstance("SHA-256").digest(image)
+        if (!MessageDigest.isEqual(digest, kept)) return null
+        return image.takeIf { sha256 == null || FlowPackageStore.hex(digest) == sha256.lowercase() }
     }
 
     private fun imageFile(url: String): File {
@@ -303,9 +341,10 @@ internal const val FLOW_IMAGE_DOWNLOAD_TIMEOUT_MS = 20_000L
  * Like a package download it passes through [gate] under a breaker of its own per image host, so
  * while that host is failing a flow's images fail at once instead of each waiting out a timeout.
  */
-internal fun downloadFlowImage(httpClient: Call.Factory, url: String, gate: OutboundGate? = null): ByteArray =
+internal fun downloadFlowImage(httpClient: Call.Factory, url: String, gate: OutboundGate? = null, pinned: Boolean = false): ByteArray =
     downloadFlowAsset(
         httpClient, url, gate,
+        pinned = pinned,
         breaker = "images",
         operation = "paywall.image",
         what = "image",

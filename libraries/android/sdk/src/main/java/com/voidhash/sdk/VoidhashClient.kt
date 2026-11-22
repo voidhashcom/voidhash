@@ -24,6 +24,7 @@ import com.voidhash.sdk.analytics.TOUCH_EVENT
 import com.voidhash.sdk.analytics.touchEventProperties
 import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.FeatureFlag
+import com.voidhash.sdk.api.PaywallAnswer
 import com.voidhash.sdk.api.PurchasePaywallContext
 import com.voidhash.sdk.api.SYNC_TRANSACTION_INTENT_RESTORE
 import com.voidhash.sdk.api.SyncTransactionRequest
@@ -67,9 +68,14 @@ import com.voidhash.sdk.transactions.PersonWriteKind
 import com.voidhash.sdk.transactions.PersonWriteOutbox
 import com.voidhash.sdk.transactions.TransactionOutbox
 import com.voidhash.sdk.transactions.isScalarTraitValue
+import com.voidhash.sdk.flows.BundledFlows
 import com.voidhash.sdk.flows.FlowEngineCapabilities
 import com.voidhash.sdk.flows.FlowHost
 import com.voidhash.sdk.flows.FlowCoordinator
+import com.voidhash.sdk.flows.EXPOSURE_TOKEN_PROPERTY
+import com.voidhash.sdk.flows.FLOW_HANDED_OFF_EVENT
+import com.voidhash.sdk.flows.FlowPackageStore
+import com.voidhash.sdk.flows.flowProperties
 import com.voidhash.sdk.platform.PlatformInfo
 import com.voidhash.sdk.schema.RuntimeSchema
 import com.voidhash.sdk.schema.SchemaManager
@@ -124,8 +130,12 @@ private const val FLAGS_CACHE_STALE_TIME_MS = 1000L * 60 * 5
 /** 7 days — a paywall configuration is usable for a week without contact. */
 private const val PAYWALL_CACHE_TTL_MS = 1000L * 60 * 60 * 24 * 7
 
-/** 1 hour — after this a cached paywall configuration is refreshed behind the read. */
-private const val PAYWALL_CACHE_STALE_TIME_MS = 1000L * 60 * 60
+/**
+ * 5 minutes — after this a location's cached answer, a flow or "nothing here", is refreshed behind
+ * the read: a release withdrawn or a location switched off reaches an online device within this
+ * window of its next presentation, foreground or reconnect.
+ */
+private const val PAYWALL_CACHE_STALE_TIME_MS = 1000L * 60 * 5
 
 /** 90 days — a flow's saved variables outlive any break between two presentations. */
 private const val FLOW_STATE_TTL_MS = 1000L * 60 * 60 * 24 * 90
@@ -206,7 +216,7 @@ private fun noPersonEntry(): JSONObject = JSONObject().put("none", true)
 
 private fun isNoPersonEntry(raw: JSONObject): Boolean = raw.optBoolean("none") && !raw.has("personId")
 
-private data class PaywallRefresh(val paywall: ResolvedPaywall?)
+private class PaywallRefresh(val answer: PaywallAnswer?)
 
 /** A cache entry that decoded; distinguishes a decoded `null` from an undecodable entry. */
 private class Decoded<out T>(val value: T)
@@ -476,8 +486,8 @@ class VoidhashClient internal constructor(
     private val flowEngine: () -> FlowEngineCapabilities? = { null },
     /** Opens a link a flow asked for. */
     private val openUrl: (String) -> Unit = {},
-    /** Asks the user for a permission a flow requested. */
-    private val requestPermission: suspend (Activity, String) -> Boolean = { _, _ -> false },
+    /** The handler of a permission a flow reads or asks for; `null` for one no handler knows. */
+    private val permissionHandler: (String) -> FlowPermissionHandler? = { null },
     private val diagnostics: DiagnosticEmitter = DiagnosticEmitter(),
     private val onShutdown: () -> Unit = {},
     /** Suspends, for a bounded time, until the writer has finished everything this client handed it. */
@@ -499,6 +509,15 @@ class VoidhashClient internal constructor(
     private val analyticsWhilePending: PendingAnalytics = PendingAnalytics.DROP,
     /** See [VoidhashOptions.grantConsentOnIdentify]. */
     private val grantConsentOnIdentify: Boolean = false,
+    /**
+     * Where flow packages are kept, told what each answer says about them; `null` without a
+     * renderer, when no package is ever loaded.
+     */
+    private val flowPackages: FlowPackageStore? = null,
+    /** The flows the app bundles, read only when a presentation falls back to one; `null` for none. */
+    private val bundledFlows: BundledFlows? = null,
+    /** Where the bundled flows are read, off the caller's thread. */
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO,
 ) {
     private val readOnlyFlag = AtomicBoolean(readOnly)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
@@ -707,8 +726,11 @@ class VoidhashClient internal constructor(
             setPersonAttributesWithStatus(mapOf(name to value))
         }
 
-        override suspend fun requestPermission(activity: Activity, permission: String): Boolean =
-            this@VoidhashClient.requestPermission(activity, permission)
+        override suspend fun permissionStatus(activity: Activity, permission: String): FlowPermissionStatus =
+            permissionHandler(permission)?.status(activity) ?: FlowPermissionStatus.UNAVAILABLE
+
+        override suspend fun requestPermission(activity: Activity, permission: String): FlowPermissionResult =
+            permissionHandler(permission)?.request(activity) ?: FlowPermissionResult.UNAVAILABLE
 
         override fun openUrl(url: String) = this@VoidhashClient.openUrl(url)
 
@@ -729,6 +751,12 @@ class VoidhashClient internal constructor(
 
     /** The interface revision each location was last presented with in this process. */
     private val presentedRevisions = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /**
+     * How the last request for each paywall answer failed, by its cache key; cleared by an answer.
+     * A presentation falls back to the flow the app bundles only after a failure of the network.
+     */
+    private val paywallFailures = java.util.concurrent.ConcurrentHashMap<String, FailureClass>()
 
     /** Whether paywalls are resolved at all: only a configured renderer can present them. */
     private val flowsEnabled: Boolean get() = flowCoordinator != null
@@ -1176,9 +1204,14 @@ class VoidhashClient internal constructor(
      * Preloading is what makes the first `presentFlow` of a session instant and lets it work
      * offline at all: a location whose configuration was never fetched has nothing to fall
      * back to. Each location's flow package is downloaded too. Without a renderer no flow can
-     * be presented, so none is resolved.
+     * be presented, so none is resolved. A preload is not a presentation: it reports nothing.
+     *
+     * With [staleOnly], for a foreground or a reconnect, only locations whose answer is stale
+     * are resolved, one at a time, and a failed resolve leaves the rest to their next read or
+     * the next refresh: re-resolving every remembered location on each foreground would be a
+     * request per location for nothing.
      */
-    private suspend fun preload(distinctId: String) {
+    private suspend fun preload(distinctId: String, staleOnly: Boolean = false) {
         if (gate?.isBlocked(apiClient.circuitKey) != true) {
             // Without a schema the store surface is unusable, so this is the first thing to fix;
             // a cached one past its stale time is refreshed here too, which is what keeps a
@@ -1200,14 +1233,16 @@ class VoidhashClient internal constructor(
         if (!flowsEnabled) return
         for (location in (preloadLocations + knownLocations()).distinct()) {
             val revision = knownRevision(location)
-            runQuietly("preload the paywall for $location") {
-                refreshPaywall(distinctId, location, revision)
-            }
             val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), revision)
+            if (staleOnly) {
+                if (cacheManager.get(cacheKey)?.isStale == false) continue
+                if (gate?.isBlocked(apiClient.circuitKey) == true) return
+            }
+            val refreshed = refreshPaywallShared(cacheKey, distinctId, location, revision) != null
+            if (!refreshed && staleOnly) return
             val cached = cacheManager.get(cacheKey)?.value as? JSONObject
-            val resolved = cached?.let { decodeCached(cacheKey, it, ResolvedPaywall::fromJson) }?.value
-            if (resolved == null) continue
-            runQuietly("preload the flow package for $location") { flowCoordinator?.preload(location, resolved) }
+            val answer = cached?.let { decodeCached(cacheKey, it, PaywallAnswer::fromJson) }?.value ?: continue
+            runQuietly("preload the flow package for $location") { flowCoordinator?.preload(location, answer) }
         }
     }
 
@@ -3558,24 +3593,31 @@ class VoidhashClient internal constructor(
 
         // From here on `dismissFlow()` cancels the presentation, also while it is being resolved,
         // and its deadline runs.
-        val presentation = coordinator.beginPresentation(location)
+        val presentation = coordinator.beginPresentation(location, activity)
         try {
             // The refresh behind a read runs on the SDK's scope, so a dismissal or the deadline
             // ends only the wait.
             val resolved = (
-                presentation.unlessEnded { resolvePaywallState(location, interfaceRevision) }
-                    ?: return presentation.ending?.getOrThrow() ?: FlowResult(FlowResult.DISMISSED)
+                presentation.unlessEnded { readPaywall(location, interfaceRevision) }
+                    ?: return presentation.ending?.getOrThrow() ?: FlowResult.dismissedUnshown()
                 ).value
-            val paywall = resolved.value
+            val answer = resolved.value
             if (resolved.isStale) {
                 val distinctId = identityStore.getDistinctId()
-                scope.launch {
-                    runQuietly("refresh the paywall for $location") {
-                        refreshPaywall(distinctId, location, interfaceRevision)
-                    }
-                }
+                val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), interfaceRevision)
+                // Joins the read's own refresh when it is still under way.
+                scope.launch { refreshPaywallShared(cacheKey, distinctId, location, interfaceRevision) }
             }
-            if (paywall == null) {
+            // A cold read that failed for the network falls back to the flow the app bundles, if any.
+            val bundled = if (answer == null && resolved.isStale && resolved.isExpired) {
+                presentation.unlessEnded { bundledFlow(coordinator, location, interfaceRevision) }
+                    ?.value
+                    ?: if (presentation.ending != null) return presentation.endedUnshown() else null
+            } else {
+                null
+            }
+            val shown = answer ?: bundled?.answer
+            if (shown == null) {
                 // A cold failed read is unavailable. A fresh or cached negative answer means the
                 // backend deliberately assigned no flow to this person.
                 throw if (resolved.isStale && resolved.isExpired) {
@@ -3588,7 +3630,7 @@ class VoidhashClient internal constructor(
             // The store sheet of a purchase started from the flow launches from this activity.
             activitySink(activity)
             try {
-                return coordinator.present(activity, location, paywall, presentation, input, actions)
+                return coordinator.present(activity, location, shown, presentation, input, actions, bundled?.bytes)
             } finally {
                 // A flow presented in this one's place keeps the activity it was presented from.
                 if (!coordinator.isPresenting) activitySink(null)
@@ -3614,6 +3656,7 @@ class VoidhashClient internal constructor(
     ): TypedFlowResult<Output, Outcome> {
         val result = presentFlow(activity, location.slug, location.revision, input.toFlowValues(), actions.flowHandlers())
         return TypedFlowResult(location.outcome(result.outcome), location.output(result.output), result.productId)
+            .also { it.wasShown = result.wasShown }
     }
 
     /**
@@ -3637,7 +3680,9 @@ class VoidhashClient internal constructor(
     }
 
     /**
-     * Stops every timer and callback, flushes analytics a last time for at most 2 s, then cancels
+     * Closes the flow on screen and cancels one still loading, whose `presentFlow` returns
+     * [FlowResult.DISMISSED] and whose analytics are part of the final flush. Then stops every
+     * timer and callback, flushes analytics a last time for at most 2 s, then cancels
      * the SDK scope, waits for the writes already under way to reach storage, and ends the store
      * connection in the background. The client stops even when the flush
      * fails or the calling coroutine is cancelled during it. It stays shut down; see the class
@@ -3649,6 +3694,7 @@ class VoidhashClient internal constructor(
         // stop. One the host configured itself replaced this client like any other configure
         // does, and shutting a replaced client down leaves its successor running.
         untilUnlock?.successorConfiguredBySdk?.let { return it.shutdown() }
+        endFlowsBeforeClosing()
         if (!closed.compareAndSet(false, true)) {
             return FlushStatus(flushed = 0, pending = if (enabled) analyticsClient.queueLength else 0)
         }
@@ -3698,6 +3744,7 @@ class VoidhashClient internal constructor(
      * loads; after that nothing of this client rewrites the SDK's files.
      */
     internal fun close() {
+        endFlowsBeforeClosing()
         if (closed.compareAndSet(false, true)) {
             updateRetryTimer()
             onShutdown()
@@ -3708,6 +3755,15 @@ class VoidhashClient internal constructor(
             }
         }
         release()
+    }
+
+    /**
+     * Ends the flow on screen and every presentation still loading, as the app's doing, while
+     * this client still collects analytics: their endings are queued, and reach the final flush
+     * or the next client, rather than being dropped once it is closed.
+     */
+    private fun endFlowsBeforeClosing() {
+        if (!closed.get()) flowCoordinator?.dismiss()
     }
 
     /**
@@ -3814,6 +3870,10 @@ class VoidhashClient internal constructor(
     /**
      * Resolves the paywall release assigned to [location] without presenting it. Answered from
      * the seven-day configuration cache first. `null` while no renderer is configured.
+     *
+     * Handing the answer to the app counts the person in the A/B test that chose it, as
+     * presenting it would: an answer chosen by a test is reported as `$paywall_handed_off` on
+     * every call that returns it, also one made only to see what the location shows.
      */
     suspend fun resolvePaywall(location: String): ResolvedPaywall? =
         resolvePaywallState(location).value
@@ -3825,6 +3885,25 @@ class VoidhashClient internal constructor(
      */
     suspend fun resolvePaywallState(location: String, revision: Int? = null): Stale<ResolvedPaywall?> {
         takenOverBy?.let { return it.resolvePaywallState(location, revision) }
+        val state = readPaywall(location, revision)
+        state.value?.let { reportHandOff(location, it) }
+        return Stale(state.value?.paywall, state.isStale, state.isExpired)
+    }
+
+    /**
+     * Reports that [answer] was handed to the app, when an A/B test chose it: the hand-off carries
+     * its exposure token, which counts the person in the test.
+     */
+    private fun reportHandOff(location: String, answer: PaywallAnswer) {
+        val token = answer.exposureToken ?: return
+        capture(FLOW_HANDED_OFF_EVENT, flowProperties(location, answer) + (EXPOSURE_TOKEN_PROPERTY to token.value))
+    }
+
+    /**
+     * What [location] shows, cache-first, without reporting anything: for presenting, which
+     * reports the presentation, and for the reads that hand the answer to the app.
+     */
+    private suspend fun readPaywall(location: String, revision: Int?): Stale<PaywallAnswer?> {
         if (untilUnlock != null) return Stale(null, isStale = true, isExpired = true)
         if (!enabled || !flowsEnabled) return Stale(null)
 
@@ -3837,7 +3916,7 @@ class VoidhashClient internal constructor(
             if (raw == null) {
                 hit to PaywallRefresh(null)
             } else {
-                decodeCached(cacheKey, raw, ResolvedPaywall::fromJson)
+                decodeCached(cacheKey, raw, PaywallAnswer::fromJson)
                     ?.let { decoded -> hit to PaywallRefresh(decoded.value) }
             }
         }
@@ -3850,8 +3929,40 @@ class VoidhashClient internal constructor(
         ) { refreshPaywall(distinctId, location, interfaceRevision) }
             .value
 
-        if (state.value?.paywall != null) rememberLocation(location)
-        return Stale(state.value?.paywall, state.isStale, state.isExpired)
+        if (state.value?.answer != null) rememberLocation(location)
+        return Stale(state.value?.answer, state.isStale, state.isExpired)
+    }
+
+    /**
+     * The flow the app bundles for [location] at [revision], for a presentation that could not
+     * resolve the location: none when Voidhash answered that the location shows nothing, however
+     * long ago, none whose package an answer listed as withdrawn, and none the renderer cannot draw.
+     */
+    private suspend fun bundledFlow(coordinator: FlowCoordinator, location: String, revision: Int): BundledFlows.Flow? {
+        val bundledFlows = bundledFlows ?: return null
+        val key = paywallCacheKey(identityStore.getDistinctId(), location, flowEngine(), revision)
+        // Any answer cached here, an empty one included, was the server's; a failed read of a
+        // non-empty one would have shown it. Its key is per person and engine.
+        if (cacheManager.get(key) != null) return null
+        // Only a failure of the network: no answer reached the device. A rejected key or any
+        // other answer of the API is not one, and neither is the pause a rejected key causes.
+        val failure = paywallFailures[key]
+        if (gate?.isPaused == true || failure != null && failure != FailureClass.TRANSIENT) {
+            onWarning("The flow bundled for \"$location\" is not shown: Voidhash refused the request for its answer")
+            return null
+        }
+        val flow = withContext(ioDispatcher) { bundledFlows.flow(location, revision, clock(), onWarning) } ?: return null
+        val reference = flow.answer.paywall.flowPackage ?: return null
+        if (flowPackages?.isWithdrawn(reference.sha256) == true) {
+            onWarning("The flow bundled for \"$location\" is not shown: its package was withdrawn")
+            return null
+        }
+        if (!coordinator.supports(reference)) {
+            onWarning("The flow bundled for \"$location\" uses package format ${reference.abiVersion}, which this SDK cannot draw; it is not shown")
+            return null
+        }
+        onWarning("Showing the flow bundled with the app for \"$location\"")
+        return flow
     }
 
     /** The server's answer for a location as it is cached: its JSON, or `null` for no paywall. */
@@ -3861,7 +3972,8 @@ class VoidhashClient internal constructor(
      * The server's paywall answer for [location] as JSON, `"null"` when no paywall is assigned, for
      * a host that renders flows itself or not at all: unlike [resolvePaywallState] it resolves
      * without a renderer too. Cache-first like it; throws `PAYWALL_UNAVAILABLE` when nothing is
-     * cached and the server gives no answer.
+     * cached and the server gives no answer. Handing it over is reported as [resolvePaywall]
+     * reports it, and the JSON leaves out the answer's exposure token, which is the SDK's alone.
      */
     @VoidhashHostApi
     suspend fun resolvePaywallJson(location: String): String {
@@ -3874,7 +3986,8 @@ class VoidhashClient internal constructor(
         val cacheKey = paywallCacheKey(distinctId, location, flowEngine(), revision)
         val cached = cacheManager.get(cacheKey)?.let { hit -> hit to PaywallJson(hit.value as? JSONObject) }
         val read = readThrough(
-            key = cacheKey,
+            // Its own flight: one joining a refresh of the decoded answer would get another type.
+            key = "$cacheKey#json",
             cached = cached?.second,
             isStale = cached?.first?.isStale != false,
             isExpired = cached?.first?.isExpired == true,
@@ -3882,13 +3995,38 @@ class VoidhashClient internal constructor(
         surfaceAuthenticationFailure(answeredWithNothing = read.value.value == null)
         val answer = read.value.value
             ?: throw VoidhashException("PAYWALL_UNAVAILABLE", "The paywall for \"$location\" could not be resolved")
-        if (answer.raw?.let(ResolvedPaywall::fromJson) != null) rememberLocation(location)
-        return answer.raw?.toString() ?: "null"
+        val raw = answer.raw ?: return "null"
+        PaywallAnswer.fromJson(raw)?.let { resolved ->
+            rememberLocation(location)
+            reportHandOff(location, resolved)
+        }
+        return PaywallAnswer.handedToApp(raw).toString()
+    }
+
+    /**
+     * Refreshes [location]'s answer in the single flight of its [cacheKey], which its reads share
+     * ([readThrough] fails the same way): `null` when the refresh failed, for the caller that ran
+     * it and every caller that joined it, so none of them throws for a request it only joined.
+     */
+    private suspend fun refreshPaywallShared(
+        cacheKey: String,
+        distinctId: String,
+        location: String,
+        revision: Int,
+    ): PaywallRefresh? = singleFlight.run(cacheKey) {
+        try {
+            refreshPaywall(distinctId, location, revision)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            onWarning("Failed to refresh the paywall cache: ${error.message}")
+            null
+        }
     }
 
     private suspend fun refreshPaywall(distinctId: String, location: String, revision: Int): PaywallRefresh {
         if (!flowsEnabled) return PaywallRefresh(null)
-        return PaywallRefresh(fetchPaywall(distinctId, location, revision)?.let(ResolvedPaywall::fromJson))
+        return PaywallRefresh(fetchPaywall(distinctId, location, revision)?.let(PaywallAnswer::fromJson))
     }
 
     /**
@@ -3897,11 +4035,24 @@ class VoidhashClient internal constructor(
      * request was under way. Checked and cached under [identityMutex]: a switch drops the
      * previous identity's paywalls under it, and an answer cached after that would stay on the
      * device for a user who signed out.
+     *
+     * The answer is cached as it came, its exposure token and withdrawn packages included, so a
+     * presentation after a relaunch still reports the token and refuses those packages; the
+     * package store is told of them at once.
      */
     private suspend fun fetchPaywall(distinctId: String, location: String, revision: Int): JSONObject? {
         val epoch = identityEpoch.get()
         val engine = flowEngine()
-        val raw = apiClient.resolvePaywallRaw(distinctId, location, engine, revision)
+        val failureKey = paywallCacheKey(distinctId, location, engine, revision)
+        val raw = try {
+            apiClient.resolvePaywallRaw(distinctId, location, engine, revision, reportsExposure = true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            paywallFailures[failureKey] = classifyFailure(error)
+            throw error
+        }
+        paywallFailures.remove(failureKey)
         identityMutex.withLock {
             if (isCurrentIdentity(distinctId, epoch)) {
                 // Stored under the engine and the revision the request reported, the ones the
@@ -3913,6 +4064,9 @@ class VoidhashClient internal constructor(
                     staleTimeMs = PAYWALL_CACHE_STALE_TIME_MS,
                 )
             }
+        }
+        raw?.let(PaywallAnswer::fromJson)?.let { answer ->
+            flowPackages?.answered(location, answer.paywall.flowPackage?.sha256, answer.withdrawnPackages)
         }
         rememberLocation(location)
         return raw
@@ -4320,7 +4474,7 @@ class VoidhashClient internal constructor(
 
     /**
      * An activity started. Starts the retry timer, then rescans purchases, sends queued data and
-     * refreshes person, flags and stale paywalls. The refresh is debounced to once a minute: tab
+     * refreshes person, flags and the locations whose answer is stale, one at a time. The refresh is debounced to once a minute: tab
      * switches and permission dialogs produce foreground transitions the user never perceives as
      * a new session. The first one after an initialization in the background is the store
      * connection and refresh that initialization left for it.
@@ -4347,7 +4501,7 @@ class VoidhashClient internal constructor(
             if (!probeAuthenticationIfDue()) return@launch
             runQuietly("reconcile purchases on foreground") { reconcileStore() }
             runQuietly("deliver queued data on foreground") { deliverQueued() }
-            runQuietly("refresh on foreground") { preload(identityStore.getDistinctId()) }
+            runQuietly("refresh on foreground") { preload(identityStore.getDistinctId(), staleOnly = true) }
         }
     }
 
@@ -4401,7 +4555,7 @@ class VoidhashClient internal constructor(
             if (!probeAuthenticationIfDue()) return@launch
             runQuietly("reconcile purchases on reconnect") { reconcileStore() }
             runQuietly("deliver queued data on reconnect") { deliverQueued() }
-            runQuietly("refresh on reconnect") { preload(identityStore.getDistinctId()) }
+            runQuietly("refresh on reconnect") { preload(identityStore.getDistinctId(), staleOnly = true) }
         }
     }
 

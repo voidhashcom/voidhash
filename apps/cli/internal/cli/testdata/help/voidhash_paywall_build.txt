@@ -1,5 +1,6 @@
-Build the paywall's current design without deploying it. --wait waits for the result and shows why a
-build failed. Starting a build needs you signed in as yourself; a project key cannot.
+Build the paywall's current design without deploying it. --wait waits for the result, shows why a
+build failed, and warns of a language whose texts have no translation, which a build never fails on.
+Starting a build needs you signed in as yourself; a project key cannot.
 
 Usage:
   voidhash paywall build [paywall] [flags]

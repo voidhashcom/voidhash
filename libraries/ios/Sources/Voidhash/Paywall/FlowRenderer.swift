@@ -13,6 +13,9 @@ public typealias FlowDismissedHandler = @Sendable () -> Void
 /// Invoked when the presented flow can no longer be drawn, with the reason. The SDK then ends
 /// the flow and dismisses it.
 public typealias FlowFailedHandler = @Sendable (String) -> Void
+/// Invoked when the end user leaves a presenter's loading state. The SDK then cancels the
+/// presentations waiting behind it.
+public typealias FlowLoadingCancelledHandler = @Sendable () -> Void
 
 /// A native renderer for flows published as flow packages.
 ///
@@ -42,6 +45,9 @@ extension FlowRenderer {
 /// time (the client itself, and the React Native SDK) find the renderer when the app links it.
 public protocol FlowRendererProviding: AnyObject {
     static func makeRenderer() -> any FlowRenderer
+    /// A renderer that shows its loading state while a flow waits, or none with `showsLoading`
+    /// `false` (the React Native `flowLoading` option); by default, ``makeRenderer()``.
+    static func makeRenderer(showsLoading: Bool) -> any FlowRenderer
     /// Switches the renderer to flow runtime modules, process-wide. Called before the client
     /// resolves its first flow.
     static func useRuntimeModules()
@@ -49,6 +55,10 @@ public protocol FlowRendererProviding: AnyObject {
 
 extension FlowRendererProviding {
     public static func useRuntimeModules() {}
+
+    public static func makeRenderer(showsLoading: Bool) -> any FlowRenderer {
+        return makeRenderer()
+    }
 }
 
 /// Finds a renderer the app linked without naming it.
@@ -57,8 +67,11 @@ public enum FlowRendererDiscovery {
     public static let providerClassName = "VoidhashFlowRendererProvider"
 
     /// The linked renderer, or `nil` when the app did not add one; with `runtimeModules`,
-    /// switched to flow runtime modules first (the React Native `flowRuntime` option).
-    public static func linkedRenderer(runtimeModules: Bool = false) -> (any FlowRenderer)? {
+    /// switched to flow runtime modules first (the React Native `flowRuntime` option), and
+    /// without its loading state when `showsLoading` is `false` (the `flowLoading` option).
+    public static func linkedRenderer(runtimeModules: Bool = false, showsLoading: Bool = true)
+        -> (any FlowRenderer)?
+    {
         guard
             let provider = NSClassFromString(providerClassName)
                 as? any FlowRendererProviding.Type
@@ -66,7 +79,7 @@ public enum FlowRendererDiscovery {
         if runtimeModules {
             provider.useRuntimeModules()
         }
-        return provider.makeRenderer()
+        return provider.makeRenderer(showsLoading: showsLoading)
     }
 }
 
@@ -77,6 +90,10 @@ public struct FlowRendererContext: Sendable {
     /// Where the images flows show are kept on the device. A renderer reads an image there
     /// before it downloads it, and stores what it downloads; `nil` keeps none.
     public let imageStore: FlowImageStore?
+    /// Told the URL of an image the presented flow's build pinned that arrived as other bytes
+    /// than it recorded, which the SDK reports as the flow's health. Set by the SDK.
+    @_spi(VoidhashFlows)
+    public var onImageMismatch: (@Sendable (_ url: String) -> Void)?
 
     #if canImport(UIKit)
         /// Resolves the view controller to present from: the one passed to
@@ -149,9 +166,44 @@ public protocol FlowPresenting: AnyObject, Sendable {
         onDismiss: FlowDismissedHandler?,
         onFailure: FlowFailedHandler?
     ) async throws -> Bool
+    /// Whether the end user can take a presented flow off the screen without the flow's own
+    /// close action, as by swiping a sheet down. A dismissal the SDK did not ask for is then
+    /// reported as the end user's; otherwise as the app's, since only the app or the system can
+    /// take the window away. `false` by default: a flow presented full screen leaves only through
+    /// the flow, the SDK or the app.
+    var endUserCanDismiss: Bool { get }
+    /// A presentation started and waits for its flow: its answer, its package, or the flow before
+    /// it to leave the screen. The presenter may show a loading state for it, after a delay short
+    /// enough to go unnoticed and long enough that a flow already on the device is shown first,
+    /// until ``show(locationSlug:package:flowPackage:onBridgeEvent:onDismiss:onFailure:)`` takes
+    /// its place or ``endLoading(presentation:)`` ends it. While several presentations wait, one
+    /// loading state stands for them all. Does nothing by default.
+    ///
+    /// - Parameters:
+    ///   - presentation: Identifies the presentation to ``endLoading(presentation:)``.
+    ///   - onCancel: Called when the end user leaves the loading state: the SDK then cancels the
+    ///     presentation as the end user's, through the same path as any other cancellation.
+    func beginLoading(
+        presentation: Int, locationSlug: String, onCancel: @escaping FlowLoadingCancelledHandler)
+    /// The presentation ``beginLoading(presentation:locationSlug:onCancel:)`` was called for no
+    /// longer waits: its flow was handed to the presenter, or it failed or was cancelled. The SDK
+    /// calls it once for every presentation it began loading. Returns once a loading state no
+    /// other presentation waits behind has left the screen, so the next transition never
+    /// overlaps it. Does nothing by default.
+    func endLoading(presentation: Int) async
 }
 
 extension FlowPresenting {
+    public var endUserCanDismiss: Bool {
+        return false
+    }
+
+    public func beginLoading(
+        presentation: Int, locationSlug: String, onCancel: @escaping FlowLoadingCancelledHandler
+    ) {}
+
+    public func endLoading(presentation: Int) async {}
+
     public func supportsFlowPackage(_ flowPackage: SdkResolvedPaywall.FlowPackage) -> Bool {
         return supportsFlowPackage(abiVersion: flowPackage.abiVersion)
     }

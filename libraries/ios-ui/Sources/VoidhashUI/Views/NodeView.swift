@@ -104,7 +104,7 @@
         private var clipView: UIView?
         private var backdrop: BackdropBlurView?
         /// While `layerBlur` is set, holds what the view draws (decoration, content and
-        /// subviews), invisible; `blurOverlay` shows it blurred.
+        /// subviews), masked out of sight; `blurOverlay` shows it blurred.
         private var blurBody: UIView?
         private var blurOverlay: CALayer?
         /// Touches that began on this view, by the pointer id they are reported with.
@@ -414,7 +414,9 @@
                     }
                 }
                 decoration.move(to: body.layer)
-                body.layer.opacity = 0
+                // An empty mask, not a transparent body: VoiceOver skips a view whose alpha is
+                // 0, and the blurred content must still read and take presses.
+                body.layer.mask = CALayer()
                 let overlay = CALayer()
                 layer.addSublayer(overlay)
                 blurBody = body
@@ -456,14 +458,15 @@
             let format = UIGraphicsImageRendererFormat()
             format.scale = scale
             format.opaque = false
-            body.layer.opacity = 1
+            let mask = body.layer.mask
+            body.layer.mask = nil
             let snapshot = TextInputNodeView.withSecureTextHidden(in: body) {
                 UIGraphicsImageRenderer(size: canvas, format: format).image { context in
                     context.cgContext.translateBy(x: margin, y: margin)
                     body.layer.render(in: context.cgContext)
                 }
             }
-            body.layer.opacity = 0
+            body.layer.mask = mask
             overlay.frame = CGRect(x: -margin, y: -margin, width: canvas.width, height: canvas.height)
             overlay.contentsScale = scale
             overlay.contents = snapshot.cgImage.flatMap {
@@ -618,11 +621,16 @@
         /// Whether assistive technology sees the view as one element, by React Native's rules:
         /// as `accessible` says, else text and pressables are, other views are not.
         var accessibleElement: Bool {
-            // A button holding a developer's component is a container of the button's element
-            // and the component's.
+            // A button holding a developer's component or controls is a container of the
+            // button's element and theirs.
             if keepsComponents {
                 return false
             }
+            return elementByItself
+        }
+
+        /// Whether the view is one element by its own props, whatever it holds.
+        private var elementByItself: Bool {
             if let accessible = props["accessible"]?.bool {
                 return accessible
             }
@@ -630,12 +638,28 @@
                 || props["onPress"] != nil
         }
 
+        /// A control assistive technology reaches on its own, also inside an element: a text
+        /// field, or a view taking presses.
+        var isControl: Bool {
+            return kind == .textInput || props["onPress"] != nil
+        }
+
+        /// Whether a shown subview, or one under it, is a control (``isControl``).
+        var holdsControls: Bool {
+            return childNodes.contains { child in
+                !child.isHidden && !child.accessibilityElementsHidden
+                    && (child.isControl || child.holdsControls)
+            }
+        }
+
         /// Text the view itself shows.
         var ownText: String? {
             return nil
         }
 
-        /// What the view reads as: its label, or the text it and its subviews show.
+        /// What the view reads as: its label, or the text it and its subviews show, a line each,
+        /// as the engine's semantics join them, so assistive technology pauses between them. A
+        /// control inside it reads on its own, not as part of it.
         var spokenText: String? {
             if let label = props["accessibilityLabel"]?.string {
                 return label
@@ -645,12 +669,12 @@
                 parts.append(text)
             }
             for child in childNodes
-            where !child.isHidden && !child.accessibilityElementsHidden {
+            where !child.isHidden && !child.accessibilityElementsHidden && !child.isControl {
                 if let text = child.spokenText, !text.isEmpty {
                     parts.append(text)
                 }
             }
-            return parts.isEmpty ? nil : parts.joined(separator: " ")
+            return parts.isEmpty ? nil : parts.joined(separator: "\n")
         }
 
         override var isAccessibilityElement: Bool {
@@ -664,10 +688,12 @@
         }
 
         /// Whether the view is an `accessible` view holding a developer's component (views
-        /// protocol, "Native components", `accessibilityKeepsComponents`): its elements are
-        /// the button itself, then the component's own.
+        /// protocol, "Native components", `accessibilityKeepsComponents`), or an element holding
+        /// controls, which VoiceOver must reach on their own: its elements are the button itself,
+        /// then the component's own and the controls.
         var keepsComponents: Bool {
             return props["accessibilityKeepsComponents"]?.bool == true
+                || (elementByItself && holdsControls)
         }
 
         /// The element standing for the view itself while it keeps components.
@@ -684,14 +710,16 @@
         }
 
         /// What of the subtree of `node` reads on its own after the button, in order: each
-        /// component's view, and a view under it that decides for itself (`accessible`) and
-        /// holds one.
+        /// component's view, each control, and a view under it that decides for itself
+        /// (`accessible`) and holds a component.
         private func componentElements(under node: NodeView) -> [Any] {
             var elements: [Any] = []
             for child in node.childNodes
             where !child.isHidden && !child.accessibilityElementsHidden {
                 if let view = (child as? ExternalNodeView)?.component?.view {
                     elements.append(view)
+                } else if child.isControl {
+                    elements.append(child)
                 } else if child.props["accessible"] != nil || child.keepsComponents {
                     if child.showsNativeComponent {
                         elements.append(child)

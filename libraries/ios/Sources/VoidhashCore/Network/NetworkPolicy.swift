@@ -19,6 +19,9 @@ public enum NetworkPolicy {
     /// leave the screen. Past it nothing is shown; the package is still downloaded for the next
     /// presentation.
     public static let flowPresentationDeadlineSeconds: TimeInterval = 15
+    /// Longest a purchase or restore in a flow that goes on waits for the store's products read
+    /// again before the flow hears the result; products that take longer reach the flow after it.
+    public static let flowProductRefreshBudgetSeconds: TimeInterval = 2
     /// Backoff ceiling for queue and outbox retries.
     public static let queueBackoffCapMilliseconds: Double = 30_000
     /// Backoff ceiling for config refreshes (person, flags, paywalls, schema) after a failure.

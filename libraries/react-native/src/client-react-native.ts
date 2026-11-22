@@ -196,6 +196,7 @@ export function createVoidhashClient(
     flowCapabilities: Arr.dedupe(options.flowCapabilities ?? DEFAULT_FLOW_CAPABILITIES),
     flowRevisions: options.flowRevisions ?? {},
     flowRuntime: options.flowRuntime === "module" ? "module" : "linked",
+    flowLoading: options.flowLoading === "none" ? "none" : "standard",
     ingestUrl,
     installAttribution: options.installAttribution ?? true,
     internalSchema: Option.fromUndefinedOr(options.unstable_internalSchema),

@@ -20,12 +20,18 @@ import VoidhashCore
 /// shown since the process started, so flows that list more than the store holds do not push
 /// each other's images out on every launch.
 ///
+/// An image its flow's build pinned (``FlowPackageImages/sha256``) is stored and handed back only
+/// as the bytes the build recorded: one that hashes to anything else is refused with
+/// ``FlowImageMismatch`` rather than stored, and a stored copy that does not hash to it is
+/// discarded on reading. Any other image is kept as it arrived.
+///
 /// Images are not personal. The store belongs to the project, like the flow packages next to
 /// it, and a sign-out leaves it alone. An image stays as stored for as long as it is kept, so a
 /// URL should not be given other content.
 public actor FlowImageStore {
-    /// Fetches the bytes at a URL; throws on transport failures and non-success statuses.
-    public typealias Download = @Sendable (URL) async throws -> Data
+    /// Fetches the bytes at a URL, `pinned` when its package pins the image there; throws on
+    /// transport failures and non-success statuses.
+    public typealias Download = @Sendable (_ url: URL, _ pinned: Bool) async throws -> Data
 
     /// Largest image a flow shows.
     public static let maxImageBytes = 10 * 1024 * 1024
@@ -51,7 +57,7 @@ public actor FlowImageStore {
     private var prefetchedPackages: Set<String> = []
     /// The batches of images still to fetch ahead, and the one task working through them, so
     /// packages loaded together fetch one image at a time between them.
-    private var queuedBatches: [[String]] = []
+    private var queuedBatches: [FlowPackageImages] = []
     private var prefetching: Task<Void, Never>?
     private var isStopped = false
 
@@ -77,18 +83,18 @@ public actor FlowImageStore {
     /// A ``Download`` over `session` that fails on any non-2xx status and on an image larger
     /// than ``maxImageBytes``.
     public static func download(using session: URLSession) -> Download {
-        return { url in
+        return { url, pinned in
             try await FlowDownload.data(
-                from: url, using: session, maxBytes: FlowImageStore.maxImageBytes)
+                from: url, using: session, maxBytes: FlowImageStore.maxImageBytes, pinned: pinned)
         }
     }
 
-    /// The URL of an image a flow may show: `http` or `https`. A flow names its images itself,
-    /// so anything else, a `file:` URL for instance, is refused.
-    public static func remoteUrl(_ urlString: String) -> URL? {
-        guard let url = URL(string: urlString), let scheme = url.scheme?.lowercased(),
-            scheme == "https" || scheme == "http"
-        else {
+    /// The URL of an image a flow may download: one ``FlowUrlPolicy`` permits, `https` from a
+    /// host on the internet, the app's backend or, `pinned`, the host the package pins it at,
+    /// apart from a local development server. A flow names its images itself, so anything else,
+    /// a `file:` URL or a private network address for instance, is refused.
+    public static func remoteUrl(_ urlString: String, pinned: Bool = false) -> URL? {
+        guard let url = URL(string: urlString), FlowUrlPolicy.permits(url, pinned: pinned) else {
             return nil
         }
         return url
@@ -105,15 +111,28 @@ public actor FlowImageStore {
                 && Array(head[8...]) == Array("WEBP".utf8))
     }
 
-    /// The image stored for `urlString`; `nil` when there is none, or none that is intact.
-    /// Reading it counts as showing it.
-    public func image(at urlString: String) -> Data? {
+    /// Throws ``FlowImageMismatch`` unless `image` hashes to `sha256`, the hex SHA-256 its flow's
+    /// build recorded for it; checks nothing for an image the build did not pin (`nil`), which
+    /// cannot be verified. For a host that loads a flow's images without a store.
+    @_spi(VoidhashFlows)
+    public static func verify(_ image: Data, sha256: String?) throws {
+        if let sha256, FlowPackageStore.sha256(image) != sha256.lowercased() {
+            throw FlowImageMismatch()
+        }
+    }
+
+    /// The image stored for `urlString`; `nil` when there is none, or none that is intact or,
+    /// for an image its flow's build pinned to `sha256`, none that hashes to it. Reading it
+    /// counts as showing it.
+    public func image(at urlString: String, sha256: String?) -> Data? {
         guard let file = file(for: urlString), let stored = try? Data(contentsOf: file) else {
             return nil
         }
         let image = stored.dropFirst(FlowImageStore.digestLength)
+        let digest = SHA256.hash(data: image)
         guard stored.count > FlowImageStore.digestLength,
-            Data(SHA256.hash(data: image)) == stored.prefix(FlowImageStore.digestLength)
+            Data(digest) == stored.prefix(FlowImageStore.digestLength),
+            sha256 == nil || FlowPackageStore.hex(digest) == sha256?.lowercased()
         else {
             try? FileManager.default.removeItem(at: file)
             return nil
@@ -123,12 +142,20 @@ public actor FlowImageStore {
     }
 
     /// Keeps `image` for `urlString`, dropping the images shown longest ago when the store
-    /// would hold more than it may.
+    /// would hold more than it may. The image is hashed once, to verify it against `sha256`, the
+    /// hex SHA-256 its flow's build recorded for it (`nil` for one it did not pin), and to keep
+    /// its digest with it.
     ///
     /// - Returns: Whether it was stored: not an image of another scheme, bytes that are not an
     ///   image, one larger than ``maxImageBytes``, or when it could not be written.
+    /// - Throws: ``FlowImageMismatch`` for an image that does not hash to `sha256`, which is not
+    ///   stored.
     @discardableResult
-    public func store(_ image: Data, at urlString: String) -> Bool {
+    public func store(_ image: Data, at urlString: String, sha256: String?) throws -> Bool {
+        let digest = SHA256.hash(data: image)
+        if let sha256, FlowPackageStore.hex(digest) != sha256.lowercased() {
+            throw FlowImageMismatch()
+        }
         guard let directory, let file = file(for: urlString), FlowImageStore.isImage(image),
             image.count <= FlowImageStore.maxImageBytes
         else {
@@ -138,8 +165,7 @@ public actor FlowImageStore {
             try FileManager.default.createDirectory(
                 at: directory, withIntermediateDirectories: true,
                 attributes: FlowImageStore.directoryAttributes)
-            try (Data(SHA256.hash(data: image)) + image).write(
-                to: file, options: FlowImageStore.writingOptions)
+            try (Data(digest) + image).write(to: file, options: FlowImageStore.writingOptions)
         } catch {
             return false
         }
@@ -177,17 +203,21 @@ public actor FlowImageStore {
     /// is skipped, and when the server cannot be reached the rest of the batch is left to the
     /// renderer.
     ///
-    /// - Parameter imageUrls: The images the package lists; asked for only when the package's
+    /// An image its build pinned is stored only as the bytes the build recorded; other bytes are
+    /// skipped, like an image the server refuses.
+    ///
+    /// - Parameter images: The images the package lists; asked for only when the package's
     ///   images are fetched.
-    public func prefetch(package sha256: String, imageUrls: @Sendable () -> [String]) async {
+    @_spi(VoidhashFlows)
+    public func prefetch(package sha256: String, images: @Sendable () -> FlowPackageImages) async {
         guard directory != nil, !isStopped, prefetchedPackages.insert(sha256).inserted else {
             return
         }
-        let urlStrings = imageUrls()
-        guard !urlStrings.isEmpty else {
+        let listed = images()
+        guard !listed.urls.isEmpty else {
             return
         }
-        queuedBatches.append(urlStrings)
+        queuedBatches.append(listed)
         if prefetching == nil {
             prefetching = Task { await self.fetchQueuedBatches() }
         }
@@ -209,11 +239,13 @@ public actor FlowImageStore {
         prefetching = nil
     }
 
-    private func fetchMissing(_ urlStrings: [String]) async {
+    private func fetchMissing(_ images: FlowPackageImages) async {
         var seen: Set<String> = []
-        let wanted = urlStrings.compactMap { urlString -> (urlString: String, url: URL, file: URL)? in
+        let wanted = images.urls.compactMap { urlString -> (urlString: String, url: URL, file: URL)? in
             guard seen.insert(urlString).inserted,
-                let url = FlowImageStore.remoteUrl(urlString), let file = file(for: urlString)
+                let url = FlowImageStore.remoteUrl(
+                    urlString, pinned: images.sha256[urlString] != nil),
+                let file = file(for: urlString)
             else {
                 return nil
             }
@@ -230,7 +262,7 @@ public actor FlowImageStore {
             }
             let bytes: Data
             do {
-                bytes = try await download(image.url)
+                bytes = try await download(image.url, images.sha256[image.urlString] != nil)
             } catch is FlowDownloadError {
                 continue
             } catch {
@@ -247,7 +279,9 @@ public actor FlowImageStore {
             guard bytes.count + FlowImageStore.digestLength <= roomWithoutDroppingThisRun() else {
                 return
             }
-            if store(bytes, at: image.urlString) {
+            if (try? store(bytes, at: image.urlString, sha256: images.sha256[image.urlString]))
+                == true
+            {
                 writtenBytes += bytes.count
             }
             if writtenBytes >= maxBytes / 2 {
@@ -270,9 +304,9 @@ public actor FlowImageStore {
     }
 
     /// The file of the image at `urlString`; `nil` without a directory and for a URL that is
-    /// not an image a flow may show.
+    /// not an image a flow may show, even pinned.
     private func file(for urlString: String) -> URL? {
-        guard let directory, FlowImageStore.remoteUrl(urlString) != nil else {
+        guard let directory, FlowImageStore.remoteUrl(urlString, pinned: true) != nil else {
             return nil
         }
         let name = SHA256.hash(data: Data(urlString.utf8))
@@ -374,4 +408,15 @@ public actor FlowImageStore {
             return [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
         }
     #endif
+}
+
+/// The bytes of an image its flow's build pinned are not the ones the build recorded: swapped or
+/// damaged at rest or on the way. The image is not shown and not kept.
+@_spi(VoidhashFlows)
+public struct FlowImageMismatch: LocalizedError, Equatable {
+    public init() {}
+
+    public var errorDescription: String? {
+        return "its bytes are not the ones the flow's build recorded"
+    }
 }

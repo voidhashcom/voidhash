@@ -188,10 +188,24 @@ public struct FlowResult: Sendable, Equatable {
     public let output: [String: FlowValue]
     /// The product bought, when the outcome is ``purchased``.
     public let productId: String?
+    /// Whether the flow reached the screen. `false` for a presentation that ended before it was
+    /// shown, with the outcome ``dismissed``: the end user closed the loading screen, or the app
+    /// dismissed it or presented another flow while it loaded. Not part of `==`, so results
+    /// compare as they did before it existed.
+    public let wasShown: Bool
 
-    public init(outcome: String, output: [String: FlowValue] = [:], productId: String? = nil) {
+    public init(
+        outcome: String, output: [String: FlowValue] = [:], productId: String? = nil,
+        wasShown: Bool = true
+    ) {
         self.outcome = outcome
         self.output = output
         self.productId = productId
+        self.wasShown = wasShown
+    }
+
+    public static func == (lhs: FlowResult, rhs: FlowResult) -> Bool {
+        return lhs.outcome == rhs.outcome && lhs.output == rhs.output
+            && lhs.productId == rhs.productId
     }
 }

@@ -25,6 +25,12 @@ class SdkResolvedPaywallJsonEncoding
      */
     protected $showing;
     /**
+     * The SHA-256 hashes, as hex, of flow packages withdrawn as bad that the app may hold for this location: never show one of them, not even as the package last shown here when the served one cannot be downloaded. At most 20, the most recently withdrawn of the flows read here; never the served package's hash. Left out when none is, as most answers are, and by servers that predate withdrawals.
+     *
+     * @var list<string>|null
+     */
+    protected $withdrawnPackages;
+    /**
      * The location the paywall is shown at.
      *
      * @return SdkResolvedPaywallJsonEncodingLocation
@@ -66,6 +72,28 @@ class SdkResolvedPaywallJsonEncoding
     {
         $this->initialized['showing'] = true;
         $this->showing = $showing;
+        return $this;
+    }
+    /**
+     * The SHA-256 hashes, as hex, of flow packages withdrawn as bad that the app may hold for this location: never show one of them, not even as the package last shown here when the served one cannot be downloaded. At most 20, the most recently withdrawn of the flows read here; never the served package's hash. Left out when none is, as most answers are, and by servers that predate withdrawals.
+     *
+     * @return list<string>|null
+     */
+    public function getWithdrawnPackages(): ?array
+    {
+        return $this->withdrawnPackages;
+    }
+    /**
+     * The SHA-256 hashes, as hex, of flow packages withdrawn as bad that the app may hold for this location: never show one of them, not even as the package last shown here when the served one cannot be downloaded. At most 20, the most recently withdrawn of the flows read here; never the served package's hash. Left out when none is, as most answers are, and by servers that predate withdrawals.
+     *
+     * @param list<string>|null $withdrawnPackages
+     *
+     * @return self
+     */
+    public function setWithdrawnPackages(?array $withdrawnPackages): self
+    {
+        $this->initialized['withdrawnPackages'] = true;
+        $this->withdrawnPackages = $withdrawnPackages;
         return $this;
     }
 }

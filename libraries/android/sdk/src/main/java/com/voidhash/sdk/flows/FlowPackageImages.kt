@@ -1,5 +1,6 @@
 package com.voidhash.sdk.flows
 
+import java.io.IOException
 import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -22,37 +23,74 @@ private const val VALUE_OBJECT = 6
 private class UnreadablePackage : Exception()
 
 /**
- * The image URLs a flow package lists for prefetching: `images` of its `META` section, every
- * image any of its screens can show.
+ * The images a flow package lists, read without the renderer: every URL a node can show, for
+ * fetching them before the flow is shown, and the SHA-256 the build recorded for each image it
+ * pinned, which whoever loads the flow's images verifies the bytes it shows against.
  *
- * Reads only the package's section table, string table and metadata; the renderer's runtime is
- * what decodes and validates a package. Prefetching is a courtesy, so a package this reader
- * cannot make sense of lists no images instead of failing anything: whatever goes wrong while
- * reading it. No count a package states is believed beyond what the bytes left could hold.
+ * @property urls every image URL a node of the package can show, as `images` of its `META`
+ *   section lists them.
+ * @property sha256 the lowercase hex SHA-256 its build recorded for each uploaded image the
+ *   package shows, by URL (`META` `imageSha256`). An image URL missing here was typed by a
+ *   designer or is worked out on the device, or the package was built before builds recorded
+ *   hashes: it is shown unverified.
  */
-internal fun flowPackageImages(bytes: ByteArray): List<String> = try {
-    val reader = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-    if (reader.int != PACKAGE_MAGIC) throw UnreadablePackage()
-    // The ABI version and the flags: the section layout read here is the same in every version.
-    reader.skip(4)
-    var strings: ByteBuffer? = null
-    var meta: ByteBuffer? = null
-    repeat(reader.count(SECTION_HEADER_BYTES)) {
-        val tag = ByteArray(4).also(reader::get).toString(Charsets.US_ASCII)
-        val body = reader.section()
-        when (tag) {
-            "STRS" -> strings = body
-            "META" -> meta = body
+class FlowPackageImages(val urls: List<String> = emptyList(), val sha256: Map<String, String> = emptyMap()) {
+    override fun equals(other: Any?): Boolean = other is FlowPackageImages && other.urls == urls && other.sha256 == sha256
+
+    override fun hashCode(): Int = 31 * urls.hashCode() + sha256.hashCode()
+
+    override fun toString(): String = "FlowPackageImages(urls=$urls, sha256=$sha256)"
+
+    companion object {
+        /**
+         * The images the flow package [bytes] lists.
+         *
+         * Reads only the package's section table, string table and metadata; the renderer's
+         * runtime is what decodes and validates a package. A package this reader cannot make
+         * sense of lists no images and pins none, whatever goes wrong while reading it: the
+         * renderer reports a package it cannot show. No count a package states is believed
+         * beyond what the bytes left could hold.
+         */
+        fun of(bytes: ByteArray): FlowPackageImages = try {
+            val reader = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            if (reader.int != PACKAGE_MAGIC) throw UnreadablePackage()
+            // The ABI version and the flags: the section layout read here is the same in every version.
+            reader.skip(4)
+            var strings: ByteBuffer? = null
+            var meta: ByteBuffer? = null
+            repeat(reader.count(SECTION_HEADER_BYTES)) {
+                val tag = ByteArray(4).also(reader::get).toString(Charsets.US_ASCII)
+                val body = reader.section()
+                when (tag) {
+                    "STRS" -> strings = body
+                    "META" -> meta = body
+                }
+            }
+            val table = readStrings(strings ?: throw UnreadablePackage())
+            imagesOf(meta ?: throw UnreadablePackage(), table)
+        } catch (error: UnreadablePackage) {
+            FlowPackageImages()
+        } catch (error: RuntimeException) {
+            // A buffer read past its end, or anything else a malformed package trips.
+            FlowPackageImages()
+        }
+
+        /**
+         * Throws [FlowImageMismatchException] unless [image] hashes to [sha256], the hex SHA-256
+         * its flow's build recorded for it; checks nothing for an image the build did not pin
+         * (`null`), which cannot be verified. For a renderer that loads a flow's images itself.
+         */
+        fun verify(image: ByteArray, sha256: String?) {
+            if (sha256 != null && FlowPackageStore.sha256Hex(image) != sha256.lowercase()) throw FlowImageMismatchException()
         }
     }
-    val table = readStrings(strings ?: throw UnreadablePackage())
-    imagesOf(meta ?: throw UnreadablePackage(), table)
-} catch (error: UnreadablePackage) {
-    emptyList()
-} catch (error: RuntimeException) {
-    // A buffer read past its end, or anything else a malformed package trips.
-    emptyList()
 }
+
+/**
+ * The bytes of an image its flow's build pinned are not the ones the build recorded: swapped or
+ * damaged at rest or on the way. The image is not shown and not kept.
+ */
+class FlowImageMismatchException : IOException("its bytes are not the ones the flow's build recorded")
 
 /** A section's tag and length. */
 private const val SECTION_HEADER_BYTES = 8
@@ -102,22 +140,32 @@ private fun readStrings(section: ByteBuffer): List<String> = List(section.count(
     ByteArray(length).also(section::get).toString(Charsets.UTF_8)
 }
 
-/** The strings of the `images` array of the metadata object in [meta]; empty without one. */
-private fun imagesOf(meta: ByteBuffer, strings: List<String>): List<String> {
+/** The `images` and `imageSha256` of the metadata object in [meta]; none without them. */
+private fun imagesOf(meta: ByteBuffer, strings: List<String>): FlowPackageImages {
     if (meta.get().toInt() != VALUE_OBJECT) throw UnreadablePackage()
+    fun string(): String {
+        if (meta.get().toInt() != VALUE_STRING) throw UnreadablePackage()
+        return strings.getOrNull(meta.int) ?: throw UnreadablePackage()
+    }
+    var urls = emptyList<String>()
+    val sha256 = HashMap<String, String>()
     repeat(meta.count(OBJECT_ENTRY_BYTES)) {
-        val key = strings.getOrNull(meta.int) ?: throw UnreadablePackage()
-        if (key != "images") {
-            skipValue(meta, depth = 1)
-            return@repeat
-        }
-        if (meta.get().toInt() != VALUE_ARRAY) throw UnreadablePackage()
-        return List(meta.count(STRING_VALUE_BYTES)) {
-            if (meta.get().toInt() != VALUE_STRING) throw UnreadablePackage()
-            strings.getOrNull(meta.int) ?: throw UnreadablePackage()
+        when (strings.getOrNull(meta.int) ?: throw UnreadablePackage()) {
+            "images" -> {
+                if (meta.get().toInt() != VALUE_ARRAY) throw UnreadablePackage()
+                urls = List(meta.count(STRING_VALUE_BYTES)) { string() }
+            }
+            "imageSha256" -> {
+                if (meta.get().toInt() != VALUE_OBJECT) throw UnreadablePackage()
+                repeat(meta.count(4 + STRING_VALUE_BYTES)) {
+                    val url = strings.getOrNull(meta.int) ?: throw UnreadablePackage()
+                    sha256[url] = string().lowercase()
+                }
+            }
+            else -> skipValue(meta, depth = 1)
         }
     }
-    return emptyList()
+    return FlowPackageImages(urls, sha256)
 }
 
 private fun skipValue(reader: ByteBuffer, depth: Int) {

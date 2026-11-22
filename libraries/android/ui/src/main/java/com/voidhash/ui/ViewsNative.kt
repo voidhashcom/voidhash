@@ -116,7 +116,14 @@ internal object ViewsNative {
      * `unavailable: <reason>`. May compile a module: never on the main thread.
      */
     @JvmStatic
-    external fun nativeRuntimePrepare(version: String, sha256: String, url: String): String
+    external fun nativeRuntimePrepare(version: String, sha256: String, url: String, signature: String): String
+
+    /**
+     * Trusts the development root, whose private key is public, so modules signed with the
+     * development keys run. Only a debuggable app calls it ([RuntimeModules.trustDevelopmentKeys]).
+     */
+    @JvmStatic
+    external fun nativeRuntimeTrustDevelopmentRoot()
 
     /** The next runtime module to download, as `<sha256> <url>`, or `null`. */
     @JvmStatic
@@ -280,6 +287,10 @@ internal object ViewsNative {
     /** How much of the surface's bottom the keyboard covers, in dp; 0 when it is hidden. */
     @JvmStatic
     external fun nativeSetKeyboardInset(handle: Long, height: Float)
+
+    /** For tests only: stops timing the canvas frames of packages the surface loads from now on. */
+    @JvmStatic
+    external fun nativeUntimeCanvasFramesForTests(handle: Long)
 
     /** Returns the frame flags; see [ViewsFrameFlags]. */
     @JvmStatic

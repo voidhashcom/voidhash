@@ -6,7 +6,7 @@ class PaywallsCreate extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoin
 {
     protected $projectId;
     /**
-     * Creates an empty paywall, or an onboarding flow with `kind: onboarding`. The slug cannot change afterwards. Fails with `conflict` (`paywall_slug_taken`) when the slug is in use.
+     * Creates a paywall, or an onboarding flow with `kind: onboarding`, whose design is one empty screen, or a copy of a `template` from `paywall_templates.list`. Either way it is made for no location and has no builds. The slug cannot change afterwards. Fails with `conflict` (`paywall_slug_taken`) when the slug is in use, and `invalid_request` (`paywall_template_not_found`) when there is no such template for the flow's purpose.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallBodyJsonEncoding $requestBody
      */

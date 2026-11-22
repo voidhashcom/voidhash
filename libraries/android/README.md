@@ -1311,6 +1311,32 @@ under way finishes, and the flow is cached. Only one flow is on screen at a time
 closes the current one, whose `presentFlow` returns the outcome `dismissed`, and cancelling the coroutine that
 called `presentFlow` dismisses its flow.
 
+A flow that has to wait for the network shows a loading screen 0.4 s after `presentFlow`, at least
+long enough to be read, until the flow has drawn above it: a progress indicator TalkBack announces
+as loading (the `voidhash_flow_loading` string, English only; the app can translate it) and a
+cancel button, on the theme's `android:colorBackground`. It follows the activity through a
+recreation. A flow already on the device appears before then, without it. The cancel button, or
+back, ends the presentation as `dismissed` with `FlowResult.wasShown` `false`, which a flow the end
+user closed has `true`; it is reported as `$paywall_load_cancelled` (`cancelledBy: "end_user"`) once
+an answer named the flow. Set `loading` on a `FlowViewRenderer` you pass as `flowRenderer` to
+`FlowLoading.Custom { context, cancel -> … }` for a view of your own, or to `FlowLoading.None` to
+keep your screen until the flow is ready.
+
+A location the device has never loaded shows nothing while Voidhash can't be reached, as on a first
+launch offline. To show a flow then, ship it in the app's `assets/voidhash-flows/`: the location's
+answer as `<location>.json` and its build as `<location>.vhfp`, which
+`voidhash location bundle <location> --out app/src/main/assets/voidhash-flows` writes (pass
+`--revision <location>=<n>` for a location presented with a revision). Without the CLI, save what
+`resolvePaywallJson(location)` returns, captured as a fresh anonymous person outside any A/B test,
+pin or rule, with `"notAfter"`, an ISO 8601 time, and `"interfaceRevision"`, a whole number, added,
+and download its build from the answer's `flowPackage.url`. It is read off the main thread
+and shown only when the device has no answer for the location and couldn't reach Voidhash (no
+connection, a timeout, a server error); never when Voidhash answered, an error or an earlier empty
+answer included, after `notAfter`, when the build's SHA-256 or revision doesn't match, or once the
+device has heard that the build was withdrawn. On a first launch offline it is shown however old
+it is, until `notAfter`. Purchases from it carry `source: "bundled"` in their paywall context, and
+every flow event carries `packageSource` (`network`, `cache` or `bundled`).
+
 A flow stays up when Android recreates the activity under it for a configuration change, such as a
 rotation, a switch to dark mode, another font size or locale, or a resized window: the SDK shows the
 same flow again above the recreated activity, and `presentFlow` keeps waiting for its result, also
@@ -1321,8 +1347,21 @@ any other reason closes the flow as `dismissed`, and so does a recreated activit
 before it starts.
 
 A flow that comes back on screen, after a recreation or after the app was in the background or the
-screen was off, starts again at its first screen, with the variables saved until then (see
-[Saved progress](#saved-progress)). It still counts as one view: `$paywall_viewed` is captured once per `presentFlow`.
+screen was off, comes back where the end user was: on the same screen, with the screens before it
+for the back button, the keyboard on the field that had it and the variables saved until then (see
+[Saved progress](#saved-progress)). What it was waiting for goes on: a timer, your app's answer to an
+app action, a purchase in progress. Scroll positions start at the top again, and a text field bound
+to no variable comes back empty. It is still the same presentation: viewed once and ended once, with
+no screen or event of the flow tracked again (see [Flow analytics](#flow-analytics)). A later
+presentation starts at the flow's first screen.
+
+To come back, the SDK keeps where the end user is in memory with the presentation. That includes
+the values the flow's waiting logic works with, which can be what the end user typed, though never
+what was typed into a password field. It is never written to disk, logged or sent anywhere, and it
+goes when the presentation ends; only the flow's variables are saved, as before. A purchase started
+from a repeated element, such as a plan card in a list, goes on at its result when the same card is
+shown again; when the list changed meanwhile, the purchase still ends the flow if it is set to, and
+a failure shows the flow's own message.
 A single frame that fails to draw is drawn again; the flow ends with `PRESENTATION_FAILED` only after
 three failed frames in a row.
 
@@ -1338,16 +1377,49 @@ which resolves to the first product with that id. Each product reaches the flow 
 as text — `month`, `year`, `3 months`, `2 weeks`; `lifetime` for a development-mode product whose
 development period is `lifetime` — and its free trial as `trial` — `1 week`, `3 days` — when the user can get one.
 
-Events a flow tracks are captured like `capture(...)` with `paywall_location` (the location) and
-`paywall_id` added, and each screen the user reaches is recorded like `screen(...)` with
-`paywall_location` and `flow_screen_index`.
-
 A purchase started from a flow is reported with the paywall it was made on, so its revenue, and
 the revenue of its renewals, is credited to the location, paywall, release and experiment variant
 in Voidhash analytics, also when Google Play completes a pending payment later. Purchases made
-outside a flow and restores are not credited to a paywall. A `FlowHost` of your own receives
-that paywall in `purchase(product, offerId, paywallContext)`, to send with the receipt as
-`paywallContext`; by default it buys through the other `purchase` methods and names no paywall.
+outside a flow and restores are not credited to a paywall.
+
+#### Flow analytics
+
+Each call to `presentFlow` that gets an answer naming a flow is one presentation, and the SDK
+reports how it went through the analytics queue, with analytics consent like any other event:
+
+| Event                     | When                                                                           | Properties                                                                                                                                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$paywall_viewed`         | The flow is configured and drawn: once per presentation                        | `loadDurationMs` from the call, `flow_screen_index` and `flow_screen_name` of the first screen, `productsUnavailable: true` when it is shown without its store products                                                                     |
+| `$paywall_load_failed`    | It failed before it was viewed                                                 | `reason`: `package_download_failed`, `package_integrity_failed`, `package_unsupported`, `runtime_download_failed`, `render_failed` (the flow could not be drawn or started), `timeout` (not ready within 15 s) or `other`; `loadDurationMs` |
+| `$paywall_load_cancelled` | It was given up before it was viewed                                           | `cancelledBy`: `app` (`dismissFlow`, a cancelled coroutine, another presentation, `shutdown`, its activity finishing) or `end_user` (the loading screen's cancel button or back); `loadDurationMs`                                          |
+| `$paywall_completed`      | A viewed flow ended through an end step, or a purchase or restore that ends it | `completion`: `end_step`, `purchase` or `restore`                                                                                                                                                                                           |
+| `$paywall_dismissed`      | A viewed flow was closed any other way                                         | `reason`: `close` (the flow's close action, which the back button triggers from its first screen), `app` (as for `cancelledBy`) or `error` (it could no longer be drawn)                                                                    |
+
+Every event about a flow, the flow's own included, carries `packageSource` once its build is
+loaded: `network`, `cache` or `bundled`.
+
+A presentation reports exactly one of the first three, then, once viewed, one ending, unless the
+app's process ends first. The back button is passed to the flow, which goes back a screen or, from
+its first one, closes as its close action does, so it is reported as `close`; `cancelledBy:
+end_user` and `reason: system`, which other platforms send for a system gesture, practically never
+occur on Android. A preload, a launch or foreground refresh and `resolvePaywall` are not
+presentations, and a call that gets no flow to show (nothing assigned, or nothing cached while
+Voidhash is unreachable) reports nothing. Retrying after a failure is a new presentation; a flow
+shown again after a configuration change is not, also when the activity was recreated while the
+flow was still loading. `shutdown()` closes the flow on screen first, so its ending is part of the
+final flush.
+
+Every one of these, the events the flow tracks itself (captured like `capture(...)`) and each
+screen the user reaches (recorded like `screen(...)` with `flow_screen_index`) carry
+`paywallLocationId`, `paywallShowingId`, `paywallId`, `paywallReleaseId` and `paywall_location`
+(the location's slug). No property carries a message of the device, the store or an error.
+
+When an A/B test chose what a location shows, a person is counted in the test when the SDK
+presents the flow, or when the paywall is handed to your app's own UI by `resolvePaywall`,
+`resolvePaywallState` or the React Native `getPaywallForLocation`, including a call made only to
+see what is assigned. Each such hand-off is reported as `$paywall_handed_off`. Prefetching,
+preloading and refreshing count nobody. `VoidhashApiClient.resolvePaywallRaw` called without
+`reportsExposure` lets Voidhash count the person on resolving.
 
 #### Text inputs
 
@@ -1372,7 +1444,9 @@ TalkBack, Switch Access and Voice Access see each text input as an edit field, n
 accessibility label or placeholder. Activating it shows the keyboard; its text can be dictated or
 replaced, and while it has the keyboard the cursor moves by character, word and line, with cut,
 copy and paste. A password input's text is never read out. A disabled input or button is announced
-as unavailable, and a slider is adjusted with the usual swipe up and down.
+as unavailable, and a slider is adjusted with the usual swipe up and down. A link, a pressable part
+of a text or an element whose role is link, is announced as a link and listed in TalkBack's links
+menu, from which it can be opened; on Android 6 to 7.1 it reads as text that can be clicked.
 
 `presentFlow` needs nothing from your activity for this. If you put a `FlowView` in a
 layout of your own, it works best in a window drawn edge to edge or one with
@@ -1435,6 +1509,19 @@ all is removed, so the next presentation fetches it again. They are the same for
 `reset()` and `signOut()` leave them in place. An image that cannot be loaded is left out and
 reported as a warning; it never fails or delays a flow.
 
+An answer is fresh for five minutes, a flow or "nothing here" alike. After that, `presentFlow` and
+`resolvePaywall` ask Voidhash again and wait at most 500 ms for the reply before using the cached
+answer, and offline they use it at once; it stays usable for seven days. When the app comes to the
+foreground or the device reconnects, at most once a minute, the SDK refreshes the locations whose
+answer is no longer fresh, one at a time, and leaves the rest for later when a request fails. So a
+change to what a location shows, a release withdrawn or a location switched off reaches an online
+device within about five minutes of its next presentation or foreground.
+
+A release withdrawn as bad is never shown again: not when an answer cached before still names it,
+and not as the package a location falls back to while its new one cannot be downloaded. Its
+package is deleted from the device unless another location still uses it. A presentation that has
+nothing else to show then fails with `UNAVAILABLE`.
+
 `presentFlow` gives a flow 15 seconds, from the call until the flow is ready to show, to resolve
 its location and download its package. A flow that is not ready by then is not shown: it would
 appear over whatever the user went on to do. The call throws a `FlowException` with
@@ -1461,7 +1548,9 @@ only the module reads gets its keyboard settings when first focused.
 val status = voidhash.shutdown()
 ```
 
-Writes anything captured but not yet persisted to disk, flushes analytics for at most 2 s, waits
+Closes the flow on screen and cancels one still loading, whose `presentFlow` returns `dismissed`
+and whose analytics are part of the final flush. Then writes anything captured but not yet
+persisted to disk, flushes analytics for at most 2 s, waits
 for the SDK's writes still under way to reach disk, and ends the Play Billing connection in the
 background. Events the final flush did not send stay on
 disk for the next client configured with the same publishable key and base URL. Returns the same `FlushStatus` as `flush()`. It also stops

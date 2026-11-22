@@ -8,7 +8,7 @@ class PaywallsDeployBuild extends \Voidhash\Generated\Core\Runtime\Client\BaseEn
     protected $paywallId;
     protected $buildId;
     /**
-     * Deploys a ready build: every location showing the paywall shows it from now on, and deploying an older build rolls back to it. Fails with `conflict` (`paywall_build_not_ready`) while the build is `building` or after it `failed`, and `conflict` (`paywall_build_components_unavailable`) when a component it embeds was yanked, deprecated, deleted or uninstalled since it was built; the message names each one.
+     * Deploys a ready build to both production and test: every location showing the paywall shows it from now on, to every app, and deploying an older build rolls back to it. Test follows production again afterwards. To deploy to one environment only, use `setEnvironment`. Fails with `conflict` (`paywall_build_not_ready`) while the build is `building` or after it `failed`, `conflict` (`paywall_build_withdrawn`) while it is withdrawn (`restoreBuild` restores it), and `conflict` (`paywall_build_components_unavailable`) when a component it embeds was yanked, deprecated, deleted or uninstalled since it was built; the message names each one.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param string $buildId The build's id, `pw_build_...`.

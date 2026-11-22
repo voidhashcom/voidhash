@@ -44,6 +44,13 @@ Concretely:
 - Reads are cache-first. `getCurrentPerson`, `getFeatureFlags` and `getPaywall` answer from the
   cache and refresh behind the read. A stale value waits at most 500 ms for the refresh before
   being returned as is; the refresh continues and lands for the next read.
+- A location's answer, a flow or nothing, is fresh for 5 minutes and kept for 7 days. At launch
+  every location the device has resolved is resolved again; on each return to the foreground and
+  each time connectivity comes back (each at most once a minute) those older than 5 minutes are, in
+  the background and one at a time. A failed resolve backs the rest off like any failed refresh. So
+  a release withdrawn or a location switched off reaches an online device within about 5 minutes,
+  and a device that was offline as soon as it is back. A read or presentation that joins a refresh
+  already in flight gets the cached answer when that refresh fails.
 - A flag read with nothing cached waits at most `featureFlags.maxWaitMilliseconds` (2 s). Without
   an answer by then it returns no flags, marked stale and expired, apart from the requested keys
   that have a `featureFlags.defaults` entry; the evaluation carries on in the background, is
@@ -1042,7 +1049,11 @@ if result.outcome == .completed { save(result.output.goal) }
 `presentFlow` returns once the flow has ended and left the screen, so you can present your next
 screen as soon as it returns. It downloads the published package, verifies it against the hash the
 backend reported and keeps it on the device, so a location shown once shows again offline, and a
-package that cannot be downloaded falls back to the one the location showed last. A package
+package that cannot be downloaded falls back to the one the location showed last, unless the
+backend withdrew that one. A withdrawn package is deleted from the device once an answer names it
+and is never shown again, offline either, whichever cached answer names it (until an answer serves
+it again, when a withdrawal is reversed): the
+location shows nothing and `presentFlow` throws `FlowError.unavailable`. A package
 larger than 16 MB is not loaded. A flow shows images from `http` and `https` URLs only, and skips
 an image larger than 10 MB.
 
@@ -1082,6 +1093,30 @@ does the same. In both cases `presentFlow` returns the outcome `dismissed`, as i
 the flow's view controller itself, for example by dismissing everything its root view controller
 presents.
 
+A flow that has to wait for the network shows a loading screen 0.4 s after `presentFlow`, at least
+long enough to be read, until the flow takes its place: a spinner VoiceOver announces and a close
+button, on the system background. A flow already on the device appears before then, without it.
+Closing it, or the VoiceOver escape gesture, ends the presentation as `dismissed` with
+`FlowResult.wasShown` `false`, which a flow the end user closed has `true`; it is reported as
+`$paywall_load_cancelled` (`cancelledBy: "end_user"`) once an answer named the flow. Set `loading`
+on a `FlowViewRenderer` you pass as `options.flowRenderer` to `.custom { cancel in … }` for a
+`UIView` of your own, or to `.none` to keep your screen until the flow is ready.
+
+A location the device has never loaded shows nothing while Voidhash can't be reached, as on a first
+launch offline. To show a flow then, ship it in a `VoidhashFlows` folder reference of the app
+target: the location's answer as `<location>.json` and its build as `<location>.vhfp`, which
+`voidhash location bundle <location> --out <App>/VoidhashFlows` writes (pass
+`--revision <location>=<n>` for a location presented with a revision). Without the CLI, save what
+`getPaywall(location:)` returns, captured as a fresh anonymous person outside any A/B test, pin or
+rule, encoded as JSON, with `"notAfter"`, an ISO 8601 time, and `"interfaceRevision"`, a whole
+number, added, and download its build from the answer's `flowPackage.url`. It is
+shown only when the device has no answer for the location and couldn't reach Voidhash (no
+connection, a timeout, a server error); never when Voidhash answered, an error or an earlier empty
+answer included, after `notAfter`, when the build's SHA-256 or revision doesn't match, or once the
+device has heard that the build was withdrawn. On a first launch offline it is shown however old it
+is, until `notAfter`. Purchases from it carry `source: "bundled"` in their paywall context, and
+every flow event carries `packageSource` (`network`, `cache` or `bundled`).
+
 Shutting the client down, which configuring the SDK again does to the client it replaces, ends
 its flows too: a flow on screen is closed and its `presentFlow` returns the outcome `dismissed`,
 and one that is still loading is not shown and throws `.disabled`. `dismissFlow()` on that client still
@@ -1106,15 +1141,46 @@ action you did not grant is skipped and reported through `onWarning`:
   `NSUserTrackingUsageDescription`; without it the request is refused.
 - `.attributes` sets person attributes, like `setPersonAttributes`.
 
-Events a flow tracks are captured with `paywall_location` and `paywall_id` properties, and each
-screen it shows is recorded as a `$screen`.
+**Analytics.** Each presentation that resolved to a flow package reports exactly one first event,
+with `loadDurationMs` (from the `presentFlow` call; every event about the flow also carries
+`packageSource`, `network`, `cache` or `bundled`, once its build is loaded): `$paywall_viewed` when
+the flow runtime reports its first configured frame, with the screen it opened on
+(`flow_screen_index`, `flow_screen_name`) and `productsUnavailable: true` when its products could
+not be loaded, or, before that, `$paywall_load_failed` (`reason`: `package_download_failed`,
+`package_integrity_failed`, `package_unsupported`, `render_failed`, `timeout` or `other`; a runtime
+that cannot be downloaded or started is reported as `render_failed`) or `$paywall_load_cancelled` (`cancelledBy`: `app`, or
+`end_user` with a presenter whose `endUserCanDismiss` is true). A viewed flow then reports one
+ending, unless the process ends first: `$paywall_completed` (`completion`: `end_step`, or
+`purchase` or `restore` when it ends the flow) or `$paywall_dismissed` (`reason`: `close`, `app`,
+`error`, or `system` with such a presenter). A flow that ends before its runtime reported the view
+is never reported as viewed.
+
+With the bundled renderer the flow is presented full screen, and the end user leaves it only
+through the flow itself, so a flow the SDK did not close, taken off the screen by the app or the
+system, is reported as `app`: `cancelledBy: app` before its view, `reason: app` after it. `system`
+and `end_user` are reported only by a custom presenter whose `endUserCanDismiss` is true. A
+presentation that never got a flow to show (`.notAssigned`, `.rendererMissing`, `.disabled`, or
+`.unavailable` with nothing cached and the backend unreachable) reports nothing. A retry is a
+presentation of its own.
+
+When an A/B test chose the flow, the person is counted in the test when the SDK presents it or
+hands it to the app: the first event of every presentation of that answer carries the answer's
+exposure token, and so does `$paywall_handed_off`, which `getPaywall` and `getPaywallState` record
+on every call that returns such an answer, also a call made only to see what is assigned.
+Preloading and the SDK's own refreshes count nobody and report nothing. `resolvePaywallConfig`
+caches nothing and reports nothing; the backend counts the person when it answers.
+
+These events, the hand-off, the events a flow tracks and the `$screen` recorded for each screen it
+shows carry `paywallLocationId`, `paywallShowingId`, `paywallId`, `paywallReleaseId` and
+`paywall_location` (the location's slug). They are queued like every event, so one reported offline
+is sent later, once, and they follow analytics consent. A flow presented by your own presenter
+reports only the hand-off. The exposure token itself never reaches the app: it is not part of the
+answer's JSON, description or logs.
 
 A purchase started from a flow is reported with the paywall it was made on, so its revenue, and
 the revenue of its renewals, is credited to the location, paywall, release and experiment variant
 in Voidhash analytics. Purchases made outside a flow and restores are not credited to a paywall,
-and neither is an Ask to Buy purchase approved after the flow closed. A `FlowHost` of your own
-receives that paywall in `purchaseFromPaywall`, to send with the receipt as `paywallContext`;
-without it, the flow buys through `purchase` and `purchaseOffer` and names no paywall.
+and neither is an Ask to Buy purchase approved after the flow closed.
 
 **Saved progress.** A flow's own state is saved on the device as the user moves through it, per
 person and flow, and restored the next time the flow is presented, so a user who leaves an

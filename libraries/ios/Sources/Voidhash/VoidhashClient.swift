@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 import StoreKit
-import VoidhashCore
+@_spi(VoidhashFlows) import VoidhashCore
 
 #if canImport(UIKit)
     import UIKit
@@ -60,6 +60,8 @@ public actor VoidhashClient {
         var flowImageDirectory: @Sendable (String) -> URL? = { namespace in
             FlowImageStore.cachesDirectory(namespace: namespace)
         }
+        /// The flows the app bundles, read only when a presentation falls back to one.
+        var bundledFlows: @Sendable () -> BundledFlows = { BundledFlows.main() }
         var device: SdkDeviceInfo = SdkDeviceInfo.current()
         var analyticsNow: @Sendable () -> Double = { Date().timeIntervalSince1970 * 1000 }
         var analyticsSleep: @Sendable (Double) async -> Void = { milliseconds in
@@ -127,7 +129,10 @@ public actor VoidhashClient {
     private static let personCacheTtlMilliseconds: Double = 1000 * 60 * 60 * 24 * 2
     private static let flagsCacheStaleTimeMilliseconds: Double = 1000 * 60 * 5
     private static let paywallCacheTtlMilliseconds: Double = 1000 * 60 * 60 * 24 * 7
-    private static let paywallCacheStaleTimeMilliseconds: Double = 1000 * 60 * 60
+    /// How long a location's answer, a flow or "nothing here", counts as fresh: a release
+    /// withdrawn or a location switched off reaches an online device within this window, at its
+    /// next presentation or foreground.
+    private static let paywallCacheStaleTimeMilliseconds: Double = 1000 * 60 * 5
     /// Debounce between foreground-triggered refreshes.
     private static let foregroundRefreshDebounceMilliseconds: Double = 60_000
     /// Locations remembered for preload on the next launch.
@@ -232,6 +237,8 @@ public actor VoidhashClient {
     private var orchestratorStorage: PurchaseOrchestrator?
     private var flowCoordinatorStorage: FlowCoordinator?
     private var flowImageStore: FlowImageStore?
+    private var flowPackageStoreStorage: FlowPackageStore?
+    private var flowDownloadSessionStorage: URLSession?
     private var initializationTask: Task<RuntimeSchema, any Error>?
     /// What initialization writes to persisted state on its way up: collected analytics dropped
     /// without consent, the startup events and the release they record. Retirement waits for it
@@ -351,6 +358,10 @@ public actor VoidhashClient {
     /// asking again, so throttling or an outage the breaker does not see (a `429`, a verdict)
     /// costs one request per backoff window rather than one per host read.
     private var refreshBackoff: [RefreshPlane: RefreshBackoff] = [:]
+    /// How the last request for each paywall answer failed, by its cache key; cleared by an
+    /// answer. A presentation falls back to the flow the app bundles only after a failure of the
+    /// network.
+    private var paywallFailures: [String: NetworkPolicy.FailureClass] = [:]
     /// Last connectivity report, so only an offline-to-online edge triggers a refresh.
     private var wasOnline: Bool?
     private var didSurfaceAuthFailure = false
@@ -474,11 +485,17 @@ public actor VoidhashClient {
         readOnlyFlag = AtomicBool(options.readOnly)
         let analyticsConsentState = AnalyticsConsentState(options.analyticsConsent)
         self.analyticsConsentState = analyticsConsentState
+        // The app's own backend is trusted for flow downloads over https in every build,
+        // whatever its address, as the flow URL policy says.
+        FlowUrlPolicy.trustBackend(options.baseUrl)
         // Development mode is a debug-build-only affordance: the flag alone is never enough,
         // so it can never reach a production release.
         #if DEBUG
             let developmentMode = options.dev
             let isDebugConfiguration = true
+            // Only a debug build downloads flows over http, from the device itself or the host
+            // of an http base URL; every other flow download is https.
+            FlowUrlPolicy.acceptLocalBaseUrl(options.baseUrl)
         #else
             let developmentMode = false
             let isDebugConfiguration = false
@@ -3864,8 +3881,14 @@ public actor VoidhashClient {
 
     /// Resolves the paywall assigned to `location` without presenting it.
     ///
-    /// Cache-first with a 7 day lifetime and a 1 hour stale window, so a location the device has
-    /// seen before resolves offline and, after a boot preload, with no request at all.
+    /// Cache-first with a 7 day lifetime and a 5 minute stale window, so a location the device
+    /// has seen before resolves offline and, after a boot preload or a foreground, with no
+    /// request at all. A stale answer waits at most the freshness budget for the backend's.
+    ///
+    /// Handing the answer to the app counts the person in the A/B test that chose it, as
+    /// presenting it would: an answer that carries the test's exposure token is reported as
+    /// `$paywall_handed_off`, on every call that returns it, also one made only to see what the
+    /// location shows.
     ///
     /// Embedded hosts (for example the React Native SDK) use this together with their own
     /// presenter; the returned envelope carries everything a renderer needs.
@@ -3881,6 +3904,20 @@ public actor VoidhashClient {
 
     /// ``getPaywall(location:revision:)`` with the freshness of the configuration it returned.
     public func getPaywallState(location: String, revision: Int? = nil) async throws
+        -> Stale<SdkResolvedPaywall?>
+    {
+        let state = try await readPaywall(location: location, revision: revision)
+        if let answer = state.value, let token = answer.showing.exposureToken {
+            var properties = FlowPresentationReport.flowProperties(location: location, answer: answer)
+            properties["exposureToken"] = .string(token.value)
+            await capture(FlowPresentationReport.handedOffEvent, properties: properties)
+        }
+        return state
+    }
+
+    /// What `location` shows, cache-first, without reporting anything: for presenting, where
+    /// the presentation reports, and for every read the SDK makes on its own.
+    private func readPaywall(location: String, revision: Int?) async throws
         -> Stale<SdkResolvedPaywall?>
     {
         guard options.enabled, paywallsEnabled, !isShutDown else {
@@ -3954,7 +3991,7 @@ public actor VoidhashClient {
     private func resolvePaywallForPresentation(location: String, revision: Int) async throws
         -> SdkResolvedPaywall?
     {
-        let state = try await getPaywallState(location: location, revision: revision)
+        let state = try await readPaywall(location: location, revision: revision)
         if state.value == nil, state.isExpired, state.isStale {
             throw FlowActionError(
                 code: "FLOW_UNAVAILABLE",
@@ -3999,15 +4036,25 @@ public actor VoidhashClient {
         let headers = headerFactory.build(distinctId: distinctId)
         let engine = options.flowRenderer?.engineCapabilities
         let resolved: SdkResolvedPaywall?
+        let failureKey = VoidhashClient.paywallCacheKey(
+            distinctId: distinctId, location: location, engine: engine, revision: revision)
         do {
             resolved = try await guarded("paywall.resolve") { [apiClient] in
                 try await apiClient.resolvePaywall(
                     headers: headers, locationSlug: location, engine: engine,
-                    interfaceRevision: revision)
+                    interfaceRevision: revision, reportsExposure: true)
             }
             refreshBackoff[.paywall] = nil
+            paywallFailures[failureKey] = nil
         } catch {
             backOffRefresh(.paywall, after: error)
+            if !(error is CancellationError) {
+                let apiError = error as? VoidhashApiError
+                paywallFailures[failureKey] =
+                    apiError?.isLocal == true
+                    ? .verdict
+                    : NetworkPolicy.classify(statusCode: apiError?.statusCode, tag: apiError?.tag)
+            }
             throw error
         }
         // An answer for an identity signed out or switched away from meanwhile must not come
@@ -4022,6 +4069,12 @@ public actor VoidhashClient {
         let unassignedKey = VoidhashClient.unassignedPaywallCacheKey(
             distinctId: distinctId, location: location, engine: engine, revision: revision)
         if let resolved {
+            // Before the answer is cached, so a presentation of it never finds the package it
+            // serves still remembered as withdrawn. The list is also kept with the answer, so a
+            // fallback after a relaunch still refuses those packages.
+            await flowPackageStore().answered(
+                serving: resolved.showing.paywallRelease?.flowPackage?.sha256,
+                withdrawn: resolved.withdrawnPackages ?? [], at: location)
             await cacheManager.set(
                 assignedKey,
                 value: resolved,
@@ -4051,7 +4104,9 @@ public actor VoidhashClient {
             return
         }
         do {
-            try await flowCoordinator().preload(location: location, release: release)
+            try await flowCoordinator().preload(
+                location: location, release: release,
+                withdrawn: resolved?.withdrawnPackages ?? [])
         } catch {
             // The configuration is still cached and will render; only the warm start is lost.
             diagnostics.emit(
@@ -4164,7 +4219,9 @@ public actor VoidhashClient {
         return response.flags
     }
 
-    /// Resolves the paywall assigned to `location`; `nil` when nothing is showing.
+    /// Resolves the paywall assigned to `location`; `nil` when nothing is showing. Nothing is
+    /// cached and nothing reported: the backend counts the person in an A/B test on resolving,
+    /// as it does for SDKs that do not report exposure themselves.
     public func resolvePaywallConfig(
         distinctId: String,
         locationSlug: String
@@ -4174,7 +4231,7 @@ public actor VoidhashClient {
         }
         return try await apiClient.resolvePaywall(
             headers: headers(for: distinctId), locationSlug: locationSlug,
-            engine: options.flowRenderer?.engineCapabilities)
+            engine: options.flowRenderer?.engineCapabilities, reportsExposure: false)
     }
 
     /// Records a store transaction in the durable outbox and tries to sync it.
@@ -5292,26 +5349,49 @@ public actor VoidhashClient {
         return orchestrator
     }
 
+    /// The session flow packages and images are downloaded with.
+    private func flowDownloadSession() -> URLSession {
+        if let flowDownloadSessionStorage {
+            return flowDownloadSessionStorage
+        }
+        let session = VoidhashClient.downloadSession(like: dependencies.session)
+        flowDownloadSessionStorage = session
+        return session
+    }
+
+    /// Where flow packages are kept on the device, per project.
+    private func flowPackageStore() -> FlowPackageStore {
+        if let flowPackageStoreStorage {
+            return flowPackageStoreStorage
+        }
+        let store = FlowPackageStore(
+            directory: dependencies.embedded ? nil : dependencies.flowPackageDirectory(namespace),
+            baseUrl: options.baseUrl,
+            download: FlowPackageStore.download(using: flowDownloadSession()),
+            warn: warn)
+        flowPackageStoreStorage = store
+        return store
+    }
+
     private func flowCoordinator() -> FlowCoordinator {
         if let flowCoordinatorStorage {
             return flowCoordinatorStorage
         }
 
-        let downloadSession = VoidhashClient.downloadSession(like: dependencies.session)
         // Per project, like the packages, and not per person: images are not personal, so a
         // sign-out leaves them where they are.
         let images = FlowImageStore(
             directory: dependencies.embedded ? nil : dependencies.flowImageDirectory(namespace),
-            download: FlowImageStore.download(using: downloadSession))
+            download: FlowImageStore.download(using: flowDownloadSession()))
         flowImageStore = images
         let connectivity = dependencies.connectivityMonitor
         let presenter = makeFlowPresenter(imageStore: images)
-        let store = FlowPackageStore(
-            directory: dependencies.embedded ? nil : dependencies.flowPackageDirectory(namespace),
-            baseUrl: options.baseUrl,
-            download: FlowPackageStore.download(using: downloadSession),
-            warn: warn)
+        let store = flowPackageStore()
         let warn = self.warn
+        let permissionHandlers = options.flowPermissionHandlers
+        let handler: @Sendable (String) -> FlowPermissionHandler? = { permission in
+            FlowPermissions.handler(of: permission, app: permissionHandlers, warn: warn)
+        }
         let host = FlowHost(
             capabilities: options.flowCapabilities,
             getProducts: { [weak self] in
@@ -5339,9 +5419,19 @@ public actor VoidhashClient {
             setAttribute: { [weak self] name, value in
                 _ = try await self?.setPersonAttributesState([name: value])
             },
-            requestPermission: { permission in
-                await FlowPermissions.request(permission, warn: warn)
+            permissionStatus: { permission in
+                await handler(permission)?.status() ?? .unavailable
             },
+            requestPermission: { permission in
+                guard let handler = handler(permission) else {
+                    warn(
+                        "A flow asked for the \(permission) permission, which the SDK cannot ask for: register a handler for it in flowPermissionHandlers. The flow hears it is unavailable."
+                    )
+                    return .unavailable
+                }
+                return await handler.request()
+            },
+            becameActive: VoidhashClient.appBecameActive,
             openUrl: dependencies.openExternalUrl ?? VoidhashClient.defaultOpenExternalUrl,
             state: FlowStateStore(
                 load: { [weak self] key in
@@ -5359,11 +5449,13 @@ public actor VoidhashClient {
         )
         let coordinator = FlowCoordinator(
             presenter: presenter,
-            loadPackage: { location, package in
-                let bytes = try await store.load(location: location, package: package) {
-                    abiVersion in
+            loadPackage: { location, package, withdrawn in
+                let loaded = try await store.load(
+                    location: location, package: package, withdrawn: withdrawn
+                ) { abiVersion in
                     presenter?.supportsFlowPackage(abiVersion: abiVersion) ?? false
                 }
+                let bytes = loaded.data
                 // The images the package lists are fetched behind its presentation or preload,
                 // which neither waits for them nor fails with them: a flow shown later, with
                 // their host unreachable, still has them. Not on cellular or in Low Data Mode,
@@ -5371,11 +5463,11 @@ public actor VoidhashClient {
                 if !connectivity.isExpensiveOrConstrained {
                     Task {
                         await images.prefetch(package: package.sha256) {
-                            FlowPackageMetadata.imageUrls(in: bytes)
+                            FlowPackageImages(package: bytes)
                         }
                     }
                 }
-                return bytes
+                return loaded
             },
             resolvePaywall: { [weak self] location, revision in
                 return try await self?.resolvePaywallForPresentation(
@@ -5384,10 +5476,65 @@ public actor VoidhashClient {
             host: host,
             presentationDeadline: { [sleep = dependencies.budgetSleep] in
                 await sleep(NetworkPolicy.flowPresentationDeadlineSeconds * 1000)
+            },
+            productRefreshBudget: { [sleep = dependencies.budgetSleep] in
+                await sleep(NetworkPolicy.flowProductRefreshBudgetSeconds * 1000)
+            },
+            now: { [clock] in clock.monotonicNow() },
+            bundledFlow: { [weak self] location, revision in
+                return await self?.bundledFlow(location: location, revision: revision)
             }
         )
         flowCoordinatorStorage = coordinator
         return coordinator
+    }
+
+    /// The flow the app bundles for `location` at `revision`, for a presentation that could not
+    /// resolve the location: none when Voidhash answered that the location shows nothing, however
+    /// long ago, and none whose package an answer listed as withdrawn.
+    private func bundledFlow(location: String, revision: Int) async -> BundledFlow? {
+        guard paywallsEnabled else {
+            return nil
+        }
+        let distinctId = await identityStore.getDistinctId()
+        let engine = options.flowRenderer?.engineCapabilities
+        // An empty answer cached here, however old, was Voidhash's; its key is per person and
+        // engine.
+        let unassigned = await cacheManager.get(
+            VoidhashClient.unassignedPaywallCacheKey(
+                distinctId: distinctId, location: location, engine: engine, revision: revision),
+            as: Bool.self)
+        guard unassigned == nil else {
+            return nil
+        }
+        // Only a failure of the network: no answer reached the device. A rejected key, or any
+        // other answer of the API, is not one.
+        let failure = paywallFailures[
+            VoidhashClient.paywallCacheKey(
+                distinctId: distinctId, location: location, engine: engine, revision: revision)]
+        if gate.isPaused || (failure != nil && failure != .transient) {
+            warn(
+                "The flow bundled for \"\(location)\" is not shown: Voidhash refused the request for its answer"
+            )
+            return nil
+        }
+        let now = Date(timeIntervalSince1970: clock.now() / 1000)
+        let directory = dependencies.bundledFlows
+        let warn = self.warn
+        // Off the client's actor: it reads up to a whole package and hashes it.
+        let read = Task.detached(priority: .userInitiated) {
+            directory().flow(location: location, revision: revision, now: now, warn: warn)
+        }
+        guard let flow = await read.value,
+            let sha256 = flow.answer.showing.paywallRelease?.flowPackage?.sha256
+        else {
+            return nil
+        }
+        guard await !flowPackageStore().isWithdrawn(sha256: sha256) else {
+            warn("The flow bundled for \"\(location)\" is not shown: its package was withdrawn")
+            return nil
+        }
+        return flow
     }
 
     /// `client` while it can act for a flow.
@@ -5407,18 +5554,19 @@ public actor VoidhashClient {
         }
         #if canImport(UIKit)
             let target = presentationTarget
-            return renderer.makePresenter(
-                context: FlowRendererContext(
-                    warn: warn,
-                    presentingViewController: {
-                        target.viewController
-                            ?? FlowRendererContext.keyWindowTopViewController()
-                    },
-                    imageStore: imageStore))
+            var context = FlowRendererContext(
+                warn: warn,
+                presentingViewController: {
+                    target.viewController ?? FlowRendererContext.keyWindowTopViewController()
+                },
+                imageStore: imageStore)
         #else
-            return renderer.makePresenter(
-                context: FlowRendererContext(warn: warn, imageStore: imageStore))
+            var context = FlowRendererContext(warn: warn, imageStore: imageStore)
         #endif
+        context.onImageMismatch = { [weak self] url in
+            Task { await self?.flowCoordinatorStorage?.imageRefused(url: url) }
+        }
+        return renderer.makePresenter(context: context)
     }
 
     // MARK: - Flow state
@@ -5918,6 +6066,9 @@ public actor VoidhashClient {
         }
         _ = try? await refreshPerson()
         _ = try? await refreshFlags(keys: nil)
+        // A device that was offline picks up a withdrawn release or a location switched off as
+        // soon as it is back, not at the next foreground.
+        await refreshStalePaywalls()
     }
 
     /// Refreshes the schema when the device has none, or the cached one is stale or was fetched
@@ -6081,8 +6232,9 @@ public actor VoidhashClient {
     /// Foreground handler: half-opens the breaker, flushes and refreshes, at most once a minute.
     ///
     /// Queued work goes before the store scan, as in ``handleConnectivityRestored()``. Only
-    /// locations whose cached configuration is stale are re-resolved: a fresh one would be a
-    /// request per remembered location on every foreground for nothing.
+    /// locations whose cached answer is stale (older than 5 minutes) are re-resolved, one at a
+    /// time: a fresh one would be a request per remembered location on every foreground for
+    /// nothing. A failed resolve backs the rest off, as a read's refresh would.
     private func handleForeground() async {
         guard dependencies.runBackgroundRefreshes, !isShutDown,
             claimRecoveryRefresh(lastRefreshAt: &lastForegroundRefreshAt)
@@ -6102,11 +6254,18 @@ public actor VoidhashClient {
         }
         _ = try? await refreshPerson()
         _ = try? await refreshFlags(keys: nil)
+        await refreshStalePaywalls()
+    }
+
+    /// Re-resolves the remembered locations whose cached answer is stale, one at a time; a
+    /// failed resolve backs the rest off. Run on a foreground and when connectivity returns, each
+    /// at most once a minute.
+    private func refreshStalePaywalls() async {
         guard paywallsEnabled else {
             return
         }
         let distinctId = await identityStore.getDistinctId()
-        for location in knownLocations {
+        for location in knownLocations where isRefreshDue(.paywall) {
             let revision = flowRevision(of: location)
             guard await isPaywallStale(location, revision: revision, distinctId: distinctId)
             else {
@@ -6262,6 +6421,25 @@ public actor VoidhashClient {
             await MainActor.run {
                 ExtensionSafeApplication.shared?.open(url)
             }
+        #endif
+    }
+
+    /// Yields each time the app becomes active again, until the task iterating it is cancelled.
+    private static let appBecameActive: @Sendable () -> AsyncStream<Void> = {
+        #if canImport(UIKit) && !os(watchOS)
+            return AsyncStream { continuation in
+                let task = Task {
+                    for await _ in NotificationCenter.default.notifications(
+                        named: UIApplication.didBecomeActiveNotification)
+                    {
+                        continuation.yield()
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
+        #else
+            return AsyncStream { $0.finish() }
         #endif
     }
 

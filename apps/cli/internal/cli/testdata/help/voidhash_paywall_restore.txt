@@ -1,0 +1,30 @@
+Restore a withdrawn build: every location, rule, pin and experiment arm that names it serves it
+again, and it can be deployed.
+
+Asks first when anyone would be served it again; --yes skips that. To restore an archived paywall,
+use 'voidhash paywall unarchive'.
+
+Usage:
+  voidhash paywall restore [paywall] [flags]
+
+Arguments:
+  paywall  The paywall's slug, name or id
+
+Flags:
+      --build <number>     The build, by number or id
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall restore pro --build 4
+  voidhash paywall restore pro --build 4 --yes

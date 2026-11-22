@@ -835,7 +835,11 @@ const (
 	FeatureAdoption              AnalyticsChartId = "feature_adoption"
 	FilterOptions                AnalyticsChartId = "filter_options"
 	FirstVsLastTouch             AnalyticsChartId = "first_vs_last_touch"
+	FlowBundledShare             AnalyticsChartId = "flow_bundled_share"
 	FlowDropoff                  AnalyticsChartId = "flow_dropoff"
+	FlowOutcomes                 AnalyticsChartId = "flow_outcomes"
+	FlowPackageSources           AnalyticsChartId = "flow_package_sources"
+	FlowReleaseHealth            AnalyticsChartId = "flow_release_health"
 	FunnelBySurface              AnalyticsChartId = "funnel_by_surface"
 	GraceOutcomes                AnalyticsChartId = "grace_outcomes"
 	GroupTypesOverLimit          AnalyticsChartId = "group_types_over_limit"
@@ -1755,6 +1759,12 @@ const (
 	Server DevSessionComponentJsonEncodingOrigin = "server"
 )
 
+// Defines values for ExperimentRollOut.
+const (
+	LiveBuild   ExperimentRollOut = "live_build"
+	TestedBuild ExperimentRollOut = "tested_build"
+)
+
 // Defines values for ExperimentStatus.
 const (
 	ExperimentStatusConcluded ExperimentStatus = "concluded"
@@ -2069,6 +2079,24 @@ const (
 	PaywallBuildStatusReady    PaywallBuildStatus = "ready"
 )
 
+// Defines values for PaywallBuildTestArmEnvironment.
+const (
+	PaywallBuildTestArmEnvironmentProduction PaywallBuildTestArmEnvironment = "production"
+	PaywallBuildTestArmEnvironmentTest       PaywallBuildTestArmEnvironment = "test"
+)
+
+// Defines values for PaywallBuildWithdrawalPlacementEnvironment.
+const (
+	PaywallBuildWithdrawalPlacementEnvironmentProduction PaywallBuildWithdrawalPlacementEnvironment = "production"
+	PaywallBuildWithdrawalPlacementEnvironmentTest       PaywallBuildWithdrawalPlacementEnvironment = "test"
+)
+
+// Defines values for PaywallBuildWithdrawalPlacementKind.
+const (
+	PaywallBuildWithdrawalPlacementKindLocation PaywallBuildWithdrawalPlacementKind = "location"
+	PaywallBuildWithdrawalPlacementKindTestArm  PaywallBuildWithdrawalPlacementKind = "test_arm"
+)
+
 // Defines values for PaywallComponentUseJsonEncodingSource.
 const (
 	Project  PaywallComponentUseJsonEncodingSource = "project"
@@ -2133,8 +2161,22 @@ const (
 
 // Defines values for PaywallLocationShowingType.
 const (
-	FeatureFlag PaywallLocationShowingType = "feature_flag"
-	Paywall     PaywallLocationShowingType = "paywall"
+	PaywallLocationShowingTypeFeatureFlag PaywallLocationShowingType = "feature_flag"
+	PaywallLocationShowingTypePaywall     PaywallLocationShowingType = "paywall"
+)
+
+// Defines values for PaywallUseJsonEncodingEnvironment.
+const (
+	PaywallLocationEnvironmentProduction PaywallUseJsonEncodingEnvironment = "production"
+	PaywallLocationEnvironmentTest       PaywallUseJsonEncodingEnvironment = "test"
+)
+
+// Defines values for PaywallUseJsonEncodingKind.
+const (
+	Experiment PaywallUseJsonEncodingKind = "experiment"
+	Pin        PaywallUseJsonEncodingKind = "pin"
+	Rule       PaywallUseJsonEncodingKind = "rule"
+	Showing    PaywallUseJsonEncodingKind = "showing"
 )
 
 // Defines values for PermissionDeniedErrorJsonEncodingErrorType.
@@ -2774,8 +2816,8 @@ const (
 
 // Defines values for PaymentProviderHistoryImportsListParamsEnvironment.
 const (
-	Production PaymentProviderHistoryImportsListParamsEnvironment = "production"
-	Test       PaymentProviderHistoryImportsListParamsEnvironment = "test"
+	PaymentProviderHistoryImportsListParamsEnvironmentProduction PaymentProviderHistoryImportsListParamsEnvironment = "production"
+	PaymentProviderHistoryImportsListParamsEnvironmentTest       PaymentProviderHistoryImportsListParamsEnvironment = "test"
 )
 
 // Defines values for PaymentProviderProductsListParamsIsActive.
@@ -2790,10 +2832,25 @@ const (
 	PaywallLocationsListParamsIsArchivedTrue  PaywallLocationsListParamsIsArchived = "true"
 )
 
+// Defines values for PaywallTemplatesListParamsKind.
+const (
+	PaywallTemplatesListParamsKindCustom       PaywallTemplatesListParamsKind = "custom"
+	PaywallTemplatesListParamsKindFeedback     PaywallTemplatesListParamsKind = "feedback"
+	PaywallTemplatesListParamsKindOnboarding   PaywallTemplatesListParamsKind = "onboarding"
+	PaywallTemplatesListParamsKindPaywall      PaywallTemplatesListParamsKind = "paywall"
+	PaywallTemplatesListParamsKindReactivation PaywallTemplatesListParamsKind = "reactivation"
+)
+
 // Defines values for PaywallsListParamsIsArchived.
 const (
 	PaywallsListParamsIsArchivedFalse PaywallsListParamsIsArchived = "false"
 	PaywallsListParamsIsArchivedTrue  PaywallsListParamsIsArchived = "true"
+)
+
+// Defines values for PaywallsListBuildsParamsIsWithdrawn.
+const (
+	PaywallsListBuildsParamsIsWithdrawnFalse PaywallsListBuildsParamsIsWithdrawn = "false"
+	PaywallsListBuildsParamsIsWithdrawnTrue  PaywallsListBuildsParamsIsWithdrawn = "true"
 )
 
 // Defines values for SdkDevelopmentPurchaseParamsXDistinctIdEncoding.
@@ -5681,6 +5738,9 @@ type AnalyticsChartFilters struct {
 	// Countries Only these countries, as ISO 3166 alpha-2 codes such as `US`.
 	Countries *[]string `json:"countries"`
 
+	// PackageSources Only paywall presentations whose package came from these sources: `network` (downloaded), `cache`, `bundled` (shipped in the app), `other`, or `unknown` for presentations that name none.
+	PackageSources *[]string `json:"packageSources"`
+
 	// Platforms Only these platforms: `ios`, `android` or `web`.
 	Platforms *[]string `json:"platforms"`
 
@@ -5872,6 +5932,9 @@ type AnalyticsChartOptionsResult struct {
 
 	// Experiments The project's experiments that are not archived, for `options.experimentId`.
 	Experiments []Objects1 `json:"experiments"`
+
+	// PackageSources The package sources of paywall presentations seen in the last 90 days, most frequent first, for `filters.packageSources`; `unknown` for presentations that name none.
+	PackageSources []Objects1 `json:"packageSources"`
 
 	// Placements The project's paywall locations that are not archived, for `options.placementId`.
 	Placements []Objects1 `json:"placements"`
@@ -7325,7 +7388,7 @@ type AssetKind string
 
 // AuditLogEntryJsonEncoding defines model for AuditLogEntryJsonEncoding.
 type AuditLogEntryJsonEncoding struct {
-	// Action What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `override_set`, `override_removed`, `target_added` or `target_removed`.
+	// Action What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `withdrawn`, `override_set`, `override_removed`, `target_added` or `target_removed`.
 	Action string `json:"action"`
 
 	// ActorType Who made the change: `user` for a person, also through the CLI or an agent; `api_key` for a secret key; `system` for Voidhash itself.
@@ -8157,6 +8220,9 @@ type ComponentWarning string
 
 // ConcludeExperimentBodyJsonEncoding defines model for ConcludeExperimentBodyJsonEncoding.
 type ConcludeExperimentBodyJsonEncoding struct {
+	// RollOut Which build each location shows once the experiment concludes. `live_build`, the default, shows the paywall's deployed build, as everywhere else the paywall is shown, deploying nothing. `tested_build` first deploys the build the winning arm ran to each environment where it is not the deployed one, which changes the paywall everywhere it is shown there and needs the permission to deploy paywalls (`project:paywalls:publish`), then concludes.
+	RollOut *ExperimentRollOut `json:"rollOut,omitempty"`
+
 	// WinningVariantId The arm to promote, `exp_var_...`; omitted, the control arm is promoted.
 	WinningVariantId *string `json:"winningVariantId"`
 }
@@ -8496,6 +8562,9 @@ type CreatePaywallBodyJsonEncoding struct {
 
 	// Slug The paywall's slug, unique in the project; it cannot change afterwards, and analytics refer to the paywall by it.
 	Slug string `json:"slug"`
+
+	// Template The id of a template the design starts as, one `paywall_templates.list` lists for the flow's purpose, such as `plan-picker`; without it the design starts as one empty screen.
+	Template *string `json:"template"`
 }
 
 // CreatePaywallBuildBodyJsonEncoding defines model for CreatePaywallBuildBodyJsonEncoding.
@@ -8759,6 +8828,18 @@ type CustomEventSettingJsonEncoding struct {
 	IsBlocked bool `json:"isBlocked"`
 }
 
+// DeployExperimentVariantBodyJsonEncoding defines model for DeployExperimentVariantBodyJsonEncoding.
+type DeployExperimentVariantBodyJsonEncoding struct {
+	// BuildId A ready build of the paywall the arm shows there, `pw_build_...`, deployed to each environment named before; normally the paywall's deployed build.
+	BuildId string `json:"buildId"`
+
+	// Environment The environment: `production`, or `test`, which a test key reads. Test follows production until a location is given a test showing of its own.
+	Environment *PaywallLocationEnvironment `json:"environment,omitempty"`
+
+	// PaywallLocationId The location the arm shows the paywall at, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+}
+
 // DevSessionBuild The run's newest build of the component.
 type DevSessionBuild struct {
 	// Message Why the build failed.
@@ -8840,6 +8921,15 @@ type DevSessionJsonEncoding struct {
 	Url string `json:"url"`
 }
 
+// DuplicatePaywallBodyJsonEncoding defines model for DuplicatePaywallBodyJsonEncoding.
+type DuplicatePaywallBodyJsonEncoding struct {
+	// Name The copy's name; by default the paywall's name followed by "copy".
+	Name *string `json:"name"`
+
+	// Slug The copy's slug, unique in the project; by default the paywall's slug followed by `-copy`, numbered when that is taken.
+	Slug *string `json:"slug"`
+}
+
 // EvaluateAnalyticsCohortBodyJsonEncoding defines model for EvaluateAnalyticsCohortBodyJsonEncoding.
 type EvaluateAnalyticsCohortBodyJsonEncoding struct {
 	// Definition Who a dynamic cohort holds, worked out whenever it is read.
@@ -8879,6 +8969,77 @@ type EvaluateProjectFeatureFlagsBodyJsonEncoding struct {
 
 	// PersonId The end user's person id, `person_...`.
 	PersonId *string `json:"personId"`
+}
+
+// ExperimentArmBuild The build an arm keeps at a location in one environment, beside the paywall's deployed build.
+type ExperimentArmBuild struct {
+	// ConcludedBuildNumber For the arm a concluded experiment rolled out at the location, the number of the build the location went on to show in this environment; null otherwise.
+	ConcludedBuildNumber *int `json:"concludedBuildNumber"`
+
+	// DeployedBuildNumber The number of the paywall's build deployed to this environment now, which the paywall shows everywhere outside the experiment; null when none is.
+	DeployedBuildNumber *int `json:"deployedBuildNumber"`
+
+	// KeptBuildId The build the arm keeps in this environment whatever is deployed to the paywall, `pw_build_...`: the one deployed when the experiment started, or the one the arm was deployed to since (`experiments.deployVariant`). Null while the arm follows the paywall's deployed build: in a draft, in an experiment started before arms kept their build, and for a build made before builds were recorded.
+	KeptBuildId *string `json:"keptBuildId"`
+
+	// KeptBuildNumber The number of `keptBuildId`'s build; null when the arm keeps none.
+	KeptBuildNumber *int `json:"keptBuildNumber"`
+}
+
+// ExperimentArmBuildChange A change to what an arm shows at a location while the experiment ran.
+type ExperimentArmBuildChange struct {
+	ChangedAt string `json:"changedAt"`
+
+	// ChangedByUserId The team member who changed it, `user_...`; null for a project key.
+	ChangedByUserId *string `json:"changedByUserId"`
+
+	// Environment The environment: `production`, or `test`, which a test key reads. Test follows production until a location is given a test showing of its own.
+	Environment PaywallLocationEnvironment `json:"environment"`
+
+	// FromBuildNumber The number of the build the arm kept before; null when it showed no paywall, or followed the paywall's deployed build.
+	FromBuildNumber *int `json:"fromBuildNumber"`
+
+	// FromPaywallId The paywall the arm showed before, `pw_...`; null when it showed none of its own.
+	FromPaywallId *string `json:"fromPaywallId"`
+
+	// ToBuildNumber The number of the build the arm keeps since; null when it stopped showing one.
+	ToBuildNumber *int `json:"toBuildNumber"`
+
+	// ToPaywallId The paywall the arm shows since, `pw_...`; null when it stopped showing one here.
+	ToPaywallId *string `json:"toPaywallId"`
+}
+
+// ExperimentArmPlacement The paywall an arm shows at one location and the builds it shows there.
+type ExperimentArmPlacement struct {
+	// BuildChanges Each change to what the arm shows at this location while the experiment ran, oldest first: a build deployed to it (`experiments.deployVariant`), or, while it was paused, another paywall given to it. Results count everyone in the arm across them.
+	BuildChanges []ExperimentArmBuildChange `json:"buildChanges"`
+
+	// Builds The build the arm shows in each environment. Once the experiment starts, each arm keeps the paywall's build deployed then in each environment; deploying the paywall later changes what it shows everywhere else, not the arm.
+	Builds struct {
+		// Production The build an arm keeps at a location in one environment, beside the paywall's deployed build.
+		Production ExperimentArmBuild `json:"production"`
+
+		// Test The build an arm keeps at a location in one environment, beside the paywall's deployed build.
+		Test ExperimentArmBuild `json:"test"`
+	} `json:"builds"`
+
+	// PaywallId The paywall the arm shows there, `pw_...`; its deployed build is served.
+	PaywallId string `json:"paywallId"`
+
+	// PaywallLocationId The paywall location, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+}
+
+// ExperimentArmStoppedPlacement A location an arm stopped showing a paywall at while the experiment was paused, with its record; it serves nothing.
+type ExperimentArmStoppedPlacement struct {
+	// BuildChanges Each change to what the arm showed there while the experiment ran, oldest first, the last one to no paywall.
+	BuildChanges []ExperimentArmBuildChange `json:"buildChanges"`
+
+	// PaywallId The paywall the arm last showed there, `pw_...`.
+	PaywallId string `json:"paywallId"`
+
+	// PaywallLocationId The location, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
 }
 
 // ExperimentFlagValue The value an arm gives one feature flag while the experiment runs.
@@ -8928,6 +9089,9 @@ type ExperimentJsonEncoding struct {
 	// ProjectId The project the experiment belongs to.
 	ProjectId string `json:"projectId"`
 
+	// RolloutDifferences For a concluded experiment, each location and environment where the promoted arm ran another build than the one the location went on to show, as concluding with `rollOut: live_build` leaves it after a build was deployed during the experiment; empty otherwise.
+	RolloutDifferences []ExperimentRolloutDifference `json:"rolloutDifferences"`
+
 	// SecondaryMetricEventNames Further events to watch alongside the primary one; results do not count them. They cannot change once the experiment leaves `draft`.
 	SecondaryMetricEventNames []string `json:"secondaryMetricEventNames"`
 
@@ -8968,6 +9132,27 @@ type ExperimentResultsJsonEncoding struct {
 	Variants []ExperimentVariantResultJsonEncoding `json:"variants"`
 }
 
+// ExperimentRollOut Which build each location shows once the experiment concludes. `live_build`, the default, shows the paywall's deployed build, as everywhere else the paywall is shown, deploying nothing. `tested_build` first deploys the build the winning arm ran to each environment where it is not the deployed one, which changes the paywall everywhere it is shown there and needs the permission to deploy paywalls (`project:paywalls:publish`), then concludes.
+type ExperimentRollOut string
+
+// ExperimentRolloutDifference A location and environment where a concluded experiment's winning arm ran another build than the paywall's deployed build, which the location shows since.
+type ExperimentRolloutDifference struct {
+	// Environment The environment: `production`, or `test`, which a test key reads. Test follows production until a location is given a test showing of its own.
+	Environment PaywallLocationEnvironment `json:"environment"`
+
+	// PaywallId The paywall shown there, `pw_...`.
+	PaywallId string `json:"paywallId"`
+
+	// PaywallLocationId The location, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+
+	// ShownBuildNumber The number of the build the location went on to show: the paywall's deployed build.
+	ShownBuildNumber int `json:"shownBuildNumber"`
+
+	// TestedBuildNumber The number of the build the winning arm ran in the experiment.
+	TestedBuildNumber int `json:"testedBuildNumber"`
+}
+
 // ExperimentStatus Where the experiment is in its life: a `draft` assigns no traffic, a `running` one splits it between the arms, a `paused` one shows every end user the control arm, and a `concluded` one has promoted a winner and never runs again.
 type ExperimentStatus string
 
@@ -8985,8 +9170,11 @@ type ExperimentVariantJsonEncoding struct {
 	// Name The arm's name.
 	Name string `json:"name"`
 
-	// Placements The paywall the arm shows at each location, at most one per location.
-	Placements []ExperimentPlacement `json:"placements"`
+	// Placements The paywall the arm shows at each location, at most one per location, with the builds it shows there.
+	Placements []ExperimentArmPlacement `json:"placements"`
+
+	// StoppedPlacements Locations the arm stopped showing a paywall at while the experiment was paused, each with its record of changes; they serve nothing and are not in `placements`. Empty unless that happened.
+	StoppedPlacements []ExperimentArmStoppedPlacement `json:"stoppedPlacements"`
 
 	// WeightPercentage A share of end users, in percent from 0 to 100 in steps of 0.01: a flag's rollout, or the share of traffic a variant or an experiment's arm gets.
 	WeightPercentage TrafficPercentage `json:"weightPercentage"`
@@ -9322,6 +9510,9 @@ type FlowInterfaceActionFieldType string
 type FlowPackage struct {
 	// AbiVersion The version of the package format; SDKs whose engine cannot read it get no paywall.
 	AbiVersion int `json:"abiVersion"`
+
+	// IsFollowingTextSize Whether the flow's texts follow the text size the end user chose on their device; false for packages built before flows did, which keep the sizes they were designed at.
+	IsFollowingTextSize bool `json:"isFollowingTextSize"`
 
 	// ProductIds The slugs of the products the flow can sell, so apps can load them ahead of time.
 	ProductIds []string `json:"productIds"`
@@ -10431,8 +10622,11 @@ type PaywallBuildJsonEncoding struct {
 	// CreatedByUserId The team member who started the build, `user_...`; null when they no longer exist.
 	CreatedByUserId *string `json:"createdByUserId"`
 
-	// DeployedAt When the build was last deployed, as an ISO 8601 timestamp; null when it never was.
+	// DeployedAt When the build was last deployed to production, as an ISO 8601 timestamp; null when it never was.
 	DeployedAt *string `json:"deployedAt"`
+
+	// DeployedToTestAt When the build last became the one apps using a test key are shown, as an ISO 8601 timestamp; null when it never was.
+	DeployedToTestAt *string `json:"deployedToTestAt"`
 
 	// DocumentVersion The version of the paywall's design that was built; null for builds made before it was recorded.
 	DocumentVersion *int `json:"documentVersion"`
@@ -10449,8 +10643,17 @@ type PaywallBuildJsonEncoding struct {
 	// Id The build's id, `pw_build_...`.
 	Id string `json:"id"`
 
-	// IsDeployed Whether this is the paywall's deployed build, the one end users see.
+	// IsDeployed Whether this is the paywall's build deployed to production, the one end users see.
 	IsDeployed bool `json:"isDeployed"`
+
+	// IsDeployedInTest Whether this is the build apps using a test key are shown: the one deployed to test alone, or the production build while test follows production.
+	IsDeployedInTest bool `json:"isDeployedInTest"`
+
+	// IsWithdrawn Whether the build is withdrawn: never served, in either environment, by a location, rule, pin or A/B test arm, nor to apps that cannot show a newer build, until it is restored. Wherever it is placed, apps are served the most recent earlier build that is not withdrawn instead, or no paywall when there is none.
+	IsWithdrawn bool `json:"isWithdrawn"`
+
+	// MissingTranslations The languages of the design a ready build shows partly untranslated, at most 50: texts without a translation show the design's own language. Never a reason a build fails or a deploy is refused. Empty when every language is translated, while building, for a failed build, and for builds made before this was recorded.
+	MissingTranslations []PaywallBuildMissingTranslation `json:"missingTranslations"`
 
 	// Number The build's number, counting the paywall's builds from 1.
 	Number int `json:"number"`
@@ -10460,10 +10663,123 @@ type PaywallBuildJsonEncoding struct {
 
 	// Status How far the build got: `building` while it compiles, then `ready` to deploy or `failed`.
 	Status PaywallBuildStatus `json:"status"`
+
+	// TestArms Each arm of a running or paused experiment that shows the paywall, in each environment, with the build it keeps there; the same for every build of the paywall. Deploying a build changes none of them: an arm keeps the build it started with until it is deployed another one (`experiments.deployVariant`). An arm with `keptBuildNumber` null shows the deployed build.
+	TestArms []PaywallBuildTestArm `json:"testArms"`
+
+	// WithdrawnAt When the build was withdrawn, as an ISO 8601 timestamp; null when it is not withdrawn.
+	WithdrawnAt *string `json:"withdrawnAt"`
+}
+
+// PaywallBuildMissingTranslation A language a ready build shows partly untranslated. It never stops a build or a deploy.
+type PaywallBuildMissingTranslation struct {
+	// ExampleNodeIds The ids of the first design nodes, at most 5, showing a text without a translation in it.
+	ExampleNodeIds []string `json:"exampleNodeIds"`
+
+	// Locale The language, as the design lists it (`de`, `pt-BR`).
+	Locale string `json:"locale"`
+
+	// MissingTexts How many texts with words to translate have no translation in it, so people reading it see the design's own language there.
+	MissingTexts int `json:"missingTexts"`
+
+	// Texts How many texts with words to translate the design has.
+	Texts int `json:"texts"`
 }
 
 // PaywallBuildStatus How far the build got: `building` while it compiles, then `ready` to deploy or `failed`.
 type PaywallBuildStatus string
+
+// PaywallBuildTestArm An arm of a running or paused experiment showing the paywall, and the build it keeps in one environment.
+type PaywallBuildTestArm struct {
+	// Environment The environment: `production`, or `test`, which a test key reads.
+	Environment PaywallBuildTestArmEnvironment `json:"environment"`
+
+	// ExperimentId The experiment, `exp_...`.
+	ExperimentId string `json:"experimentId"`
+
+	// ExperimentName The experiment's name.
+	ExperimentName string `json:"experimentName"`
+
+	// IsPaused Whether the experiment is paused, showing everyone its control arm.
+	IsPaused bool `json:"isPaused"`
+
+	// KeptBuildNumber The number of the build the arm keeps there whatever is deployed; null for an arm of an experiment started before arms kept their build, which shows the paywall's deployed build.
+	KeptBuildNumber *int `json:"keptBuildNumber"`
+
+	// PaywallLocationId The location the arm shows the paywall at, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+
+	// PaywallLocationName The location's name.
+	PaywallLocationName string `json:"paywallLocationName"`
+
+	// VariantId The arm, `exp_var_...`.
+	VariantId string `json:"variantId"`
+
+	// VariantName The arm's name.
+	VariantName string `json:"variantName"`
+}
+
+// PaywallBuildTestArmEnvironment The environment: `production`, or `test`, which a test key reads.
+type PaywallBuildTestArmEnvironment string
+
+// PaywallBuildWithdrawalJsonEncoding defines model for PaywallBuildWithdrawalJsonEncoding.
+type PaywallBuildWithdrawalJsonEncoding struct {
+	Build PaywallBuildJsonEncoding `json:"build"`
+
+	// IsTestArmsHidden Whether A/B test arms are left out of `placements` because the credential cannot read experiments.
+	IsTestArmsHidden bool `json:"isTestArmsHidden"`
+
+	// Placements Each place serving the build, in each environment, with what it serves instead while the build is withdrawn; empty when nothing serves it. Builds served only to apps that cannot show the deployed one are not listed.
+	Placements []PaywallBuildWithdrawalPlacement `json:"placements"`
+}
+
+// PaywallBuildWithdrawalPlacement A place serving the build, and what it serves instead while the build is withdrawn.
+type PaywallBuildWithdrawalPlacement struct {
+	// Environment The keys served there: `production`, or `test`, which a test key reads.
+	Environment PaywallBuildWithdrawalPlacementEnvironment `json:"environment"`
+
+	// ExperimentId For a `test_arm`, the experiment, `exp_...`; null otherwise.
+	ExperimentId *string `json:"experimentId"`
+
+	// ExperimentName For a `test_arm`, the experiment's name; null otherwise.
+	ExperimentName *string `json:"experimentName"`
+
+	// HasPins For a `location`, whether people pinned there are shown the paywall; false for a `test_arm`.
+	HasPins bool `json:"hasPins"`
+
+	// HasRules For a `location`, whether rules there show the paywall to some of those keys; false for a `test_arm`.
+	HasRules bool `json:"hasRules"`
+
+	// HasShowing For a `location`, whether its own showing serves the paywall to those keys; false for a `test_arm`.
+	HasShowing bool `json:"hasShowing"`
+
+	// IsPaused For a `test_arm`, whether its experiment is paused, showing everyone its control arm; false otherwise.
+	IsPaused bool `json:"isPaused"`
+
+	// Kind How the place serves the build: `location`, through the location's own showing, rules or pins naming the paywall while the build is deployed; or `test_arm`, an arm of a running or paused A/B test that keeps the build there.
+	Kind PaywallBuildWithdrawalPlacementKind `json:"kind"`
+
+	// PaywallLocationId The location, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+
+	// PaywallLocationName The location's name.
+	PaywallLocationName string `json:"paywallLocationName"`
+
+	// ServedBuildNumber The build apps that can show every build are served there instead while this one is withdrawn: the most recent earlier build deployed there that is not withdrawn and fits the location, preferring for an arm the builds it kept before. Null when there is none, so they are shown no paywall there.
+	ServedBuildNumber *int `json:"servedBuildNumber"`
+
+	// VariantId For a `test_arm`, the arm, `exp_var_...`; null otherwise.
+	VariantId *string `json:"variantId"`
+
+	// VariantName For a `test_arm`, the arm's name; null otherwise.
+	VariantName *string `json:"variantName"`
+}
+
+// PaywallBuildWithdrawalPlacementEnvironment The keys served there: `production`, or `test`, which a test key reads.
+type PaywallBuildWithdrawalPlacementEnvironment string
+
+// PaywallBuildWithdrawalPlacementKind How the place serves the build: `location`, through the location's own showing, rules or pins naming the paywall while the build is deployed; or `test_arm`, an arm of a running or paused A/B test that keeps the build there.
+type PaywallBuildWithdrawalPlacementKind string
 
 // PaywallComponentJsonEncoding defines model for PaywallComponentJsonEncoding.
 type PaywallComponentJsonEncoding struct {
@@ -10683,6 +10999,50 @@ type PaywallLocationAffectedFlow struct {
 	Problems []string `json:"problems"`
 }
 
+// PaywallLocationDefaultAnswerJsonEncoding defines model for PaywallLocationDefaultAnswerJsonEncoding.
+type PaywallLocationDefaultAnswerJsonEncoding struct {
+	Answer SdkResolvedPaywallJsonEncoding `json:"answer"`
+
+	// Experiment The A/B test at the location, running or paused, whose control arm the answer is; null when no test chose it.
+	Experiment *struct {
+		// Id The A/B test's id, `exp_...`.
+		Id string `json:"id"`
+
+		// Name The A/B test's name.
+		Name string `json:"name"`
+
+		// Status Where the experiment is in its life: a `draft` assigns no traffic, a `running` one splits it between the arms, a `paused` one shows every end user the control arm, and a `concluded` one has promoted a winner and never runs again.
+		Status ExperimentStatus `json:"status"`
+	} `json:"experiment"`
+
+	// InterfaceRevision The revision of the location's interface the answer was taken for.
+	InterfaceRevision int `json:"interfaceRevision"`
+
+	// Requirements What the app's SDK needs to show the answer's build.
+	Requirements struct {
+		// NativeComponents The native components the build uses without a fallback, which the app's SDK must provide for the build to show.
+		NativeComponents []struct {
+			// Id The native component's id.
+			Id string `json:"id"`
+
+			// Version The version the build was published against, which the app's must be compatible with; null for any version.
+			Version *string `json:"version"`
+		} `json:"nativeComponents"`
+
+		// PackageFormat The flow package format of the answer's build (`flowPackage.abiVersion`): an SDK that reads an older format skips it.
+		PackageFormat int `json:"packageFormat"`
+	} `json:"requirements"`
+
+	// WithdrawnBuild The build the location shows, when it is withdrawn: the answer then names the earlier build apps are served instead. Null when the build the location shows is not withdrawn.
+	WithdrawnBuild *struct {
+		// BuildNumber The withdrawn build's number.
+		BuildNumber int `json:"buildNumber"`
+
+		// ReleaseId The withdrawn build's release id.
+		ReleaseId string `json:"releaseId"`
+	} `json:"withdrawnBuild"`
+}
+
 // PaywallLocationEnvironment The environment: `production`, or `test`, which a test key reads. Test follows production until a location is given a test showing of its own.
 type PaywallLocationEnvironment string
 
@@ -10889,6 +11249,48 @@ type PaywallSupportedLocationJsonEncoding struct {
 	// Slug The location's slug; apps ask for the location by it.
 	Slug string `json:"slug"`
 }
+
+// PaywallTemplateJsonEncoding defines model for PaywallTemplateJsonEncoding.
+type PaywallTemplateJsonEncoding struct {
+	// Description What the template's design holds.
+	Description string `json:"description"`
+
+	// Id The template's id, which `paywalls.create` takes as `template`.
+	Id string `json:"id"`
+
+	// Kind What the flow is for: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`. It labels and groups flows, and decides nothing a flow may do.
+	Kind PaywallKind `json:"kind"`
+
+	// Name The template's name.
+	Name string `json:"name"`
+
+	// ProductSlugs The slugs of the products the design sells. Create products with these slugs, or choose other products in the designer.
+	ProductSlugs []string `json:"productSlugs"`
+}
+
+// PaywallUseJsonEncoding defines model for PaywallUseJsonEncoding.
+type PaywallUseJsonEncoding struct {
+	// Description The use as a person reads it, naming the location and any A/B test.
+	Description string `json:"description"`
+
+	// Environment Whose requests the use answers: `production` (every key) or `test` (test keys only). An A/B test always places it in `production`.
+	Environment PaywallUseJsonEncodingEnvironment `json:"environment"`
+
+	// ExperimentId For `experiment`, the A/B test's id, `exp_...`; null otherwise.
+	ExperimentId *string `json:"experimentId"`
+
+	// Kind How the paywall is in use: `showing`, the location shows it; `rule`, one of the location's rules shows it; `pin`, people are pinned to it at the location; `experiment`, an arm of an A/B test that is not concluded or archived places it there, or would once the draft starts.
+	Kind PaywallUseJsonEncodingKind `json:"kind"`
+
+	// PaywallLocationId The location's id, `pw_loc_...`.
+	PaywallLocationId string `json:"paywallLocationId"`
+}
+
+// PaywallUseJsonEncodingEnvironment defines model for PaywallUseJsonEncoding.Environment.
+type PaywallUseJsonEncodingEnvironment string
+
+// PaywallUseJsonEncodingKind How the paywall is in use: `showing`, the location shows it; `rule`, one of the location's rules shows it; `pin`, people are pinned to it at the location; `experiment`, an arm of an A/B test that is not concluded or archived places it there, or would once the draft starts.
+type PaywallUseJsonEncodingKind string
 
 // PerkJsonEncoding defines model for PerkJsonEncoding.
 type PerkJsonEncoding struct {
@@ -12425,6 +12827,9 @@ type SdkPurchasePaywallContext struct {
 
 	// ShowingId The id of the showing `POST /sdk/resolve-paywall` returned, which credits the purchase to the paywall that sold it.
 	ShowingId string `json:"showingId"`
+
+	// Source `bundled` when the purchase was made on a flow the app ships, shown because the location could not be resolved. Such a purchase is credited to the showing, paywall and release as any other, but to no A/B test variant, and assigns nobody to one. Leave it out for a flow the location answered; any other value is treated the same.
+	Source *string `json:"source"`
 }
 
 // SdkResolvePaywallBodyJsonEncoding defines model for SdkResolvePaywallBodyJsonEncoding.
@@ -12434,6 +12839,9 @@ type SdkResolvePaywallBodyJsonEncoding struct {
 
 	// LocationSlug The slug of the location to show a paywall at.
 	LocationSlug string `json:"locationSlug"`
+
+	// ReportsExposure Whether the SDK reports an A/B test exposure itself, by sending the answer's `showing.exposureToken` as the `exposureToken` property of the first event of each presentation of the answer (`$paywall_viewed`, `$paywall_load_failed` or `$paywall_load_cancelled`) and of `$paywall_handed_off` when it hands the answer to the app's own interface. When true no exposure is recorded on resolving, so a person is counted once a flow is presented or handed to the app, not when it is prefetched; when absent or false it is recorded on resolving and no token is answered.
+	ReportsExposure *bool `json:"reportsExposure"`
 }
 
 // SdkResolvedPaywallJsonEncoding defines model for SdkResolvedPaywallJsonEncoding.
@@ -12453,6 +12861,9 @@ type SdkResolvedPaywallJsonEncoding struct {
 
 	// Showing What the location shows the person now.
 	Showing SdkResolvedPaywallShowingJsonEncoding `json:"showing"`
+
+	// WithdrawnPackages The SHA-256 hashes, as hex, of flow packages withdrawn as bad that the app may hold for this location: never show one of them, not even as the package last shown here when the served one cannot be downloaded. At most 20, the most recently withdrawn of the flows read here; never the served package's hash. Left out when none is, as most answers are, and by servers that predate withdrawals.
+	WithdrawnPackages *[]string `json:"withdrawnPackages"`
 }
 
 // SdkResolvedPaywallJsonEncodingLocationInterfaceRevision0 defines model for .
@@ -12468,6 +12879,9 @@ type SdkResolvedPaywallJsonEncoding_Location_InterfaceRevision struct {
 
 // SdkResolvedPaywallShowingJsonEncoding What the location shows the person now.
 type SdkResolvedPaywallShowingJsonEncoding struct {
+	// ExposureToken Present when an A/B test chose what is shown and the request set `reportsExposure`: an opaque value to send unchanged as the `exposureToken` property of the first event of every presentation of this answer, whether the flow is shown (`$paywall_viewed`), fails (`$paywall_load_failed`) or is cancelled (`$paywall_load_cancelled`) before its first frame, and of `$paywall_handed_off` each time the SDK hands this answer to the app's own interface. Never send it for a prefetch. Sending it again, later or offline is safe; the person is counted once. It expires 30 days after the answer; an event carrying an expired token is stored and counts nobody.
+	ExposureToken *string `json:"exposureToken"`
+
 	// Id The showing's id; send it as `paywallContext.showingId` with a purchase made on this paywall.
 	Id string `json:"id"`
 
@@ -12503,6 +12917,9 @@ type SdkResolvedPaywallShowingJsonEncoding struct {
 			Runtime *struct {
 				// Sha256 The SHA-256 hash of the runtime module's bytes, as hex; verify the download against it.
 				Sha256 string `json:"sha256"`
+
+				// Signature The runtime module's signature, as hex; empty for a module too old to be offered for download. SDKs run a downloaded module only when this signature verifies under a key built into the SDK, and otherwise show the flow with the runtime built into the SDK when it can.
+				Signature string `json:"signature"`
 
 				// Url Where to download the runtime module; its content never changes, so cache it by `sha256`.
 				Url string `json:"url"`
@@ -13008,6 +13425,12 @@ type SessionProjectJsonEncoding struct {
 
 	// Slug The project's slug, unique within its organization.
 	Slug string `json:"slug"`
+}
+
+// SetPaywallEnvironmentBodyJsonEncoding defines model for SetPaywallEnvironmentBodyJsonEncoding.
+type SetPaywallEnvironmentBodyJsonEncoding struct {
+	// BuildId The ready build to deploy there, `pw_build_...`.
+	BuildId string `json:"buildId"`
 }
 
 // SetPaywallLocationInterfaceBody defines model for SetPaywallLocationInterfaceBody.
@@ -14668,6 +15091,12 @@ type PaywallLocationsListParams struct {
 // PaywallLocationsListParamsIsArchived defines parameters for PaywallLocationsList.
 type PaywallLocationsListParamsIsArchived string
 
+// PaywallLocationsGetDefaultAnswerParams defines parameters for PaywallLocationsGetDefaultAnswer.
+type PaywallLocationsGetDefaultAnswerParams struct {
+	// InterfaceRevision The revision of the location's interface the app presents it at, as its SDK reports it: the one in `flowRevisions` or the generated types. Defaults to 0, an app that names none.
+	InterfaceRevision *int `form:"interfaceRevision,omitempty" json:"interfaceRevision,omitempty"`
+}
+
 // PaywallLocationsListPinsParams defines parameters for PaywallLocationsListPins.
 type PaywallLocationsListPinsParams struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -14731,6 +15160,21 @@ type PaywallLocationsListShowingsParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// PaywallTemplatesListParams defines parameters for PaywallTemplatesList.
+type PaywallTemplatesListParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Kind Only the templates for flows of this purpose: `paywall`, `onboarding`, `feedback`, `reactivation` or `custom`.
+	Kind *PaywallTemplatesListParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
+}
+
+// PaywallTemplatesListParamsKind defines parameters for PaywallTemplatesList.
+type PaywallTemplatesListParamsKind string
+
 // PaywallsListParams defines parameters for PaywallsList.
 type PaywallsListParams struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -14756,10 +15200,25 @@ type PaywallsListBuildsParams struct {
 
 	// Limit How many items to return, from 1 to 100. Defaults to 50.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// IsWithdrawn `true` for every withdrawn build of the paywall, however old; `false` for the others among its 50 most recent; omitted, its 50 most recent builds.
+	IsWithdrawn *PaywallsListBuildsParamsIsWithdrawn `form:"isWithdrawn,omitempty" json:"isWithdrawn,omitempty"`
 }
+
+// PaywallsListBuildsParamsIsWithdrawn defines parameters for PaywallsListBuilds.
+type PaywallsListBuildsParamsIsWithdrawn string
 
 // PaywallsListLocationsParams defines parameters for PaywallsListLocations.
 type PaywallsListLocationsParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PaywallsListUsesParams defines parameters for PaywallsListUses.
+type PaywallsListUsesParams struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 
@@ -16160,6 +16619,9 @@ type ExperimentsConcludeJSONRequestBody = ConcludeExperimentBodyJsonEncoding
 // ExperimentsReplaceVariantsJSONRequestBody defines body for ExperimentsReplaceVariants for application/json ContentType.
 type ExperimentsReplaceVariantsJSONRequestBody = ReplaceExperimentVariantsBodyJsonEncoding
 
+// ExperimentsDeployVariantJSONRequestBody defines body for ExperimentsDeployVariant for application/json ContentType.
+type ExperimentsDeployVariantJSONRequestBody = DeployExperimentVariantBodyJsonEncoding
+
 // FeatureFlagsCreateJSONRequestBody defines body for FeatureFlagsCreate for application/json ContentType.
 type FeatureFlagsCreateJSONRequestBody = CreateFeatureFlagBodyJsonEncoding
 
@@ -16261,6 +16723,12 @@ type PaywallsUpdateJSONRequestBody = UpdatePaywallBodyJsonEncoding
 
 // PaywallsCreateBuildJSONRequestBody defines body for PaywallsCreateBuild for application/json ContentType.
 type PaywallsCreateBuildJSONRequestBody = CreatePaywallBuildBodyJsonEncoding
+
+// PaywallsDuplicateJSONRequestBody defines body for PaywallsDuplicate for application/json ContentType.
+type PaywallsDuplicateJSONRequestBody = DuplicatePaywallBodyJsonEncoding
+
+// PaywallsSetEnvironmentJSONRequestBody defines body for PaywallsSetEnvironment for application/json ContentType.
+type PaywallsSetEnvironmentJSONRequestBody = SetPaywallEnvironmentBodyJsonEncoding
 
 // PerksCreateJSONRequestBody defines body for PerksCreate for application/json ContentType.
 type PerksCreateJSONRequestBody = CreatePerkBodyJsonEncoding
@@ -20375,6 +20843,11 @@ type ClientInterface interface {
 
 	ExperimentsReplaceVariants(ctx context.Context, projectId string, experimentId string, body ExperimentsReplaceVariantsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ExperimentsDeployVariantWithBody request with any body
+	ExperimentsDeployVariantWithBody(ctx context.Context, projectId string, experimentId string, variantId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ExperimentsDeployVariant(ctx context.Context, projectId string, experimentId string, variantId string, body ExperimentsDeployVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// FeatureFlagsListOverridesByIdentity request
 	FeatureFlagsListOverridesByIdentity(ctx context.Context, projectId string, params *FeatureFlagsListOverridesByIdentityParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -20615,6 +21088,9 @@ type ClientInterface interface {
 	// PaywallLocationsArchive request
 	PaywallLocationsArchive(ctx context.Context, projectId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PaywallLocationsGetDefaultAnswer request
+	PaywallLocationsGetDefaultAnswer(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsGetDefaultAnswerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PaywallLocationsSetInterfaceWithBody request with any body
 	PaywallLocationsSetInterfaceWithBody(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -20649,6 +21125,9 @@ type ClientInterface interface {
 
 	// PaywallLocationsListShowings request
 	PaywallLocationsListShowings(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListShowingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallTemplatesList request
+	PaywallTemplatesList(ctx context.Context, projectId string, params *PaywallTemplatesListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PaywallsList request
 	PaywallsList(ctx context.Context, projectId string, params *PaywallsListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -20686,6 +21165,25 @@ type ClientInterface interface {
 	// PaywallsDeployBuild request
 	PaywallsDeployBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PaywallsRestoreBuild request
+	PaywallsRestoreBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsWithdrawBuild request
+	PaywallsWithdrawBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsGetBuildWithdrawal request
+	PaywallsGetBuildWithdrawal(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsDuplicateWithBody request with any body
+	PaywallsDuplicateWithBody(ctx context.Context, projectId string, paywallId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaywallsDuplicate(ctx context.Context, projectId string, paywallId string, body PaywallsDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsSetEnvironmentWithBody request with any body
+	PaywallsSetEnvironmentWithBody(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaywallsSetEnvironment(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, body PaywallsSetEnvironmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PaywallsListLocations request
 	PaywallsListLocations(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -20697,6 +21195,9 @@ type ClientInterface interface {
 
 	// PaywallsUnarchive request
 	PaywallsUnarchive(ctx context.Context, projectId string, paywallId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaywallsListUses request
+	PaywallsListUses(ctx context.Context, projectId string, paywallId string, params *PaywallsListUsesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PerksList request
 	PerksList(ctx context.Context, projectId string, params *PerksListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -23942,6 +24443,30 @@ func (c *Client) ExperimentsReplaceVariants(ctx context.Context, projectId strin
 	return c.Client.Do(req)
 }
 
+func (c *Client) ExperimentsDeployVariantWithBody(ctx context.Context, projectId string, experimentId string, variantId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExperimentsDeployVariantRequestWithBody(c.Server, projectId, experimentId, variantId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExperimentsDeployVariant(ctx context.Context, projectId string, experimentId string, variantId string, body ExperimentsDeployVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExperimentsDeployVariantRequest(c.Server, projectId, experimentId, variantId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) FeatureFlagsListOverridesByIdentity(ctx context.Context, projectId string, params *FeatureFlagsListOverridesByIdentityParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewFeatureFlagsListOverridesByIdentityRequest(c.Server, projectId, params)
 	if err != nil {
@@ -25010,6 +25535,18 @@ func (c *Client) PaywallLocationsArchive(ctx context.Context, projectId string, 
 	return c.Client.Do(req)
 }
 
+func (c *Client) PaywallLocationsGetDefaultAnswer(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsGetDefaultAnswerParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallLocationsGetDefaultAnswerRequest(c.Server, projectId, paywallLocationId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PaywallLocationsSetInterfaceWithBody(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallLocationsSetInterfaceRequestWithBody(c.Server, projectId, paywallLocationId, contentType, body)
 	if err != nil {
@@ -25156,6 +25693,18 @@ func (c *Client) PaywallLocationsSetShowing(ctx context.Context, projectId strin
 
 func (c *Client) PaywallLocationsListShowings(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListShowingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallLocationsListShowingsRequest(c.Server, projectId, paywallLocationId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallTemplatesList(ctx context.Context, projectId string, params *PaywallTemplatesListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallTemplatesListRequest(c.Server, projectId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -25322,6 +25871,90 @@ func (c *Client) PaywallsDeployBuild(ctx context.Context, projectId string, payw
 	return c.Client.Do(req)
 }
 
+func (c *Client) PaywallsRestoreBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsRestoreBuildRequest(c.Server, projectId, paywallId, buildId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsWithdrawBuild(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsWithdrawBuildRequest(c.Server, projectId, paywallId, buildId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsGetBuildWithdrawal(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsGetBuildWithdrawalRequest(c.Server, projectId, paywallId, buildId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsDuplicateWithBody(ctx context.Context, projectId string, paywallId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsDuplicateRequestWithBody(c.Server, projectId, paywallId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsDuplicate(ctx context.Context, projectId string, paywallId string, body PaywallsDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsDuplicateRequest(c.Server, projectId, paywallId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsSetEnvironmentWithBody(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsSetEnvironmentRequestWithBody(c.Server, projectId, paywallId, environment, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsSetEnvironment(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, body PaywallsSetEnvironmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsSetEnvironmentRequest(c.Server, projectId, paywallId, environment, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PaywallsListLocations(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallsListLocationsRequest(c.Server, projectId, paywallId, params)
 	if err != nil {
@@ -25360,6 +25993,18 @@ func (c *Client) PaywallsAddLocation(ctx context.Context, projectId string, payw
 
 func (c *Client) PaywallsUnarchive(ctx context.Context, projectId string, paywallId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaywallsUnarchiveRequest(c.Server, projectId, paywallId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaywallsListUses(ctx context.Context, projectId string, paywallId string, params *PaywallsListUsesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaywallsListUsesRequest(c.Server, projectId, paywallId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -36370,6 +37015,67 @@ func NewExperimentsReplaceVariantsRequestWithBody(server string, projectId strin
 	return req, nil
 }
 
+// NewExperimentsDeployVariantRequest calls the generic ExperimentsDeployVariant builder with application/json body
+func NewExperimentsDeployVariantRequest(server string, projectId string, experimentId string, variantId string, body ExperimentsDeployVariantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExperimentsDeployVariantRequestWithBody(server, projectId, experimentId, variantId, "application/json", bodyReader)
+}
+
+// NewExperimentsDeployVariantRequestWithBody generates requests for ExperimentsDeployVariant with any type of body
+func NewExperimentsDeployVariantRequestWithBody(server string, projectId string, experimentId string, variantId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "experimentId", runtime.ParamLocationPath, experimentId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "variantId", runtime.ParamLocationPath, variantId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/experiments/%s/variants/%s/deploy", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewFeatureFlagsListOverridesByIdentityRequest generates requests for FeatureFlagsListOverridesByIdentity
 func NewFeatureFlagsListOverridesByIdentityRequest(server string, projectId string, params *FeatureFlagsListOverridesByIdentityParams) (*http.Request, error) {
 	var err error
@@ -40132,6 +40838,69 @@ func NewPaywallLocationsArchiveRequest(server string, projectId string, paywallL
 	return req, nil
 }
 
+// NewPaywallLocationsGetDefaultAnswerRequest generates requests for PaywallLocationsGetDefaultAnswer
+func NewPaywallLocationsGetDefaultAnswerRequest(server string, projectId string, paywallLocationId string, params *PaywallLocationsGetDefaultAnswerParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallLocationId", runtime.ParamLocationPath, paywallLocationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywall-locations/%s/default-answer", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.InterfaceRevision != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "interfaceRevision", runtime.ParamLocationQuery, *params.InterfaceRevision); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPaywallLocationsSetInterfaceRequest calls the generic PaywallLocationsSetInterface builder with application/json body
 func NewPaywallLocationsSetInterfaceRequest(server string, projectId string, paywallLocationId string, body PaywallLocationsSetInterfaceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -40823,6 +41592,94 @@ func NewPaywallLocationsListShowingsRequest(server string, projectId string, pay
 	return req, nil
 }
 
+// NewPaywallTemplatesListRequest generates requests for PaywallTemplatesList
+func NewPaywallTemplatesListRequest(server string, projectId string, params *PaywallTemplatesListParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywall-templates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Kind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "kind", runtime.ParamLocationQuery, *params.Kind); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPaywallsListRequest generates requests for PaywallsList
 func NewPaywallsListRequest(server string, projectId string, params *PaywallsListParams) (*http.Request, error) {
 	var err error
@@ -41219,6 +42076,22 @@ func NewPaywallsListBuildsRequest(server string, projectId string, paywallId str
 
 		}
 
+		if params.IsWithdrawn != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isWithdrawn", runtime.ParamLocationQuery, *params.IsWithdrawn); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -41376,6 +42249,265 @@ func NewPaywallsDeployBuildRequest(server string, projectId string, paywallId st
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPaywallsRestoreBuildRequest generates requests for PaywallsRestoreBuild
+func NewPaywallsRestoreBuildRequest(server string, projectId string, paywallId string, buildId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "buildId", runtime.ParamLocationPath, buildId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/builds/%s/restore", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsWithdrawBuildRequest generates requests for PaywallsWithdrawBuild
+func NewPaywallsWithdrawBuildRequest(server string, projectId string, paywallId string, buildId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "buildId", runtime.ParamLocationPath, buildId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/builds/%s/withdraw", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsGetBuildWithdrawalRequest generates requests for PaywallsGetBuildWithdrawal
+func NewPaywallsGetBuildWithdrawalRequest(server string, projectId string, paywallId string, buildId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "buildId", runtime.ParamLocationPath, buildId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/builds/%s/withdrawal", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsDuplicateRequest calls the generic PaywallsDuplicate builder with application/json body
+func NewPaywallsDuplicateRequest(server string, projectId string, paywallId string, body PaywallsDuplicateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaywallsDuplicateRequestWithBody(server, projectId, paywallId, "application/json", bodyReader)
+}
+
+// NewPaywallsDuplicateRequestWithBody generates requests for PaywallsDuplicate with any type of body
+func NewPaywallsDuplicateRequestWithBody(server string, projectId string, paywallId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/duplicate", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPaywallsSetEnvironmentRequest calls the generic PaywallsSetEnvironment builder with application/json body
+func NewPaywallsSetEnvironmentRequest(server string, projectId string, paywallId string, environment PaywallLocationEnvironment, body PaywallsSetEnvironmentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaywallsSetEnvironmentRequestWithBody(server, projectId, paywallId, environment, "application/json", bodyReader)
+}
+
+// NewPaywallsSetEnvironmentRequestWithBody generates requests for PaywallsSetEnvironment with any type of body
+func NewPaywallsSetEnvironmentRequestWithBody(server string, projectId string, paywallId string, environment PaywallLocationEnvironment, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "environment", runtime.ParamLocationPath, environment)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/environments/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -41589,6 +42721,85 @@ func NewPaywallsUnarchiveRequest(server string, projectId string, paywallId stri
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaywallsListUsesRequest generates requests for PaywallsListUses
+func NewPaywallsListUsesRequest(server string, projectId string, paywallId string, params *PaywallsListUsesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paywallId", runtime.ParamLocationPath, paywallId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/paywalls/%s/uses", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -49067,6 +50278,11 @@ type ClientWithResponsesInterface interface {
 
 	ExperimentsReplaceVariantsWithResponse(ctx context.Context, projectId string, experimentId string, body ExperimentsReplaceVariantsJSONRequestBody, reqEditors ...RequestEditorFn) (*ExperimentsReplaceVariantsResponse, error)
 
+	// ExperimentsDeployVariantWithBodyWithResponse request with any body
+	ExperimentsDeployVariantWithBodyWithResponse(ctx context.Context, projectId string, experimentId string, variantId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExperimentsDeployVariantResponse, error)
+
+	ExperimentsDeployVariantWithResponse(ctx context.Context, projectId string, experimentId string, variantId string, body ExperimentsDeployVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*ExperimentsDeployVariantResponse, error)
+
 	// FeatureFlagsListOverridesByIdentityWithResponse request
 	FeatureFlagsListOverridesByIdentityWithResponse(ctx context.Context, projectId string, params *FeatureFlagsListOverridesByIdentityParams, reqEditors ...RequestEditorFn) (*FeatureFlagsListOverridesByIdentityResponse, error)
 
@@ -49307,6 +50523,9 @@ type ClientWithResponsesInterface interface {
 	// PaywallLocationsArchiveWithResponse request
 	PaywallLocationsArchiveWithResponse(ctx context.Context, projectId string, paywallLocationId string, reqEditors ...RequestEditorFn) (*PaywallLocationsArchiveResponse, error)
 
+	// PaywallLocationsGetDefaultAnswerWithResponse request
+	PaywallLocationsGetDefaultAnswerWithResponse(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsGetDefaultAnswerParams, reqEditors ...RequestEditorFn) (*PaywallLocationsGetDefaultAnswerResponse, error)
+
 	// PaywallLocationsSetInterfaceWithBodyWithResponse request with any body
 	PaywallLocationsSetInterfaceWithBodyWithResponse(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error)
 
@@ -49341,6 +50560,9 @@ type ClientWithResponsesInterface interface {
 
 	// PaywallLocationsListShowingsWithResponse request
 	PaywallLocationsListShowingsWithResponse(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsListShowingsParams, reqEditors ...RequestEditorFn) (*PaywallLocationsListShowingsResponse, error)
+
+	// PaywallTemplatesListWithResponse request
+	PaywallTemplatesListWithResponse(ctx context.Context, projectId string, params *PaywallTemplatesListParams, reqEditors ...RequestEditorFn) (*PaywallTemplatesListResponse, error)
 
 	// PaywallsListWithResponse request
 	PaywallsListWithResponse(ctx context.Context, projectId string, params *PaywallsListParams, reqEditors ...RequestEditorFn) (*PaywallsListResponse, error)
@@ -49378,6 +50600,25 @@ type ClientWithResponsesInterface interface {
 	// PaywallsDeployBuildWithResponse request
 	PaywallsDeployBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsDeployBuildResponse, error)
 
+	// PaywallsRestoreBuildWithResponse request
+	PaywallsRestoreBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsRestoreBuildResponse, error)
+
+	// PaywallsWithdrawBuildWithResponse request
+	PaywallsWithdrawBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsWithdrawBuildResponse, error)
+
+	// PaywallsGetBuildWithdrawalWithResponse request
+	PaywallsGetBuildWithdrawalWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsGetBuildWithdrawalResponse, error)
+
+	// PaywallsDuplicateWithBodyWithResponse request with any body
+	PaywallsDuplicateWithBodyWithResponse(ctx context.Context, projectId string, paywallId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallsDuplicateResponse, error)
+
+	PaywallsDuplicateWithResponse(ctx context.Context, projectId string, paywallId string, body PaywallsDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallsDuplicateResponse, error)
+
+	// PaywallsSetEnvironmentWithBodyWithResponse request with any body
+	PaywallsSetEnvironmentWithBodyWithResponse(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallsSetEnvironmentResponse, error)
+
+	PaywallsSetEnvironmentWithResponse(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, body PaywallsSetEnvironmentJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallsSetEnvironmentResponse, error)
+
 	// PaywallsListLocationsWithResponse request
 	PaywallsListLocationsWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*PaywallsListLocationsResponse, error)
 
@@ -49389,6 +50630,9 @@ type ClientWithResponsesInterface interface {
 
 	// PaywallsUnarchiveWithResponse request
 	PaywallsUnarchiveWithResponse(ctx context.Context, projectId string, paywallId string, reqEditors ...RequestEditorFn) (*PaywallsUnarchiveResponse, error)
+
+	// PaywallsListUsesWithResponse request
+	PaywallsListUsesWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListUsesParams, reqEditors ...RequestEditorFn) (*PaywallsListUsesResponse, error)
 
 	// PerksListWithResponse request
 	PerksListWithResponse(ctx context.Context, projectId string, params *PerksListParams, reqEditors ...RequestEditorFn) (*PerksListResponse, error)
@@ -54713,6 +55957,34 @@ func (r ExperimentsReplaceVariantsResponse) StatusCode() int {
 	return 0
 }
 
+type ExperimentsDeployVariantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ExperimentVariantJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ExperimentsDeployVariantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExperimentsDeployVariantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type FeatureFlagsListOverridesByIdentityResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -56497,6 +57769,7 @@ type PaywallLocationsArchiveResponse struct {
 	JSON401      *UnauthenticatedErrorJsonEncoding
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 }
 
@@ -56510,6 +57783,34 @@ func (r PaywallLocationsArchiveResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PaywallLocationsArchiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallLocationsGetDefaultAnswerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallLocationDefaultAnswerJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallLocationsGetDefaultAnswerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallLocationsGetDefaultAnswerResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -56700,6 +58001,7 @@ type PaywallLocationsClearShowingResponse struct {
 	JSON401      *UnauthenticatedErrorJsonEncoding
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 }
 
@@ -56780,6 +58082,39 @@ func (r PaywallLocationsListShowingsResponse) StatusCode() int {
 	return 0
 }
 
+type PaywallTemplatesListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []PaywallTemplateJsonEncoding `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallTemplatesListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallTemplatesListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PaywallsListResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -56848,6 +58183,7 @@ type PaywallsDeleteResponse struct {
 	JSON401      *UnauthenticatedErrorJsonEncoding
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 }
 
@@ -57064,6 +58400,145 @@ func (r PaywallsDeployBuildResponse) StatusCode() int {
 	return 0
 }
 
+type PaywallsRestoreBuildResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallBuildJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsRestoreBuildResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsRestoreBuildResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsWithdrawBuildResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallBuildJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsWithdrawBuildResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsWithdrawBuildResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsGetBuildWithdrawalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallBuildWithdrawalJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsGetBuildWithdrawalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsGetBuildWithdrawalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsDuplicateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *PaywallJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsDuplicateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsDuplicateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsSetEnvironmentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaywallBuildJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsSetEnvironmentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsSetEnvironmentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PaywallsListLocationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -57174,6 +58649,39 @@ func (r PaywallsUnarchiveResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PaywallsUnarchiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaywallsListUsesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []PaywallUseJsonEncoding `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaywallsListUsesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaywallsListUsesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -61649,6 +63157,23 @@ func (c *ClientWithResponses) ExperimentsReplaceVariantsWithResponse(ctx context
 	return ParseExperimentsReplaceVariantsResponse(rsp)
 }
 
+// ExperimentsDeployVariantWithBodyWithResponse request with arbitrary body returning *ExperimentsDeployVariantResponse
+func (c *ClientWithResponses) ExperimentsDeployVariantWithBodyWithResponse(ctx context.Context, projectId string, experimentId string, variantId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExperimentsDeployVariantResponse, error) {
+	rsp, err := c.ExperimentsDeployVariantWithBody(ctx, projectId, experimentId, variantId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExperimentsDeployVariantResponse(rsp)
+}
+
+func (c *ClientWithResponses) ExperimentsDeployVariantWithResponse(ctx context.Context, projectId string, experimentId string, variantId string, body ExperimentsDeployVariantJSONRequestBody, reqEditors ...RequestEditorFn) (*ExperimentsDeployVariantResponse, error) {
+	rsp, err := c.ExperimentsDeployVariant(ctx, projectId, experimentId, variantId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExperimentsDeployVariantResponse(rsp)
+}
+
 // FeatureFlagsListOverridesByIdentityWithResponse request returning *FeatureFlagsListOverridesByIdentityResponse
 func (c *ClientWithResponses) FeatureFlagsListOverridesByIdentityWithResponse(ctx context.Context, projectId string, params *FeatureFlagsListOverridesByIdentityParams, reqEditors ...RequestEditorFn) (*FeatureFlagsListOverridesByIdentityResponse, error) {
 	rsp, err := c.FeatureFlagsListOverridesByIdentity(ctx, projectId, params, reqEditors...)
@@ -62423,6 +63948,15 @@ func (c *ClientWithResponses) PaywallLocationsArchiveWithResponse(ctx context.Co
 	return ParsePaywallLocationsArchiveResponse(rsp)
 }
 
+// PaywallLocationsGetDefaultAnswerWithResponse request returning *PaywallLocationsGetDefaultAnswerResponse
+func (c *ClientWithResponses) PaywallLocationsGetDefaultAnswerWithResponse(ctx context.Context, projectId string, paywallLocationId string, params *PaywallLocationsGetDefaultAnswerParams, reqEditors ...RequestEditorFn) (*PaywallLocationsGetDefaultAnswerResponse, error) {
+	rsp, err := c.PaywallLocationsGetDefaultAnswer(ctx, projectId, paywallLocationId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallLocationsGetDefaultAnswerResponse(rsp)
+}
+
 // PaywallLocationsSetInterfaceWithBodyWithResponse request with arbitrary body returning *PaywallLocationsSetInterfaceResponse
 func (c *ClientWithResponses) PaywallLocationsSetInterfaceWithBodyWithResponse(ctx context.Context, projectId string, paywallLocationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallLocationsSetInterfaceResponse, error) {
 	rsp, err := c.PaywallLocationsSetInterfaceWithBody(ctx, projectId, paywallLocationId, contentType, body, reqEditors...)
@@ -62534,6 +64068,15 @@ func (c *ClientWithResponses) PaywallLocationsListShowingsWithResponse(ctx conte
 		return nil, err
 	}
 	return ParsePaywallLocationsListShowingsResponse(rsp)
+}
+
+// PaywallTemplatesListWithResponse request returning *PaywallTemplatesListResponse
+func (c *ClientWithResponses) PaywallTemplatesListWithResponse(ctx context.Context, projectId string, params *PaywallTemplatesListParams, reqEditors ...RequestEditorFn) (*PaywallTemplatesListResponse, error) {
+	rsp, err := c.PaywallTemplatesList(ctx, projectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallTemplatesListResponse(rsp)
 }
 
 // PaywallsListWithResponse request returning *PaywallsListResponse
@@ -62650,6 +64193,67 @@ func (c *ClientWithResponses) PaywallsDeployBuildWithResponse(ctx context.Contex
 	return ParsePaywallsDeployBuildResponse(rsp)
 }
 
+// PaywallsRestoreBuildWithResponse request returning *PaywallsRestoreBuildResponse
+func (c *ClientWithResponses) PaywallsRestoreBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsRestoreBuildResponse, error) {
+	rsp, err := c.PaywallsRestoreBuild(ctx, projectId, paywallId, buildId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsRestoreBuildResponse(rsp)
+}
+
+// PaywallsWithdrawBuildWithResponse request returning *PaywallsWithdrawBuildResponse
+func (c *ClientWithResponses) PaywallsWithdrawBuildWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsWithdrawBuildResponse, error) {
+	rsp, err := c.PaywallsWithdrawBuild(ctx, projectId, paywallId, buildId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsWithdrawBuildResponse(rsp)
+}
+
+// PaywallsGetBuildWithdrawalWithResponse request returning *PaywallsGetBuildWithdrawalResponse
+func (c *ClientWithResponses) PaywallsGetBuildWithdrawalWithResponse(ctx context.Context, projectId string, paywallId string, buildId string, reqEditors ...RequestEditorFn) (*PaywallsGetBuildWithdrawalResponse, error) {
+	rsp, err := c.PaywallsGetBuildWithdrawal(ctx, projectId, paywallId, buildId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsGetBuildWithdrawalResponse(rsp)
+}
+
+// PaywallsDuplicateWithBodyWithResponse request with arbitrary body returning *PaywallsDuplicateResponse
+func (c *ClientWithResponses) PaywallsDuplicateWithBodyWithResponse(ctx context.Context, projectId string, paywallId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallsDuplicateResponse, error) {
+	rsp, err := c.PaywallsDuplicateWithBody(ctx, projectId, paywallId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsDuplicateResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaywallsDuplicateWithResponse(ctx context.Context, projectId string, paywallId string, body PaywallsDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallsDuplicateResponse, error) {
+	rsp, err := c.PaywallsDuplicate(ctx, projectId, paywallId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsDuplicateResponse(rsp)
+}
+
+// PaywallsSetEnvironmentWithBodyWithResponse request with arbitrary body returning *PaywallsSetEnvironmentResponse
+func (c *ClientWithResponses) PaywallsSetEnvironmentWithBodyWithResponse(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaywallsSetEnvironmentResponse, error) {
+	rsp, err := c.PaywallsSetEnvironmentWithBody(ctx, projectId, paywallId, environment, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsSetEnvironmentResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaywallsSetEnvironmentWithResponse(ctx context.Context, projectId string, paywallId string, environment PaywallLocationEnvironment, body PaywallsSetEnvironmentJSONRequestBody, reqEditors ...RequestEditorFn) (*PaywallsSetEnvironmentResponse, error) {
+	rsp, err := c.PaywallsSetEnvironment(ctx, projectId, paywallId, environment, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsSetEnvironmentResponse(rsp)
+}
+
 // PaywallsListLocationsWithResponse request returning *PaywallsListLocationsResponse
 func (c *ClientWithResponses) PaywallsListLocationsWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListLocationsParams, reqEditors ...RequestEditorFn) (*PaywallsListLocationsResponse, error) {
 	rsp, err := c.PaywallsListLocations(ctx, projectId, paywallId, params, reqEditors...)
@@ -62684,6 +64288,15 @@ func (c *ClientWithResponses) PaywallsUnarchiveWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParsePaywallsUnarchiveResponse(rsp)
+}
+
+// PaywallsListUsesWithResponse request returning *PaywallsListUsesResponse
+func (c *ClientWithResponses) PaywallsListUsesWithResponse(ctx context.Context, projectId string, paywallId string, params *PaywallsListUsesParams, reqEditors ...RequestEditorFn) (*PaywallsListUsesResponse, error) {
+	rsp, err := c.PaywallsListUses(ctx, projectId, paywallId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaywallsListUsesResponse(rsp)
 }
 
 // PerksListWithResponse request returning *PerksListResponse
@@ -75000,6 +76613,74 @@ func ParseExperimentsReplaceVariantsResponse(rsp *http.Response) (*ExperimentsRe
 	return response, nil
 }
 
+// ParseExperimentsDeployVariantResponse parses an HTTP response from a ExperimentsDeployVariantWithResponse call
+func ParseExperimentsDeployVariantResponse(rsp *http.Response) (*ExperimentsDeployVariantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExperimentsDeployVariantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ExperimentVariantJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseFeatureFlagsListOverridesByIdentityResponse parses an HTTP response from a FeatureFlagsListOverridesByIdentityWithResponse call
 func ParseFeatureFlagsListOverridesByIdentityResponse(rsp *http.Response) (*FeatureFlagsListOverridesByIdentityResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -79169,6 +80850,81 @@ func ParsePaywallLocationsArchiveResponse(rsp *http.Response) (*PaywallLocations
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallLocationsGetDefaultAnswerResponse parses an HTTP response from a PaywallLocationsGetDefaultAnswerWithResponse call
+func ParsePaywallLocationsGetDefaultAnswerResponse(rsp *http.Response) (*PaywallLocationsGetDefaultAnswerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallLocationsGetDefaultAnswerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallLocationDefaultAnswerJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -79622,6 +81378,13 @@ func ParsePaywallLocationsClearShowingResponse(rsp *http.Response) (*PaywallLoca
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -79720,6 +81483,73 @@ func ParsePaywallLocationsListShowingsResponse(rsp *http.Response) (*PaywallLoca
 		var dest struct {
 			// Data The items on this page, in list order.
 			Data []PaywallLocationShowingJsonEncoding `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallTemplatesListResponse parses an HTTP response from a PaywallTemplatesListWithResponse call
+func ParsePaywallTemplatesListResponse(rsp *http.Response) (*PaywallTemplatesListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallTemplatesListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []PaywallTemplateJsonEncoding `json:"data"`
 
 			// PageInfo Where this page ends.
 			PageInfo PageInfo `json:"pageInfo"`
@@ -79945,6 +81775,13 @@ func ParsePaywallsDeleteResponse(rsp *http.Response) (*PaywallsDeleteResponse, e
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
@@ -80405,6 +82242,339 @@ func ParsePaywallsDeployBuildResponse(rsp *http.Response) (*PaywallsDeployBuildR
 	return response, nil
 }
 
+// ParsePaywallsRestoreBuildResponse parses an HTTP response from a PaywallsRestoreBuildWithResponse call
+func ParsePaywallsRestoreBuildResponse(rsp *http.Response) (*PaywallsRestoreBuildResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsRestoreBuildResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallBuildJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsWithdrawBuildResponse parses an HTTP response from a PaywallsWithdrawBuildWithResponse call
+func ParsePaywallsWithdrawBuildResponse(rsp *http.Response) (*PaywallsWithdrawBuildResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsWithdrawBuildResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallBuildJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsGetBuildWithdrawalResponse parses an HTTP response from a PaywallsGetBuildWithdrawalWithResponse call
+func ParsePaywallsGetBuildWithdrawalResponse(rsp *http.Response) (*PaywallsGetBuildWithdrawalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsGetBuildWithdrawalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallBuildWithdrawalJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsDuplicateResponse parses an HTTP response from a PaywallsDuplicateWithResponse call
+func ParsePaywallsDuplicateResponse(rsp *http.Response) (*PaywallsDuplicateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsDuplicateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PaywallJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsSetEnvironmentResponse parses an HTTP response from a PaywallsSetEnvironmentWithResponse call
+func ParsePaywallsSetEnvironmentResponse(rsp *http.Response) (*PaywallsSetEnvironmentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsSetEnvironmentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaywallBuildJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePaywallsListLocationsResponse parses an HTTP response from a PaywallsListLocationsWithResponse call
 func ParsePaywallsListLocationsResponse(rsp *http.Response) (*PaywallsListLocationsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -80624,6 +82794,73 @@ func ParsePaywallsUnarchiveResponse(rsp *http.Response) (*PaywallsUnarchiveRespo
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PaywallJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaywallsListUsesResponse parses an HTTP response from a PaywallsListUsesWithResponse call
+func ParsePaywallsListUsesResponse(rsp *http.Response) (*PaywallsListUsesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaywallsListUsesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []PaywallUseJsonEncoding `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

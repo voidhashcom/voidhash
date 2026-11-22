@@ -307,8 +307,10 @@ class HybridVoidhashNativeClient internal constructor(
             flowRevisions = configuration.flowRevisions.associate { it.location to it.revision.toInt() },
             flowRenderer = VoidhashFlowsCore.linkedRenderer(
                 runtimeModules = configuration.flowRuntime == NativeFlowRuntime.MODULE,
+                showsLoading = configuration.flowLoading != NativeFlowLoading.NONE,
             ),
             flowCapabilities = configuration.flowCapabilities.map(::flowCapability).toSet(),
+            flowPermissionHandlers = VoidhashFlowPermissionHandlers.registered(),
             featureFlags = FeatureFlagOptions(
                 maxWaitMs = configuration.featureFlagMaxWaitMs?.toLong() ?: FeatureFlagOptions().maxWaitMs,
                 defaults = configuration.featureFlagDefaults.orEmpty(),

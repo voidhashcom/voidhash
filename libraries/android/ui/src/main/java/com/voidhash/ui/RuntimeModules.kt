@@ -1,10 +1,10 @@
 package com.voidhash.ui
 
 import com.voidhash.sdk.api.RuntimeModuleReference
+import android.content.pm.ApplicationInfo
+import com.voidhash.sdk.flows.isDebuggableApp
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.Executors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -15,8 +15,10 @@ import kotlinx.coroutines.withContext
  *
  * The views core chooses: a cached module that runs the release, else the one the release names
  * once downloaded, else the module the SDK bundles when it runs the release, else nothing after a
- * short wait. It verifies every module by hash and keeps the downloaded ones in
- * `cacheDir/voidhash/runtime-modules`; this object only fetches what the core asks for. A runtime
+ * short wait. It verifies every module by hash and by the signature the release names, once, as
+ * it stores it in `cacheDir/voidhash/runtime-modules`; a module refused for its signature never
+ * runs, and the release then shows on the linked runtime if that reads it. This object only
+ * fetches what the core asks for. A runtime
  * module is public code, the same for every project, so one cache serves them all. Nothing here
  * runs before a flow is presented.
  */
@@ -33,6 +35,27 @@ internal object RuntimeModules {
     @Volatile
     private var configured = false
 
+    @Volatile
+    private var developmentKeysTrusted = false
+
+    /** Whether the app of [info] is a debuggable build, the only kind that trusts the development key. */
+    internal fun isDebuggable(info: ApplicationInfo): Boolean = (info.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    /**
+     * Has the core trust the development root when [debuggable]: only a debuggable build of the
+     * app is (read from the app's flags where the renderer holds a context, else as the SDK read
+     * them at configuration), so a release build runs modules signed for release alone. Returns
+     * whether the core trusts it.
+     */
+    internal fun trustDevelopmentKeys(debuggable: Boolean = isDebuggableApp()): Boolean {
+        if (!debuggable) return developmentKeysTrusted
+        if (!developmentKeysTrusted) {
+            ViewsNative.nativeRuntimeTrustDevelopmentRoot()
+            developmentKeysTrusted = true
+        }
+        return true
+    }
+
     /**
      * Waits until a module that runs the release is ready to draw it with; the core bounds the
      * wait (3 seconds). [cacheDirectory] is the app's cache directory; the first call fixes it for
@@ -44,7 +67,7 @@ internal object RuntimeModules {
         configure(cacheDirectory)
         while (true) {
             // Compiling a module the first time takes tens of milliseconds: never on the main thread.
-            val status = ViewsNative.nativeRuntimePrepare(runtime.version, runtime.sha256, runtime.url)
+            val status = ViewsNative.nativeRuntimePrepare(runtime.version, runtime.sha256, runtime.url, runtime.signature.orEmpty())
             // Downloads the choice started for a later presentation are fetched too.
             fetchDownloads()
             when {
@@ -79,12 +102,13 @@ internal object RuntimeModules {
         }
     }
 
-    /** The bytes at [url], at most [MAX_MODULE_BYTES] of them. */
-    private fun download(url: String): ByteArray {
-        val connection = URL(url).openConnection() as HttpURLConnection
+    /**
+     * The bytes at [url], at most [MAX_MODULE_BYTES] of them, over `https` apart from a local
+     * development server ([openFlowDownload]). The core checks them against the hash.
+     */
+    internal fun download(url: String): ByteArray {
+        val connection = openFlowDownload(url, "runtime module", TIMEOUT_MS, TIMEOUT_MS)
         try {
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
             val status = connection.responseCode
             check(status in 200..299) { "HTTP $status" }
             check(connection.contentLengthLong <= MAX_MODULE_BYTES) { "larger than $MAX_MODULE_BYTES bytes" }

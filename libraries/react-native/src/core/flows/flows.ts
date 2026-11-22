@@ -26,6 +26,13 @@ export type FlowCapability = "notifications" | "tracking" | "attributes" | "link
  */
 export type FlowRuntime = "linked" | "module";
 
+/**
+ * What a paywall shows while it waits for the network: `standard` (the default),
+ * the native SDK's loading screen 0.4 seconds after `presentFlow`, which the end
+ * user can close; `none`, the app's screen as it is until the paywall is shown.
+ */
+export type FlowLoading = "standard" | "none";
+
 /** Capabilities granted when `flowCapabilities` is not set. */
 export const DEFAULT_FLOW_CAPABILITIES: ReadonlyArray<FlowCapability> = ["links"];
 
@@ -47,6 +54,13 @@ export interface FlowResult<L extends string = string> {
   readonly outcome: FlowOutcome<L>;
   readonly output: FlowOutput<L>;
   readonly productId?: string;
+  /**
+   * `false` when the presentation ended before the paywall reached the screen,
+   * with the outcome `dismissed`: the end user closed the loading screen, or the
+   * app dismissed it or presented another paywall while it loaded. Absent from
+   * native SDKs that do not report it; read absent as `true`.
+   */
+  readonly wasShown?: boolean;
 }
 
 type RequiredWhenNotEmpty<Key extends string, Value> =
@@ -92,6 +106,7 @@ const NativeFlowResult = Schema.Union([
     outcome: Schema.String,
     output: Schema.Record(Schema.String, NativeFlowValue),
     productId: Schema.optional(Schema.String),
+    wasShown: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     failure: Schema.Struct({
@@ -129,5 +144,6 @@ export const parseFlowResult = (json: string): Result.Result<FlowResult, Voidhas
     outcome: native.outcome,
     output: native.output,
     ...(native.productId === undefined ? {} : { productId: native.productId }),
+    ...(native.wasShown === undefined ? {} : { wasShown: native.wasShown }),
   });
 };

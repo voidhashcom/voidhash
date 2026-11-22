@@ -394,13 +394,20 @@ data class FlowPackageReference(
 
 /**
  * A flow runtime module: what a renderer in module mode downloads, verifies by [sha256] and
- * caches to show a flow.
+ * [signature], and caches to show a flow.
  *
  * @property version the runtime version, `major.minor.patch`.
  * @property sha256 lowercase hex SHA-256 of the module bytes.
  * @property url where the module is downloaded from.
+ * @property signature hex signature of the module, which the renderer verifies before it runs it;
+ *   a module without one never runs.
  */
-data class RuntimeModuleReference(val version: String, val sha256: String, val url: String) {
+data class RuntimeModuleReference(
+    val version: String,
+    val sha256: String,
+    val url: String,
+    val signature: String? = null,
+) {
     companion object {
         internal fun fromJson(json: JSONObject): RuntimeModuleReference? {
             val version = json.optStringOrNull("version")?.takeIf(String::isNotEmpty) ?: return null
@@ -408,7 +415,7 @@ data class RuntimeModuleReference(val version: String, val sha256: String, val u
                 ?.takeIf { it.length == 64 && it.all { char -> char in '0'..'9' || char in 'a'..'f' } }
                 ?: return null
             val url = json.optStringOrNull("url")?.takeIf(String::isNotEmpty) ?: return null
-            return RuntimeModuleReference(version, sha256, url)
+            return RuntimeModuleReference(version, sha256, url, json.optStringOrNull("signature"))
         }
     }
 }
@@ -447,6 +454,66 @@ data class ResolvedPaywall(
             )
         }
     }
+}
+
+/**
+ * A resolve answer naming a paywall, with what only the SDK reads of it: the ids its analytics
+ * events name the flow by, the A/B test's exposure token and the packages withdrawn at its
+ * location. [paywall] is what the app is handed.
+ *
+ * @property locationId the location's id; `null` from a server that did not send it.
+ * @property releaseId the release shown, as the showing names it.
+ * @property exposureToken sent unchanged on the first event of each presentation of this answer
+ *   and on each hand-off of it to the app; never handed to the app itself.
+ * @property withdrawnPackages lowercase hex SHA-256 of the flow packages withdrawn at this
+ *   location, newest first: never shown, not even as a fallback.
+ */
+internal class PaywallAnswer(
+    val paywall: ResolvedPaywall,
+    val locationId: String? = null,
+    val releaseId: String? = paywall.releaseId.takeIf(String::isNotEmpty),
+    val exposureToken: ExposureToken? = null,
+    val withdrawnPackages: List<String> = emptyList(),
+) {
+    // Never the token.
+    override fun toString(): String = "PaywallAnswer(paywall=$paywall, locationId=$locationId)"
+
+    companion object {
+        /** The answer [json] is, or `null` when it names no paywall release. */
+        fun fromJson(json: JSONObject): PaywallAnswer? {
+            val paywall = ResolvedPaywall.fromJson(json) ?: return null
+            val showing = json.getJSONObject("showing")
+            val withdrawn = json.optJSONArray("withdrawnPackages") ?: JSONArray()
+            return PaywallAnswer(
+                paywall = paywall,
+                locationId = json.optJSONObject("location")?.optStringOrNull("id")?.takeIf(String::isNotEmpty),
+                releaseId = showing.optStringOrNull("paywallReleaseId")?.takeIf(String::isNotEmpty)
+                    ?: paywall.releaseId.takeIf(String::isNotEmpty),
+                exposureToken = showing.optStringOrNull("exposureToken")?.takeIf(String::isNotEmpty)?.let(::ExposureToken),
+                withdrawnPackages = (0 until withdrawn.length())
+                    .mapNotNull { (withdrawn.opt(it) as? String)?.lowercase()?.takeIf { hash -> hash.length == 64 } },
+            )
+        }
+
+        /** [json] as the app is handed it: without the exposure token, which is the SDK's alone. */
+        fun handedToApp(json: JSONObject): JSONObject {
+            val copy = JSONObject(json.toString())
+            copy.optJSONObject("showing")?.remove("exposureToken")
+            return copy
+        }
+    }
+}
+
+/**
+ * The opaque value a resolve answer carries when an A/B test chose what it shows. It counts the
+ * person in the test once an event carries it, so it is never logged or handed to the app.
+ */
+internal class ExposureToken(val value: String) {
+    override fun toString(): String = "ExposureToken(…)"
+
+    override fun equals(other: Any?): Boolean = other is ExposureToken && other.value == value
+
+    override fun hashCode(): Int = value.hashCode()
 }
 
 /** What the backend said about a synced store transaction. */
@@ -492,12 +559,20 @@ data class PurchasePaywallContext(
     val paywallId: String? = null,
     val paywallReleaseId: String? = null,
 ) {
+    /**
+     * Where the flow the purchase was started from came from, when that is not Voidhash's answer:
+     * `bundled` for the flow the app ships, shown without one. Not part of [equals].
+     */
+    var source: String? = null
+        internal set
+
     internal fun toJson(): JSONObject = JSONObject()
         .put("showingId", showingId)
         .apply {
             placement?.let { put("placement", it) }
             paywallId?.let { put("paywallId", it) }
             paywallReleaseId?.let { put("paywallReleaseId", it) }
+            source?.let { put("source", it) }
         }
 
     internal companion object {
@@ -508,7 +583,7 @@ data class PurchasePaywallContext(
                 placement = json.optStringOrNull("placement"),
                 paywallId = json.optStringOrNull("paywallId"),
                 paywallReleaseId = json.optStringOrNull("paywallReleaseId"),
-            )
+            ).also { it.source = json.optStringOrNull("source") }
         }
     }
 }

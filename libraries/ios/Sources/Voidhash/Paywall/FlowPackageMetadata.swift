@@ -1,25 +1,46 @@
 import Foundation
 
-/// Reads the one thing the SDK needs from a flow package without the renderer: the images the
-/// package lists, so they can be fetched before the flow is shown. Everything else in a package
-/// is the renderer's to decode and validate.
+/// The images a flow package lists, read without the renderer: every URL a node can show, for
+/// fetching them before the flow is shown, and the SHA-256 the build recorded for each image it
+/// pinned, which a host verifies the bytes it shows against. Everything else in a package is the
+/// renderer's to decode and validate. For the SDK's flow renderer, not the documented API.
+@_spi(VoidhashFlows)
+public struct FlowPackageImages: Sendable, Equatable {
+    /// Every image URL a node of the package can show, as its `META` section lists them under
+    /// `images`, without duplicates and in the order listed.
+    public let urls: [String]
+    /// The lowercase hex SHA-256 its build recorded for each uploaded image the package shows,
+    /// by URL (`META` `imageSha256`). An image URL missing here was typed by a designer or is
+    /// worked out on the device, or the package was built before builds recorded hashes: it is
+    /// shown unverified.
+    public let sha256: [String: String]
+
+    public init(urls: [String] = [], sha256: [String: String] = [:]) {
+        self.urls = urls
+        self.sha256 = sha256
+    }
+
+    /// The images `package` lists.
+    ///
+    /// None for bytes that are not a readable package: the renderer reports a package it cannot
+    /// show, and a package this reader cannot read pins no image.
+    public init(package: Data) {
+        self = FlowPackageMetadata.images(in: package)
+    }
+}
+
 enum FlowPackageMetadata {
     /// `VHFP`, read as a little-endian integer.
     private static let magic: UInt32 = 0x5046_4856
     /// Deepest nesting of a metadata value that is followed; real metadata is two levels deep.
     private static let maxDepth = 16
 
-    /// Every image URL a node of `package` can show, as its `META` section lists them under
-    /// `images`, without duplicates and in the order listed.
-    ///
-    /// Empty for bytes that are not a readable package: fetching images ahead is never a
-    /// reason to fail, and the renderer reports a package it cannot show.
-    static func imageUrls(in package: Data) -> [String] {
+    static func images(in package: Data) -> FlowPackageImages {
         var reader = Reader(package)
         guard reader.u32() == magic, reader.u16() != nil, reader.u16() != nil,
             let sectionCount = reader.u32()
         else {
-            return []
+            return FlowPackageImages()
         }
         var strings: [String]?
         var metadata: Data?
@@ -27,7 +48,7 @@ enum FlowPackageMetadata {
             guard let tag = reader.bytes(4), let length = reader.u32(),
                 let body = reader.bytes(Int(length))
             else {
-                return []
+                return FlowPackageImages()
             }
             switch String(decoding: tag, as: UTF8.self) {
             case "STRS":
@@ -38,13 +59,13 @@ enum FlowPackageMetadata {
                 break
             }
         }
-        guard let strings, let metadata else {
-            return []
+        guard let strings, let metadata, let entries = imageEntries(in: metadata, strings: strings)
+        else {
+            return FlowPackageImages()
         }
         var seen: Set<String> = []
-        return imageIndices(in: metadata, strings: strings)
-            .compactMap { strings.indices.contains($0) ? strings[$0] : nil }
-            .filter { seen.insert($0).inserted }
+        return FlowPackageImages(
+            urls: entries.urls.filter { seen.insert($0).inserted }, sha256: entries.sha256)
     }
 
     private static func stringTable(_ body: Data) -> [String]? {
@@ -62,35 +83,59 @@ enum FlowPackageMetadata {
         return strings
     }
 
-    /// String indices of the entries of the metadata object's `images` array.
-    private static func imageIndices(in metadata: Data, strings: [String]) -> [Int] {
+    /// The metadata object's `images` and `imageSha256`; `nil` for metadata that is not an
+    /// object of well-formed values.
+    private static func imageEntries(in metadata: Data, strings: [String])
+        -> (urls: [String], sha256: [String: String])?
+    {
         var reader = Reader(metadata)
         guard reader.u8() == ValueTag.object, let count = reader.u32() else {
-            return []
+            return nil
         }
+        func string() -> String? {
+            guard reader.u8() == ValueTag.string, let index = reader.u32(),
+                strings.indices.contains(Int(index))
+            else {
+                return nil
+            }
+            return strings[Int(index)]
+        }
+        var urls: [String] = []
+        var sha256: [String: String] = [:]
         for _ in 0..<count {
-            guard let key = reader.u32() else {
-                return []
+            guard let key = reader.u32(), strings.indices.contains(Int(key)) else {
+                return nil
             }
-            guard strings.indices.contains(Int(key)), strings[Int(key)] == "images" else {
+            switch strings[Int(key)] {
+            case "images":
+                guard reader.u8() == ValueTag.array, let entries = reader.u32() else {
+                    return nil
+                }
+                for _ in 0..<entries {
+                    guard let url = string() else {
+                        return nil
+                    }
+                    urls.append(url)
+                }
+            case "imageSha256":
+                guard reader.u8() == ValueTag.object, let entries = reader.u32() else {
+                    return nil
+                }
+                for _ in 0..<entries {
+                    guard let url = reader.u32(), strings.indices.contains(Int(url)),
+                        let hash = string()
+                    else {
+                        return nil
+                    }
+                    sha256[strings[Int(url)]] = hash.lowercased()
+                }
+            default:
                 guard reader.skipValue(depth: 0) else {
-                    return []
+                    return nil
                 }
-                continue
             }
-            guard reader.u8() == ValueTag.array, let entries = reader.u32() else {
-                return []
-            }
-            var indices: [Int] = []
-            for _ in 0..<entries {
-                guard reader.u8() == ValueTag.string, let index = reader.u32() else {
-                    return []
-                }
-                indices.append(Int(index))
-            }
-            return indices
         }
-        return []
+        return (urls, sha256)
     }
 
     private enum ValueTag {

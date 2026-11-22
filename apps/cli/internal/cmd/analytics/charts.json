@@ -1111,7 +1111,7 @@
     "shape": "funnel",
     "display": "funnel",
     "unit": "count",
-    "filters": ["platform", "country"],
+    "filters": ["platform", "country", "package_source"],
     "options": ["placementId"],
     "needsEvents": ["$paywall_viewed", "$screen"],
     "consentSensitive": true
@@ -1131,6 +1131,36 @@
       "conversion": "Conversion"
     },
     "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "flow_outcomes",
+    "section": "paywalls",
+    "group": "Conversion",
+    "title": "How flows end",
+    "description": "Views of each release, paywall, placement or package source, and how many of them ended through an end step or a purchase and how many were closed. Counts presentations, from SDKs that report the release they show; by release, with the release's build number; by source, where the flow's package came from, Unknown for presentations that do not say.",
+    "shape": "table",
+    "display": "table",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version", "package_source"],
+    "dimensions": {
+      "release": "Release",
+      "paywall": "Paywall",
+      "placement": "Placement",
+      "source": "Package source"
+    },
+    "labels": {
+      "build": "Build",
+      "views": "Views",
+      "completed": "Completed",
+      "dismissed": "Dismissed",
+      "completion_rate": "Completion rate"
+    },
+    "units": {
+      "build": "count",
+      "completion_rate": "rate"
+    },
+    "needsEvents": ["$paywall_viewed", "$paywall_completed", "$paywall_dismissed"],
     "consentSensitive": true
   },
   {
@@ -1258,6 +1288,88 @@
       "conversion": "rate"
     },
     "needsEvents": ["$paywall_viewed"],
+    "consentSensitive": true
+  },
+  {
+    "id": "flow_release_health",
+    "section": "paywalls",
+    "group": "Health",
+    "title": "Release health",
+    "description": "Each release, with its build number: how many presentations failed before they appeared or were given up on, the most common reason for failing, and how long the ones that appeared took from the app asking to show them (median, 90th and 99th percentile), how often they appeared without the store's products, and where their packages came from: downloaded, cached, shipped in the app, another source this server does not know, or unknown. Failures are not in the load times; the median wait before failing is shown on its own. A presentation that failed before its package was known counts as unknown. Images refused counts the images devices did not show because they were not the bytes the build recorded, at most once per image and build each time the app runs.",
+    "shape": "table",
+    "display": "table",
+    "unit": "milliseconds",
+    "filters": ["platform", "country", "app_version", "package_source"],
+    "labels": {
+      "build": "Build",
+      "presentations": "Presentations",
+      "failed": "Failed to load",
+      "cancelled": "Given up",
+      "failure_rate": "Failure rate",
+      "top_failure": "Most common failure",
+      "load_p50": "Load median",
+      "load_p90": "Load 90th percentile",
+      "load_p99": "Load 99th percentile",
+      "failure_wait_p50": "Median wait before failing",
+      "products_unavailable": "Shown without products",
+      "source_network": "Downloaded",
+      "source_cache": "Cached",
+      "source_bundled": "Shipped in the app",
+      "source_other": "Other source",
+      "source_unknown": "Unknown source",
+      "images_refused": "Images refused"
+    },
+    "units": {
+      "build": "count",
+      "presentations": "count",
+      "failed": "count",
+      "cancelled": "count",
+      "images_refused": "count",
+      "failure_rate": "rate",
+      "products_unavailable": "rate",
+      "source_network": "rate",
+      "source_cache": "rate",
+      "source_bundled": "rate",
+      "source_other": "rate",
+      "source_unknown": "rate"
+    },
+    "needsEvents": ["$paywall_viewed", "$paywall_load_failed", "$paywall_load_cancelled"],
+    "consentSensitive": true
+  },
+  {
+    "id": "flow_bundled_share",
+    "section": "paywalls",
+    "group": "Health",
+    "title": "Shipped in the app",
+    "description": "The share of presentations that showed the paywall shipped in the app because the app could not reach Voidhash. A rise usually means devices cannot reach Voidhash and are showing a copy that may be out of date.",
+    "shape": "series",
+    "display": "line",
+    "unit": "rate",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "bundled": "Shipped in the app"
+    },
+    "needsEvents": ["$paywall_viewed", "$paywall_load_failed", "$paywall_load_cancelled"],
+    "consentSensitive": true
+  },
+  {
+    "id": "flow_package_sources",
+    "section": "paywalls",
+    "group": "Health",
+    "title": "Where flows came from",
+    "description": "Presentations by where the flow's package came from: downloaded, cached, shipped in the app, or unknown for those that failed before their package was known.",
+    "shape": "series",
+    "display": "stacked_bar",
+    "unit": "count",
+    "filters": ["platform", "country", "app_version"],
+    "labels": {
+      "network": "Downloaded",
+      "cache": "Cached",
+      "bundled": "Shipped in the app",
+      "other": "Other",
+      "unknown": "Unknown"
+    },
+    "needsEvents": ["$paywall_viewed", "$paywall_load_failed", "$paywall_load_cancelled"],
     "consentSensitive": true
   },
   {

@@ -55,6 +55,12 @@ class SdkResolvedPaywallShowingJsonEncoding
      */
     protected $type;
     /**
+     * Present when an A/B test chose what is shown and the request set `reportsExposure`: an opaque value to send unchanged as the `exposureToken` property of the first event of every presentation of this answer, whether the flow is shown (`$paywall_viewed`), fails (`$paywall_load_failed`) or is cancelled (`$paywall_load_cancelled`) before its first frame, and of `$paywall_handed_off` each time the SDK hands this answer to the app's own interface. Never send it for a prefetch. Sending it again, later or offline is safe; the person is counted once. It expires 30 days after the answer; an event carrying an expired token is stored and counts nobody.
+     *
+     * @var string|null
+     */
+    protected $exposureToken;
+    /**
      * The showing's id; send it as `paywallContext.showingId` with a purchase made on this paywall.
      *
      * @return string
@@ -206,6 +212,28 @@ class SdkResolvedPaywallShowingJsonEncoding
     {
         $this->initialized['type'] = true;
         $this->type = $type;
+        return $this;
+    }
+    /**
+     * Present when an A/B test chose what is shown and the request set `reportsExposure`: an opaque value to send unchanged as the `exposureToken` property of the first event of every presentation of this answer, whether the flow is shown (`$paywall_viewed`), fails (`$paywall_load_failed`) or is cancelled (`$paywall_load_cancelled`) before its first frame, and of `$paywall_handed_off` each time the SDK hands this answer to the app's own interface. Never send it for a prefetch. Sending it again, later or offline is safe; the person is counted once. It expires 30 days after the answer; an event carrying an expired token is stored and counts nobody.
+     *
+     * @return string|null
+     */
+    public function getExposureToken(): ?string
+    {
+        return $this->exposureToken;
+    }
+    /**
+     * Present when an A/B test chose what is shown and the request set `reportsExposure`: an opaque value to send unchanged as the `exposureToken` property of the first event of every presentation of this answer, whether the flow is shown (`$paywall_viewed`), fails (`$paywall_load_failed`) or is cancelled (`$paywall_load_cancelled`) before its first frame, and of `$paywall_handed_off` each time the SDK hands this answer to the app's own interface. Never send it for a prefetch. Sending it again, later or offline is safe; the person is counted once. It expires 30 days after the answer; an event carrying an expired token is stored and counts nobody.
+     *
+     * @param string|null $exposureToken
+     *
+     * @return self
+     */
+    public function setExposureToken(?string $exposureToken): self
+    {
+        $this->initialized['exposureToken'] = true;
+        $this->exposureToken = $exposureToken;
         return $this;
     }
 }

@@ -470,7 +470,7 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
      * Takes the pointers no subview took when the view has `onPress` or `onPointer`: reports
      * them to `onPointer`, and a pointer lifted inside the view as a press.
      */
-    private fun ownTouch(event: MotionEvent): Boolean {
+    protected open fun ownTouch(event: MotionEvent): Boolean {
         val host = host ?: return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -504,10 +504,10 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
     }
 
     /** Whether a tap on the view may press a handler. */
-    protected open val takesPresses: Boolean get() = handler("onPress") != null
+    protected val takesPresses: Boolean get() = handler("onPress") != null
 
     /** The handler a tap at [x], [y] in the view's pixels presses. */
-    open fun pressHandler(x: Float, y: Float): Long? = handler("onPress")
+    fun pressHandler(x: Float, y: Float): Long? = handler("onPress")
 
     private fun reportPointer(id: Long, phase: Int, x: Float, y: Float) {
         val handler = handler("onPointer") ?: return
@@ -558,26 +558,41 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
     }
 
     /**
-     * Whether the view, an element, holds a developer's native component whose views stay
-     * accessibility nodes after it (`accessibilityKeepsComponents`); any other element is one
-     * node, its subviews hidden.
+     * Whether the view, an element, keeps nodes of its own after it: a developer's native
+     * component's views (`accessibilityKeepsComponents`), or the controls inside it ([holdsControls]),
+     * which assistive technology must reach on their own. Any other element is one node, its
+     * subviews hidden.
      */
-    val keepsComponents: Boolean get() = accessibleElement && props["accessibilityKeepsComponents"]?.bool == true
+    val keepsComponents: Boolean
+        get() = accessibleElement && (props["accessibilityKeepsComponents"]?.bool == true || holdsControls)
+
+    /** A control assistive technology reaches on its own, also inside an element: a text field, or a view taking presses. */
+    val isControl: Boolean get() = kind == NodeKind.TEXT_INPUT || handler("onPress") != null
+
+    /** Whether a shown subview, or one under it, is a [isControl]. */
+    val holdsControls: Boolean
+        get() = childNodes.any { child ->
+            child.visibility == VISIBLE && child.props["accessibilityElementsHidden"]?.bool != true && (child.isControl || child.holdsControls)
+        }
 
     /** Text the view itself shows. */
     open val ownText: String? get() = null
 
-    /** What the view reads as: its label, or the text it and its subviews show. */
+    /**
+     * What the view reads as: its label, or the text it and its subviews show, a line each, as
+     * the engine's semantics join them, so assistive technology pauses between them. A control
+     * inside it reads on its own, not as part of it.
+     */
     val spokenText: String?
         get() {
             props["accessibilityLabel"]?.string?.let { return it }
             val parts = ArrayList<String>()
             ownText?.takeIf { it.isNotEmpty() }?.let(parts::add)
             for (child in childNodes) {
-                if (child.visibility != VISIBLE || child.props["accessibilityElementsHidden"]?.bool == true) continue
+                if (child.visibility != VISIBLE || child.props["accessibilityElementsHidden"]?.bool == true || child.isControl) continue
                 child.spokenText?.takeIf { it.isNotEmpty() }?.let(parts::add)
             }
-            return if (parts.isEmpty()) null else parts.joinToString(" ")
+            return if (parts.isEmpty()) null else parts.joinToString("\n")
         }
 
     /** The handler a prop names, or `null`. */
@@ -589,7 +604,8 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
         }
 
     override fun getAccessibilityClassName(): CharSequence = when (props["accessibilityRole"]?.string) {
-        "button", "togglebutton", "imagebutton", "link", "menuitem", "tab" -> "android.widget.Button"
+        "button", "togglebutton", "imagebutton", "menuitem", "tab" -> "android.widget.Button"
+        "link" -> LinkAccessibility.CLASS_NAME
         "checkbox" -> "android.widget.CheckBox"
         "radio" -> "android.widget.RadioButton"
         "switch" -> "android.widget.Switch"
@@ -609,9 +625,6 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) info.hintText = hint
         }
         if (role == "header" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.isHeading = true
-        if (role == "link" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            info.extras.putCharSequence("AccessibilityNodeInfo.roleDescription", "link")
-        }
         info.isEnabled = state?.get("disabled")?.bool != true
         // A radio button's checked state is also its selection, as on iOS.
         info.isSelected = state?.get("selected")?.bool == true || role == "radio" && state?.get("checked")?.bool == true
@@ -626,6 +639,18 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
                 info.stateDescription = value
             } else {
                 info.contentDescription = listOfNotNull(info.contentDescription, value).joinToString(", ")
+            }
+        }
+        // A link reads as its words, which are one clickable span (see [LinkAccessibility]); a
+        // description would be read in their place, without the link.
+        if (role == "link") {
+            info.className = LinkAccessibility.CLASS_NAME
+            info.contentDescription?.takeIf { it.isNotEmpty() }?.toString()?.let { words ->
+                val span = linkSpan?.takeIf { it.first == words }?.second
+                    ?: LinkAccessibility.span { performAccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK, null) }
+                        .also { linkSpan = words to it }
+                info.text = LinkAccessibility.text(words, span)
+                info.contentDescription = null
             }
         }
         val value = props["accessibilityValue"]
@@ -675,6 +700,13 @@ internal open class NodeView(context: Context, val nodeId: Int, val kind: NodeKi
         }
         actionIds = ids
     }
+
+    /**
+     * The clickable span of a view whose role is `link`, with the words it was made for: kept
+     * while they stay, so Android finds it again when the links menu clicks it (see
+     * [LinkAccessibility]).
+     */
+    private var linkSpan: Pair<String, android.text.style.ClickableSpan>? = null
 
     override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
         val host = host ?: return super.performAccessibilityAction(action, arguments)

@@ -67,32 +67,42 @@ class AnalyticsChartFiltersNormalizer implements DenormalizerInterface, Normaliz
         elseif (\array_key_exists('countries', $data) && $data['countries'] === null) {
             $object->setCountries(null);
         }
-        if (\array_key_exists('platforms', $data) && $data['platforms'] !== null) {
+        if (\array_key_exists('packageSources', $data) && $data['packageSources'] !== null) {
             $values_3 = [];
-            foreach ($data['platforms'] as $value_3) {
+            foreach ($data['packageSources'] as $value_3) {
                 $values_3[] = $value_3;
             }
-            $object->setPlatforms($values_3);
+            $object->setPackageSources($values_3);
+        }
+        elseif (\array_key_exists('packageSources', $data) && $data['packageSources'] === null) {
+            $object->setPackageSources(null);
+        }
+        if (\array_key_exists('platforms', $data) && $data['platforms'] !== null) {
+            $values_4 = [];
+            foreach ($data['platforms'] as $value_4) {
+                $values_4[] = $value_4;
+            }
+            $object->setPlatforms($values_4);
         }
         elseif (\array_key_exists('platforms', $data) && $data['platforms'] === null) {
             $object->setPlatforms(null);
         }
         if (\array_key_exists('productIds', $data) && $data['productIds'] !== null) {
-            $values_4 = [];
-            foreach ($data['productIds'] as $value_4) {
-                $values_4[] = $value_4;
+            $values_5 = [];
+            foreach ($data['productIds'] as $value_5) {
+                $values_5[] = $value_5;
             }
-            $object->setProductIds($values_4);
+            $object->setProductIds($values_5);
         }
         elseif (\array_key_exists('productIds', $data) && $data['productIds'] === null) {
             $object->setProductIds(null);
         }
         if (\array_key_exists('stores', $data) && $data['stores'] !== null) {
-            $values_5 = [];
-            foreach ($data['stores'] as $value_5) {
-                $values_5[] = $value_5;
+            $values_6 = [];
+            foreach ($data['stores'] as $value_6) {
+                $values_6[] = $value_6;
             }
-            $object->setStores($values_5);
+            $object->setStores($values_6);
         }
         elseif (\array_key_exists('stores', $data) && $data['stores'] === null) {
             $object->setStores(null);
@@ -123,26 +133,33 @@ class AnalyticsChartFiltersNormalizer implements DenormalizerInterface, Normaliz
             }
             $dataArray['countries'] = $values_2;
         }
-        if ($data->isInitialized('platforms')) {
+        if ($data->isInitialized('packageSources')) {
             $values_3 = [];
-            foreach ($data->getPlatforms() as $value_3) {
+            foreach ($data->getPackageSources() as $value_3) {
                 $values_3[] = $value_3;
             }
-            $dataArray['platforms'] = $values_3;
+            $dataArray['packageSources'] = $values_3;
         }
-        if ($data->isInitialized('productIds')) {
+        if ($data->isInitialized('platforms')) {
             $values_4 = [];
-            foreach ($data->getProductIds() as $value_4) {
+            foreach ($data->getPlatforms() as $value_4) {
                 $values_4[] = $value_4;
             }
-            $dataArray['productIds'] = $values_4;
+            $dataArray['platforms'] = $values_4;
         }
-        if ($data->isInitialized('stores')) {
+        if ($data->isInitialized('productIds')) {
             $values_5 = [];
-            foreach ($data->getStores() as $value_5) {
+            foreach ($data->getProductIds() as $value_5) {
                 $values_5[] = $value_5;
             }
-            $dataArray['stores'] = $values_5;
+            $dataArray['productIds'] = $values_5;
+        }
+        if ($data->isInitialized('stores')) {
+            $values_6 = [];
+            foreach ($data->getStores() as $value_6) {
+                $values_6[] = $value_6;
+            }
+            $dataArray['stores'] = $values_6;
         }
         return $dataArray;
     }

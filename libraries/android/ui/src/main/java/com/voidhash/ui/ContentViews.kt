@@ -23,6 +23,7 @@ import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -58,10 +59,22 @@ internal open class NodeHolder(context: Context) : ViewGroup(context) {
 }
 
 /**
+ * How opaque a pressed run of a text draws, a share of its colour's own opacity: a link a pointer
+ * is down on shows it is being pressed, as on the engine surface.
+ */
+internal const val PRESSED_RUN_OPACITY = 0.5f
+
+/**
+ * How far from a link's glyphs a pointer still presses it, in dp, where it is over no character:
+ * a finger is wider than a glyph. The engine surface allows the same.
+ */
+internal const val LINK_SLOP_DP = 6f
+
+/**
  * A `text` view: draws its paragraph with the same layout the core measured. Its runs with
- * their own `onPress` take the taps on their characters, and are links of their own to
- * assistive technology, with the text around them in parts, as virtual views of the view (see
- * [LinkProvider]).
+ * their own `onPress` take the pointers that go down on their characters, show themselves
+ * pressed while held, and are links of their own to assistive technology, with the text around
+ * them in parts, as virtual views of the view (see [LinkProvider]).
  */
 internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host: NodeHost?) : NodeView(context, nodeId, kind, host) {
     /** The children of a text view are not shown. */
@@ -104,18 +117,109 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
     val pressableRuns: List<PressableRun>
         get() = runs.mapNotNull { (run, handler) -> handler?.let { PressableRun(run.start, run.end, it) } }
 
-    override val takesPresses: Boolean get() = super.takesPresses || pressableRuns.isNotEmpty()
+    // region Pressed runs
 
-    /** A tap on a run with its own handler presses that; any other tap is the view's. */
-    override fun pressHandler(x: Float, y: Float): Long? {
-        val runs = pressableRuns
-        if (runs.isNotEmpty()) {
-            val box = textBox
-            val offset = drawnLayout?.characterIndex(x - box.left, y - box.top, box.width())
-            runs.firstOrNull { offset != null && offset >= it.start && offset < it.end }?.let { return it.handler }
+    /** A pointer that went down on a pressable run: the run (its index in [runs]), and whether it is ignored, for going down while another pointer held a link. */
+    private class RunPointer(val run: Int, val ignored: Boolean)
+
+    /**
+     * The pointers that went down on a pressable run, by pointer id. Such a pointer is the run's
+     * alone: nothing around the text hears it, so a button the text is in neither shows itself
+     * pressed nor takes the release.
+     */
+    private val runPointers = HashMap<Int, RunPointer>()
+
+    /** The run drawn pressed: the one a pointer went down on, while the pointer is over it. */
+    var pressedRun: Int? = null
+        private set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
         }
-        return super.pressHandler(x, y)
+
+    /**
+     * The run at [x], [y] in the view's pixels that takes presses, by its index in [runs]: the one
+     * holding the character under it, or, over no character, the one whose glyphs are nearest
+     * within [LINK_SLOP_DP].
+     */
+    fun pressableRun(x: Float, y: Float): Int? {
+        val runs = runs
+        if (runs.none { it.second != null }) return null
+        val layout = drawnLayout ?: return null
+        val box = textBox
+        val (px, py) = x - box.left to y - box.top
+        val pressable = runs.indices.filter { runs[it].second != null }
+        layout.characterIndex(px, py, box.width())?.let { offset ->
+            return pressable.firstOrNull { offset >= runs[it].first.start && offset < runs[it].first.end }
+        }
+        val slop = LINK_SLOP_DP * density
+        var nearest: Pair<Int, Float>? = null
+        for (index in pressable) {
+            val run = runs[index].first
+            for (rect in layout.rects(run.start, run.end, box.width())) {
+                val dx = max(max(rect.left - px, 0f), px - rect.right)
+                val dy = max(max(rect.top - py, 0f), py - rect.bottom)
+                val distance = hypot(dx, dy)
+                if (max(dx, dy) <= slop && distance < (nearest?.second ?: Float.POSITIVE_INFINITY)) nearest = index to distance
+            }
+        }
+        return nearest?.first
     }
+
+    override fun ownTouch(event: MotionEvent): Boolean {
+        val index = event.actionIndex
+        val pointer = event.getPointerId(index)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                // Any other pointer is the view's, or, when it takes none, the views' around it.
+                val run = pressableRun(event.getX(index), event.getY(index)) ?: return super.ownTouch(event)
+                val ignored = holdingLink?.get() != null
+                runPointers[pointer] = RunPointer(run, ignored)
+                if (!ignored) {
+                    holdingLink = java.lang.ref.WeakReference(this)
+                    pressedRun = run
+                }
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                for (at in 0 until event.pointerCount) {
+                    val held = runPointers[event.getPointerId(at)]?.takeIf { !it.ignored } ?: continue
+                    pressedRun = held.run.takeIf { pressableRun(event.getX(at), event.getY(at)) == it }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                val held = runPointers.remove(pointer) ?: return super.ownTouch(event)
+                // A tap: lifted over the run it went down on, not cancelled by a scroll view.
+                if (!held.ignored && pressableRun(event.getX(index), event.getY(index)) == held.run) {
+                    runs[held.run].second?.let { host?.press(it) }
+                }
+                releaseLink()
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                runPointers.clear()
+                releaseLink()
+            }
+        }
+        return super.ownTouch(event)
+    }
+
+    /** Shows no run pressed and lets another text hold a link once no pointer here holds one. */
+    private fun releaseLink() {
+        if (runPointers.values.any { !it.ignored }) return
+        pressedRun = null
+        if (holdingLink?.get() === this) holdingLink = null
+    }
+
+    // A text leaving the window keeps no link held, which would leave every other link ignored.
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        runPointers.clear()
+        releaseLink()
+    }
+
+    // endregion
 
     /** The paragraph's style as layout measured it. */
     val textStyle: TextStyle
@@ -191,8 +295,18 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
     }
 
     override fun drawContent(canvas: Canvas) {
-        val layout = drawnLayout ?: return
+        var layout = drawnLayout ?: return
         val box = textBox
+        val pressed = pressedRun
+        val host = host
+        if (pressed != null && host != null && pressed in layout.style.runs.indices) {
+            // The same paragraph at the same width, its pressed run's colour faded.
+            val runs = layout.style.runs.toMutableList()
+            val color = runs[pressed].color ?: paint.color
+            val alpha = ((color ushr 24) * PRESSED_RUN_OPACITY).roundToInt()
+            runs[pressed] = runs[pressed].copy(color = (color and 0x00FFFFFF) or (alpha shl 24))
+            layout = host.textSystem.layout(layout.text, layout.style.copy(runs = runs), layout.wrapWidth, layout.scale)
+        }
         layout.draw(canvas, box.left, box.top, box.width(), paint)
     }
 
@@ -225,8 +339,8 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
 
     /**
      * What assistive technology reads of a text view whose runs take presses, in reading order:
-     * each pressable run is a link of its own, with the role `link`, labelled by its text,
-     * framed by its glyphs (the union of their boxes when it wraps) and pressing the run; the
+     * each pressable run is a link of its own (its text as one clickable span, as
+     * [LinkAccessibility] has it), framed by its glyphs (the union of their boxes when it wraps) and pressing the run; the
      * text between the links stays the view's, as parts that read and activate as the view. An
      * author's label reads as one part, before the links. The first part carries the view's
      * hint and value, so they are read once. Each is a virtual view of the text view.
@@ -237,8 +351,13 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
         private var focused = HOST_VIEW_ID
         private var hovered = HOST_VIEW_ID
 
-        /** A link when [run] is set, otherwise a stretch of the view's own text (or its label). */
-        inner class Part(val run: PressableRun?, val label: String, val bounds: Rect, val first: Boolean)
+        /**
+         * A link when [run] is set, otherwise a stretch of the view's own text (or its label). A
+         * link's [span] lives as long as the part, so Android finds it again by its id.
+         */
+        inner class Part(val run: PressableRun?, val label: String, val bounds: Rect, val first: Boolean) {
+            val span = run?.let { LinkAccessibility.span { press(this) } }
+        }
 
         fun textChanged() {
             parts = null
@@ -294,11 +413,15 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
             val info = AccessibilityNodeInfo.obtain(view, virtualViewId)
             info.packageName = context.packageName
             info.setParent(view)
-            info.contentDescription = part.label
-            if (part.run != null) {
-                info.className = "android.widget.Button"
-                info.extras.putCharSequence("AccessibilityNodeInfo.roleDescription", "link")
+            val run = part.run
+            val span = part.span
+            if (run != null && span != null) {
+                // A link reads as its words, which are one clickable span; a description would be
+                // read in their place, without the link.
+                info.className = LinkAccessibility.CLASS_NAME
+                info.text = LinkAccessibility.text(part.label, span)
             } else {
+                info.contentDescription = part.label
                 describePart(info, part)
             }
             @Suppress("DEPRECATION")
@@ -340,21 +463,20 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
             }
         }
 
+        /** Presses what [part] stands for: its run for a link, the view for its own text. */
+        private fun press(part: Part): Boolean {
+            val host = host ?: return false
+            host.press(part.run?.handler ?: handler("onPress") ?: return false)
+            val index = parts().indexOf(part)
+            if (index >= 0) send(index, AccessibilityEvent.TYPE_VIEW_CLICKED)
+            return true
+        }
+
         override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
             if (virtualViewId == HOST_VIEW_ID) return performAccessibilityAction(action, arguments)
             val part = parts().getOrNull(virtualViewId) ?: return false
             return when (action) {
-                AccessibilityNodeInfo.ACTION_CLICK -> {
-                    val host = host ?: return false
-                    val run = part.run
-                    if (run != null) {
-                        host.press(run.handler)
-                    } else {
-                        host.press(handler("onPress") ?: return false)
-                    }
-                    send(virtualViewId, AccessibilityEvent.TYPE_VIEW_CLICKED)
-                    true
-                }
+                AccessibilityNodeInfo.ACTION_CLICK -> press(part)
                 AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS -> {
                     if (focused == virtualViewId) return false
                     if (focused != HOST_VIEW_ID) send(focused, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED)
@@ -400,9 +522,9 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
             val part = parts().getOrNull(virtualViewId)
             val event = AccessibilityEvent.obtain(type)
             event.packageName = context.packageName
-            event.className = if (part?.run != null) "android.widget.Button" else accessibilityClassName
+            event.className = if (part?.run != null) LinkAccessibility.CLASS_NAME else accessibilityClassName
             event.setSource(this@TextNodeView, virtualViewId)
-            part?.let { event.contentDescription = it.label }
+            part?.let { if (it.run != null) event.text.add(it.label) else event.contentDescription = it.label }
             parent.requestSendAccessibilityEvent(this@TextNodeView, event)
         }
     }
@@ -410,6 +532,12 @@ internal class TextNodeView(context: Context, nodeId: Int, kind: NodeKind, host:
     // endregion
 
     private companion object {
+        /**
+         * The text whose link a pointer holds: one link is pressed at a time, and a pointer going
+         * down on any link meanwhile, in this text or another, is ignored. Main thread only.
+         */
+        var holdingLink: java.lang.ref.WeakReference<TextNodeView>? = null
+
         /** The props the paragraph is laid out and drawn from. */
         val TEXT_KEYS = setOf(
             "text", "fontFamily", "fontSize", "fontWeight", "italic", "lineHeight", "letterSpacing", "textAlign",

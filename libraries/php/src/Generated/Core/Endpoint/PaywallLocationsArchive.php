@@ -7,7 +7,7 @@ class PaywallLocationsArchive extends \Voidhash\Generated\Core\Runtime\Client\Ba
     protected $projectId;
     protected $paywallLocationId;
     /**
-     * Archives a location and ends what it shows in both environments, so apps asking for it get no paywall. Archiving an archived location changes nothing.
+     * Archives a location and ends what it shows in both environments, so apps asking for it get no paywall. Archiving an archived location changes nothing. Fails with `conflict` (`paywall_location_test_running`) while a running A/B test holds the location: pause or conclude the test first.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
      */
@@ -40,6 +40,7 @@ class PaywallLocationsArchive extends \Voidhash\Generated\Core\Runtime\Client\Ba
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveConflictException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding
@@ -62,6 +63,9 @@ class PaywallLocationsArchive extends \Voidhash\Generated\Core\Runtime\Client\Ba
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\NotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallLocationsArchiveInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\InternalErrorJsonEncoding', 'json'), $response);

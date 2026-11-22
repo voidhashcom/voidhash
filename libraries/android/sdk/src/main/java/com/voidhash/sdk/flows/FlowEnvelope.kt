@@ -2,6 +2,7 @@ package com.voidhash.sdk.flows
 
 import com.voidhash.core.paywall.PaywallBridge
 import com.voidhash.sdk.VoidhashException
+import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.util.TimeZone
@@ -229,6 +230,10 @@ object FlowEnvelope {
         return envelope("response", requestId, payload)
     }
 
+    /** Tells the flow on screen the permission statuses that changed while it was shown. */
+    fun permissionsContext(statuses: Map<String, String>): String =
+        envelope("context", null, JSONObject().put("permissions", JSONObject(statuses)))
+
     /** Serializes a failed action response. */
     fun errorResponse(
         action: String,
@@ -250,6 +255,13 @@ object FlowEnvelope {
     /** Serializes the failure of the `appAction` the flow sent as [requestId]. */
     fun appActionFailure(requestId: String, error: String): String =
         envelope("response", requestId, JSONObject().put("ok", false).put("error", error))
+
+    /**
+     * Serializes the `products` message, which sends a flow on screen its [products] again, as
+     * `configure` gives them, after a purchase or restore changed what the store says of them.
+     */
+    fun productsMessage(products: List<FlowRuntimeConfigProduct>): String =
+        envelope("products", null, JSONObject().put("products", JSONArray(products.map { it.toJson() })))
 
     /** Serializes the `input` message, which changes the inputs of a flow that is shown. */
     fun inputMessage(values: JSONObject): String = envelope("input", null, JSONObject().put("values", values))

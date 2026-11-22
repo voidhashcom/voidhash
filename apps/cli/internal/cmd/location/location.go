@@ -26,7 +26,7 @@ func New(app *cli.App) *cobra.Command {
 An app asks for a location by its slug and gets the paywall it shows. What is asked first decides: an end user's pin, then the first rule that matches them, then what the location shows everyone. Apps using a test key get the same unless the location is given a test showing, pins or rules of its own (--env test).`,
 	}
 	cmd.AddCommand(newList(app), newView(app), newCreate(app), newEdit(app), newShow(app), newClear(app),
-		newPin(app), newUnpin(app), newRule(app), newHistory(app), newArchive(app))
+		newPin(app), newUnpin(app), newRule(app), newHistory(app), newArchive(app), newBundle(app))
 	return cmd
 }
 
@@ -81,8 +81,14 @@ func requireShowable(ctx context.Context, app *cli.App, projectID, input, usage 
 		return showable{}, cli.Failf("%s has no live build, so there is nothing to show.", paywallLabel(paywall)).
 			WithHint(fmt.Sprintf("Deploy it first: 'voidhash paywall deploy %s'.", paywall.Slug))
 	}
+	if warning := paywalls.WithdrawnLiveWarning(live); warning != "" {
+		app.Warnf("%s", warning)
+	}
 	return showable{paywall: paywall, build: live}, nil
 }
+
+// testRunningHint is what to do when a running experiment holds a location.
+const testRunningHint = "Pause the experiment first ('voidhash experiment pause <experiment>'): everyone then sees its control arm, and the change can go ahead."
 
 // refuseArchived fails for a location that is archived, which cannot show
 // anything again.
@@ -579,7 +585,7 @@ voidhash location archive onboarding-end --yes`,
 			return c.PaywallLocationsArchive(ctx, projectID, location.ID)
 		})
 		if err != nil {
-			return err
+			return cli.APIError(err, map[string]string{"paywall_location_test_running": testRunningHint})
 		}
 		return app.PrintItem(mode, archived, "Archived "+label(archived.Value)+".")
 	}

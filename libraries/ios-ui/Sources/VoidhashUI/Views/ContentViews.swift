@@ -98,23 +98,154 @@
             }
         }
 
-        override var takesPresses: Bool {
-            return super.takesPresses || !pressableRuns.isEmpty
+        // MARK: Pressed runs
+
+        /// How opaque a pressed run draws, a share of its colour's own opacity: a link a touch
+        /// is down on shows it is being pressed, as on the engine surface.
+        static let pressedRunOpacity = 0.5
+
+        /// How far from a link's glyphs a touch still presses it, in points, where it is over no
+        /// character: a finger is wider than a glyph. The engine surface allows the same.
+        static let linkSlop: CGFloat = 6
+
+        /// A touch that went down on a pressable run: the run (its index in `runs`), and whether
+        /// it is ignored, for going down while another touch held a link.
+        private struct RunTouch {
+            let run: Int
+            let ignored: Bool
         }
 
-        /// A tap on a run with its own handler presses that; any other tap is the view's.
-        override func pressHandler(at location: CGPoint) -> UInt32? {
-            let runs = pressableRuns
-            let box = textBox
-            if !runs.isEmpty, let layout = drawnLayout,
-                let offset = layout.characterIndex(
-                    at: CGPoint(x: location.x - box.minX, y: location.y - box.minY),
-                    boxWidth: box.width),
-                let run = runs.first(where: { $0.range.contains(offset) })
-            {
-                return run.handler
+        /// The touches that went down on a pressable run. Such a touch is the run's alone:
+        /// nothing around the text hears it, so a button the text is in neither shows itself
+        /// pressed nor takes the release.
+        private var runTouches: [ObjectIdentifier: RunTouch] = [:]
+
+        /// The text whose link a touch holds: one link is pressed at a time, and a touch going
+        /// down on any link meanwhile, in this text or another, is ignored.
+        private static weak var holdingLink: TextNodeView?
+
+        /// The run drawn pressed: the one a touch went down on, while the touch is over it.
+        private(set) var pressedRun: Int? {
+            didSet {
+                if pressedRun != oldValue {
+                    drawing.setNeedsDisplay()
+                }
             }
-            return super.pressHandler(at: location)
+        }
+
+        /// The run at `location` (in the view's coordinates) that takes presses, by its index in
+        /// `runs`: the one holding the character under it, or, over no character, the one whose
+        /// glyphs are nearest within ``linkSlop``.
+        func pressableRun(at location: CGPoint) -> Int? {
+            let runs = self.runs
+            let box = textBox
+            guard runs.contains(where: { $0.onPress != nil }), let layout = drawnLayout else {
+                return nil
+            }
+            let point = CGPoint(x: location.x - box.minX, y: location.y - box.minY)
+            let pressable = runs.indices.filter { runs[$0].onPress != nil }
+            if let offset = layout.characterIndex(at: point, boxWidth: box.width) {
+                return pressable.first { (runs[$0].run.start..<runs[$0].run.end).contains(offset) }
+            }
+            var nearest: (run: Int, distance: CGFloat)?
+            for index in pressable {
+                let run = runs[index].run
+                for rect in layout.rects(for: run.start..<run.end, boxWidth: box.width) {
+                    let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+                    let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+                    let distance = hypot(dx, dy)
+                    if max(dx, dy) <= Self.linkSlop, distance < nearest?.distance ?? .infinity {
+                        nearest = (index, distance)
+                    }
+                }
+            }
+            return nearest?.run
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            var others = Set<UITouch>()
+            for touch in touches {
+                guard let run = pressableRun(at: touch.location(in: self)) else {
+                    others.insert(touch)
+                    continue
+                }
+                let ignored = Self.holdingLink != nil
+                runTouches[ObjectIdentifier(touch)] = RunTouch(run: run, ignored: ignored)
+                if !ignored {
+                    Self.holdingLink = self
+                    pressedRun = run
+                }
+            }
+            // Any other touch is the view's, or, when it takes none, the views' around it.
+            if !others.isEmpty {
+                super.touchesBegan(others, with: event)
+            }
+        }
+
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+            let others = touches.filter { runTouches[ObjectIdentifier($0)] == nil }
+            for touch in touches {
+                if let held = runTouches[ObjectIdentifier(touch)], !held.ignored {
+                    let over = pressableRun(at: touch.location(in: self)) == held.run
+                    pressedRun = over ? held.run : nil
+                }
+            }
+            if !others.isEmpty {
+                super.touchesMoved(others, with: event)
+            }
+        }
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+            let others = endRunTouches(touches, cancelled: false)
+            if !others.isEmpty {
+                super.touchesEnded(others, with: event)
+            }
+        }
+
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+            let others = endRunTouches(touches, cancelled: true)
+            if !others.isEmpty {
+                super.touchesCancelled(others, with: event)
+            }
+        }
+
+        /// A text leaving the window keeps no link held, which would leave every other link
+        /// ignored.
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window == nil, !runTouches.isEmpty {
+                runTouches.removeAll()
+                pressedRun = nil
+                if Self.holdingLink === self {
+                    Self.holdingLink = nil
+                }
+            }
+        }
+
+        /// Ends the touches of `touches` that went down on a run, pressing the run when the one
+        /// holding it is lifted over it; returns the others.
+        private func endRunTouches(_ touches: Set<UITouch>, cancelled: Bool) -> Set<UITouch> {
+            var others = Set<UITouch>()
+            for touch in touches {
+                guard let held = runTouches.removeValue(forKey: ObjectIdentifier(touch)) else {
+                    others.insert(touch)
+                    continue
+                }
+                // A tap: lifted over the run it went down on, not cancelled by a scroll.
+                if !held.ignored, !cancelled,
+                    pressableRun(at: touch.location(in: self)) == held.run,
+                    let handler = runs[held.run].onPress
+                {
+                    host?.press(handler)
+                }
+            }
+            if !runTouches.values.contains(where: { !$0.ignored }) {
+                pressedRun = nil
+                if Self.holdingLink === self {
+                    Self.holdingLink = nil
+                }
+            }
+            return others
         }
 
         // MARK: Accessibility
@@ -285,8 +416,19 @@
         }
 
         private func drawText(in context: CGContext) {
-            guard let layout = drawnLayout else {
+            guard var layout = drawnLayout else {
                 return
+            }
+            if let pressedRun, let host, let text = props["text"]?.string {
+                // The same paragraph at the same width, its pressed run's colour faded.
+                var style = textStyle
+                if style.runs.indices.contains(pressedRun) {
+                    let color = style.runs[pressedRun].color
+                        ?? UInt32(clamping: Int(props["color"]?.number ?? 0xFF))
+                    let alpha = (Double(color & 0xFF) * Self.pressedRunOpacity).rounded()
+                    style.runs[pressedRun].color = (color & 0xFFFF_FF00) | UInt32(alpha)
+                    layout = host.textSystem.layout(text, style: style, width: layout.wrapWidth)
+                }
             }
             layout.draw(
                 in: context, box: textBox, scale: host?.displayScale ?? 1, paint: paint)

@@ -25,6 +25,7 @@ Commands:
   rule       Show another paywall at a location to the end users a rule matches.
   history    List what a location has shown, most recent first.
   archive    Archive a location your apps no longer ask for.
+  bundle     Write the flows your app ships, shown when a location cannot be loaded.
 
 Flags:
   -h, --help  Show help for this command

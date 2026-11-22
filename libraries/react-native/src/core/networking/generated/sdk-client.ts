@@ -1011,6 +1011,10 @@ export interface SdkPurchasePaywallContext {
    * The id of the paywall release shown; informational.
    */
   readonly paywallReleaseId?: string | null | undefined;
+  /**
+   * `bundled` when the purchase was made on a flow the app ships, shown because the location could not be resolved. Such a purchase is credited to the showing, paywall and release as any other, but to no A/B test variant, and assigns nobody to one. Leave it out for a flow the location answered; any other value is treated the same.
+   */
+  readonly source?: string | null | undefined;
 }
 
 /**
@@ -1764,6 +1768,10 @@ export interface SdkResolvePaywallBodyJsonEncoding {
    * The revision of the location's interface the app was built against. A flow that calls an app action or ends with an outcome the location added later is not served: the person gets the newest earlier release the app can answer, or nothing. Absent means 0, an app that handles nothing a flow asks of it.
    */
   readonly interfaceRevision?: number | null | undefined;
+  /**
+   * Whether the SDK reports an A/B test exposure itself, by sending the answer's `showing.exposureToken` as the `exposureToken` property of the first event of each presentation of the answer (`$paywall_viewed`, `$paywall_load_failed` or `$paywall_load_cancelled`) and of `$paywall_handed_off` when it hands the answer to the app's own interface. When true no exposure is recorded on resolving, so a person is counted once a flow is presented or handed to the app, not when it is prefetched; when absent or false it is recorded on resolving and no token is answered.
+   */
+  readonly reportsExposure?: boolean | null | undefined;
 }
 
 export type SdkResolvedPaywallJsonEncodingLocationInterfaceRevisionEnum =
@@ -1863,6 +1871,10 @@ export interface SdkResolvedPaywallShowingJsonEncoding {
          * Where to download the runtime module; its content never changes, so cache it by `sha256`.
          */
         readonly url: string;
+        /**
+         * The runtime module's signature, as hex; empty for a module too old to be offered for download. SDKs run a downloaded module only when this signature verifies under a key built into the SDK, and otherwise show the flow with the runtime built into the SDK when it can.
+         */
+        readonly signature: string;
       } | null;
     };
     /**
@@ -1890,6 +1902,10 @@ export interface SdkResolvedPaywallShowingJsonEncoding {
    * How the showing was chosen: always `paywall_release`, also when an experiment picked the release.
    */
   readonly type: SdkResolvedPaywallShowingJsonEncodingType;
+  /**
+   * Present when an A/B test chose what is shown and the request set `reportsExposure`: an opaque value to send unchanged as the `exposureToken` property of the first event of every presentation of this answer, whether the flow is shown (`$paywall_viewed`), fails (`$paywall_load_failed`) or is cancelled (`$paywall_load_cancelled`) before its first frame, and of `$paywall_handed_off` each time the SDK hands this answer to the app's own interface. Never send it for a prefetch. Sending it again, later or offline is safe; the person is counted once. It expires 30 days after the answer; an event carrying an expired token is stored and counts nobody.
+   */
+  readonly exposureToken?: string | null | undefined;
 }
 
 export interface SdkResolvedPaywallJsonEncoding {
@@ -1914,6 +1930,10 @@ export interface SdkResolvedPaywallJsonEncoding {
     readonly slug: string;
   };
   readonly showing: SdkResolvedPaywallShowingJsonEncoding;
+  /**
+   * The SHA-256 hashes, as hex, of flow packages withdrawn as bad that the app may hold for this location: never show one of them, not even as the package last shown here when the served one cannot be downloaded. At most 20, the most recently withdrawn of the flows read here; never the served package's hash. Left out when none is, as most answers are, and by servers that predate withdrawals.
+   */
+  readonly withdrawnPackages?: ReadonlyArray<string> | null | undefined;
 }
 
 export type SdkResolvePaywall200 = SdkResolvedPaywallJsonEncoding | null;

@@ -7,7 +7,7 @@ class ExperimentsPause extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpo
     protected $projectId;
     protected $experimentId;
     /**
-     * Pauses a running experiment: every end user sees the control arm, and gets its flag values, until it is started again. Fails with `conflict` (`experiment_not_running`) unless it is running.
+     * Pauses a running experiment: every end user sees the control arm, and gets its flag values, until it is started again. Fails with `conflict` (`experiment_not_running`) unless it is running. Pausing needs only the experiments permission, also for an experiment that shows paywalls: the control's paywalls were published when it started.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $experimentId The experiment's id, `exp_...`.
      */

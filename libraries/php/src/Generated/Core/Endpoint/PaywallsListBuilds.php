@@ -7,12 +7,13 @@ class PaywallsListBuilds extends \Voidhash\Generated\Core\Runtime\Client\BaseEnd
     protected $projectId;
     protected $paywallId;
     /**
-     * Lists the paywall's 50 most recent builds, newest first, whatever their status. The deployed one has `isDeployed: true`.
+     * Lists the paywall's 50 most recent builds, newest first, whatever their status. The one deployed to production has `isDeployed: true`, and the one apps using a test key are shown `isDeployedInTest: true`. `isWithdrawn=true` lists every withdrawn build instead, however old, so one can be found to restore.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
      *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
+     *    "isWithdrawn"?: string, //`true` for every withdrawn build of the paywall, however old; `false` for the others among its 50 most recent; omitted, its 50 most recent builds.
      * } $queryParameters
      */
     public function __construct(string $projectId, string $paywallId, array $queryParameters = [])
@@ -41,11 +42,12 @@ class PaywallsListBuilds extends \Voidhash\Generated\Core\Runtime\Client\BaseEnd
     protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
     {
         $optionsResolver = parent::getQueryOptionsResolver();
-        $optionsResolver->setDefined(['cursor', 'limit']);
+        $optionsResolver->setDefined(['cursor', 'limit', 'isWithdrawn']);
         $optionsResolver->setRequired([]);
         $optionsResolver->setDefaults([]);
         $optionsResolver->addAllowedTypes('cursor', ['string']);
         $optionsResolver->addAllowedTypes('limit', ['int']);
+        $optionsResolver->addAllowedTypes('isWithdrawn', ['string']);
         return $optionsResolver;
     }
     /**

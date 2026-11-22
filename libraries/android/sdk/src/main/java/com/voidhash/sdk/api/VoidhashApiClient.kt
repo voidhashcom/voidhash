@@ -91,17 +91,26 @@ class VoidhashApiClient(
      * Resolves the paywall configured for [locationSlug]; `null` when nothing is showing.
      * [engine] reports the paywall engine the app links, so the backend serves only a flow it
      * can show; `null` without one.
+     *
+     * [reportsExposure] says whether the caller reports an A/B test's exposure itself. With it the
+     * backend records none on resolving and answers with `showing.exposureToken`, which the caller
+     * must send on the first event of each presentation of the answer and on each hand-off of it
+     * to the app; the SDK's own cached resolves do. Without it, the backend counts the person in
+     * the A/B test on resolving.
      */
     suspend fun resolvePaywallRaw(
         distinctId: String,
         locationSlug: String,
         engine: FlowEngineCapabilities? = null,
         interfaceRevision: Int = 0,
+        reportsExposure: Boolean = false,
     ): JSONObject? {
         val path = "/api/v1/sdk/resolve-paywall"
         val payload = JSONObject().put("locationSlug", locationSlug)
         // An app that reports no revision counts as revision 0.
         if (interfaceRevision > 0) payload.put("interfaceRevision", interfaceRevision)
+        // Left out when false, as SDKs before it sent it: the backend's default.
+        if (reportsExposure) payload.put("reportsExposure", true)
         return requestJson("POST", path, distinctId, payload, extraHeaders = engine?.headers().orEmpty()) { json ->
             // Only the JSON `null` says nothing is showing. `{}` or an error document would
             // otherwise be cached as "no paywall" over a location that has one.
@@ -207,7 +216,10 @@ class VoidhashApiClient(
         }
     }
 
-    /** Resolves the paywall configured for [locationSlug]; `null` when nothing is showing. */
+    /**
+     * Resolves the paywall configured for [locationSlug]; `null` when nothing is showing. Nothing
+     * is cached or reported: the backend counts the person in an A/B test on resolving.
+     */
     suspend fun resolvePaywall(
         distinctId: String,
         locationSlug: String,

@@ -97,6 +97,13 @@ class ExperimentJsonEncodingNormalizer implements DenormalizerInterface, Normali
         elseif (\array_key_exists('winningVariantId', $data) && $data['winningVariantId'] === null) {
             $object->setWinningVariantId(null);
         }
+        if (\array_key_exists('rolloutDifferences', $data)) {
+            $values_3 = [];
+            foreach ($data['rolloutDifferences'] as $value_3) {
+                $values_3[] = $this->denormalizer->denormalize($value_3, \Voidhash\Generated\Core\Model\ExperimentRolloutDifference::class, 'json', $context);
+            }
+            $object->setRolloutDifferences($values_3);
+        }
         if (\array_key_exists('featureFlagId', $data)) {
             $object->setFeatureFlagId($data['featureFlagId']);
         }
@@ -155,6 +162,11 @@ class ExperimentJsonEncodingNormalizer implements DenormalizerInterface, Normali
         }
         $dataArray['testedFeatureFlagIds'] = $values_2;
         $dataArray['winningVariantId'] = $data->getWinningVariantId();
+        $values_3 = [];
+        foreach ($data->getRolloutDifferences() as $value_3) {
+            $values_3[] = $this->normalizer->normalize($value_3, 'json', $context);
+        }
+        $dataArray['rolloutDifferences'] = $values_3;
         $dataArray['featureFlagId'] = $data->getFeatureFlagId();
         $dataArray['isArchived'] = $data->getIsArchived();
         $dataArray['startedAt'] = $data->getStartedAt();

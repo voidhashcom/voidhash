@@ -79,6 +79,12 @@ class ExperimentJsonEncoding
      */
     protected $winningVariantId;
     /**
+     * For a concluded experiment, each location and environment where the promoted arm ran another build than the one the location went on to show, as concluding with `rollOut: live_build` leaves it after a build was deployed during the experiment; empty otherwise.
+     *
+     * @var list<ExperimentRolloutDifference>
+     */
+    protected $rolloutDifferences;
+    /**
      * The feature flag that assigns end users to arms, `ff_...`. An override on it with `variantKey` set to an arm's id puts a tester in that arm.
      *
      * @var string
@@ -354,6 +360,28 @@ class ExperimentJsonEncoding
     {
         $this->initialized['winningVariantId'] = true;
         $this->winningVariantId = $winningVariantId;
+        return $this;
+    }
+    /**
+     * For a concluded experiment, each location and environment where the promoted arm ran another build than the one the location went on to show, as concluding with `rollOut: live_build` leaves it after a build was deployed during the experiment; empty otherwise.
+     *
+     * @return list<ExperimentRolloutDifference>
+     */
+    public function getRolloutDifferences(): array
+    {
+        return $this->rolloutDifferences;
+    }
+    /**
+     * For a concluded experiment, each location and environment where the promoted arm ran another build than the one the location went on to show, as concluding with `rollOut: live_build` leaves it after a build was deployed during the experiment; empty otherwise.
+     *
+     * @param list<ExperimentRolloutDifference> $rolloutDifferences
+     *
+     * @return self
+     */
+    public function setRolloutDifferences(array $rolloutDifferences): self
+    {
+        $this->initialized['rolloutDifferences'] = true;
+        $this->rolloutDifferences = $rolloutDifferences;
         return $this;
     }
     /**

@@ -65,7 +65,8 @@ voidhash location show home summer-sale --env test`,
 					api.SetPaywallLocationShowingBodyJsonEncoding{PaywallId: chosen.paywall.Id})
 			})
 			return cli.APIError(err, map[string]string{
-				"paywall_not_deployed": fmt.Sprintf("Deploy it first: 'voidhash paywall deploy %s'.", chosen.paywall.Slug),
+				"paywall_not_deployed":          fmt.Sprintf("Deploy it first: 'voidhash paywall deploy %s'.", chosen.paywall.Slug),
+				"paywall_location_test_running": testRunningHint,
 			})
 		}
 		shows := func(showing *paywalls.Showing) bool {
@@ -195,7 +196,7 @@ voidhash location clear home --env test`,
 		if err := cli.Call(ctx, app, func(c *api.Client) (*http.Response, error) {
 			return c.PaywallLocationsClearShowing(ctx, projectID, location.ID, nil)
 		}); err != nil {
-			return err
+			return cli.APIError(err, map[string]string{"paywall_location_test_running": testRunningHint})
 		}
 		updated, err := getLocation(ctx, app, projectID, location.ID)
 		if err != nil {

@@ -37,6 +37,12 @@ class FlowPackage
      */
     protected $url;
     /**
+     * Whether the flow's texts follow the text size the end user chose on their device; false for packages built before flows did, which keep the sizes they were designed at.
+     *
+     * @var bool
+     */
+    protected $isFollowingTextSize;
+    /**
      * The version of the package format; SDKs whose engine cannot read it get no paywall.
      *
      * @return int
@@ -122,6 +128,28 @@ class FlowPackage
     {
         $this->initialized['url'] = true;
         $this->url = $url;
+        return $this;
+    }
+    /**
+     * Whether the flow's texts follow the text size the end user chose on their device; false for packages built before flows did, which keep the sizes they were designed at.
+     *
+     * @return bool
+     */
+    public function getIsFollowingTextSize(): bool
+    {
+        return $this->isFollowingTextSize;
+    }
+    /**
+     * Whether the flow's texts follow the text size the end user chose on their device; false for packages built before flows did, which keep the sizes they were designed at.
+     *
+     * @param bool $isFollowingTextSize
+     *
+     * @return self
+     */
+    public function setIsFollowingTextSize(bool $isFollowingTextSize): self
+    {
+        $this->initialized['isFollowingTextSize'] = true;
+        $this->isFollowingTextSize = $isFollowingTextSize;
         return $this;
     }
 }

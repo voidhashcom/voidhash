@@ -37,6 +37,9 @@ class SdkResolvePaywallBodyJsonEncodingNormalizer implements DenormalizerInterfa
         if (isset($data['$recursiveRef'])) {
             return new Reference($data['$recursiveRef'], $context['document-origin']);
         }
+        if (\array_key_exists('reportsExposure', $data) && \is_int($data['reportsExposure'])) {
+            $data['reportsExposure'] = (bool) $data['reportsExposure'];
+        }
         if (\array_key_exists('locationSlug', $data)) {
             $object->setLocationSlug($data['locationSlug']);
         }
@@ -46,6 +49,12 @@ class SdkResolvePaywallBodyJsonEncodingNormalizer implements DenormalizerInterfa
         elseif (\array_key_exists('interfaceRevision', $data) && $data['interfaceRevision'] === null) {
             $object->setInterfaceRevision(null);
         }
+        if (\array_key_exists('reportsExposure', $data) && $data['reportsExposure'] !== null) {
+            $object->setReportsExposure($data['reportsExposure']);
+        }
+        elseif (\array_key_exists('reportsExposure', $data) && $data['reportsExposure'] === null) {
+            $object->setReportsExposure(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -54,6 +63,9 @@ class SdkResolvePaywallBodyJsonEncodingNormalizer implements DenormalizerInterfa
         $dataArray['locationSlug'] = $data->getLocationSlug();
         if ($data->isInitialized('interfaceRevision')) {
             $dataArray['interfaceRevision'] = $data->getInterfaceRevision();
+        }
+        if ($data->isInitialized('reportsExposure')) {
+            $dataArray['reportsExposure'] = $data->getReportsExposure();
         }
         return $dataArray;
     }

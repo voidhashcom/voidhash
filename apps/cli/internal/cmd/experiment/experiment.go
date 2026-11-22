@@ -26,11 +26,13 @@ func New(app *cli.App) *cobra.Command {
 		Short:   "A/B tests: set up arms, start, follow the results, and conclude.",
 		Long: `A/B tests of paywalls and feature flags: set up arms, start, follow the results, and conclude with a winner.
 
-An experiment splits end users between arms. Each arm shows a paywall at its paywall locations, gives feature flags a value, or both. What counts as a conversion is fixed once it starts, and the arms are locked while it runs.`,
+An experiment splits end users between arms. Each arm shows a paywall at its paywall locations, gives feature flags a value, or both. What counts as a conversion is fixed once it starts, and the arms are locked while it runs.
+
+Each arm keeps the build of its paywall deployed when the experiment started, whatever 'voidhash paywall deploy' deploys later; 'voidhash experiment deploy-arm' moves one arm to another build.`,
 	}
 	cmd.AddCommand(
 		newList(app), newView(app), newCreate(app), newEdit(app),
-		newStart(app), newPause(app), newResults(app), newConclude(app),
+		newStart(app), newPause(app), newResults(app), newDeployArm(app), newConclude(app),
 		newArchive(app), newRestore(app),
 	)
 	return cmd
@@ -46,11 +48,58 @@ type experiment struct {
 	WinningVariantID       *string `json:"winningVariantId"`
 	IsArchived             bool    `json:"isArchived"`
 	StartedAt              *string `json:"startedAt"`
+	// RolloutDifferences are where a concluded experiment's winner ran
+	// another build than the one its location went on to show.
+	RolloutDifferences []rolloutDifference `json:"rolloutDifferences"`
+}
+
+type rolloutDifference struct {
+	PaywallLocationID string `json:"paywallLocationId"`
+	Environment       string `json:"environment"`
+	TestedBuildNumber int    `json:"testedBuildNumber"`
+	ShownBuildNumber  int    `json:"shownBuildNumber"`
+}
+
+// armBuild is the build an arm keeps at a location in one environment,
+// beside the paywall's deployed build. KeptBuildNumber is nil while the arm
+// follows the deployed build: in a draft, or an experiment started before
+// arms kept their build.
+type armBuild struct {
+	KeptBuildNumber     *int `json:"keptBuildNumber"`
+	DeployedBuildNumber *int `json:"deployedBuildNumber"`
 }
 
 type placement struct {
 	PaywallLocationID string `json:"paywallLocationId"`
 	PaywallID         string `json:"paywallId"`
+	// Builds is what the API reads back; it is never sent.
+	Builds *struct {
+		Production armBuild `json:"production"`
+		Test       armBuild `json:"test"`
+	} `json:"builds,omitempty"`
+}
+
+// keptBuildLabel is the build a placement keeps, in a few words: " keeping
+// build #3", " keeping build #3 (test keys: #4)", or nothing while it
+// follows the paywall's deployed build.
+func keptBuildLabel(shown placement) string {
+	if shown.Builds == nil {
+		return ""
+	}
+	production, test := shown.Builds.Production.KeptBuildNumber, shown.Builds.Test.KeptBuildNumber
+	label := func(number *int) string {
+		if number == nil {
+			return "deployed"
+		}
+		return fmt.Sprintf("#%d", *number)
+	}
+	switch {
+	case production == nil && test == nil:
+		return ""
+	case production != nil && test != nil && *production == *test:
+		return " keeping build " + label(production)
+	}
+	return fmt.Sprintf(" keeping build %s (test keys: %s)", label(production), label(test))
 }
 
 type flagValue struct {
@@ -67,6 +116,12 @@ type arm struct {
 	WeightPercentage float64     `json:"weightPercentage"`
 	Placements       []placement `json:"placements"`
 	FlagValues       []flagValue `json:"flagValues"`
+	// StoppedPlacements are locations the arm stopped showing a paywall at
+	// while the experiment was paused, kept for the record; they serve nothing.
+	StoppedPlacements []struct {
+		PaywallLocationID string `json:"paywallLocationId"`
+		PaywallID         string `json:"paywallId"`
+	} `json:"stoppedPlacements"`
 }
 
 // place is a paywall or a paywall location, as far as naming one needs.
@@ -200,7 +255,7 @@ func keyOf(all []flags.Flag, id string) string {
 func armDoesLabel(one arm, where places, inUse []flags.Flag) string {
 	var parts []string
 	for _, shown := range one.Placements {
-		parts = append(parts, slugOf(where.paywalls, shown.PaywallID)+" at "+slugOf(where.locations, shown.PaywallLocationID))
+		parts = append(parts, slugOf(where.paywalls, shown.PaywallID)+" at "+slugOf(where.locations, shown.PaywallLocationID)+keptBuildLabel(shown))
 	}
 	for _, value := range one.FlagValues {
 		state := "off"
@@ -211,6 +266,9 @@ func armDoesLabel(one arm, where places, inUse []flags.Flag) string {
 			}
 		}
 		parts = append(parts, keyOf(inUse, value.FeatureFlagID)+" "+state)
+	}
+	for _, stopped := range one.StoppedPlacements {
+		parts = append(parts, "stopped showing "+slugOf(where.paywalls, stopped.PaywallID)+" at "+slugOf(where.locations, stopped.PaywallLocationID))
 	}
 	if len(parts) == 0 {
 		return "no paywall placed, no flag set"
@@ -348,7 +406,7 @@ voidhash experiment view exp_123 --json`,
 		var where places
 		var inUse []flags.Flag
 		for _, one := range arms.Items {
-			if len(one.Placements) > 0 && where.paywalls == nil {
+			if len(one.Placements)+len(one.StoppedPlacements) > 0 && where.paywalls == nil {
 				if where, err = listPlaces(ctx, app, projectID); err != nil {
 					return err
 				}

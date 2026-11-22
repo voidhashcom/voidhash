@@ -604,21 +604,37 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\CreatePerkBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePerkBodyJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\PaywallTemplateJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallTemplateJsonEncodingNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\PaywallSupportedLocationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallSupportedLocationJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\LocationProblem::class => \Voidhash\Generated\Core\Normalizer\LocationProblemNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaywallBuildJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\PaywallBuildMissingTranslation::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildMissingTranslationNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\PaywallBuildFailure::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildFailureNormalizer::class,
         
         \Voidhash\Generated\Core\Model\FlowPackageDiagnostic::class => \Voidhash\Generated\Core\Normalizer\FlowPackageDiagnosticNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\PaywallBuildTestArm::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildTestArmNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\FlowPackage::class => \Voidhash\Generated\Core\Normalizer\FlowPackageNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SetPaywallEnvironmentBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SetPaywallEnvironmentBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallBuildWithdrawalJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildWithdrawalJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallBuildWithdrawalPlacement::class => \Voidhash\Generated\Core\Normalizer\PaywallBuildWithdrawalPlacementNormalizer::class,
         
         \Voidhash\Generated\Core\Model\CreatePaywallBuildBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePaywallBuildBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaywallJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallUseJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallUseJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\DuplicatePaywallBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\DuplicatePaywallBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\UpdatePaywallBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdatePaywallBodyJsonEncodingNormalizer::class,
         
@@ -639,6 +655,16 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\PaywallLocationPinJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationPinJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PutPaywallLocationPinBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PutPaywallLocationPinBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationDefaultAnswerJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingExperiment::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationDefaultAnswerJsonEncodingExperimentNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingWithdrawnBuild::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationDefaultAnswerJsonEncodingWithdrawnBuildNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingRequirements::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationDefaultAnswerJsonEncodingRequirementsNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingRequirementsNativeComponentsItem::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationDefaultAnswerJsonEncodingRequirementsNativeComponentsItemNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaywallLocationShowingJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaywallLocationShowingJsonEncodingNormalizer::class,
         
@@ -790,9 +816,19 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ExperimentVariantJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ExperimentVariantJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ExperimentArmStoppedPlacement::class => \Voidhash\Generated\Core\Normalizer\ExperimentArmStoppedPlacementNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExperimentArmBuildChange::class => \Voidhash\Generated\Core\Normalizer\ExperimentArmBuildChangeNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\ExperimentFlagValue::class => \Voidhash\Generated\Core\Normalizer\ExperimentFlagValueNormalizer::class,
         
-        \Voidhash\Generated\Core\Model\ExperimentPlacement::class => \Voidhash\Generated\Core\Normalizer\ExperimentPlacementNormalizer::class,
+        \Voidhash\Generated\Core\Model\ExperimentArmPlacement::class => \Voidhash\Generated\Core\Normalizer\ExperimentArmPlacementNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExperimentArmPlacementBuilds::class => \Voidhash\Generated\Core\Normalizer\ExperimentArmPlacementBuildsNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExperimentArmBuild::class => \Voidhash\Generated\Core\Normalizer\ExperimentArmBuildNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\DeployExperimentVariantBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\DeployExperimentVariantBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ReplaceExperimentVariantsBodyJsonEncodingNormalizer::class,
         
@@ -800,7 +836,11 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncodingVariantsItemFlagValuesItem::class => \Voidhash\Generated\Core\Normalizer\ReplaceExperimentVariantsBodyJsonEncodingVariantsItemFlagValuesItemNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ExperimentPlacement::class => \Voidhash\Generated\Core\Normalizer\ExperimentPlacementNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\ExperimentJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ExperimentJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExperimentRolloutDifference::class => \Voidhash\Generated\Core\Normalizer\ExperimentRolloutDifferenceNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ConcludeExperimentBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ConcludeExperimentBodyJsonEncodingNormalizer::class,
         
@@ -1252,9 +1292,13 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsGetResponse200Normalizer::class,
         
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdUsesGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsPaywallIdUsesGetResponse200Normalizer::class,
+        
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200Normalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallTemplatesGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaywallTemplatesGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPerksGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPerksGetResponse200Normalizer::class,
         
@@ -1653,14 +1697,22 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdatePerkBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePerkBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallTemplateJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallSupportedLocationJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\LocationProblem::class => false,
             \Voidhash\Generated\Core\Model\PaywallBuildJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallBuildMissingTranslation::class => false,
             \Voidhash\Generated\Core\Model\PaywallBuildFailure::class => false,
             \Voidhash\Generated\Core\Model\FlowPackageDiagnostic::class => false,
+            \Voidhash\Generated\Core\Model\PaywallBuildTestArm::class => false,
             \Voidhash\Generated\Core\Model\FlowPackage::class => false,
+            \Voidhash\Generated\Core\Model\SetPaywallEnvironmentBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallBuildWithdrawalJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallBuildWithdrawalPlacement::class => false,
             \Voidhash\Generated\Core\Model\CreatePaywallBuildBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallUseJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\DuplicatePaywallBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdatePaywallBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePaywallBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallLocationRulesJsonEncoding::class => false,
@@ -1671,6 +1723,11 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\FeatureFlagConditionInput::class => false,
             \Voidhash\Generated\Core\Model\PaywallLocationPinJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PutPaywallLocationPinBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingExperiment::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingWithdrawnBuild::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingRequirements::class => false,
+            \Voidhash\Generated\Core\Model\PaywallLocationDefaultAnswerJsonEncodingRequirementsNativeComponentsItem::class => false,
             \Voidhash\Generated\Core\Model\PaywallLocationShowingJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SetPaywallLocationShowingBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding::class => false,
@@ -1746,12 +1803,19 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ExperimentResultsJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ExperimentVariantResultJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ExperimentVariantJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentArmStoppedPlacement::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentArmBuildChange::class => false,
             \Voidhash\Generated\Core\Model\ExperimentFlagValue::class => false,
-            \Voidhash\Generated\Core\Model\ExperimentPlacement::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentArmPlacement::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentArmPlacementBuilds::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentArmBuild::class => false,
+            \Voidhash\Generated\Core\Model\DeployExperimentVariantBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncodingVariantsItem::class => false,
             \Voidhash\Generated\Core\Model\ReplaceExperimentVariantsBodyJsonEncodingVariantsItemFlagValuesItem::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentPlacement::class => false,
             \Voidhash\Generated\Core\Model\ExperimentJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ExperimentRolloutDifference::class => false,
             \Voidhash\Generated\Core\Model\ConcludeExperimentBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdateExperimentBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreateExperimentBodyJsonEncoding::class => false,
@@ -1977,8 +2041,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallLocationsPaywallLocationIdPinsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallLocationsPaywallLocationIdRulesGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdUsesGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdBuildsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallsPaywallIdLocationsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaywallTemplatesGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPerksGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdEntitlementsGetResponse200::class => false,

@@ -194,6 +194,11 @@ enum PaywallBridgeProtocol {
         }
     }
 
+    /// Tells the flow on screen the permission statuses that changed while it was shown.
+    static func permissionsContextMessage(_ statuses: [String: String]) -> String {
+        return serialize(type: "context", requestId: nil, payload: ["permissions": statuses])
+    }
+
     /// Changes inputs of the flow on screen.
     static func inputMessage(_ values: [String: FlowValue]) -> String {
         return serialize(type: "input", requestId: nil, payload: ["values": jsonObject(values)])
@@ -235,6 +240,21 @@ enum PaywallBridgeProtocol {
         return serialize(
             type: "configure", requestId: requestId,
             payload: payload.merging(clock) { _, clock in clock }, warn: warn)
+    }
+
+    /// Serializes the `products` envelope, which sends a flow on screen its products again, as
+    /// `configure` gives them, after a purchase or restore changed what the store says of them;
+    /// `nil` when they cannot be encoded, which sends nothing: the flow keeps what it had.
+    static func productsMessage(
+        _ products: [FlowConfigurationProduct], warn: @escaping VoidhashWarningHandler
+    ) -> String? {
+        guard let data = try? JSONEncoder().encode(products),
+            let encoded = try? JSONSerialization.jsonObject(with: data) as? [Any]
+        else {
+            warn("Failed to encode the flow products message; the flow keeps the products it had")
+            return nil
+        }
+        return serialize(type: "products", requestId: nil, payload: ["products": encoded], warn: warn)
     }
 
     private static func encodedPayload(_ config: FlowConfiguration) -> [String: Any]? {

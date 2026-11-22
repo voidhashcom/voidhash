@@ -83,6 +83,8 @@ namespace margelo::nitro::voidhash { struct NativeFlowRevision; }
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
 // Forward declaration of `NativeFlowRuntime` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowRuntime; }
+// Forward declaration of `NativeFlowLoading` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeFlowLoading; }
 // Forward declaration of `NativeAppStoreMessages` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeAppStoreMessages; }
 // Forward declaration of `NativePurchaseIntents` to properly resolve imports.
@@ -203,6 +205,8 @@ namespace margelo::nitro::voidhash { struct NativeFlowPresentation; }
 #include "JNativeFlowCapability.hpp"
 #include "NativeFlowRuntime.hpp"
 #include "JNativeFlowRuntime.hpp"
+#include "NativeFlowLoading.hpp"
+#include "JNativeFlowLoading.hpp"
 #include "NativeAppStoreMessages.hpp"
 #include "JNativeAppStoreMessages.hpp"
 #include "NativePurchaseIntents.hpp"

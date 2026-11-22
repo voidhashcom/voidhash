@@ -45,7 +45,7 @@ extension TextLayout {
         var line = entry.line
         var width = entry.width
         if style.alignment == .justify, !entry.endsParagraph, boxWidth > width,
-            let justified = CTLineCreateJustifiedLine(line, 1, Double(boxWidth))
+            let justified = justifiedLine(entry, boxWidth: boxWidth)
         {
             line = justified
             width = boxWidth
@@ -55,6 +55,85 @@ extension TextLayout {
         case .right: return (line, boxWidth - width, width)
         case .center: return (line, (boxWidth - width) / 2, width)
         }
+    }
+
+    /// `entry` stretched to `boxWidth` as the views protocol justifies, as the engine and the
+    /// Android host do: the room the line leaves shared equally among its spaces (U+0020), not
+    /// counting the whitespace that ends it, as kerning after each, so every other character
+    /// keeps its spacing (Core Text's own justification spaces letters too, and stretches
+    /// no-break spaces). Set from the paragraph at the line's own range, so string indices stay
+    /// the paragraph's. `nil` for a line without such a space, which keeps its natural spacing.
+    private func justifiedLine(_ entry: Line, boxWidth: CGFloat) -> CTLine? {
+        let string = paragraph.string as NSString
+        var end = entry.range.upperBound
+        while end > entry.range.lowerBound,
+            let scalar = UnicodeScalar(string.character(at: end - 1)),
+            Self.isWhiteSpace(scalar)
+        {
+            end -= 1
+        }
+        let spaces = (entry.range.lowerBound..<end).filter { string.character(at: $0) == 0x20 }
+        guard !spaces.isEmpty else {
+            return nil
+        }
+        let extra = (boxWidth - entry.width) / CGFloat(spaces.count)
+        let stretched = NSMutableAttributedString(attributedString: paragraph)
+        let kern = NSAttributedString.Key(kCTKernAttributeName as String)
+        for index in spaces {
+            let own = (stretched.attribute(kern, at: index, effectiveRange: nil) as? NSNumber)
+                .map { CGFloat($0.doubleValue) } ?? 0
+            stretched.addAttribute(kern, value: own + extra, range: NSRange(location: index, length: 1))
+        }
+        return CTTypesetterCreateLine(
+            CTTypesetterCreateWithAttributedString(stretched),
+            CFRange(location: entry.range.lowerBound, length: entry.range.count))
+    }
+
+    /// Where the character at string index `index` of `line` starts along it, its leading edge:
+    /// from the glyph that starts there, the left of it in a left-to-right run and the right in
+    /// a right-to-left one; at the line's end, where its last character ends. Core Text's own
+    /// carets split the kerning after a character in half, so a caret after a justified space
+    /// or a letter-spaced character would sit inside the room the glyphs moved by. Inside a
+    /// cluster, which starts no glyph, Core Text's caret.
+    package static func edge(of index: Int, in line: CTLine) -> CGFloat {
+        let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+        /// The run that sets `character`, and where its glyph starts and ends, `nil` when it
+        /// starts none.
+        func glyph(of character: Int) -> (rightToLeft: Bool, from: CGFloat, to: CGFloat)?? {
+            guard
+                let run = runs.first(where: {
+                    let range = CTRunGetStringRange($0)
+                    return character >= range.location && character < range.location + range.length
+                })
+            else {
+                return nil
+            }
+            let count = CTRunGetGlyphCount(run)
+            var indices = [CFIndex](repeating: 0, count: count)
+            var positions = [CGPoint](repeating: .zero, count: count)
+            var advances = [CGSize](repeating: .zero, count: count)
+            CTRunGetStringIndices(run, CFRange(location: 0, length: 0), &indices)
+            CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+            CTRunGetAdvances(run, CFRange(location: 0, length: 0), &advances)
+            guard let glyph = indices.firstIndex(of: character) else {
+                return .some(nil)
+            }
+            return (
+                CTRunGetStatus(run).contains(.rightToLeft), positions[glyph].x,
+                positions[glyph].x + advances[glyph].width
+            )
+        }
+        switch glyph(of: index) {
+        case .some(.some(let glyph)):
+            return glyph.rightToLeft ? glyph.to : glyph.from
+        case .some(.none):
+            break
+        case .none:
+            if index > 0, case .some(.some(let last)) = glyph(of: index - 1) {
+                return last.rightToLeft ? last.from : last.to
+            }
+        }
+        return CTLineGetOffsetForStringIndex(line, index, nil)
     }
 
     /// The UTF-16 offset in the text of the character under `point` (relative to the top-left
@@ -82,7 +161,7 @@ extension TextLayout {
             return nil
         }
         let lineStart = entry.range.lowerBound - entry.stringOffset
-        if caret > lineStart, CTLineGetOffsetForStringIndex(line, caret, nil) > along {
+        if caret > lineStart, Self.edge(of: caret, in: line) > along {
             caret -= 1
         }
         let offset = caret + entry.stringOffset
@@ -90,18 +169,26 @@ extension TextLayout {
     }
 
     /// The boxes the glyphs of `range` (UTF-16 offsets of the text) cover, one per line they
-    /// reach, relative to the top-left corner of a box `boxWidth` wide.
+    /// reach, relative to the top-left corner of a box `boxWidth` wide. The spaces a line wraps
+    /// at take no room on it, so no box covers them, as the engine frames a run.
     package func rects(for range: Range<Int>, boxWidth: CGFloat) -> [CGRect] {
         let height = CGFloat(style.lineHeight)
         return lines.indices.compactMap { index -> CGRect? in
             let entry = lines[index]
-            let shown = entry.range.clamped(to: range)
+            var occupied = entry.range
+            if !entry.endsParagraph {
+                let trailing = entry.content.utf16.reversed().prefix {
+                    UnicodeScalar($0).map(TextLayout.isWhiteSpace) ?? false
+                }.count
+                occupied = occupied.lowerBound..<max(occupied.lowerBound, occupied.upperBound - trailing)
+            }
+            let shown = occupied.clamped(to: range)
             guard !shown.isEmpty else {
                 return nil
             }
             let (line, x, _) = placedLine(index, boxWidth: boxWidth)
-            let from = CTLineGetOffsetForStringIndex(line, shown.lowerBound - entry.stringOffset, nil)
-            let to = CTLineGetOffsetForStringIndex(line, shown.upperBound - entry.stringOffset, nil)
+            let from = Self.edge(of: shown.lowerBound - entry.stringOffset, in: line)
+            let to = Self.edge(of: shown.upperBound - entry.stringOffset, in: line)
             return CGRect(
                 x: x + min(from, to), y: CGFloat(index) * height, width: abs(to - from),
                 height: height)
@@ -165,10 +252,8 @@ extension TextLayout {
                 guard !shown.isEmpty else {
                     continue
                 }
-                let from = x + CTLineGetOffsetForStringIndex(
-                    line, shown.lowerBound - entry.stringOffset, nil)
-                let to = x + CTLineGetOffsetForStringIndex(
-                    line, shown.upperBound - entry.stringOffset, nil)
+                let from = x + Self.edge(of: shown.lowerBound - entry.stringOffset, in: line)
+                let to = x + Self.edge(of: shown.upperBound - entry.stringOffset, in: line)
                 let lines = TextPaint.Decoration(
                     underline: run.underline, lineThrough: run.lineThrough,
                     color: run.color.map { DrawList.color($0) } ?? paint.color)

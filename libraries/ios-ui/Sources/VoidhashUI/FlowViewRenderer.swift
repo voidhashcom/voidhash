@@ -26,7 +26,22 @@ import VoidhashCore
 /// It shows flows with the flow runtime linked into it, unless ``FlowView/runtimeMode`` is
 /// ``FlowView/RuntimeMode/module``: it then reports its runtime bridge version, is served
 /// releases by the runtime module they name, and shows each with that module.
+///
+/// While a flow waits for the network, it shows ``loading``.
 public struct FlowViewRenderer: FlowRenderer {
+    /// What the end user sees while a flow waits for the network, from
+    /// ``FlowLoading/delay`` after the presentation began until the flow is shown:
+    /// ``FlowLoading/standard`` unless the app sets another. A flow already on the device is
+    /// shown before the delay is up, without it.
+    ///
+    /// ```swift
+    /// var renderer = FlowViewRenderer()
+    /// renderer.loading = .none
+    /// let voidhash = Voidhash.configure(
+    ///     publishableKey: "vh_pk_…", options: VoidhashOptions(flowRenderer: renderer))
+    /// ```
+    public var loading: FlowLoading = .standard
+
     #if os(iOS)
         /// The app's own components this renderer shows, as they were registered; see
         /// ``VoidhashNativeComponentView``.
@@ -101,6 +116,7 @@ public struct FlowViewRenderer: FlowRenderer {
                 context: context,
                 packageAbiVersions: FlowView
                     .minPackageAbiVersion...FlowView.packageAbiVersion,
+                loading: loading,
                 makeView: { imageStore in
                     FlowView(imageStore: imageStore, registry: registry)
                 })
@@ -143,6 +159,15 @@ public struct FlowViewRenderer: FlowRenderer {
 public final class VoidhashFlowRendererProvider: NSObject, FlowRendererProviding {
     public static func makeRenderer() -> any FlowRenderer {
         return FlowViewRenderer()
+    }
+
+    /// The renderer, without its loading state when `showsLoading` is `false`.
+    public static func makeRenderer(showsLoading: Bool) -> any FlowRenderer {
+        var renderer = FlowViewRenderer()
+        if !showsLoading {
+            renderer.loading = .none
+        }
+        return renderer
     }
 
     /// Switches every flow view to runtime modules (``FlowView/runtimeMode``).

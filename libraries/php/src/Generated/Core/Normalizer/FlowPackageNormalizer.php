@@ -37,6 +37,9 @@ class FlowPackageNormalizer implements DenormalizerInterface, NormalizerInterfac
         if (isset($data['$recursiveRef'])) {
             return new Reference($data['$recursiveRef'], $context['document-origin']);
         }
+        if (\array_key_exists('isFollowingTextSize', $data) && \is_int($data['isFollowingTextSize'])) {
+            $data['isFollowingTextSize'] = (bool) $data['isFollowingTextSize'];
+        }
         if (\array_key_exists('abiVersion', $data)) {
             $object->setAbiVersion($data['abiVersion']);
         }
@@ -53,6 +56,9 @@ class FlowPackageNormalizer implements DenormalizerInterface, NormalizerInterfac
         if (\array_key_exists('url', $data)) {
             $object->setUrl($data['url']);
         }
+        if (\array_key_exists('isFollowingTextSize', $data)) {
+            $object->setIsFollowingTextSize($data['isFollowingTextSize']);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -66,6 +72,7 @@ class FlowPackageNormalizer implements DenormalizerInterface, NormalizerInterfac
         $dataArray['productIds'] = $values;
         $dataArray['sha256'] = $data->getSha256();
         $dataArray['url'] = $data->getUrl();
+        $dataArray['isFollowingTextSize'] = $data->getIsFollowingTextSize();
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

@@ -18,7 +18,7 @@ public extension NativeClientConfiguration {
   /**
    * Create a new instance of `NativeClientConfiguration`.
    */
-  init(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Bool, developmentMode: Bool, distinctId: String?, readOnly: Bool, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Bool, automaticLifecycleEvents: Bool, installAttribution: Bool, metaAppId: String?, preloadLocations: [String], flowRevisions: [NativeFlowRevision], flowCapabilities: [NativeFlowCapability], flowRuntime: NativeFlowRuntime, screenTrackingEnabled: Bool, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Dictionary<String, Bool>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String) {
+  init(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Bool, developmentMode: Bool, distinctId: String?, readOnly: Bool, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Bool, automaticLifecycleEvents: Bool, installAttribution: Bool, metaAppId: String?, preloadLocations: [String], flowRevisions: [NativeFlowRevision], flowCapabilities: [NativeFlowCapability], flowRuntime: NativeFlowRuntime, flowLoading: NativeFlowLoading, screenTrackingEnabled: Bool, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Dictionary<String, Bool>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String) {
     self.init(std.string(publishableKey), std.string(baseUrl), { () -> bridge.std__optional_std__string_ in
       if let __unwrappedValue = ingestUrl {
         return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
@@ -61,7 +61,7 @@ public extension NativeClientConfiguration {
         __vector.push_back(__item)
       }
       return __vector
-    }(), flowRuntime, screenTrackingEnabled, { () -> bridge.std__optional_double_ in
+    }(), flowRuntime, flowLoading, screenTrackingEnabled, { () -> bridge.std__optional_double_ in
       if let __unwrappedValue = featureFlagMaxWaitMs {
         return bridge.create_std__optional_double_(__unwrappedValue)
       } else {
@@ -197,6 +197,11 @@ public extension NativeClientConfiguration {
   @inline(__always)
   var flowRuntime: NativeFlowRuntime {
     return self.__flowRuntime
+  }
+  
+  @inline(__always)
+  var flowLoading: NativeFlowLoading {
+    return self.__flowLoading
   }
   
   @inline(__always)

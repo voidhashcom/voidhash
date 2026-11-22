@@ -13,6 +13,7 @@
 #include "JNativeAnalyticsConsent.hpp"
 #include "JNativeAppStoreMessages.hpp"
 #include "JNativeFlowCapability.hpp"
+#include "JNativeFlowLoading.hpp"
 #include "JNativeFlowRevision.hpp"
 #include "JNativeFlowRuntime.hpp"
 #include "JNativePendingAnalytics.hpp"
@@ -20,6 +21,7 @@
 #include "NativeAnalyticsConsent.hpp"
 #include "NativeAppStoreMessages.hpp"
 #include "NativeFlowCapability.hpp"
+#include "NativeFlowLoading.hpp"
 #include "NativeFlowRevision.hpp"
 #include "NativeFlowRuntime.hpp"
 #include "NativePendingAnalytics.hpp"
@@ -84,6 +86,8 @@ namespace margelo::nitro::voidhash {
       jni::local_ref<jni::JArrayClass<JNativeFlowCapability>> flowCapabilities = this->getFieldValue(fieldFlowCapabilities);
       static const auto fieldFlowRuntime = clazz->getField<JNativeFlowRuntime>("flowRuntime");
       jni::local_ref<JNativeFlowRuntime> flowRuntime = this->getFieldValue(fieldFlowRuntime);
+      static const auto fieldFlowLoading = clazz->getField<JNativeFlowLoading>("flowLoading");
+      jni::local_ref<JNativeFlowLoading> flowLoading = this->getFieldValue(fieldFlowLoading);
       static const auto fieldScreenTrackingEnabled = clazz->getField<jboolean>("screenTrackingEnabled");
       jboolean screenTrackingEnabled = this->getFieldValue(fieldScreenTrackingEnabled);
       static const auto fieldFeatureFlagMaxWaitMs = clazz->getField<jni::JDouble>("featureFlagMaxWaitMs");
@@ -144,6 +148,7 @@ namespace margelo::nitro::voidhash {
           return __vector;
         }(flowCapabilities),
         flowRuntime->toCpp(),
+        flowLoading->toCpp(),
         static_cast<bool>(screenTrackingEnabled),
         featureFlagMaxWaitMs != nullptr ? std::make_optional(featureFlagMaxWaitMs->value()) : std::nullopt,
         featureFlagDefaults != nullptr ? std::make_optional([&]() {
@@ -167,7 +172,7 @@ namespace margelo::nitro::voidhash {
      */
     [[maybe_unused]]
     static jni::local_ref<JNativeClientConfiguration::javaobject> fromCpp(const NativeClientConfiguration& value) {
-      using JSignature = JNativeClientConfiguration(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean, jboolean, jni::alias_ref<jni::JString>, jboolean, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativePendingAnalytics>, jboolean, jboolean, jboolean, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<jni::JArrayClass<JNativeFlowRevision>>, jni::alias_ref<jni::JArrayClass<JNativeFlowCapability>>, jni::alias_ref<JNativeFlowRuntime>, jboolean, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JMap<jni::JString, jni::JBoolean>>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeAppStoreMessages>, jni::alias_ref<JNativePurchaseIntents>, jni::alias_ref<jni::JString>);
+      using JSignature = JNativeClientConfiguration(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean, jboolean, jni::alias_ref<jni::JString>, jboolean, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativeAnalyticsConsent>, jni::alias_ref<JNativePendingAnalytics>, jboolean, jboolean, jboolean, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<jni::JArrayClass<JNativeFlowRevision>>, jni::alias_ref<jni::JArrayClass<JNativeFlowCapability>>, jni::alias_ref<JNativeFlowRuntime>, jni::alias_ref<JNativeFlowLoading>, jboolean, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JMap<jni::JString, jni::JBoolean>>, jni::alias_ref<jni::JString>, jni::alias_ref<JNativeAppStoreMessages>, jni::alias_ref<JNativePurchaseIntents>, jni::alias_ref<jni::JString>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -217,6 +222,7 @@ namespace margelo::nitro::voidhash {
           return __array;
         }(value.flowCapabilities),
         JNativeFlowRuntime::fromCpp(value.flowRuntime),
+        JNativeFlowLoading::fromCpp(value.flowLoading),
         value.screenTrackingEnabled,
         value.featureFlagMaxWaitMs.has_value() ? jni::JDouble::valueOf(value.featureFlagMaxWaitMs.value()) : nullptr,
         value.featureFlagDefaults.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JBoolean>> {

@@ -43,6 +43,16 @@ class SdkResolvedPaywallJsonEncodingNormalizer implements DenormalizerInterface,
         if (\array_key_exists('showing', $data)) {
             $object->setShowing($this->denormalizer->denormalize($data['showing'], \Voidhash\Generated\Core\Model\SdkResolvedPaywallShowingJsonEncoding::class, 'json', $context));
         }
+        if (\array_key_exists('withdrawnPackages', $data) && $data['withdrawnPackages'] !== null) {
+            $values = [];
+            foreach ($data['withdrawnPackages'] as $value) {
+                $values[] = $value;
+            }
+            $object->setWithdrawnPackages($values);
+        }
+        elseif (\array_key_exists('withdrawnPackages', $data) && $data['withdrawnPackages'] === null) {
+            $object->setWithdrawnPackages(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -50,6 +60,13 @@ class SdkResolvedPaywallJsonEncodingNormalizer implements DenormalizerInterface,
         $dataArray = [];
         $dataArray['location'] = $this->normalizer->normalize($data->getLocation(), 'json', $context);
         $dataArray['showing'] = $this->normalizer->normalize($data->getShowing(), 'json', $context);
+        if ($data->isInitialized('withdrawnPackages')) {
+            $values = [];
+            foreach ($data->getWithdrawnPackages() as $value) {
+                $values[] = $value;
+            }
+            $dataArray['withdrawnPackages'] = $values;
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

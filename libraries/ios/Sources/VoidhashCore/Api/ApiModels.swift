@@ -634,13 +634,53 @@ public struct SdkResolvePaywallBody: Codable, Sendable, Equatable {
     /// The revision of the location's interface the app was built against; `nil`, which is
     /// left out of the body, for an app that reports none.
     public let interfaceRevision: Int?
+    /// Whether the SDK reports an A/B test's exposure itself, with the answer's exposure token
+    /// on the first event of each presentation and on each hand-off of the answer to the app;
+    /// otherwise the backend counts the person on resolving.
+    public let reportsExposure: Bool
 
-    /// - Parameter interfaceRevision: Sent only when greater than 0: an app that reports no
-    ///   revision counts as revision 0.
-    public init(locationSlug: String, interfaceRevision: Int = 0) {
+    /// - Parameters:
+    ///   - interfaceRevision: Sent only when greater than 0: an app that reports no revision
+    ///     counts as revision 0.
+    ///   - reportsExposure: Whether the SDK reports the exposure itself.
+    public init(locationSlug: String, interfaceRevision: Int = 0, reportsExposure: Bool) {
         self.locationSlug = locationSlug
         self.interfaceRevision = interfaceRevision > 0 ? interfaceRevision : nil
+        self.reportsExposure = reportsExposure
     }
+}
+
+/// The opaque value that counts a person in the A/B test that chose a resolve answer, sent on the
+/// first event of each presentation and on each hand-off of the answer. It never leaves the SDK
+/// otherwise: no description, log or JSON for the app holds it.
+@_spi(VoidhashFlows)
+public struct FlowExposureToken: Codable, Sendable, Equatable, CustomStringConvertible,
+    CustomDebugStringConvertible, CustomReflectable
+{
+    public let value: String
+
+    public init(_ value: String) {
+        self.value = value
+    }
+
+    public init(from decoder: any Decoder) throws {
+        value = try decoder.singleValueContainer().decode(String.self)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
+
+    public var description: String { "<exposure token>" }
+    public var debugDescription: String { description }
+    public var customMirror: Mirror { Mirror(self, children: [:]) }
+}
+
+extension CodingUserInfoKey {
+    /// Set by the cache's encoder: values the SDK keeps on the device but never hands out,
+    /// such as an answer's exposure token, are encoded only then.
+    static let voidhashCache = CodingUserInfoKey(rawValue: "voidhash.cache")!
 }
 
 /// The paywall a location currently resolves to.
@@ -676,7 +716,7 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
         public var runtime: RuntimeModule? = nil
 
         /// A flow runtime module: what a renderer in module mode downloads, verifies by hash and
-        /// caches to show the flow.
+        /// signature, and caches to show the flow.
         public struct RuntimeModule: Codable, Sendable, Equatable {
             /// The runtime version, `major.minor.patch`.
             public let version: String
@@ -684,11 +724,15 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
             public let sha256: String
             /// Where the module is downloaded from.
             public let url: String
+            /// Hex signature of the module, which the renderer verifies before it runs it; a
+            /// module without one never runs.
+            public let signature: String?
 
-            public init(version: String, sha256: String, url: String) {
+            public init(version: String, sha256: String, url: String, signature: String? = nil) {
                 self.version = version
                 self.sha256 = sha256
                 self.url = url
+                self.signature = signature
             }
         }
     }
@@ -717,6 +761,12 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
         public let paywallReleaseId: String?
         public let startedAt: String
         public let type: String
+        /// Present when an A/B test chose what is shown: sent unchanged on the first event of
+        /// every presentation of this answer and on every hand-off of it to the app, which counts
+        /// the person in the test. Kept with the cached answer, and in no other encoding; it
+        /// expires 30 days after the answer, and sending an expired one is harmless.
+        @_spi(VoidhashFlows)
+        public var exposureToken: FlowExposureToken? = nil
 
         public func encode(to encoder: any Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
@@ -727,11 +777,18 @@ public struct SdkResolvedPaywall: Codable, Sendable, Equatable {
             try container.encode(paywallReleaseId, forKey: .paywallReleaseId)
             try container.encode(startedAt, forKey: .startedAt)
             try container.encode(type, forKey: .type)
+            if encoder.userInfo[.voidhashCache] as? Bool == true {
+                try container.encodeIfPresent(exposureToken, forKey: .exposureToken)
+            }
         }
     }
 
     public let location: Location
     public let showing: Showing
+    /// Lowercase hex SHA-256 of flow packages the location no longer shows because they were
+    /// withdrawn, newest first; never the package ``showing`` names. A device never falls back to
+    /// one of them. Kept with the cached answer; absent when there are none.
+    public var withdrawnPackages: [String]? = nil
 }
 
 /// Why a receipt is sent to `POST /api/v1/sdk/sync-transaction`.
@@ -761,15 +818,19 @@ public struct SdkPurchasePaywallContext: Codable, Sendable, Equatable {
     public let placement: String?
     public let paywallId: String?
     public let paywallReleaseId: String?
+    /// Where the flow the purchase was started from came from, when that is not Voidhash's
+    /// answer: `bundled` for the flow the app ships, shown without one.
+    public let source: String?
 
     public init(
         showingId: String, placement: String? = nil, paywallId: String? = nil,
-        paywallReleaseId: String? = nil
+        paywallReleaseId: String? = nil, source: String? = nil
     ) {
         self.showingId = showingId
         self.placement = placement
         self.paywallId = paywallId
         self.paywallReleaseId = paywallReleaseId
+        self.source = source
     }
 }
 

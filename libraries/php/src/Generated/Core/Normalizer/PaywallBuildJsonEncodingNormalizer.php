@@ -40,6 +40,12 @@ class PaywallBuildJsonEncodingNormalizer implements DenormalizerInterface, Norma
         if (\array_key_exists('isDeployed', $data) && \is_int($data['isDeployed'])) {
             $data['isDeployed'] = (bool) $data['isDeployed'];
         }
+        if (\array_key_exists('isDeployedInTest', $data) && \is_int($data['isDeployedInTest'])) {
+            $data['isDeployedInTest'] = (bool) $data['isDeployedInTest'];
+        }
+        if (\array_key_exists('isWithdrawn', $data) && \is_int($data['isWithdrawn'])) {
+            $data['isWithdrawn'] = (bool) $data['isWithdrawn'];
+        }
         if (\array_key_exists('id', $data)) {
             $object->setId($data['id']);
         }
@@ -67,11 +73,43 @@ class PaywallBuildJsonEncodingNormalizer implements DenormalizerInterface, Norma
         elseif (\array_key_exists('deployedAt', $data) && $data['deployedAt'] === null) {
             $object->setDeployedAt(null);
         }
+        if (\array_key_exists('isDeployedInTest', $data)) {
+            $object->setIsDeployedInTest($data['isDeployedInTest']);
+        }
+        if (\array_key_exists('deployedToTestAt', $data) && $data['deployedToTestAt'] !== null) {
+            $object->setDeployedToTestAt($data['deployedToTestAt']);
+        }
+        elseif (\array_key_exists('deployedToTestAt', $data) && $data['deployedToTestAt'] === null) {
+            $object->setDeployedToTestAt(null);
+        }
         if (\array_key_exists('flowPackage', $data)) {
             $object->setFlowPackage($this->denormalizer->denormalize($data['flowPackage'], \Voidhash\Generated\Core\Model\FlowPackage::class, 'json', $context));
         }
+        if (\array_key_exists('testArms', $data)) {
+            $values = [];
+            foreach ($data['testArms'] as $value) {
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\PaywallBuildTestArm::class, 'json', $context);
+            }
+            $object->setTestArms($values);
+        }
+        if (\array_key_exists('isWithdrawn', $data)) {
+            $object->setIsWithdrawn($data['isWithdrawn']);
+        }
+        if (\array_key_exists('withdrawnAt', $data) && $data['withdrawnAt'] !== null) {
+            $object->setWithdrawnAt($data['withdrawnAt']);
+        }
+        elseif (\array_key_exists('withdrawnAt', $data) && $data['withdrawnAt'] === null) {
+            $object->setWithdrawnAt(null);
+        }
         if (\array_key_exists('failure', $data)) {
             $object->setFailure($this->denormalizer->denormalize($data['failure'], \Voidhash\Generated\Core\Model\PaywallBuildFailure::class, 'json', $context));
+        }
+        if (\array_key_exists('missingTranslations', $data)) {
+            $values_1 = [];
+            foreach ($data['missingTranslations'] as $value_1) {
+                $values_1[] = $this->denormalizer->denormalize($value_1, \Voidhash\Generated\Core\Model\PaywallBuildMissingTranslation::class, 'json', $context);
+            }
+            $object->setMissingTranslations($values_1);
         }
         if (\array_key_exists('createdByUserId', $data) && $data['createdByUserId'] !== null) {
             $object->setCreatedByUserId($data['createdByUserId']);
@@ -100,8 +138,22 @@ class PaywallBuildJsonEncodingNormalizer implements DenormalizerInterface, Norma
         $dataArray['documentVersion'] = $data->getDocumentVersion();
         $dataArray['isDeployed'] = $data->getIsDeployed();
         $dataArray['deployedAt'] = $data->getDeployedAt();
+        $dataArray['isDeployedInTest'] = $data->getIsDeployedInTest();
+        $dataArray['deployedToTestAt'] = $data->getDeployedToTestAt();
         $dataArray['flowPackage'] = $this->normalizer->normalize($data->getFlowPackage(), 'json', $context);
+        $values = [];
+        foreach ($data->getTestArms() as $value) {
+            $values[] = $this->normalizer->normalize($value, 'json', $context);
+        }
+        $dataArray['testArms'] = $values;
+        $dataArray['isWithdrawn'] = $data->getIsWithdrawn();
+        $dataArray['withdrawnAt'] = $data->getWithdrawnAt();
         $dataArray['failure'] = $this->normalizer->normalize($data->getFailure(), 'json', $context);
+        $values_1 = [];
+        foreach ($data->getMissingTranslations() as $value_1) {
+            $values_1[] = $this->normalizer->normalize($value_1, 'json', $context);
+        }
+        $dataArray['missingTranslations'] = $values_1;
         $dataArray['createdByUserId'] = $data->getCreatedByUserId();
         $dataArray['createdAt'] = $data->getCreatedAt();
         $dataArray['finishedAt'] = $data->getFinishedAt();

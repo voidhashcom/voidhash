@@ -1,0 +1,49 @@
+Write the flows your app ships for locations: for each, <location>.json, its answer, and
+<location>.vhfp, its flow package, checked against the answer's SHA-256. Put them in the app's
+VoidhashFlows folder (iOS) or assets/voidhash-flows (Android); files already there are replaced. The
+SDK shows one only when it cannot reach Voidhash and holds no answer for the location.
+
+The answer is what a new anonymous person is shown in production: never a pin or a rule, and the
+control arm of an A/B test there. While the build a location shows is withdrawn, it is the earlier
+build apps are served instead, with a warning. Pass --revision for a location your app presents at a
+revision of its interface (its flowRevisions, or the generated types); without it the flow is for
+revision 0, and the SDK skips a flow taken for another revision. A location that shows nothing, or
+that has no build to serve, is refused, and nothing is written. The result names what an app's SDK
+needs to show each flow: the flow package format it reads, and any native components the build has
+no fallback for.
+
+The SDK stops showing the flows after --not-after, 90 days from the day the command runs by default:
+run it in your release build. Running it again writes the same files unless what the location shows,
+or the day, has changed.
+
+Usage:
+  voidhash location bundle [location...] [flags]
+
+Arguments:
+  location  The locations' slugs, names or ids
+
+Flags:
+  -h, --help                          Show help for this command
+      --json                          Print the files written, and what each holds and needs, as
+                                      JSON
+      --no-expiry                     Let the SDK show the flows however old they are
+      --not-after <date>              When the SDK stops showing the flows: a date (2027-03-01,
+                                      midnight UTC) or an ISO 8601 time (default: 90 days from the
+                                      day it runs)
+      --out <directory>               The directory to write into, created if missing; its files of
+                                      the same names are replaced
+      --project <project>             Project to act on: its id, slug, organization/slug or name
+                                      (default: this directory's project, then your default project)
+      --revision <location=revision>  The interface revision your app presents a location at
+                                      (default 0), as location=revision (can be repeated)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash location bundle onboarding --out MyApp/VoidhashFlows
+  voidhash location bundle onboarding upgrade --revision onboarding=3 --out app/src/main/assets/voidhash-flows
+  voidhash location bundle onboarding --out MyApp/VoidhashFlows --not-after 2027-03-01 --json

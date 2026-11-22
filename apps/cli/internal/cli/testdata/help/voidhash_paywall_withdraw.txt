@@ -1,0 +1,36 @@
+Withdraw a bad build, in production and test at once: no app is served it again, whether through a
+location's showing, rules or pins or an experiment arm. Each of those serves the most recent earlier
+build deployed there that is not withdrawn and fits the location instead, an arm preferring the
+builds it kept before, or no paywall when there is none. Apps that cannot show a newer build are
+never given it either.
+
+Nothing deployed or placed changes. The build cannot be deployed until 'voidhash paywall restore'
+restores it; to put a fixed design in front of people, deploy it afterwards with 'voidhash paywall
+deploy'.
+
+Lists each place that serves the build and what it serves instead, then asks; --yes skips that.
+
+Usage:
+  voidhash paywall withdraw [paywall] [flags]
+
+Arguments:
+  paywall  The paywall's slug, name or id
+
+Flags:
+      --build <number>     The build, by number or id
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+  -y, --yes                Make the change without asking for confirmation
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall withdraw pro --build 4
+  voidhash paywall withdraw pro --build 4 --yes

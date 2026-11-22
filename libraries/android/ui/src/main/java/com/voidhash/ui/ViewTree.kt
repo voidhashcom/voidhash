@@ -195,8 +195,9 @@ internal class ViewTree(private val context: Context, private val host: NodeHost
     /**
      * Applies React Native's accessibility rules to the tree: an element is one node to assistive
      * technology and reads its label or its descendants' text, which are then hidden, unless it
-     * keeps a developer's component (`accessibilityKeepsComponents`): then the component's views
-     * stay nodes after it, and the flow's views under it are read by it; `accessibilityElementsHidden`, hidden and closing views hide their subtree; a view
+     * keeps a developer's component (`accessibilityKeepsComponents`) or holds controls (text
+     * fields, pressables): then the component's views and the controls stay nodes after it, and
+     * the flow's other views under it are read by it; `accessibilityElementsHidden`, hidden and closing views hide their subtree; a view
      * with `accessibilityViewIsModal` hides its siblings; a screen covered by another hides its
      * subtree; a live region reads its text again when it changes. Applied after every batch,
      * and again once screen transitions updated what they cover.
@@ -243,7 +244,8 @@ internal class ViewTree(private val context: Context, private val host: NodeHost
             if (hidesSubviews || modal != null && child !== modal) {
                 child.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             } else {
-                update(child, insideElement || element)
+                // A control inside an element is a node of its own; the rest reads as part of the element.
+                update(child, (insideElement || element) && !child.isControl)
             }
         }
     }

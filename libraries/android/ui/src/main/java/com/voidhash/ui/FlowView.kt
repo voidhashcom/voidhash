@@ -10,7 +10,6 @@ import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Base64
 import android.util.AttributeSet
 import android.graphics.RectF
 import android.view.Choreographer
@@ -18,6 +17,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
+import com.voidhash.sdk.flows.FlowPackageImages
+import com.voidhash.sdk.flows.FlowUrlPolicy
 import java.io.File
 import org.json.JSONException
 import org.json.JSONObject
@@ -89,7 +90,9 @@ class FlowView internal constructor(
      * (returns `true`): it reports the image, or why there is none, on the main thread. The SDK's
      * renderer sets it, so images come from those the SDK keeps on the device before the network.
      * Without one, or for a request it does not take, the view downloads the image itself and
-     * keeps it only for as long as the view lives.
+     * keeps it only for as long as the view lives. Either way an image the package pins is shown
+     * only as the bytes its build recorded: the SDK checks what it hands over against the package
+     * it presents, the view what it downloads itself.
      */
     internal var imageSource: ((url: String, onResult: (Result<ByteArray>) -> Unit) -> Boolean)? = null
 
@@ -128,7 +131,7 @@ class FlowView internal constructor(
     private val clock = FlowClock()
 
     /** Measures and draws text, for the core's layout and for the text views alike. */
-    private val textSystem = TextSystem(FontRegistry(File(context.cacheDir, "voidhash-fonts")))
+    internal val textSystem = TextSystem(FontRegistry(File(context.cacheDir, "voidhash-fonts")))
     private val nodeHost = Host()
 
     /** The tree the operations built. */
@@ -156,7 +159,8 @@ class FlowView internal constructor(
             awaitingBack = true
         }
     }
-    private val textHost = ViewsTextHost(textSystem)
+    /** What the core measures text and registers fonts through. */
+    internal val textHost = ViewsTextHost(textSystem)
     private var handle = 0L
     private var failed = false
     private var released = false
@@ -164,6 +168,21 @@ class FlowView internal constructor(
 
     private val images = HashMap<String, Bitmap>()
     private val pendingImages = HashSet<String>()
+
+    /**
+     * The SHA-256 the loaded package's build recorded for each image it pinned, by URL: such an
+     * image is shown only as those bytes.
+     */
+    private var imageSha256: Map<String, String> = emptyMap()
+
+    /** One load of an image, against the pin it was asked for with (`null`: unpinned). */
+    private class ImageLoad(val sha256: String?)
+
+    /**
+     * The latest load of each image asked for, in flight or done. Only its result is shown: one
+     * a newer load replaced, as a package pinning the image otherwise does, is dropped.
+     */
+    private val imageLoads = HashMap<String, ImageLoad>()
 
     /** `data:` URLs whose image did not decode, reported once. */
     private val undecodableImages = HashSet<String>()
@@ -254,9 +273,31 @@ class FlowView internal constructor(
             ViewsNative.nativeLoadPackageFor(handle, bytes, runtimeSha256)
         }
         error?.let { return fail("the paywall package could not be loaded: $it") }
+        // An image asked for so far was checked against the pin it was asked for with. One this
+        // package pins otherwise leaves the screen at once and is loaded again, showing only once
+        // it verifies: the core still counts it as loaded and asks for it no more. One the package
+        // pins no longer, or does not show, stays as it was loaded.
+        val pinned = FlowPackageImages.of(bytes).sha256
+        imageSha256 = pinned
+        val repinned = imageLoads.filter { (url, load) -> pinned[url] != null && pinned[url] != load.sha256 }.keys.toList()
+        for (url in repinned) {
+            images.remove(url)
+            pendingImages.remove(url)
+            imageLoads.remove(url)
+            viewTree.imageLoaded(url)
+            loadImage(url)
+        }
         failedFrames = 0
         drainMessages()
         scheduleFrame()
+    }
+
+    /**
+     * For tests: stops timing the canvas frames of packages loaded from now on, so a canvas does
+     * not pause because the machine running the test was busy.
+     */
+    internal fun untimeCanvasFramesForTests() {
+        if (handle != 0L) ViewsNative.nativeUntimeCanvasFramesForTests(handle)
     }
 
     /** Delivers a host → paywall bridge envelope (`configure`, `status`). */
@@ -337,7 +378,8 @@ class FlowView internal constructor(
     }
 
     // Reaches the view only when the activity handles the change itself (`android:configChanges`
-    // naming `uiMode` or `locale`); otherwise the view goes with its window.
+    // naming `uiMode`, `locale` or `fontScale`); otherwise the view goes with its window, and the
+    // one that replaces it reports the new settings when it is attached.
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         postContext(newConfig)
@@ -360,9 +402,19 @@ class FlowView internal constructor(
         scheduleFrame()
     }
 
-    /** Sends the paywall the settings ABI 2 components read as `$context`. */
+    /**
+     * Sends the paywall the settings ABI 2 components read as `$context`, and the font size its
+     * texts follow.
+     */
     private fun postContext(configuration: Configuration) {
-        val message = contextMessage(reducedMotion(context), darkTheme(configuration), primaryLocale(configuration))
+        val (scale, curve) = fontScaleOf(context, configuration)
+        val message = contextMessage(
+            reducedMotion(context),
+            darkTheme(configuration),
+            primaryLocale(configuration),
+            scale,
+            curve,
+        )
         if (message == postedContext) return
         postedContext = message
         postMessage(message)
@@ -580,15 +632,25 @@ class FlowView internal constructor(
     private fun loadImage(url: String) {
         if (images.containsKey(url)) return showLoadedImage(url)
         if (!pendingImages.add(url)) return
-        val onResult: (Result<ByteArray>) -> Unit = { result ->
+        val load = ImageLoad(imageSha256[url])
+        imageLoads[url] = load
+        // A load a newer one replaced is dropped, also once its bytes are decoded off the main
+        // thread: a package pinning the image otherwise may have been loaded meanwhile.
+        val current = { imageLoads[url] === load }
+        val onResult: (Result<ByteArray>) -> Unit = onResult@{ result ->
+            if (!current()) return@onResult
             result
-                .onSuccess { bytes -> FlowImageLoader.background({ decode(bytes) }) { decoded -> provideImage(url, decoded.getOrNull()) } }
+                .onSuccess { bytes ->
+                    FlowImageLoader.background({ decode(bytes) }) { decoded ->
+                        if (current()) provideImage(url, decoded.getOrNull())
+                    }
+                }
                 .onFailure { error ->
                     pendingImages.remove(url)
                     if (!released) listener?.onWarning("An image failed to load from $url: ${error.message}")
                 }
         }
-        if (imageSource?.invoke(url, onResult) != true) FlowImageLoader.fetch(url, onResult)
+        if (imageSource?.invoke(url, onResult) != true) FlowImageLoader.fetch(url, load.sha256, onResult)
     }
 
     private fun provideImage(url: String, image: Bitmap?) {
@@ -627,11 +689,14 @@ class FlowView internal constructor(
             images[url]?.let { return it }
             if (!url.startsWith("data:") || url in undecodableImages) return null
             // A `data:` URL carries its image: decoded here, once, with no request and no
-            // image-loaded call.
-            val image = dataUrlBytes(url)?.let(::decode)
+            // image-loaded call, when the policy takes it.
+            val image = FlowUrlPolicy.dataImage(url)?.let(::decode)
             if (image == null) {
                 undecodableImages.add(url)
-                listener?.onWarning("Could not decode a paywall image from a data URL")
+                listener?.onWarning(
+                    "Could not show a paywall image from a data URL: it is not an image of at most " +
+                        "${FlowUrlPolicy.MAX_DATA_IMAGE_BYTES / (1024 * 1024)} MB that decodes",
+                )
                 return null
             }
             images[url] = image
@@ -774,46 +839,6 @@ class FlowView internal constructor(
             var sample = 1
             while (max(bounds.outWidth, bounds.outHeight) / sample > MAX_IMAGE_SIDE) sample *= 2
             return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-        }
-
-        /**
-         * The bytes a `data:` URL (RFC 2397) carries, base64 or percent-encoded; `null` when [url]
-         * is not one or its payload is malformed.
-         */
-        internal fun dataUrlBytes(url: String): ByteArray? {
-            if (!url.startsWith("data:")) return null
-            val comma = url.indexOf(',')
-            if (comma < 0) return null
-            val base64 = url.substring(5, comma).split(';').any { it.equals("base64", ignoreCase = true) }
-            val payload = percentDecoded(url.substring(comma + 1)) ?: return null
-            if (!base64) return payload
-            return try {
-                Base64.decode(String(payload, Charsets.US_ASCII).filterNot(Char::isWhitespace), Base64.DEFAULT)
-            } catch (error: IllegalArgumentException) {
-                null
-            }
-        }
-
-        /** [text]'s bytes with `%XX` escapes decoded; `null` for a malformed escape. */
-        private fun percentDecoded(text: String): ByteArray? {
-            val out = java.io.ByteArrayOutputStream(text.length)
-            val bytes = text.toByteArray(Charsets.UTF_8)
-            var at = 0
-            while (at < bytes.size) {
-                val byte = bytes[at]
-                if (byte == '%'.code.toByte()) {
-                    if (at + 2 >= bytes.size) return null
-                    val high = Character.digit(bytes[at + 1].toInt(), 16)
-                    val low = Character.digit(bytes[at + 2].toInt(), 16)
-                    if (high < 0 || low < 0) return null
-                    out.write(high shl 4 or low)
-                    at += 3
-                } else {
-                    out.write(byte.toInt())
-                    at += 1
-                }
-            }
-            return out.toByteArray()
         }
     }
 }

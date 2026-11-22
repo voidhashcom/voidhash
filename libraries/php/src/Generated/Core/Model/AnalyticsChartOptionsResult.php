@@ -49,6 +49,12 @@ class AnalyticsChartOptionsResult
      */
     protected $stores;
     /**
+     * The package sources of paywall presentations seen in the last 90 days, most frequent first, for `filters.packageSources`; `unknown` for presentations that name none.
+     *
+     * @var list<Objects1>
+     */
+    protected $packageSources;
+    /**
      * The project's paywall locations that are not archived, for `options.placementId`.
      *
      * @var list<Objects1>
@@ -208,6 +214,28 @@ class AnalyticsChartOptionsResult
     {
         $this->initialized['stores'] = true;
         $this->stores = $stores;
+        return $this;
+    }
+    /**
+     * The package sources of paywall presentations seen in the last 90 days, most frequent first, for `filters.packageSources`; `unknown` for presentations that name none.
+     *
+     * @return list<Objects1>
+     */
+    public function getPackageSources(): array
+    {
+        return $this->packageSources;
+    }
+    /**
+     * The package sources of paywall presentations seen in the last 90 days, most frequent first, for `filters.packageSources`; `unknown` for presentations that name none.
+     *
+     * @param list<Objects1> $packageSources
+     *
+     * @return self
+     */
+    public function setPackageSources(array $packageSources): self
+    {
+        $this->initialized['packageSources'] = true;
+        $this->packageSources = $packageSources;
         return $this;
     }
     /**

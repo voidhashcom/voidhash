@@ -31,6 +31,12 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime
      */
     protected $url;
     /**
+     * The runtime module's signature, as hex; empty for a module too old to be offered for download. SDKs run a downloaded module only when this signature verifies under a key built into the SDK, and otherwise show the flow with the runtime built into the SDK when it can.
+     *
+     * @var string
+     */
+    protected $signature;
+    /**
      * The flow runtime version the release was built for, as `major.minor.patch`; a runtime module of the same major version and not older also runs it.
      *
      * @return string
@@ -94,6 +100,28 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntime
     {
         $this->initialized['url'] = true;
         $this->url = $url;
+        return $this;
+    }
+    /**
+     * The runtime module's signature, as hex; empty for a module too old to be offered for download. SDKs run a downloaded module only when this signature verifies under a key built into the SDK, and otherwise show the flow with the runtime built into the SDK when it can.
+     *
+     * @return string
+     */
+    public function getSignature(): string
+    {
+        return $this->signature;
+    }
+    /**
+     * The runtime module's signature, as hex; empty for a module too old to be offered for download. SDKs run a downloaded module only when this signature verifies under a key built into the SDK, and otherwise show the flow with the runtime built into the SDK when it can.
+     *
+     * @param string $signature
+     *
+     * @return self
+     */
+    public function setSignature(string $signature): self
+    {
+        $this->initialized['signature'] = true;
+        $this->signature = $signature;
         return $this;
     }
 }

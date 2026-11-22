@@ -60,6 +60,7 @@ import {
   type FlowCapability,
   flowError,
   type FlowResult,
+  type FlowLoading,
   type FlowRuntime,
   type PresentFlowArguments,
   type PresentFlowOptions,
@@ -284,6 +285,15 @@ export interface VoidhashClientOptions {
    * renderer; `linked` leaves the renderer as native code set it.
    */
   flowRuntime?: FlowRuntime;
+  /**
+   * What a paywall shows while it waits for the network (default `standard`):
+   * the native SDK's loading screen, shown 0.4 seconds after `presentFlow` until
+   * the paywall takes its place, which the end user can close (`presentFlow`
+   * then resolves with the outcome `dismissed` and `wasShown: false`). `none`
+   * keeps the app's screen as it is until the paywall is shown. A paywall
+   * already on the device appears before then either way.
+   */
+  flowLoading?: FlowLoading;
   /** How feature flag reads behave before Voidhash has answered them; see {@link FeatureFlagsOptions}. */
   featureFlags?: FeatureFlagsOptions;
   ingestUrl?: string;
@@ -801,6 +811,7 @@ export interface VoidhashClientSetup {
   /** The validated `featureFlags.defaults`. */
   readonly featureFlagDefaults: Readonly<Record<string, boolean>>;
   readonly flowRuntime: FlowRuntime;
+  readonly flowLoading: FlowLoading;
   readonly preloadLocations: ReadonlyArray<string>;
   readonly flowRevisions: Readonly<Record<string, number>>;
   readonly screenTracking: ScreenTrackingOptions;
@@ -1057,6 +1068,7 @@ export class VoidhashClient {
       featureFlagDefaults: { ...setup.featureFlagDefaults },
       flowCapabilities: [...setup.flowCapabilities],
       flowRuntime: setup.flowRuntime,
+      flowLoading: setup.flowLoading,
       installAttribution: setup.installAttribution,
       flowRevisions: R.collect(setup.flowRevisions, (location, revision) => ({
         location,

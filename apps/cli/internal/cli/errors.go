@@ -151,6 +151,16 @@ func APIErrorCode(err error) string {
 	return ""
 }
 
+// APIErrorStatus is the HTTP status of a failed API call; 0 when err is not
+// an API error.
+func APIErrorStatus(err error) int {
+	var apiErr *voidhash.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode
+	}
+	return 0
+}
+
 // APIErrorType is the error `type` the API answered with, such as
 // "not_found" or "permission_denied"; empty when err is not an API error.
 func APIErrorType(err error) string {

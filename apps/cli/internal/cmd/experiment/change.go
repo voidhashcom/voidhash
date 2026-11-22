@@ -13,6 +13,7 @@ import (
 	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/flags"
+	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
 )
 
 const metricUsage = "The `event` that counts as a conversion (default: " + defaultMetric + "); fixed once it starts"
@@ -197,6 +198,14 @@ voidhash experiment edit exp_123 --metric trial_started --secondary-metric purch
 			return cli.Failf("%s is running, so its arms are locked.", found.Name).
 				WithHint(fmt.Sprintf("Pause it first: 'voidhash experiment pause %s'.", found.ID))
 		}
+		if changesArms && (found.Status == "concluded" || found.IsArchived) {
+			if found.IsArchived {
+				return cli.Failf("%s is archived, so its arms cannot change.", found.Name).
+					WithHint(fmt.Sprintf("Restore it first: 'voidhash experiment restore %s'.", found.ID))
+			}
+			return cli.Failf("%s has concluded, so its arms can no longer change: they are the record of what it compared.", found.Name).
+				WithHint("Create a new experiment to test other arms.")
+		}
 		var variants []newArm
 		if changesArms {
 			existing, err := armsOf(ctx, app, projectID, found.ID)
@@ -331,6 +340,31 @@ voidhash experiment start exp_123 --yes`,
 		verb, done := "Start", "Started"
 		if found.Status == "paused" {
 			verb, done = "Resume", "Resumed"
+		}
+		// A test starting keeps each placed paywall's live build; a withdrawn one is not served.
+		if found.Status == "draft" && len(locationIDs) > 0 {
+			places, err := listPlaces(ctx, app, projectID)
+			if err != nil {
+				return err
+			}
+			warned := map[string]bool{}
+			for _, one := range arms.Items {
+				for _, shown := range one.Placements {
+					if warned[shown.PaywallID] {
+						continue
+					}
+					warned[shown.PaywallID] = true
+					builds, err := paywalls.ListBuilds(ctx, app, projectID, shown.PaywallID)
+					if err != nil {
+						return err
+					}
+					if live, ok := paywalls.DeployedBuild(builds.Items); ok {
+						if warning := paywalls.WithdrawnLiveWarning(live); warning != "" {
+							app.Warnf("%s: %s", slugOf(places.paywalls, shown.PaywallID), warning)
+						}
+					}
+				}
+			}
 		}
 		split := make([]string, len(arms.Items))
 		for index, one := range arms.Items {
@@ -483,12 +517,16 @@ func newConclude(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conclude",
 		Short: "End an experiment for good with a winner.",
-		Long:  "End an experiment for good with a winner: its paywalls show to everyone at its locations, and the flags it set give its values to everyone their own rules and overrides don't name. It can never run again. Shows the results and asks first; --yes skips the question.",
+		Long: `End an experiment for good with a winner: its paywalls show to everyone at its locations, and the flags it set give its values to everyone their own rules and overrides don't name. It can never run again. Shows the results and asks first; --yes skips the question.
+
+Each location then shows its paywall's deployed build, as everywhere else the paywall is shown. When the winner ran another build (one was deployed while the experiment ran), the question says so. --roll-out tested deploys the build the winner ran first instead, which changes the paywall everywhere it is shown in that environment.`,
 		Example: `voidhash experiment conclude "Annual-first onboarding" --winner "Annual first"
-voidhash experiment conclude exp_123 --winner control --yes`,
+voidhash experiment conclude exp_123 --winner control --yes
+voidhash experiment conclude exp_123 --winner "Annual first" --roll-out tested`,
 	}
 	cli.SetArgs(cmd, experimentArg)
 	winner := cmd.Flags().String("winner", "", "The winning `arm` by name (default: the control)")
+	rollOut := cli.AddChoiceFlag(cmd, "roll-out", "", []string{"live", "tested"}, "live", "Which build the locations show afterwards: the paywall's deployed build (live) or the build the winner ran, deployed first (tested)")
 	project := cli.AddProjectFlag(cmd)
 	yes := cli.AddYesFlag(cmd)
 	output := cli.AddOutputFlags(cmd)
@@ -539,20 +577,38 @@ voidhash experiment conclude exp_123 --winner control --yes`,
 		if len(verdict) > 0 {
 			app.Notef("%s", cli.PrintableLines(strings.Join(verdict, "\n")))
 		}
+		builds := rolloutLines(arms.Items, chosen, *rollOut)
+		if len(builds) > 0 {
+			app.Notef("%s", cli.PrintableLines(strings.Join(builds, "\n")))
+		}
 		if err := app.ConfirmChange(ctx, *yes, fmt.Sprintf(
 			"Conclude %s in %s with %s as the winner? Its paywalls show to everyone at its locations, the flags it set give its values to everyone their own rules and overrides don't name, and it can never run again.",
 			found.Name, target.Label(), chosen.Name)); err != nil {
 			return err
 		}
+		body := api.ConcludeExperimentBodyJsonEncoding{WinningVariantId: &chosen.ID}
+		if *rollOut == "tested" {
+			tested := api.TestedBuild
+			body.RollOut = &tested
+		}
 		concluded, err := cli.Fetch[experiment](ctx, app, func(c *api.Client) (*http.Response, error) {
-			return c.ExperimentsConclude(ctx, projectID, found.ID, api.ConcludeExperimentBodyJsonEncoding{WinningVariantId: &chosen.ID})
+			return c.ExperimentsConclude(ctx, projectID, found.ID, body)
 		})
 		if err != nil {
 			return cli.APIError(err, map[string]string{
-				"experiment_not_started": fmt.Sprintf("A draft has nothing to conclude; archive it: 'voidhash experiment archive %s'.", found.ID),
+				"experiment_not_started":        fmt.Sprintf("A draft has nothing to conclude; archive it: 'voidhash experiment archive %s'.", found.ID),
+				"experiment_build_not_deployed": "The experiment still runs. Conclude without --roll-out tested to show the deployed build instead.",
 			})
 		}
-		return app.PrintItem(mode, concluded, fmt.Sprintf("Concluded %s: %s won.", concluded.Value.Name, chosen.Name))
+		message := fmt.Sprintf("Concluded %s: %s won.", concluded.Value.Name, chosen.Name)
+		for _, difference := range concluded.Value.RolloutDifferences {
+			keys := ""
+			if difference.Environment == "test" {
+				keys = " for test keys"
+			}
+			message += fmt.Sprintf("\nThe arm ran build #%d%s; its location shows the deployed build #%d.", difference.TestedBuildNumber, keys, difference.ShownBuildNumber)
+		}
+		return app.PrintItem(mode, concluded, message)
 	}
 	return cmd
 }
@@ -636,6 +692,171 @@ func newRestore(app *cli.App) *cobra.Command {
 			return err
 		}
 		return app.PrintItem(mode, restored, fmt.Sprintf("Restored %s (%s).", restored.Value.Name, restored.Value.Status))
+	}
+	return cmd
+}
+
+// rolloutLines says, for each location of the winner (the control's where the
+// winner has none) and environment where the build the arm ran is not the
+// paywall's deployed build, which build the location shows afterwards.
+func rolloutLines(arms []arm, winner arm, rollOut string) []string {
+	var control arm
+	for _, one := range arms {
+		if one.IsControl {
+			control = one
+		}
+	}
+	placed := append([]placement{}, winner.Placements...)
+	for _, shown := range control.Placements {
+		taken := false
+		for _, kept := range placed {
+			taken = taken || kept.PaywallLocationID == shown.PaywallLocationID
+		}
+		if !taken {
+			placed = append(placed, shown)
+		}
+	}
+	var lines []string
+	for _, shown := range placed {
+		if shown.Builds == nil {
+			continue
+		}
+		for _, environment := range []struct {
+			name   string
+			builds armBuild
+		}{{"production", shown.Builds.Production}, {"test", shown.Builds.Test}} {
+			kept, deployed := environment.builds.KeptBuildNumber, environment.builds.DeployedBuildNumber
+			if kept == nil || (deployed != nil && *deployed == *kept) {
+				continue
+			}
+			deployedLabel := "no build"
+			if deployed != nil {
+				deployedLabel = fmt.Sprintf("build #%d", *deployed)
+			}
+			if rollOut == "tested" {
+				lines = append(lines, fmt.Sprintf("The arm ran build #%d at %s in %s, but %s is deployed: build #%d is deployed to %s first, so every location showing the paywall there shows it too.",
+					*kept, shown.PaywallLocationID, environment.name, deployedLabel, *kept, environment.name))
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("The arm ran build #%d at %s in %s, but %s is deployed, which the location shows afterwards, as everywhere else the paywall is shown. --roll-out tested deploys build #%d first instead.",
+				*kept, shown.PaywallLocationID, environment.name, deployedLabel, *kept))
+		}
+	}
+	return lines
+}
+
+// newDeployArm creates `voidhash experiment deploy-arm [experiment] --arm <arm> [--location <location>] [--build <number|id>] [--env production|test] [--yes]`.
+func newDeployArm(app *cli.App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "deploy-arm",
+		Short: "Move one arm of a running experiment to another build of its paywall.",
+		Long: `Move one arm of a running or paused experiment to another build of the paywall it shows at a location, such as a build that fixes a crash: the arm's end users get it on their next visit. Every arm keeps the build its paywall had deployed when the experiment started, and 'voidhash paywall deploy' never changes it; this is how one changes.
+
+The build must be a ready build of the same paywall deployed to that environment before; without --build, the paywall's deployed build. Without --env, both environments. Results go on counting everyone in the arm, and the move is recorded with it. Asks first; --yes skips the question. Needs permission to publish paywalls.`,
+		Example: `voidhash experiment deploy-arm "Annual-first onboarding" --arm "Annual first"
+voidhash experiment deploy-arm exp_123 --arm control --location onboarding-end --build 4 --env production --yes`,
+	}
+	cli.SetArgs(cmd, experimentArg)
+	armName := cmd.Flags().String("arm", "", "The `arm` by name, or control")
+	location := cmd.Flags().String("location", "", "The `location` the arm shows the paywall at (needed when it shows one at several)")
+	buildFlag := cmd.Flags().String("build", "", "The build `number` or id (default: the paywall's deployed build)")
+	env := cli.AddChoiceFlag(cmd, "env", "", []string{"production", "test"}, "", "Change this environment only (default: both)")
+	project := cli.AddProjectFlag(cmd)
+	yes := cli.AddYesFlag(cmd)
+	output := cli.AddOutputFlags(cmd)
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		mode, err := output.Mode()
+		if err != nil {
+			return err
+		}
+		usage := "voidhash experiment deploy-arm <experiment> --arm <arm> [--build <number>]"
+		if *armName == "" {
+			return cli.Usagef("Name the arm to deploy a build to with --arm.").WithHint(usage)
+		}
+		target, err := app.ResolveProject(ctx, *project)
+		if err != nil {
+			return err
+		}
+		projectID := target.Project.Id
+		object, err := requireExperiment(ctx, app, projectID, cli.ArgAt(args, 0), usage)
+		if err != nil {
+			return err
+		}
+		found := object.Value
+		arms, err := armsOf(ctx, app, projectID, found.ID)
+		if err != nil {
+			return err
+		}
+		chosen, err := cli.FindItem(armKind, arms.Items, *armName)
+		if err != nil {
+			return err
+		}
+		where, err := listPlaces(ctx, app, projectID)
+		if err != nil {
+			return err
+		}
+		var shown []placement
+		for _, one := range chosen.Placements {
+			if *location == "" || *location == one.PaywallLocationID || *location == slugOf(where.locations, one.PaywallLocationID) {
+				shown = append(shown, one)
+			}
+		}
+		if len(shown) != 1 {
+			return cli.Usagef("%s shows a paywall at %d of the locations named; name one with --location.", chosen.Name, len(shown)).
+				WithHint(fmt.Sprintf("'voidhash experiment view %s' lists where each arm shows what.", found.ID))
+		}
+		placed := shown[0]
+		builds, err := cli.ListAll[paywalls.Build](ctx, app, func(c *api.Client, page cli.Page) (*http.Response, error) {
+			return c.PaywallsListBuilds(ctx, projectID, placed.PaywallID, &api.PaywallsListBuildsParams{Cursor: page.Cursor, Limit: page.Limit})
+		})
+		if err != nil {
+			return err
+		}
+		paywallName := slugOf(where.paywalls, placed.PaywallID)
+		index := -1
+		if *buildFlag != "" {
+			index = paywalls.FindBuild(builds.Items, *buildFlag)
+		} else {
+			for candidate, one := range builds.Items {
+				if index < 0 && (*env == "test" && one.IsDeployedInTest || *env == "production" && one.IsDeployed || *env == "" && one.IsDeployed && one.IsDeployedInTest) {
+					index = candidate
+				}
+			}
+		}
+		if index < 0 {
+			return &cli.UserError{
+				Message:  fmt.Sprintf("%s has no such build to deploy to %s.", paywallName, chosen.Name),
+				Hint:     fmt.Sprintf("'voidhash paywall view %s' lists its recent builds; name one with --build.", paywallName),
+				ExitCode: cli.ExitNotFound,
+			}
+		}
+		build := builds.Items[index]
+		in := "production and test"
+		if *env != "" {
+			in = *env
+		}
+		if err := app.ConfirmChange(ctx, *yes, fmt.Sprintf("Deploy %s of %s to %s of %s at %s, in %s? The arm's end users see it on their next visit; the paywall's other locations and arms are unchanged.",
+			paywalls.BuildLabel(build.Number), paywallName, chosen.Name, found.Name, slugOf(where.locations, placed.PaywallLocationID), in)); err != nil {
+			return err
+		}
+		body := api.ExperimentsDeployVariantJSONRequestBody{PaywallLocationId: placed.PaywallLocationID, BuildId: build.ID}
+		if *env != "" {
+			environment := api.PaywallLocationEnvironment(*env)
+			body.Environment = &environment
+		}
+		deployed, err := cli.Fetch[arm](ctx, app, func(c *api.Client) (*http.Response, error) {
+			return c.ExperimentsDeployVariant(ctx, projectID, found.ID, chosen.ID, body)
+		})
+		if err != nil {
+			return cli.APIError(err, map[string]string{
+				"invalid_build":           fmt.Sprintf("Deploy the build to that environment first ('voidhash paywall deploy %s --build %d'), or name another with --build.", paywallName, build.Number),
+				"experiment_not_started":  fmt.Sprintf("A draft keeps no build; its arms keep the builds deployed when it starts: 'voidhash experiment start %s'.", found.ID),
+				"paywall_build_withdrawn": fmt.Sprintf("Restore it first ('voidhash paywall restore %s --build %d'), or name another with --build.", paywallName, build.Number),
+			})
+		}
+		return app.PrintItem(mode, deployed, fmt.Sprintf("Deployed %s to %s at %s in %s. Results go on counting everyone in the arm.",
+			paywalls.BuildLabel(build.Number), chosen.Name, slugOf(where.locations, placed.PaywallLocationID), in))
 	}
 	return cmd
 }

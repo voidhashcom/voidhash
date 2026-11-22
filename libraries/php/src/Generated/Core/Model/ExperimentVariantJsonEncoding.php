@@ -37,9 +37,9 @@ class ExperimentVariantJsonEncoding
      */
     protected $weightPercentage;
     /**
-     * The paywall the arm shows at each location, at most one per location.
+     * The paywall the arm shows at each location, at most one per location, with the builds it shows there.
      *
-     * @var list<ExperimentPlacement>
+     * @var list<ExperimentArmPlacement>
      */
     protected $placements;
     /**
@@ -48,6 +48,12 @@ class ExperimentVariantJsonEncoding
      * @var list<ExperimentFlagValue>
      */
     protected $flagValues;
+    /**
+     * Locations the arm stopped showing a paywall at while the experiment was paused, each with its record of changes; they serve nothing and are not in `placements`. Empty unless that happened.
+     *
+     * @var list<ExperimentArmStoppedPlacement>
+     */
+    protected $stoppedPlacements;
     /**
      * The arm's id, `exp_var_...`.
      *
@@ -137,18 +143,18 @@ class ExperimentVariantJsonEncoding
         return $this;
     }
     /**
-     * The paywall the arm shows at each location, at most one per location.
+     * The paywall the arm shows at each location, at most one per location, with the builds it shows there.
      *
-     * @return list<ExperimentPlacement>
+     * @return list<ExperimentArmPlacement>
      */
     public function getPlacements(): array
     {
         return $this->placements;
     }
     /**
-     * The paywall the arm shows at each location, at most one per location.
+     * The paywall the arm shows at each location, at most one per location, with the builds it shows there.
      *
-     * @param list<ExperimentPlacement> $placements
+     * @param list<ExperimentArmPlacement> $placements
      *
      * @return self
      */
@@ -178,6 +184,28 @@ class ExperimentVariantJsonEncoding
     {
         $this->initialized['flagValues'] = true;
         $this->flagValues = $flagValues;
+        return $this;
+    }
+    /**
+     * Locations the arm stopped showing a paywall at while the experiment was paused, each with its record of changes; they serve nothing and are not in `placements`. Empty unless that happened.
+     *
+     * @return list<ExperimentArmStoppedPlacement>
+     */
+    public function getStoppedPlacements(): array
+    {
+        return $this->stoppedPlacements;
+    }
+    /**
+     * Locations the arm stopped showing a paywall at while the experiment was paused, each with its record of changes; they serve nothing and are not in `placements`. Empty unless that happened.
+     *
+     * @param list<ExperimentArmStoppedPlacement> $stoppedPlacements
+     *
+     * @return self
+     */
+    public function setStoppedPlacements(array $stoppedPlacements): self
+    {
+        $this->initialized['stoppedPlacements'] = true;
+        $this->stoppedPlacements = $stoppedPlacements;
         return $this;
     }
 }

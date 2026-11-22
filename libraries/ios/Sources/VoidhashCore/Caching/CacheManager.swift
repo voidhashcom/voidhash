@@ -125,6 +125,13 @@ public enum StaleReason: String, Sendable, Equatable {
 /// delete/clear, or when a corrupt envelope is discarded. Writes register the key in a
 /// deduplicated index.
 public actor CacheManager {
+    /// Encodes entries with everything the device keeps, also what the SDK never hands out.
+    private static var encoder: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.userInfo[.voidhashCache] = true
+        return encoder
+    }
+
     /// Index key holding the JSON array of every key written through this manager.
     public static let cacheKeysKey = "cache-keys"
     /// How far in the future an entry's `createdAt` may lie before the entry is read as stale.
@@ -218,7 +225,7 @@ public actor CacheManager {
             staleAt: CacheManager.deadline(after: staleTime, at: timestamp)
         )
 
-        guard let data = try? JSONEncoder().encode(envelope),
+        guard let data = try? CacheManager.encoder.encode(envelope),
             let json = String(data: data, encoding: .utf8)
         else {
             return
@@ -243,7 +250,7 @@ public actor CacheManager {
         let envelope = CacheEnvelope(
             value: value, createdAt: createdAt ?? timestamp, expiresAt: expiresAt,
             staleAt: timestamp - 1)
-        guard let data = try? JSONEncoder().encode(envelope),
+        guard let data = try? CacheManager.encoder.encode(envelope),
             let json = String(data: data, encoding: .utf8)
         else {
             return

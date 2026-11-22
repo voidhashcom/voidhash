@@ -64,6 +64,13 @@ fun isAnonymousDistinctId(distinctId: String): Boolean =
  *   offline use.
  * @property flowCapabilities what flows may do beyond showing screens, purchasing and restoring.
  *   Only [FlowCapability.LINKS] is granted by default.
+ * @property flowPermissionHandlers the app's own handlers of the permissions flows ask for, by
+ *   name ([FlowCapability.NOTIFICATIONS] and [FlowCapability.TRACKING]'s
+ *   [FlowCapability.wireName]), in place of the SDK's prompts; see [FlowPermissionHandler] for
+ *   when the SDK calls them. A permission without one is
+ *   asked by the SDK: notifications through `POST_NOTIFICATIONS`, which the app declares in its
+ *   manifest (the SDK declares none); tracking has no Android prompt. A flow asks only for a
+ *   permission [flowCapabilities] grants.
  * @property onDiagnostic receives structured reports about situations the SDK handled on its
  *   own: dropped events, an open circuit, a rejected key, an unreadable cache entry. Called on
  *   one background thread of the SDK's, in the order the reports were made, never on the
@@ -109,6 +116,7 @@ data class VoidhashOptions(
     val flowRevisions: Map<String, Int> = emptyMap(),
     val flowRenderer: FlowRenderer? = null,
     val flowCapabilities: Set<FlowCapability> = setOf(FlowCapability.LINKS),
+    val flowPermissionHandlers: Map<String, FlowPermissionHandler> = emptyMap(),
     val onDiagnostic: ((VoidhashDiagnostic) -> Unit)? = null,
     val runInSecondaryProcess: Boolean = false,
     val analyticsConsent: AnalyticsConsent = AnalyticsConsent.GRANTED,

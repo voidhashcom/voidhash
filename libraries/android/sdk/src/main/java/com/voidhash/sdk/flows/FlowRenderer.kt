@@ -68,6 +68,13 @@ interface FlowRenderer {
      */
     fun useRuntimeModules() {}
 
+    /**
+     * Turns the renderer's loading state on or off, for a host that cannot name the renderer's
+     * class (React Native's `flowLoading` option). Called before the client presents a flow; does
+     * nothing by default.
+     */
+    fun useLoading(shows: Boolean) {}
+
     /** Presents [flowPackage], described by [reference]; see [present], which it calls by default. */
     fun present(
         activity: Activity,
@@ -75,6 +82,34 @@ interface FlowRenderer {
         reference: FlowPackageReference,
         host: FlowRendererHost,
     ): FlowRendererSession = present(activity, flowPackage, host)
+
+    /**
+     * Begins the loading state of a presentation that waits for its flow above [activity]: its
+     * answer, its package, or the flow before it to leave the screen. The renderer shows it once
+     * the presentation has waited a delay short enough to go unnoticed and long enough that a flow
+     * already on the device is shown first; [waitedMs] says how long it has waited already, so a
+     * loading state begun again above an activity recreated for a configuration change shows at
+     * once. It stays until the SDK ends the returned session: once the flow [present] showed above
+     * it has drawn, or when the presentation failed or was cancelled. Never begun while a flow is
+     * on screen. Called on the main thread; `null`, the default, shows none.
+     *
+     * @param onCancel called on the main thread when the end user leaves the loading state: the
+     *   SDK then cancels the presentation as the end user's, as it cancels it for the app.
+     */
+    fun beginLoading(activity: Activity, waitedMs: Long, onCancel: () -> Unit): FlowLoadingSession? = null
+}
+
+/** The loading state of one presentation; see [FlowRenderer.beginLoading]. Main thread. */
+interface FlowLoadingSession {
+    /**
+     * How much longer, in milliseconds, the loading state wants to stay before a flow replaces
+     * it, so one that just appeared is not a flash: 0, the default, when it is not on screen or
+     * has been up long enough.
+     */
+    fun remainingMs(): Long = 0
+
+    /** Takes the loading state down, or keeps it from showing. Called once. */
+    fun end()
 }
 
 /** Receives what a presented flow reports. Called on the main thread. */
@@ -98,6 +133,10 @@ interface FlowRendererHost {
      * Loads an image the flow shows, from the images the SDK keeps on the device or, when it
      * is not among them, from the network, off the calling thread. [onResult] gets the image's
      * bytes, or why it could not be had, on the main thread.
+     *
+     * The host verifies an image the flow's build pinned against the hash the package it
+     * presents records ([FlowPackageImages.sha256]): it hands out only those bytes, and fails the
+     * image with [FlowImageMismatchException] otherwise.
      *
      * @return whether the host loads the image. `false`, the default, leaves it to the renderer,
      *   and [onResult] is never called.

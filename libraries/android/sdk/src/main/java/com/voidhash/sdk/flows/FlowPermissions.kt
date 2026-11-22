@@ -8,51 +8,98 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import com.voidhash.sdk.FlowPermissionHandler
+import com.voidhash.sdk.FlowPermissionResult
+import com.voidhash.sdk.FlowPermissionStatus
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
 /**
- * Answers a flow's `requestPermission` with the platform prompt.
+ * The SDK's own handler of [permission]; `null` for one it does not know, which flows read as
+ * unavailable.
  *
  * Notifications: on Android 13 and later the user is asked for `POST_NOTIFICATIONS`, which the
- * app has to declare in its manifest; below Android 13 there is no prompt and the answer is
- * whether the user left notifications enabled. Tracking has no Android prompt and answers false.
+ * app has to declare in its manifest (the SDK declares none: an app without it hears that
+ * notifications are unavailable); below Android 13 there is no prompt, and the answer is whether
+ * the user left notifications enabled. Tracking has no Android prompt: it is unavailable.
  */
-internal suspend fun requestFlowPermission(
-    activity: Activity,
+internal fun builtInFlowPermission(permission: String, onWarning: (String) -> Unit): FlowPermissionHandler? =
+    when (permission) {
+        "notifications" -> NotificationPermission(onWarning, Build.VERSION.SDK_INT)
+        "tracking" -> object : FlowPermissionHandler {
+            override suspend fun status(activity: Activity) = FlowPermissionStatus.UNAVAILABLE
+
+            override suspend fun request(activity: Activity): FlowPermissionResult {
+                onWarning("Android has no tracking permission prompt; the flow hears it is unavailable")
+                return FlowPermissionResult.UNAVAILABLE
+            }
+        }
+        else -> null
+    }
+
+/**
+ * The app's handler of [permission], else the SDK's own; `null` when neither knows it, which flows
+ * read as unavailable.
+ */
+internal fun flowPermissionHandler(
     permission: String,
+    app: Map<String, FlowPermissionHandler>,
     onWarning: (String) -> Unit,
-): Boolean = when (permission) {
-    "notifications" -> requestNotificationPermission(activity, onWarning)
-    "tracking" -> {
-        onWarning("Android has no tracking permission prompt; the flow's request answers false")
-        false
+): FlowPermissionHandler? = app[permission] ?: builtInFlowPermission(permission, onWarning)
+
+/** Notifications on the Android API level [sdk] (`Build.VERSION.SDK_INT`). */
+internal class NotificationPermission(
+    private val onWarning: (String) -> Unit,
+    private val sdk: Int,
+) : FlowPermissionHandler {
+    override suspend fun status(activity: Activity): FlowPermissionStatus {
+        if (sdk < Build.VERSION_CODES.TIRAMISU) {
+            return if (notificationsEnabled(activity)) FlowPermissionStatus.GRANTED else FlowPermissionStatus.DENIED
+        }
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        return when {
+            !declaresPermission(activity, permission) -> FlowPermissionStatus.UNAVAILABLE
+            activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED -> FlowPermissionStatus.GRANTED
+            // Android tells a permission never asked from one denied for good ("don't ask again")
+            // only by whether the app asked before, which the SDK remembers for its own prompts.
+            activity.shouldShowRequestPermissionRationale(permission) || askedBefore(activity, permission) ->
+                FlowPermissionStatus.DENIED
+            else -> FlowPermissionStatus.NOT_DETERMINED
+        }
     }
-    else -> false
-}
 
-private suspend fun requestNotificationPermission(activity: Activity, onWarning: (String) -> Unit): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return notificationsEnabled(activity)
-
-    val permission = Manifest.permission.POST_NOTIFICATIONS
-    if (activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) return true
-    if (!declaresPermission(activity, permission)) {
-        onWarning(
-            "A flow asked for the notification permission, but the app does not declare " +
-                "$permission in its manifest",
-        )
-        return false
+    override suspend fun request(activity: Activity): FlowPermissionResult {
+        if (sdk < Build.VERSION_CODES.TIRAMISU) {
+            return if (notificationsEnabled(activity)) FlowPermissionResult.GRANTED else FlowPermissionResult.DENIED
+        }
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        if (activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) {
+            return FlowPermissionResult.GRANTED
+        }
+        if (!declaresPermission(activity, permission)) {
+            onWarning(
+                "A flow asked for the notification permission, but the app does not declare " +
+                    "$permission in its manifest",
+            )
+            return FlowPermissionResult.UNAVAILABLE
+        }
+        rememberAsked(activity, permission)
+        // Denied for good, the system answers at once without a prompt.
+        return if (VoidhashPermissionActivity.request(activity, permission)) {
+            FlowPermissionResult.GRANTED
+        } else {
+            FlowPermissionResult.DENIED
+        }
     }
-    return VoidhashPermissionActivity.request(activity, permission)
-}
 
-private fun notificationsEnabled(context: Context): Boolean {
-    // Before Android 7 notifications cannot be turned off per app through a public API.
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return true
-    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
-    return manager.areNotificationsEnabled()
+    private fun notificationsEnabled(context: Context): Boolean {
+        // Before Android 7 notifications cannot be turned off per app through a public API.
+        if (sdk < Build.VERSION_CODES.N) return true
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        return manager.areNotificationsEnabled()
+    }
 }
 
 private fun declaresPermission(context: Context, permission: String): Boolean =
@@ -65,6 +112,15 @@ private fun declaresPermission(context: Context, permission: String): Boolean =
     } catch (error: PackageManager.NameNotFoundException) {
         false
     }
+
+private const val ASKED_PERMISSIONS = "com.voidhash.sdk.flow_permissions"
+
+private fun askedBefore(context: Context, permission: String): Boolean =
+    context.getSharedPreferences(ASKED_PERMISSIONS, Context.MODE_PRIVATE).getBoolean(permission, false)
+
+private fun rememberAsked(context: Context, permission: String) {
+    context.getSharedPreferences(ASKED_PERMISSIONS, Context.MODE_PRIVATE).edit().putBoolean(permission, true).apply()
+}
 
 /**
  * A transparent activity that asks for one runtime permission on behalf of a flow and reports

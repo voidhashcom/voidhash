@@ -43,17 +43,29 @@ class PaywallBuildJsonEncoding
      */
     protected $documentVersion;
     /**
-     * Whether this is the paywall's deployed build, the one end users see.
+     * Whether this is the paywall's build deployed to production, the one end users see.
      *
      * @var bool
      */
     protected $isDeployed;
     /**
-     * When the build was last deployed, as an ISO 8601 timestamp; null when it never was.
+     * When the build was last deployed to production, as an ISO 8601 timestamp; null when it never was.
      *
      * @var string|null
      */
     protected $deployedAt;
+    /**
+     * Whether this is the build apps using a test key are shown: the one deployed to test alone, or the production build while test follows production.
+     *
+     * @var bool
+     */
+    protected $isDeployedInTest;
+    /**
+     * When the build last became the one apps using a test key are shown, as an ISO 8601 timestamp; null when it never was.
+     *
+     * @var string|null
+     */
+    protected $deployedToTestAt;
     /**
      * The compiled flow a ready build produced, as apps download it.
      *
@@ -61,11 +73,35 @@ class PaywallBuildJsonEncoding
      */
     protected $flowPackage;
     /**
+     * Each arm of a running or paused experiment that shows the paywall, in each environment, with the build it keeps there; the same for every build of the paywall. Deploying a build changes none of them: an arm keeps the build it started with until it is deployed another one (`experiments.deployVariant`). An arm with `keptBuildNumber` null shows the deployed build.
+     *
+     * @var list<PaywallBuildTestArm>
+     */
+    protected $testArms;
+    /**
+     * Whether the build is withdrawn: never served, in either environment, by a location, rule, pin or A/B test arm, nor to apps that cannot show a newer build, until it is restored. Wherever it is placed, apps are served the most recent earlier build that is not withdrawn instead, or no paywall when there is none.
+     *
+     * @var bool
+     */
+    protected $isWithdrawn;
+    /**
+     * When the build was withdrawn, as an ISO 8601 timestamp; null when it is not withdrawn.
+     *
+     * @var string|null
+     */
+    protected $withdrawnAt;
+    /**
      * Why a build failed.
      *
      * @var PaywallBuildFailure
      */
     protected $failure;
+    /**
+     * The languages of the design a ready build shows partly untranslated, at most 50: texts without a translation show the design's own language. Never a reason a build fails or a deploy is refused. Empty when every language is translated, while building, for a failed build, and for builds made before this was recorded.
+     *
+     * @var list<PaywallBuildMissingTranslation>
+     */
+    protected $missingTranslations;
     /**
      * The team member who started the build, `user_...`; null when they no longer exist.
      *
@@ -195,7 +231,7 @@ class PaywallBuildJsonEncoding
         return $this;
     }
     /**
-     * Whether this is the paywall's deployed build, the one end users see.
+     * Whether this is the paywall's build deployed to production, the one end users see.
      *
      * @return bool
      */
@@ -204,7 +240,7 @@ class PaywallBuildJsonEncoding
         return $this->isDeployed;
     }
     /**
-     * Whether this is the paywall's deployed build, the one end users see.
+     * Whether this is the paywall's build deployed to production, the one end users see.
      *
      * @param bool $isDeployed
      *
@@ -217,7 +253,7 @@ class PaywallBuildJsonEncoding
         return $this;
     }
     /**
-     * When the build was last deployed, as an ISO 8601 timestamp; null when it never was.
+     * When the build was last deployed to production, as an ISO 8601 timestamp; null when it never was.
      *
      * @return string|null
      */
@@ -226,7 +262,7 @@ class PaywallBuildJsonEncoding
         return $this->deployedAt;
     }
     /**
-     * When the build was last deployed, as an ISO 8601 timestamp; null when it never was.
+     * When the build was last deployed to production, as an ISO 8601 timestamp; null when it never was.
      *
      * @param string|null $deployedAt
      *
@@ -236,6 +272,50 @@ class PaywallBuildJsonEncoding
     {
         $this->initialized['deployedAt'] = true;
         $this->deployedAt = $deployedAt;
+        return $this;
+    }
+    /**
+     * Whether this is the build apps using a test key are shown: the one deployed to test alone, or the production build while test follows production.
+     *
+     * @return bool
+     */
+    public function getIsDeployedInTest(): bool
+    {
+        return $this->isDeployedInTest;
+    }
+    /**
+     * Whether this is the build apps using a test key are shown: the one deployed to test alone, or the production build while test follows production.
+     *
+     * @param bool $isDeployedInTest
+     *
+     * @return self
+     */
+    public function setIsDeployedInTest(bool $isDeployedInTest): self
+    {
+        $this->initialized['isDeployedInTest'] = true;
+        $this->isDeployedInTest = $isDeployedInTest;
+        return $this;
+    }
+    /**
+     * When the build last became the one apps using a test key are shown, as an ISO 8601 timestamp; null when it never was.
+     *
+     * @return string|null
+     */
+    public function getDeployedToTestAt(): ?string
+    {
+        return $this->deployedToTestAt;
+    }
+    /**
+     * When the build last became the one apps using a test key are shown, as an ISO 8601 timestamp; null when it never was.
+     *
+     * @param string|null $deployedToTestAt
+     *
+     * @return self
+     */
+    public function setDeployedToTestAt(?string $deployedToTestAt): self
+    {
+        $this->initialized['deployedToTestAt'] = true;
+        $this->deployedToTestAt = $deployedToTestAt;
         return $this;
     }
     /**
@@ -261,6 +341,72 @@ class PaywallBuildJsonEncoding
         return $this;
     }
     /**
+     * Each arm of a running or paused experiment that shows the paywall, in each environment, with the build it keeps there; the same for every build of the paywall. Deploying a build changes none of them: an arm keeps the build it started with until it is deployed another one (`experiments.deployVariant`). An arm with `keptBuildNumber` null shows the deployed build.
+     *
+     * @return list<PaywallBuildTestArm>
+     */
+    public function getTestArms(): array
+    {
+        return $this->testArms;
+    }
+    /**
+     * Each arm of a running or paused experiment that shows the paywall, in each environment, with the build it keeps there; the same for every build of the paywall. Deploying a build changes none of them: an arm keeps the build it started with until it is deployed another one (`experiments.deployVariant`). An arm with `keptBuildNumber` null shows the deployed build.
+     *
+     * @param list<PaywallBuildTestArm> $testArms
+     *
+     * @return self
+     */
+    public function setTestArms(array $testArms): self
+    {
+        $this->initialized['testArms'] = true;
+        $this->testArms = $testArms;
+        return $this;
+    }
+    /**
+     * Whether the build is withdrawn: never served, in either environment, by a location, rule, pin or A/B test arm, nor to apps that cannot show a newer build, until it is restored. Wherever it is placed, apps are served the most recent earlier build that is not withdrawn instead, or no paywall when there is none.
+     *
+     * @return bool
+     */
+    public function getIsWithdrawn(): bool
+    {
+        return $this->isWithdrawn;
+    }
+    /**
+     * Whether the build is withdrawn: never served, in either environment, by a location, rule, pin or A/B test arm, nor to apps that cannot show a newer build, until it is restored. Wherever it is placed, apps are served the most recent earlier build that is not withdrawn instead, or no paywall when there is none.
+     *
+     * @param bool $isWithdrawn
+     *
+     * @return self
+     */
+    public function setIsWithdrawn(bool $isWithdrawn): self
+    {
+        $this->initialized['isWithdrawn'] = true;
+        $this->isWithdrawn = $isWithdrawn;
+        return $this;
+    }
+    /**
+     * When the build was withdrawn, as an ISO 8601 timestamp; null when it is not withdrawn.
+     *
+     * @return string|null
+     */
+    public function getWithdrawnAt(): ?string
+    {
+        return $this->withdrawnAt;
+    }
+    /**
+     * When the build was withdrawn, as an ISO 8601 timestamp; null when it is not withdrawn.
+     *
+     * @param string|null $withdrawnAt
+     *
+     * @return self
+     */
+    public function setWithdrawnAt(?string $withdrawnAt): self
+    {
+        $this->initialized['withdrawnAt'] = true;
+        $this->withdrawnAt = $withdrawnAt;
+        return $this;
+    }
+    /**
      * Why a build failed.
      *
      * @return PaywallBuildFailure
@@ -280,6 +426,28 @@ class PaywallBuildJsonEncoding
     {
         $this->initialized['failure'] = true;
         $this->failure = $failure;
+        return $this;
+    }
+    /**
+     * The languages of the design a ready build shows partly untranslated, at most 50: texts without a translation show the design's own language. Never a reason a build fails or a deploy is refused. Empty when every language is translated, while building, for a failed build, and for builds made before this was recorded.
+     *
+     * @return list<PaywallBuildMissingTranslation>
+     */
+    public function getMissingTranslations(): array
+    {
+        return $this->missingTranslations;
+    }
+    /**
+     * The languages of the design a ready build shows partly untranslated, at most 50: texts without a translation show the design's own language. Never a reason a build fails or a deploy is refused. Empty when every language is translated, while building, for a failed build, and for builds made before this was recorded.
+     *
+     * @param list<PaywallBuildMissingTranslation> $missingTranslations
+     *
+     * @return self
+     */
+    public function setMissingTranslations(array $missingTranslations): self
+    {
+        $this->initialized['missingTranslations'] = true;
+        $this->missingTranslations = $missingTranslations;
         return $this;
     }
     /**

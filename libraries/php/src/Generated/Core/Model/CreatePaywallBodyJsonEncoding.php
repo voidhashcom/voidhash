@@ -31,6 +31,12 @@ class CreatePaywallBodyJsonEncoding
      */
     protected $kind;
     /**
+     * The id of a template the design starts as, one `paywall_templates.list` lists for the flow's purpose, such as `plan-picker`; without it the design starts as one empty screen.
+     *
+     * @var string|null
+     */
+    protected $template;
+    /**
      * The paywall's name, shown in the dashboard.
      *
      * @return string
@@ -94,6 +100,28 @@ class CreatePaywallBodyJsonEncoding
     {
         $this->initialized['kind'] = true;
         $this->kind = $kind;
+        return $this;
+    }
+    /**
+     * The id of a template the design starts as, one `paywall_templates.list` lists for the flow's purpose, such as `plan-picker`; without it the design starts as one empty screen.
+     *
+     * @return string|null
+     */
+    public function getTemplate(): ?string
+    {
+        return $this->template;
+    }
+    /**
+     * The id of a template the design starts as, one `paywall_templates.list` lists for the flow's purpose, such as `plan-picker`; without it the design starts as one empty screen.
+     *
+     * @param string|null $template
+     *
+     * @return self
+     */
+    public function setTemplate(?string $template): self
+    {
+        $this->initialized['template'] = true;
+        $this->template = $template;
         return $this;
     }
 }

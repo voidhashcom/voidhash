@@ -54,8 +54,12 @@ type Build struct {
 	Status     string  `json:"status"`
 	IsDeployed bool    `json:"isDeployed"`
 	DeployedAt *string `json:"deployedAt"`
-	CreatedAt  string  `json:"createdAt"`
-	Failure    *struct {
+	// IsDeployedInTest is whether apps using a test key get the build: the
+	// one deployed to test alone, or production's while test follows it.
+	IsDeployedInTest bool    `json:"isDeployedInTest"`
+	DeployedToTestAt *string `json:"deployedToTestAt"`
+	CreatedAt        string  `json:"createdAt"`
+	Failure          *struct {
 		Message     string `json:"message"`
 		Diagnostics []struct {
 			Code    string  `json:"code"`
@@ -63,6 +67,42 @@ type Build struct {
 			NodeID  *string `json:"nodeId"`
 		} `json:"diagnostics"`
 	} `json:"failure"`
+	// FlowPackage is what a ready build produced; nil otherwise.
+	FlowPackage *struct {
+		// IsFollowingTextSize is whether the flow's texts follow the end user's
+		// text size; false for builds made before they did.
+		IsFollowingTextSize bool `json:"isFollowingTextSize"`
+	} `json:"flowPackage"`
+	// IsWithdrawn is whether the build is withdrawn: no app is served it
+	// anywhere until it is restored, and it cannot be deployed.
+	IsWithdrawn bool    `json:"isWithdrawn"`
+	WithdrawnAt *string `json:"withdrawnAt"`
+	// MissingTranslations are the languages a ready build shows partly
+	// untranslated, which never stops it.
+	MissingTranslations []struct {
+		Locale       string `json:"locale"`
+		MissingTexts int    `json:"missingTexts"`
+		Texts        int    `json:"texts"`
+	} `json:"missingTranslations"`
+	// TestArms are the arms of running and paused experiments that show the
+	// paywall, with the build each keeps in each environment; the same for
+	// every build of the paywall.
+	TestArms []TestArm `json:"testArms"`
+}
+
+// TestArm is an arm of a running or paused experiment showing the paywall
+// at a location, and the build it keeps there in one environment. A nil
+// KeptBuildNumber is an arm of an experiment started before arms kept their
+// build, which shows the deployed build.
+type TestArm struct {
+	ExperimentName      string `json:"experimentName"`
+	IsPaused            bool   `json:"isPaused"`
+	VariantID           string `json:"variantId"`
+	VariantName         string `json:"variantName"`
+	PaywallLocationID   string `json:"paywallLocationId"`
+	PaywallLocationName string `json:"paywallLocationName"`
+	Environment         string `json:"environment"`
+	KeptBuildNumber     *int   `json:"keptBuildNumber"`
 }
 
 // PaywallKind is how commands name a paywall: by its slug, name or id.
@@ -120,6 +160,15 @@ func ListBuilds(ctx context.Context, app *cli.App, projectID, paywallID string) 
 		return c.PaywallsListBuilds(ctx, projectID, paywallID, &api.PaywallsListBuildsParams{Limit: &limit})
 	})
 	return builds, err
+}
+
+// ListWithdrawnBuilds reads every withdrawn build of the paywall, newest
+// first, however old: the ones a restore can name.
+func ListWithdrawnBuilds(ctx context.Context, app *cli.App, projectID, paywallID string) (cli.List[Build], error) {
+	return cli.ListAll[Build](ctx, app, func(c *api.Client, page cli.Page) (*http.Response, error) {
+		withdrawn := api.PaywallsListBuildsParamsIsWithdrawnTrue
+		return c.PaywallsListBuilds(ctx, projectID, paywallID, &api.PaywallsListBuildsParams{Cursor: page.Cursor, Limit: page.Limit, IsWithdrawn: &withdrawn})
+	})
 }
 
 // ListExperiments reads the project's experiments, for naming what a
@@ -274,13 +323,111 @@ func DescribeFailure(build Build) string {
 	return strings.Join(lines, "\n")
 }
 
-// BuildStatus is a build's status as a table cell: "ready, live", "failed",
-// "building".
-func BuildStatus(build Build) string {
-	if build.Status == "ready" && build.IsDeployed {
-		return "ready, live"
+// TextSizeNote says that build makes the paywall's texts follow the text size
+// end users chose on their phones when the build it replaces did not, so the
+// layout at larger sizes is worth a look; it is empty otherwise, also when
+// nothing is live or the server does not say.
+func TextSizeNote(build, replaced Build, slug string) string {
+	follows := func(build Build) bool { return build.FlowPackage != nil && build.FlowPackage.IsFollowingTextSize }
+	if !follows(build) || follows(replaced) {
+		return ""
 	}
-	return build.Status
+	return fmt.Sprintf("Build #%d follows the text size end users chose on their phones; %s kept the designed sizes. "+
+		"Check its screens at larger sizes in the preview's Text size menu: 'voidhash open paywall %s'.",
+		build.Number, BuildLabel(replaced.Number), slug)
+}
+
+// WithdrawnLiveWarning says what devices get when a paywall's live build is
+// withdrawn: an earlier build, or no paywall. It is empty otherwise.
+func WithdrawnLiveWarning(live Build) string {
+	if !live.IsWithdrawn {
+		return ""
+	}
+	return fmt.Sprintf("%s, the live build, is withdrawn: devices get the most recent earlier build that is not withdrawn, or no paywall when there is none.", BuildLabel(live.Number))
+}
+
+// TestArmsNotes says what deploying build leaves the arms of running and
+// paused experiments showing in environment (both when empty): each keeps its
+// build, one line per experiment, location and arm. An arm of an experiment
+// started before arms kept their build shows the deployed build.
+func TestArmsNotes(build Build, environment string) []string {
+	type key struct{ experiment, location, arm string }
+	var order []key
+	groups := map[key][]TestArm{}
+	for _, arm := range build.TestArms {
+		if environment != "" && arm.Environment != environment {
+			continue
+		}
+		at := key{arm.ExperimentName, arm.PaywallLocationID, arm.VariantID}
+		if _, seen := groups[at]; !seen {
+			order = append(order, at)
+		}
+		groups[at] = append(groups[at], arm)
+	}
+	notes := make([]string, 0, len(order))
+	for _, at := range order {
+		group := groups[at]
+		first := group[0]
+		status := "running"
+		if first.IsPaused {
+			status = "paused"
+		}
+		where := fmt.Sprintf("The %s experiment %s at %s", status, first.ExperimentName, first.PaywallLocationName)
+		same := true
+		for _, arm := range group[1:] {
+			same = same && (arm.KeptBuildNumber == nil) == (first.KeptBuildNumber == nil) &&
+				(arm.KeptBuildNumber == nil || *arm.KeptBuildNumber == *first.KeptBuildNumber)
+		}
+		switch {
+		case same && first.KeptBuildNumber != nil:
+			notes = append(notes, fmt.Sprintf("%s keeps %s for arm %s.", where, BuildLabel(*first.KeptBuildNumber), first.VariantName))
+		case same:
+			notes = append(notes, fmt.Sprintf("%s started before arms kept their build, so arm %s shows %s too.", where, first.VariantName, BuildLabel(build.Number)))
+		default:
+			parts := make([]string, len(group))
+			for index, arm := range group {
+				kept := "the deployed build"
+				if arm.KeptBuildNumber != nil {
+					kept = BuildLabel(*arm.KeptBuildNumber)
+				}
+				parts[index] = fmt.Sprintf("%s for %s keys", kept, arm.Environment)
+			}
+			notes = append(notes, fmt.Sprintf("%s keeps %s for arm %s.", where, strings.Join(parts, " and "), first.VariantName))
+		}
+	}
+	return notes
+}
+
+// MissingTranslationWarnings says, one line per language, which languages a
+// build leaves partly untranslated: it deploys, but end users reading them
+// see the design's own language in those texts.
+func MissingTranslationWarnings(build Build) []string {
+	var lines []string
+	for _, gap := range build.MissingTranslations {
+		lines = append(lines, fmt.Sprintf("Not fully translated in %s: %d of %d texts have no translation, so people reading it see the paywall's own language there.", gap.Locale, gap.MissingTexts, gap.Texts))
+	}
+	return lines
+}
+
+// BuildStatus is a build's status as a table cell: "ready, live", "ready,
+// live in test", "failed", "building".
+func BuildStatus(build Build) string {
+	if build.Status != "ready" {
+		return build.Status
+	}
+	status := build.Status
+	switch {
+	case build.IsDeployed && build.IsDeployedInTest:
+		status = "ready, live"
+	case build.IsDeployed:
+		status = "ready, live in production"
+	case build.IsDeployedInTest:
+		status = "ready, live in test"
+	}
+	if build.IsWithdrawn {
+		status += ", withdrawn: not served"
+	}
+	return status
 }
 
 // WaitForBuild returns the build once it is no longer building, or as it is
@@ -318,10 +465,21 @@ func FindBuild(builds []Build, input string) int {
 	return -1
 }
 
-// DeployedBuild is the deployed build among builds, if any.
+// DeployedBuild is the build deployed to production among builds, if any.
 func DeployedBuild(builds []Build) (Build, bool) {
 	for _, build := range builds {
 		if build.IsDeployed {
+			return build, true
+		}
+	}
+	return Build{}, false
+}
+
+// TestBuild is the build apps using a test key get, if any: the one
+// deployed to test alone, or production's while test follows production.
+func TestBuild(builds []Build) (Build, bool) {
+	for _, build := range builds {
+		if build.IsDeployedInTest {
 			return build, true
 		}
 	}

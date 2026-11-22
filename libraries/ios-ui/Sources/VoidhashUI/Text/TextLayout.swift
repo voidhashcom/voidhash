@@ -110,6 +110,8 @@ package struct TextLayout {
 
     package let lines: [Line]
     package let style: TextStyle
+    /// The text with its runs' attributes, which the lines were set from.
+    package let paragraph: NSAttributedString
     /// The width the lines were wrapped at, `.infinity` for unconstrained text.
     package let wrapWidth: CGFloat
     package let font: CTFont
@@ -169,6 +171,7 @@ package struct TextLayout {
         let string = text as NSString
         let paragraph = Self.attributed(
             text, style: style, base: attributes, font: font, fonts: fonts)
+        self.paragraph = paragraph
         let typesetter = CTTypesetterCreateWithAttributedString(paragraph)
         // Core Text needs a finite width; this one is wider than any paragraph.
         let breakWidth = width.isFinite ? max(0, Double(width)) : 1e7
@@ -230,6 +233,12 @@ package struct TextLayout {
         size = CGSize(
             width: lines.map(\.width).max() ?? 0,
             height: CGFloat(lines.count) * CGFloat(style.lineHeight))
+    }
+
+    /// Whether `scalar` is whitespace as the views core and the engine have it: Unicode's
+    /// `White_Space` (Rust's `char::is_whitespace`), which counts the no-break spaces.
+    static func isWhiteSpace(_ scalar: Unicode.Scalar) -> Bool {
+        return scalar.properties.isWhitespace
     }
 
     private static func isLineBreak(_ unit: unichar) -> Bool {
@@ -296,12 +305,11 @@ package struct TextLayout {
         let marker = NSAttributedString(string: "…", attributes: attributes)
         let markerWidth = Self.width(
             of: CTLineCreateWithAttributedString(marker), trailingWhitespace: true)
-        let whitespace = CharacterSet.whitespacesAndNewlines
         var cut = end
         while cut > start {
             let cluster = string.rangeOfComposedCharacterSequence(at: cut - 1)
             cut = max(cluster.location, start)
-            if string.substring(with: cluster).unicodeScalars.allSatisfy(whitespace.contains) {
+            if string.substring(with: cluster).unicodeScalars.allSatisfy(Self.isWhiteSpace) {
                 continue
             }
             if CTLineGetOffsetForStringIndex(line, cut, nil) + markerWidth <= width {
@@ -309,7 +317,7 @@ package struct TextLayout {
             }
         }
         while cut > start, let scalar = UnicodeScalar(string.character(at: cut - 1)),
-            whitespace.contains(scalar)
+            Self.isWhiteSpace(scalar)
         {
             cut -= 1
         }
@@ -347,6 +355,12 @@ package final class TextSystem {
     /// Measurements of one paragraph kept, at different widths.
     private static let measuredPerParagraph = 8
 
+    /// Answers ``measure(_:style:maxWidth:)`` in place of laying the text out, when set. The
+    /// views contract's tests replay the editor's recorded answers through a view's own
+    /// callback with it, to check how the view applies the core's operations apart from how
+    /// it measures text.
+    var answers: ((String, TextStyle, CGFloat) -> CGSize)?
+
     package init(fonts: FontRegistry = FontRegistry()) {
         self.fonts = fonts
     }
@@ -369,6 +383,9 @@ package final class TextSystem {
 
     /// The width of the widest line and the height of every line shown at `maxWidth`.
     package func measure(_ text: String, style: TextStyle, maxWidth: CGFloat) -> CGSize {
+        if let answers {
+            return answers(text, style, maxWidth)
+        }
         let layout = layout(text, style: style, width: maxWidth)
         let paragraph = Paragraph(text: text, style: style)
         if measured[paragraph] == nil, measured.count >= Self.capacity {

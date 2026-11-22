@@ -38,6 +38,8 @@ namespace margelo::nitro::voidhash { struct NativeFlowRevision; }
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
 // Forward declaration of `NativeFlowRuntime` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowRuntime; }
+// Forward declaration of `NativeFlowLoading` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeFlowLoading; }
 // Forward declaration of `NativeAppStoreMessages` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeAppStoreMessages; }
 // Forward declaration of `NativePurchaseIntents` to properly resolve imports.
@@ -51,6 +53,7 @@ namespace margelo::nitro::voidhash { enum class NativePurchaseIntents; }
 #include "NativeFlowRevision.hpp"
 #include "NativeFlowCapability.hpp"
 #include "NativeFlowRuntime.hpp"
+#include "NativeFlowLoading.hpp"
 #include <unordered_map>
 #include "NativeAppStoreMessages.hpp"
 #include "NativePurchaseIntents.hpp"
@@ -80,6 +83,7 @@ namespace margelo::nitro::voidhash {
     std::vector<NativeFlowRevision> flowRevisions     SWIFT_PRIVATE;
     std::vector<NativeFlowCapability> flowCapabilities     SWIFT_PRIVATE;
     NativeFlowRuntime flowRuntime     SWIFT_PRIVATE;
+    NativeFlowLoading flowLoading     SWIFT_PRIVATE;
     bool screenTrackingEnabled     SWIFT_PRIVATE;
     std::optional<double> featureFlagMaxWaitMs     SWIFT_PRIVATE;
     std::optional<std::unordered_map<std::string, bool>> featureFlagDefaults     SWIFT_PRIVATE;
@@ -90,7 +94,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     NativeClientConfiguration() = default;
-    explicit NativeClientConfiguration(std::string publishableKey, std::string baseUrl, std::optional<std::string> ingestUrl, bool debug, bool developmentMode, std::optional<std::string> distinctId, bool readOnly, NativeAnalyticsConsent analyticsConsent, std::optional<NativeAnalyticsConsent> chosenAnalyticsConsent, NativePendingAnalytics analyticsWhilePending, bool grantConsentOnIdentify, bool automaticLifecycleEvents, bool installAttribution, std::optional<std::string> metaAppId, std::vector<std::string> preloadLocations, std::vector<NativeFlowRevision> flowRevisions, std::vector<NativeFlowCapability> flowCapabilities, NativeFlowRuntime flowRuntime, bool screenTrackingEnabled, std::optional<double> featureFlagMaxWaitMs, std::optional<std::unordered_map<std::string, bool>> featureFlagDefaults, std::optional<std::string> internalSchemaJson, NativeAppStoreMessages appStoreMessages, NativePurchaseIntents purchaseIntents, std::string sdkVersion): publishableKey(publishableKey), baseUrl(baseUrl), ingestUrl(ingestUrl), debug(debug), developmentMode(developmentMode), distinctId(distinctId), readOnly(readOnly), analyticsConsent(analyticsConsent), chosenAnalyticsConsent(chosenAnalyticsConsent), analyticsWhilePending(analyticsWhilePending), grantConsentOnIdentify(grantConsentOnIdentify), automaticLifecycleEvents(automaticLifecycleEvents), installAttribution(installAttribution), metaAppId(metaAppId), preloadLocations(preloadLocations), flowRevisions(flowRevisions), flowCapabilities(flowCapabilities), flowRuntime(flowRuntime), screenTrackingEnabled(screenTrackingEnabled), featureFlagMaxWaitMs(featureFlagMaxWaitMs), featureFlagDefaults(featureFlagDefaults), internalSchemaJson(internalSchemaJson), appStoreMessages(appStoreMessages), purchaseIntents(purchaseIntents), sdkVersion(sdkVersion) {}
+    explicit NativeClientConfiguration(std::string publishableKey, std::string baseUrl, std::optional<std::string> ingestUrl, bool debug, bool developmentMode, std::optional<std::string> distinctId, bool readOnly, NativeAnalyticsConsent analyticsConsent, std::optional<NativeAnalyticsConsent> chosenAnalyticsConsent, NativePendingAnalytics analyticsWhilePending, bool grantConsentOnIdentify, bool automaticLifecycleEvents, bool installAttribution, std::optional<std::string> metaAppId, std::vector<std::string> preloadLocations, std::vector<NativeFlowRevision> flowRevisions, std::vector<NativeFlowCapability> flowCapabilities, NativeFlowRuntime flowRuntime, NativeFlowLoading flowLoading, bool screenTrackingEnabled, std::optional<double> featureFlagMaxWaitMs, std::optional<std::unordered_map<std::string, bool>> featureFlagDefaults, std::optional<std::string> internalSchemaJson, NativeAppStoreMessages appStoreMessages, NativePurchaseIntents purchaseIntents, std::string sdkVersion): publishableKey(publishableKey), baseUrl(baseUrl), ingestUrl(ingestUrl), debug(debug), developmentMode(developmentMode), distinctId(distinctId), readOnly(readOnly), analyticsConsent(analyticsConsent), chosenAnalyticsConsent(chosenAnalyticsConsent), analyticsWhilePending(analyticsWhilePending), grantConsentOnIdentify(grantConsentOnIdentify), automaticLifecycleEvents(automaticLifecycleEvents), installAttribution(installAttribution), metaAppId(metaAppId), preloadLocations(preloadLocations), flowRevisions(flowRevisions), flowCapabilities(flowCapabilities), flowRuntime(flowRuntime), flowLoading(flowLoading), screenTrackingEnabled(screenTrackingEnabled), featureFlagMaxWaitMs(featureFlagMaxWaitMs), featureFlagDefaults(featureFlagDefaults), internalSchemaJson(internalSchemaJson), appStoreMessages(appStoreMessages), purchaseIntents(purchaseIntents), sdkVersion(sdkVersion) {}
 
   public:
     friend bool operator==(const NativeClientConfiguration& lhs, const NativeClientConfiguration& rhs) = default;
@@ -124,6 +128,7 @@ namespace margelo::nitro {
         JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowRevision>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowRevisions"))),
         JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowCapability>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowCapabilities"))),
         JSIConverter<margelo::nitro::voidhash::NativeFlowRuntime>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowRuntime"))),
+        JSIConverter<margelo::nitro::voidhash::NativeFlowLoading>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowLoading"))),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "screenTrackingEnabled"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "featureFlagMaxWaitMs"))),
         JSIConverter<std::optional<std::unordered_map<std::string, bool>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "featureFlagDefaults"))),
@@ -153,6 +158,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "flowRevisions"), JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowRevision>>::toJSI(runtime, arg.flowRevisions));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "flowCapabilities"), JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowCapability>>::toJSI(runtime, arg.flowCapabilities));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "flowRuntime"), JSIConverter<margelo::nitro::voidhash::NativeFlowRuntime>::toJSI(runtime, arg.flowRuntime));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "flowLoading"), JSIConverter<margelo::nitro::voidhash::NativeFlowLoading>::toJSI(runtime, arg.flowLoading));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "screenTrackingEnabled"), JSIConverter<bool>::toJSI(runtime, arg.screenTrackingEnabled));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "featureFlagMaxWaitMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.featureFlagMaxWaitMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "featureFlagDefaults"), JSIConverter<std::optional<std::unordered_map<std::string, bool>>>::toJSI(runtime, arg.featureFlagDefaults));
@@ -188,6 +194,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowRevision>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowRevisions")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::voidhash::NativeFlowCapability>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowCapabilities")))) return false;
       if (!JSIConverter<margelo::nitro::voidhash::NativeFlowRuntime>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowRuntime")))) return false;
+      if (!JSIConverter<margelo::nitro::voidhash::NativeFlowLoading>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flowLoading")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "screenTrackingEnabled")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "featureFlagMaxWaitMs")))) return false;
       if (!JSIConverter<std::optional<std::unordered_map<std::string, bool>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "featureFlagDefaults")))) return false;

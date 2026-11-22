@@ -38,6 +38,8 @@ namespace margelo::nitro::voidhash { struct NativeFeatureFlag; }
 namespace margelo::nitro::voidhash { struct NativeFeatureFlagsResult; }
 // Forward declaration of `NativeFlowCapability` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class NativeFlowCapability; }
+// Forward declaration of `NativeFlowLoading` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeFlowLoading; }
 // Forward declaration of `NativeFlowPresentation` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct NativeFlowPresentation; }
 // Forward declaration of `NativeFlowRevision` to properly resolve imports.
@@ -139,6 +141,7 @@ namespace margelo::nitro::voidhash { enum class NativeWriteStatus; }
 #include "NativeFeatureFlag.hpp"
 #include "NativeFeatureFlagsResult.hpp"
 #include "NativeFlowCapability.hpp"
+#include "NativeFlowLoading.hpp"
 #include "NativeFlowPresentation.hpp"
 #include "NativeFlowRevision.hpp"
 #include "NativeFlowRuntime.hpp"

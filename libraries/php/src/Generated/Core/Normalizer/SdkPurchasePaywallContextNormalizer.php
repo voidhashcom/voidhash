@@ -58,6 +58,12 @@ class SdkPurchasePaywallContextNormalizer implements DenormalizerInterface, Norm
         elseif (\array_key_exists('paywallReleaseId', $data) && $data['paywallReleaseId'] === null) {
             $object->setPaywallReleaseId(null);
         }
+        if (\array_key_exists('source', $data) && $data['source'] !== null) {
+            $object->setSource($data['source']);
+        }
+        elseif (\array_key_exists('source', $data) && $data['source'] === null) {
+            $object->setSource(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -72,6 +78,9 @@ class SdkPurchasePaywallContextNormalizer implements DenormalizerInterface, Norm
         }
         if ($data->isInitialized('paywallReleaseId')) {
             $dataArray['paywallReleaseId'] = $data->getPaywallReleaseId();
+        }
+        if ($data->isInitialized('source')) {
+            $dataArray['source'] = $data->getSource();
         }
         return $dataArray;
     }

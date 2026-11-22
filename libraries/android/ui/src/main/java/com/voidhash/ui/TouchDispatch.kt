@@ -19,7 +19,9 @@ internal const val PHASE_CANCEL = 3
  *
  * Each pointer goes, when it goes down, to the subview the group picks for it; if that subview
  * does not take it, the group may take it itself (`onPress` and `onPointer` bubble to the
- * nearest view that has them), but never a subview beneath the picked one. The subview then
+ * nearest view that has them), but never a subview beneath the picked one. A framework view
+ * already holding a pointer keeps every new one it is picked for; a node view keeps only those it
+ * takes. The subview then
  * gets every event of that pointer, so a framework scroll view inside receives genuine events and
  * cancels the views under the finger when it starts scrolling, as anywhere else.
  */
@@ -53,8 +55,10 @@ internal class TouchDispatch(private val group: ViewGroup) {
         val id = event.getPointerId(index)
         val candidates = listOfNotNull(pick(event.getX(index), event.getY(index)), own?.let { group })
         for (candidate in candidates) {
-            // A view already holding a pointer keeps the new one, as Android's view groups do.
-            val holding = owners.containsValue(candidate)
+            // A view already holding a pointer keeps the new one, as Android's view groups do,
+            // unless it is a node view that refuses it: a text holding a link refuses a pointer
+            // on its plain words, which goes to the view that would take it alone.
+            val holding = owners.containsValue(candidate) && candidate !is NodeView
             owners[id] = candidate
             if (send(event, candidate, own) || holding) return true
             owners.remove(id)

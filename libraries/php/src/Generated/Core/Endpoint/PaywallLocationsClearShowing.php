@@ -7,7 +7,7 @@ class PaywallLocationsClearShowing extends \Voidhash\Generated\Core\Runtime\Clie
     protected $projectId;
     protected $paywallLocationId;
     /**
-     * Ends the location's placement, so apps asking for it get no paywall. With `environment=test` it ends test's own showing instead, so apps using a test key get what production shows again. Clearing an environment that has no showing changes nothing.
+     * Ends the location's placement, so apps asking for it get no paywall. With `environment=test` it ends test's own showing instead, so apps using a test key get what production shows again. Clearing an environment that has no showing changes nothing. Fails with `conflict` (`paywall_location_test_running`) while a running A/B test holds the location there: pause the test first (`experiments.pause`), which shows everyone its control arm, then clear it; resuming the test takes the location over again.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallLocationId The location's id, `pw_loc_...`.
      * @param array{
@@ -53,6 +53,7 @@ class PaywallLocationsClearShowing extends \Voidhash\Generated\Core\Runtime\Clie
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingConflictException
      * @throws \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingInternalServerErrorException
      *
      * @return null
@@ -75,6 +76,9 @@ class PaywallLocationsClearShowing extends \Voidhash\Generated\Core\Runtime\Clie
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\NotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallLocationsClearShowingInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\InternalErrorJsonEncoding', 'json'), $response);

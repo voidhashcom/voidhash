@@ -58,7 +58,7 @@ class ExperimentVariantJsonEncodingNormalizer implements DenormalizerInterface, 
         if (\array_key_exists('placements', $data)) {
             $values = [];
             foreach ($data['placements'] as $value) {
-                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\ExperimentPlacement::class, 'json', $context);
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\ExperimentArmPlacement::class, 'json', $context);
             }
             $object->setPlacements($values);
         }
@@ -68,6 +68,13 @@ class ExperimentVariantJsonEncodingNormalizer implements DenormalizerInterface, 
                 $values_1[] = $this->denormalizer->denormalize($value_1, \Voidhash\Generated\Core\Model\ExperimentFlagValue::class, 'json', $context);
             }
             $object->setFlagValues($values_1);
+        }
+        if (\array_key_exists('stoppedPlacements', $data)) {
+            $values_2 = [];
+            foreach ($data['stoppedPlacements'] as $value_2) {
+                $values_2[] = $this->denormalizer->denormalize($value_2, \Voidhash\Generated\Core\Model\ExperimentArmStoppedPlacement::class, 'json', $context);
+            }
+            $object->setStoppedPlacements($values_2);
         }
         return $object;
     }
@@ -88,6 +95,11 @@ class ExperimentVariantJsonEncodingNormalizer implements DenormalizerInterface, 
             $values_1[] = $this->normalizer->normalize($value_1, 'json', $context);
         }
         $dataArray['flagValues'] = $values_1;
+        $values_2 = [];
+        foreach ($data->getStoppedPlacements() as $value_2) {
+            $values_2[] = $this->normalizer->normalize($value_2, 'json', $context);
+        }
+        $dataArray['stoppedPlacements'] = $values_2;
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

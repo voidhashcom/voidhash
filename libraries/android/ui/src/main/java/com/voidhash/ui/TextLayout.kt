@@ -6,7 +6,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
-import java.text.BreakIterator
+import android.os.Build
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
@@ -112,6 +112,8 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         val baseline: Float,
         /** The characters the line shows, its ellipsis included. */
         val content: String,
+        /** How far the ellipsis moves by the kerning between it and the character before it. */
+        val ellipsisKerning: Float = 0f,
     )
 
     /** A stretch `[start, end)` of the text in one style; [color] `null` is the paragraph's. */
@@ -130,7 +132,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
 
     private val font: ResolvedFont = fonts.resolve(style.family, style.weight, style.italic)
     private val pieces: List<Piece>
-    private val characters: BreakIterator = BreakIterator.getCharacterInstance().also { it.setText(text) }
+    private val characters = Boundaries.characters(text)
 
     init {
         paint = paint(font)
@@ -147,8 +149,9 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
                 if (built.size == limit - 1 && more) {
                     // The last line shown, with more lines after it: cut, ending in an ellipsis.
                     val cut = ellipsized(start, end, wrapWidth)
-                    val width = advance(start, cut) + paint.measureText(ELLIPSIS)
-                    built.add(Line(start, cut, true, width, true, baseline(start, cut, true), text.substring(start, cut) + ELLIPSIS))
+                    val kerning = ellipsisKerning(start, cut)
+                    val width = advance(start, cut) + kerning + paint.advance(ELLIPSIS, 0, ELLIPSIS.length)
+                    built.add(Line(start, cut, true, width, true, baseline(start, cut, true), text.substring(start, cut) + ELLIPSIS, kerning))
                     break@paragraphs
                 }
                 // A line wrapped at a space does not count the spaces at the wrap.
@@ -168,6 +171,9 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         val size = style.size
         val spacing = style.letterSpacing
         return Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+            // Hinted advances are rounded to whole pixels; the protocol's are not ("Text
+            // measurement", "Shaping"), and the rounding adds up to points over a line.
+            hinting = Paint.HINTING_OFF
             typeface = font.typeface
             textSize = size * scale
             // Letter spacing is in ems; Android adds it per character, half before and half after.
@@ -205,9 +211,22 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         for (piece in pieces) {
             if (piece.end <= from) continue
             if (piece.start >= to) break
-            total += piece.paint.measureText(text, max(from, piece.start), min(to, piece.end))
+            total += piece.paint.advance(text, max(from, piece.start), min(to, piece.end))
         }
         return total
+    }
+
+    /**
+     * The kerning between `…` and the character before [cut], set together as the engine shapes
+     * a cut line, when both are in the paragraph's style; 0 otherwise.
+     */
+    private fun ellipsisKerning(start: Int, cut: Int): Float {
+        if (cut <= start) return 0f
+        val piece = pieces.lastOrNull { it.start < cut } ?: return 0f
+        if (piece.paint !== paint) return 0f
+        val from = max(max(start, piece.start), characters.preceding(cut))
+        val pair = text.substring(from, cut) + ELLIPSIS
+        return paint.advance(pair, 0, pair.length) - paint.advance(pair, 0, cut - from) - paint.advance(ELLIPSIS, 0, ELLIPSIS.length)
     }
 
     /**
@@ -238,13 +257,13 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         val width = available + FIT_TOLERANCE
         val paragraph = text.substring(start, end)
         val ends = ArrayList<Int>()
-        val words = BreakIterator.getLineInstance().apply { setText(paragraph) }
-        val characters = BreakIterator.getCharacterInstance().apply { setText(paragraph) }
+        val words = Boundaries.lines(paragraph)
+        val characters = Boundaries.characters(paragraph)
         var from = 0
         while (from < paragraph.length) {
             var best = -1
             var candidate = words.following(from)
-            while (candidate != BreakIterator.DONE) {
+            while (candidate != Boundaries.DONE) {
                 if (advance(start + from, trimEnd(text, start + candidate, start + from)) > width) break
                 best = candidate
                 candidate = words.next()
@@ -255,7 +274,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
                 best = next
                 while (true) {
                     next = characters.next()
-                    if (next == BreakIterator.DONE || advance(start + from, start + next) > width) break
+                    if (next == Boundaries.DONE || advance(start + from, start + next) > width) break
                     best = next
                 }
             }
@@ -273,7 +292,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
     private fun ellipsized(start: Int, end: Int, width: Float): Int {
         var cut = trimEnd(text, end, start)
         if (cut > start) cut = max(start, characters.preceding(cut))
-        val ellipsis = paint.measureText(ELLIPSIS)
+        val ellipsis = paint.advance(ELLIPSIS, 0, ELLIPSIS.length)
         while (width.isFinite() && cut > start && advance(start, cut) + ellipsis > width + FIT_TOLERANCE) {
             cut = max(start, characters.preceding(cut))
         }
@@ -318,7 +337,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         var at = from
         while (at < to) {
             val codePoint = Character.codePointAt(content, at)
-            if (!Character.isWhitespace(codePoint) && !file.hasGlyph(codePoint)) return true
+            if (!isWhiteSpace(codePoint) && !file.hasGlyph(codePoint)) return true
             at += Character.charCount(codePoint)
         }
         return false
@@ -332,10 +351,15 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
 
     // region Placing lines
 
-    /** Whether line [index] is stretched to [boxWidth]: justified, not ending a paragraph, and narrower. */
+    /**
+     * Whether line [index] is stretched to [boxWidth]: justified, not ending a paragraph, narrower,
+     * and with a space (U+0020) before the whitespace that ends it to share the room. A line
+     * without one keeps its natural spacing and width, as the engine draws it.
+     */
     private fun justified(index: Int, boxWidth: Float): Boolean {
         val line = lines[index]
-        return style.alignment == TextStyle.ALIGN_JUSTIFY && !line.endsParagraph && boxWidth > line.width
+        return style.alignment == TextStyle.ALIGN_JUSTIFY && !line.endsParagraph && boxWidth > line.width &&
+            spaces(line.start, trimEnd(text, line.end, line.start)) > 0
     }
 
     /** The width line [index] occupies in a box [boxWidth] pixels wide. */
@@ -355,8 +379,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
     private fun spaceExtra(index: Int, boxWidth: Float): Float {
         if (!justified(index, boxWidth)) return 0f
         val line = lines[index]
-        val spaces = spaces(line.start, trimEnd(text, line.end, line.start))
-        return if (spaces == 0) 0f else (boxWidth - line.width) / spaces
+        return (boxWidth - line.width) / spaces(line.start, trimEnd(text, line.end, line.start))
     }
 
     private fun spaces(from: Int, to: Int): Int {
@@ -386,7 +409,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         val extra = spaceExtra(index, boxWidth)
         var at = line.start
         while (at < line.end) {
-            val next = characters.following(at).let { if (it == BreakIterator.DONE) line.end else min(it, line.end) }
+            val next = characters.following(at).let { if (it == Boundaries.DONE) line.end else min(it, line.end) }
             if (x < position(index, next, boxWidth, extra)) return at
             at = next
         }
@@ -399,8 +422,10 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
      */
     fun rects(start: Int, end: Int, boxWidth: Float): List<RectF> = lines.indices.mapNotNull { index ->
         val line = lines[index]
+        // The spaces a line wraps at take no room on it, so no box covers them, as the engine frames a run.
+        val occupied = if (line.endsParagraph) line.end else trimEnd(text, line.end, line.start)
         val from = max(start, line.start)
-        val to = min(end, line.end)
+        val to = min(end, occupied)
         if (to <= from) return@mapNotNull null
         val extra = spaceExtra(index, boxWidth)
         val left = position(index, from, boxWidth, extra)
@@ -466,7 +491,7 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
                 }
                 if (line.ellipsis) {
                     val passPaint = if (pass == 0) stroke(paint) ?: continue else fill(paint, textPaint.color)
-                    canvas.drawText(ELLIPSIS, left + position(index, line.end, boxWidth, extra) - spacingShift, glyphY, passPaint)
+                    canvas.drawText(ELLIPSIS, left + position(index, line.end, boxWidth, extra) + line.ellipsisKerning - spacingShift, glyphY, passPaint)
                 }
             }
             val y = top + baseline(index)
@@ -537,6 +562,27 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         const val ELLIPSIS = "…"
 
         /**
+         * The advance of `[start, end)` of [text] set on its own, as [Canvas.drawText] draws it:
+         * the sum of its characters' widths, which the paint shapes in the direction its bidi
+         * flags resolve, as drawing does. Not `measureText`, which rounds its result up to a
+         * whole pixel, nor `getRunAdvance`, which is told the direction.
+         */
+        fun Paint.advance(text: CharSequence, start: Int, end: Int): Float {
+            if (end <= start) return 0f
+            val widths = FloatArray(end - start)
+            getTextWidths(text, start, end, widths)
+            return widths.sum()
+        }
+
+        /**
+         * Whether [codePoint] is whitespace as the views core and the engine have it: Unicode's
+         * `White_Space` (Rust's `char::is_whitespace`), which counts the no-break spaces.
+         */
+        fun isWhiteSpace(codePoint: Int): Boolean = codePoint in 0x09..0x0D || codePoint == 0x20 || codePoint == 0x85 ||
+            codePoint == 0xA0 || codePoint == 0x1680 || codePoint in 0x2000..0x200A || codePoint == 0x2028 ||
+            codePoint == 0x2029 || codePoint == 0x202F || codePoint == 0x205F || codePoint == 0x3000
+
+        /**
          * Device pixels text may exceed its width by and still fit: the core asks again at the
          * width a measurement returned, after a round trip through logical pixels that can lose
          * the last bit.
@@ -546,8 +592,40 @@ internal class TextLayout(val text: String, val style: TextStyle, val wrapWidth:
         /** [end] moved back over the whitespace before it, not past [start]. */
         fun trimEnd(text: String, end: Int, start: Int = 0): Int {
             var at = end
-            while (at > start && Character.isWhitespace(text[at - 1])) at -= 1
+            while (at > start && isWhiteSpace(text[at - 1].code)) at -= 1
             return at
+        }
+    }
+}
+
+/**
+ * Line and character boundaries as Android's own text stack finds them, by ICU: `android.icu`
+ * from Android 7, and before it `java.text`, which a device implements with ICU too. (The JVM's
+ * `java.text`, which the host's JVM tests run on, does not follow UAX #14.)
+ */
+internal class Boundaries private constructor(private val icu: android.icu.text.BreakIterator?, private val platform: java.text.BreakIterator?) {
+    fun following(offset: Int): Int = icu?.following(offset) ?: platform!!.following(offset)
+
+    fun next(): Int = icu?.next() ?: platform!!.next()
+
+    fun preceding(offset: Int): Int = icu?.preceding(offset) ?: platform!!.preceding(offset)
+
+    companion object {
+        /** No further boundary; the same in both. */
+        const val DONE = -1
+
+        /** Where lines may break in [text]. */
+        fun lines(text: String): Boundaries = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Boundaries(android.icu.text.BreakIterator.getLineInstance().apply { setText(text) }, null)
+        } else {
+            Boundaries(null, java.text.BreakIterator.getLineInstance().apply { setText(text) })
+        }
+
+        /** Where the grapheme clusters of [text] start and end. */
+        fun characters(text: String): Boundaries = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Boundaries(android.icu.text.BreakIterator.getCharacterInstance().apply { setText(text) }, null)
+        } else {
+            Boundaries(null, java.text.BreakIterator.getCharacterInstance().apply { setText(text) })
         }
     }
 }
@@ -592,10 +670,18 @@ internal class TextSystem(val fonts: FontRegistry) {
     }
 
     /**
+     * Answers [measure] in place of laying the text out, when set. The views contract's tests
+     * replay the editor's recorded answers through a view's own callback with it, to check how
+     * the view applies the core's operations apart from how it measures text.
+     */
+    var answers: ((text: String, style: TextStyle, maxWidth: Float) -> Pair<Float, Float>)? = null
+
+    /**
      * The width of the widest line and the height of every line shown, in logical pixels, of
      * [text] wrapped to [maxWidth] logical pixels at [scale] device pixels per logical pixel.
      */
     fun measure(text: String, style: TextStyle, maxWidth: Float, scale: Float): Pair<Float, Float> {
+        answers?.let { return it(text, style, maxWidth) }
         val safeScale = if (scale.isFinite() && scale > 0f) scale else 1f
         val layout = layout(text, style, if (maxWidth.isFinite()) max(0f, maxWidth) * safeScale else maxWidth, safeScale)
         val history = measured.getOrPut(Paragraph(text, style, safeScale)) { ArrayList() }
@@ -615,14 +701,13 @@ internal class TextSystem(val fonts: FontRegistry) {
      * measured `…` no longer fits beside the rest, and loses more characters.
      *
      * A measured layout matches when it was wrapped at the box's width (a fixed or stretched
-     * width), or its widest line is the box's width, which the core rounds up to the device
-     * pixel grid; and its lines are the box's height, or fit in a taller box. The latest
-     * measurement wins. Text no measurement matches is laid out at the box's width.
+     * width), or its widest line is the box's width, which the core rounds to the device pixel
+     * grid; and its lines are the box's height, or fit in a taller box. The latest measurement
+     * wins. Text no measurement matches is laid out at the box's width.
      */
     fun drawnLayout(text: String, style: TextStyle, boxWidth: Float, boxHeight: Float, scale: Float): TextLayout {
         val widthMatches = measured[Paragraph(text, style, scale)].orEmpty().filter { layout ->
-            abs(layout.wrapWidth - boxWidth) < 1f ||
-                (layout.wrapWidth >= boxWidth && boxWidth > layout.width - TextLayout.FIT_TOLERANCE && boxWidth < layout.width + 1f)
+            abs(layout.wrapWidth - boxWidth) < 1f || (layout.wrapWidth >= boxWidth - 1f && abs(layout.width - boxWidth) < 1f)
         }
         return widthMatches.lastOrNull { abs(it.height - boxHeight) < 1f }
             ?: widthMatches.lastOrNull { it.height < boxHeight + 1f }

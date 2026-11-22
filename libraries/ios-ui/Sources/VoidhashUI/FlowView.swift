@@ -2,7 +2,7 @@
     import Foundation
     import QuartzCore
     import UIKit
-    import Voidhash
+    @_spi(VoidhashFlows) import Voidhash
     import VoidhashCore
     import VoidhashUICore
 
@@ -41,14 +41,27 @@
 
         /// The flow runtime flows are shown with, process-wide: ``RuntimeMode/linked``, the one
         /// built into the SDK (the default), or ``RuntimeMode/module``, flow runtime modules the
-        /// SDK downloads, verifies and caches. Set it before the SDK resolves its first flow.
+        /// SDK downloads, verifies by signature and caches. Set it before the SDK resolves its
+        /// first flow. It stays ``RuntimeMode/linked`` in a build that trusts no key that signs
+        /// runtime modules.
         ///
         /// In module mode an app component cannot write its props back to the flow, and a text
         /// field in a package format only the module reads gets its keyboard set up when it is
         /// first focused.
         public nonisolated static var runtimeMode: RuntimeMode {
-            get { vhv_runtime_mode() == 1 ? .module : .linked }
-            set { vhv_set_runtime_mode(newValue == .module ? 1 : 0) }
+            get {
+                // The core grants module mode once it trusts a root; whether this build trusts
+                // the development root is read here, when module mode is first asked about
+                // (resolving or presenting a flow), not when the app sets the mode at launch.
+                if vhv_runtime_mode() == 0, RuntimeModules.isModuleModeRequested {
+                    RuntimeModules.trustDevelopmentRootIfAllowed()
+                }
+                return vhv_runtime_mode() == 1 ? .module : .linked
+            }
+            set {
+                RuntimeModules.isModuleModeRequested = newValue == .module
+                vhv_set_runtime_mode(newValue == .module ? 1 : 0)
+            }
         }
 
         /// Which flow runtime shows flows; see ``runtimeMode``.
@@ -99,6 +112,10 @@
         /// image that could not be loaded, operations the view could not apply.
         public var onError: ((String) -> Void)?
 
+        /// Told the URL of an image the package pins that arrived as other bytes than its build
+        /// recorded, besides ``onError``; the SDK reports it as the flow's health.
+        package var onImageMismatch: ((String) -> Void)?
+
         /// Receives the reason, once, when the flow can no longer be shown: several frames
         /// in a row failed. A flow in that state takes no input either, its own close
         /// control included, so take the view down. It changes nothing more until another
@@ -121,6 +138,11 @@
         /// Animates screens in and out, and moves them with gestures.
         private(set) lazy var transitions = TransitionCoordinator(container: self)
         private var images: [String: UIImage] = [:]
+        /// The SHA-256 the loaded package's build recorded for each image it pinned, by URL: such
+        /// an image is shown only as those bytes.
+        private var imageSha256: [String: String] = [:]
+        /// The pin each image asked for so far was loaded against, `nil` for none, by URL.
+        private var imageLoadedWith: [String: String?] = [:]
         /// `data:` URLs whose image did not decode, reported once.
         private var undecodableImages: Set<String> = []
         private var operationBuffer = [UInt8](repeating: 0, count: 64 * 1024)
@@ -302,11 +324,35 @@
             guard loaded else {
                 throw FlowViewError(message: Self.lastError())
             }
+            // An image asked for so far was checked against the pin it was asked for with. One
+            // this package pins otherwise leaves the screen at once and is loaded again, showing
+            // only once it verifies: the surface still counts it as loaded and asks for it no
+            // more. One the package pins no longer, or does not show, stays as it was loaded.
+            let pinned = FlowPackageImages(package: package).sha256
+            imageSha256 = pinned
+            let repinned = imageLoadedWith.compactMap { url, loadedWith in
+                pinned[url].flatMap { $0 != loadedWith ? url : nil }
+            }
+            for url in repinned {
+                images[url] = nil
+                imageLoadedWith[url] = nil
+                imageRequests.removeValue(forKey: url)?.cancel()
+                tree.imageLoaded(url)
+                loadImage(url)
+            }
             frameFailures = FrameFailures()
             if window != nil {
                 startDisplayLink()
             }
             requestFrames()
+        }
+
+        /// For tests: stops timing the canvas frames of packages loaded from now on, so a canvas
+        /// does not pause because the machine running the test was busy.
+        func untimeCanvasFramesForTests() {
+            if let surface {
+                vhv_surface_untime_canvas_frames_for_tests(surface)
+            }
         }
 
         /// Delivers a host → flow bridge envelope, such as `configure` or `status`.
@@ -388,8 +434,9 @@
                     })
             }
             if #available(iOS 17.0, *) {
-                registerForTraitChanges([UITraitUserInterfaceStyle.self]) {
-                    (view: FlowView, _: UITraitCollection) in
+                registerForTraitChanges([
+                    UITraitUserInterfaceStyle.self, UITraitPreferredContentSizeCategory.self,
+                ]) { (view: FlowView, _: UITraitCollection) in
                     view.postContext()
                 }
             }
@@ -399,7 +446,10 @@
         @available(iOS, deprecated: 17.0, message: "Trait changes are registered for on iOS 17")
         override public func traitCollectionDidChange(_ previous: UITraitCollection?) {
             super.traitCollectionDidChange(previous)
-            if traitCollection.userInterfaceStyle != previous?.userInterfaceStyle {
+            if traitCollection.userInterfaceStyle != previous?.userInterfaceStyle
+                || traitCollection.preferredContentSizeCategory
+                    != previous?.preferredContentSizeCategory
+            {
                 postContext()
             }
         }
@@ -674,11 +724,13 @@
             }
             let session = imageSession
             let store = imageStore
+            let sha256 = imageSha256[urlString]
+            imageLoadedWith[urlString] = .some(sha256)
             imageRequests[urlString] = Task { [weak self] in
                 let result: Result<UIImage?, any Error>
                 do {
                     let data = try await FlowImageLoader.load(
-                        urlString, using: session, store: store)
+                        urlString, sha256: sha256, using: session, store: store)
                     result = .success(await Self.decode(data))
                 } catch {
                     result = .failure(error)
@@ -692,10 +744,7 @@
 
         /// Decodes an image off the main thread, ready to draw.
         private nonisolated static func decode(_ data: Data) async -> UIImage? {
-            guard let image = UIImage(data: data) else {
-                return nil
-            }
-            return image.preparingForDisplay() ?? image
+            return FlowImageDecoding.image(from: data)
         }
 
         private func provideImage(_ url: String, result: Result<UIImage?, any Error>) {
@@ -717,6 +766,9 @@
                 // Left out of the cache of requests so a later request for it tries again.
                 imageRequests[url] = nil
                 onError?("Could not load flow image \(url): \(error.localizedDescription)")
+                if error is FlowImageMismatch {
+                    onImageMismatch?(url)
+                }
             }
         }
 
@@ -773,11 +825,14 @@
                 return nil
             }
             // A `data:` URL carries its image: decoded here, once, with no request and no
-            // `image_loaded` call.
-            guard let data = FlowImageData.decode(dataURL: url), let image = UIImage(data: data)
+            // `image_loaded` call, when the policy takes it.
+            guard let data = FlowUrlPolicy.dataImage(url),
+                let image = FlowImageDecoding.image(from: data)
             else {
                 undecodableImages.insert(url)
-                onError?("Could not decode a flow image from a data URL")
+                onError?(
+                    "Could not show a flow image from a data URL: it is not an image of at most "
+                        + "\(FlowUrlPolicy.maxDataImageBytes / (1024 * 1024)) MB that decodes")
                 return nil
             }
             images[url] = image
@@ -960,25 +1015,6 @@
                 return
             }
             view.displayLinkFired(timestamp: link.timestamp)
-        }
-    }
-
-    /// The bytes of `data:` URLs (RFC 2397).
-    enum FlowImageData {
-        /// The bytes `url` carries, base64 or percent-encoded; `nil` when it is not a `data:`
-        /// URL or its payload is malformed.
-        static func decode(dataURL url: String) -> Data? {
-            guard url.hasPrefix("data:"), let comma = url.firstIndex(of: ",") else {
-                return nil
-            }
-            let header = url[url.index(url.startIndex, offsetBy: 5)..<comma]
-            let payload = String(url[url.index(after: comma)...])
-            if header.split(separator: ";").contains(where: { $0.lowercased() == "base64" }) {
-                return Data(
-                    base64Encoded: payload.removingPercentEncoding ?? payload,
-                    options: .ignoreUnknownCharacters)
-            }
-            return payload.removingPercentEncoding.map { Data($0.utf8) }
         }
     }
 

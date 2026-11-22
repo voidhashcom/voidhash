@@ -61,11 +61,14 @@ private struct NativeFlowResultPayload: Encodable {
     let outcome: String
     let output: [String: FlowValue]
     let productId: String?
+    /// `false` when the presentation ended before the flow was shown.
+    let wasShown: Bool
 
     init(_ result: FlowResult) {
         outcome = result.outcome
         output = result.output
         productId = result.productId
+        wasShown = result.wasShown
     }
 }
 
@@ -90,6 +93,9 @@ struct NativeClientCoreConfiguration: Sendable, Equatable {
     /// Flows are drawn with flow runtime modules (the `flowRuntime` option); `false` leaves the
     /// renderer as it is.
     var flowRuntimeModules: Bool = false
+    /// The linked renderer shows its loading screen (the `flowLoading` option); `false` turns it
+    /// off.
+    var showsFlowLoading: Bool = true
     var screenTrackingEnabled: Bool
     /// `nil` keeps the native client's default wait.
     var featureFlagMaxWaitMilliseconds: Double? = nil
@@ -476,8 +482,10 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
             automaticLifecycleEvents: configuration.automaticLifecycleEvents,
             analyticsConsent: configuration.analyticsConsent,
             flowRenderer: FlowRendererDiscovery.linkedRenderer(
-                runtimeModules: configuration.flowRuntimeModules),
+                runtimeModules: configuration.flowRuntimeModules,
+                showsLoading: configuration.showsFlowLoading),
             flowCapabilities: configuration.flowCapabilities,
+            flowPermissionHandlers: VoidhashFlowPermissionHandlers.registered,
             featureFlags: FeatureFlagOptions(
                 maxWaitMilliseconds: configuration.featureFlagMaxWaitMilliseconds
                     ?? FeatureFlagOptions().maxWaitMilliseconds,
@@ -1360,3 +1368,29 @@ final class VoidhashNativeClientCore: @unchecked Sendable {
         return attributes
     }
 }
+
+/// The app's own handlers of the permissions flows ask for, which JavaScript cannot supply:
+/// register them in native code before the JavaScript client starts (in the app delegate's
+/// `application(_:didFinishLaunchingWithOptions:)`), by the permission's name. A client started
+/// afterwards uses them; see ``FlowPermissionHandler`` for when the SDK calls one. Tracking
+/// needs one: the SDK has no tracking prompt of its own.
+///
+/// ```swift
+/// VoidhashFlowPermissionHandlers.register(
+///     FlowCapability.tracking.rawValue,
+///     FlowPermissionHandler(status: { … }, request: { … }))
+/// ```
+public enum VoidhashFlowPermissionHandlers {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var handlers: [String: FlowPermissionHandler] = [:]
+
+    /// Uses `handler` for `permission` in the clients started from now on.
+    public static func register(_ permission: String, _ handler: FlowPermissionHandler) {
+        lock.withLock { handlers[permission] = handler }
+    }
+
+    static var registered: [String: FlowPermissionHandler] {
+        lock.withLock { handlers }
+    }
+}
+

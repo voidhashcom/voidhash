@@ -31,6 +31,10 @@ import com.voidhash.sdk.flows.FlowRendererSession
  * [start] runs before the dialog is shown, with the function that reports a failure to the host
  * and dismisses the dialog: it connects the view's callbacks and loads the package.
  *
+ * Over [overLoading], a loading state that is showing, the window stays clear until the loading
+ * state ends, which the SDK does once the flow has drawn: the loading state shows through until
+ * then instead of an empty window.
+ *
  * With [predictiveBack], the predictive back gesture (API 34, in apps that opt into it) is told to
  * it as it moves, and the `back` envelope follows its completion.
  */
@@ -41,6 +45,7 @@ internal fun presentInDialog(
     postMessage: (String) -> Unit,
     release: () -> Unit,
     predictiveBack: PredictiveBack? = null,
+    overLoading: LoadingDialog? = null,
     start: (fail: (String) -> Unit) -> Unit,
 ): FlowRendererSession {
     val dialog = Dialog(activity, android.R.style.Theme_Black_NoTitleBar)
@@ -49,6 +54,10 @@ internal fun presentInDialog(
         ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
     )
     dialog.window?.let(::drawEdgeToEdge)
+    if (overLoading != null) {
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        overLoading.afterEnd { dialog.window?.setBackgroundDrawable(ColorDrawable(Color.BLACK)) }
+    }
 
     // A dialog cannot outlive its activity; one destroyed underneath the paywall (a
     // configuration change, `finish()`) dismisses it instead of leaking its window. After a
@@ -118,7 +127,8 @@ internal fun presentInDialog(
     }
 }
 
-private fun drawEdgeToEdge(window: Window) {
+/** Draws [window] full screen, edge to edge, behind transparent system bars. */
+internal fun drawEdgeToEdge(window: Window) {
     window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
     window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
@@ -163,7 +173,7 @@ internal interface PredictiveBack {
 /** The bridge envelope reporting the platform's back button or gesture to the flow. */
 private const val BACK_MESSAGE = """{"version":1,"type":"back","payload":{}}"""
 
-private open class EmptyActivityLifecycleCallbacks : Application.ActivityLifecycleCallbacks {
+internal open class EmptyActivityLifecycleCallbacks : Application.ActivityLifecycleCallbacks {
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
 
     override fun onActivityStarted(activity: Activity) {}

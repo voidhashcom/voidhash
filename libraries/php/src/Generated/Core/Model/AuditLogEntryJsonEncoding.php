@@ -43,7 +43,7 @@ class AuditLogEntryJsonEncoding
      */
     protected $parentEntityId;
     /**
-     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `override_set`, `override_removed`, `target_added` or `target_removed`.
+     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `withdrawn`, `override_set`, `override_removed`, `target_added` or `target_removed`.
      *
      * @var string
      */
@@ -189,7 +189,7 @@ class AuditLogEntryJsonEncoding
         return $this;
     }
     /**
-     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `override_set`, `override_removed`, `target_added` or `target_removed`.
+     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `withdrawn`, `override_set`, `override_removed`, `target_added` or `target_removed`.
      *
      * @return string
      */
@@ -198,7 +198,7 @@ class AuditLogEntryJsonEncoding
         return $this->action;
     }
     /**
-     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `override_set`, `override_removed`, `target_added` or `target_removed`.
+     * What happened to the entity: `created`, `updated`, `deleted`, `archived`, `restored`, `enabled`, `disabled`, `published`, `started`, `paused`, `completed`, `withdrawn`, `override_set`, `override_removed`, `target_added` or `target_removed`.
      *
      * @param string $action
      *

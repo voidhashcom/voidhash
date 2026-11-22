@@ -1,0 +1,31 @@
+Copy a paywall's current design into a new paywall of the same project, to try a variation without
+touching the original. The copy is made for the same locations and uses the same images, fonts,
+components and products. It has no builds and no location shows it, so nobody sees it until it is
+deployed and shown. It is named after the paywall with "copy" and a free slug unless --name and
+--slug say otherwise.
+
+Usage:
+  voidhash paywall duplicate [paywall] [flags]
+
+Arguments:
+  paywall  The paywall's slug, name or id
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --name <name>        The copy's name (default: the paywall's name followed by "copy")
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --slug <slug>        The copy's slug, which cannot change later (default: the paywall's slug
+                           followed by -copy)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall duplicate summer-sale
+  voidhash paywall duplicate summer-sale --name "Summer sale B" --slug summer-sale-b

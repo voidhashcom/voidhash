@@ -46,6 +46,9 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntimeNorma
         if (\array_key_exists('url', $data)) {
             $object->setUrl($data['url']);
         }
+        if (\array_key_exists('signature', $data)) {
+            $object->setSignature($data['signature']);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -54,6 +57,7 @@ class SdkResolvedPaywallShowingJsonEncodingPaywallReleaseFlowPackageRuntimeNorma
         $dataArray['version'] = $data->getVersion();
         $dataArray['sha256'] = $data->getSha256();
         $dataArray['url'] = $data->getUrl();
+        $dataArray['signature'] = $data->getSignature();
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

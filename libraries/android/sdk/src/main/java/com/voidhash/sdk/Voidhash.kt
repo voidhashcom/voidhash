@@ -52,15 +52,17 @@ import com.voidhash.sdk.storage.PersistenceWriter
 import com.voidhash.sdk.transactions.AcceptedReceipts
 import com.voidhash.sdk.transactions.PersonWriteOutbox
 import com.voidhash.sdk.transactions.TransactionOutbox
+import com.voidhash.sdk.flows.BundledFlows
 import com.voidhash.sdk.flows.FlowHost
 import com.voidhash.sdk.flows.FlowImageStore
 import com.voidhash.sdk.flows.FlowPackageStore
+import com.voidhash.sdk.flows.FlowUrlPolicy
 import com.voidhash.sdk.flows.FlowRendererDiscovery
 import com.voidhash.sdk.flows.FlowCoordinator
 import com.voidhash.sdk.flows.downloadFlowImage
 import com.voidhash.sdk.flows.downloadFlowPackage
-import com.voidhash.sdk.flows.flowPackageImages
-import com.voidhash.sdk.flows.requestFlowPermission
+import com.voidhash.sdk.flows.FlowPackageImages
+import com.voidhash.sdk.flows.flowPermissionHandler
 import com.voidhash.sdk.platform.PlatformInfo
 import com.voidhash.sdk.platform.currentProcessName
 import com.voidhash.sdk.platform.isAppInForeground
@@ -246,6 +248,14 @@ object Voidhash {
         // Development mode is a debug-build-only affordance: the flag alone is
         // never enough, so it can never reach a production release.
         val developmentMode = options.dev && platformInfo.isDebugBuild
+        // Only a debug build may download flows over http, and only from a local server: the
+        // device itself, or the host of an http base URL. Every other flow download is https.
+        if (platformInfo.isDebugBuild) FlowUrlPolicy.allowLocalServers(options.baseUrl)
+        // The app's own backend is trusted for flow downloads over https in every build,
+        // whatever its address, as the flow URL policy says.
+        FlowUrlPolicy.trustBackend(options.baseUrl)
+        // Only a debug build trusts the development key that signs flow runtime modules.
+        if (platformInfo.isDebugBuild) com.voidhash.sdk.flows.recordDebuggableApp()
         val scope = sdkScope(diagnostics, warn)
 
         // Every hook below reads the client it was built for instead of the
@@ -457,6 +467,28 @@ object Voidhash {
             Log.w(LOG_TAG, "The linked flow renderer could not be created; flows report RENDERER_MISSING", error)
             null
         }
+        // Keyed by URL and shared by every project and person of the app: images are a
+        // paywall's public content. Built only for a client that runs, and its directory
+        // only once an image is read or stored, so nothing touches it before the unlock.
+        val flowImages = flowRenderer?.let {
+            FlowImageStore(
+                directory = { File(applicationContext.cacheDir, "voidhash-paywall-images") },
+                download = { url, pinned -> downloadFlowImage(httpClient, url, gate, pinned) },
+                onWarning = warn,
+                isMetered = { isActiveNetworkMetered(applicationContext) },
+            )
+        }
+        val flowPackages = flowImages?.let { images ->
+            FlowPackageStore(
+                // Content-addressed, so every project of the app can share it.
+                directory = File(applicationContext.cacheDir, "voidhash-paywall-packages"),
+                cacheManager = cacheManager,
+                download = { url -> downloadFlowPackage(httpClient, url, gate) },
+                onWarning = warn,
+                // Behind the load, so neither a preload nor a presentation waits for images.
+                onLoaded = { sha256, bytes -> scope.launch { images.prefetch(sha256) { FlowPackageImages.of(bytes) } } },
+            )
+        }
 
         val client = VoidhashClient(
             apiClient = apiClient,
@@ -496,25 +528,11 @@ object Voidhash {
             preloadLocations = options.preloadLocations,
             flowRevisions = options.flowRevisions,
             featureFlagOptions = options.featureFlags,
-            flowCoordinatorFactory = flowRenderer?.let { renderer ->
-                // Keyed by URL and shared by every project and person of the app: images are a
-                // paywall's public content. Built only for a client that runs, and its directory
-                // only once an image is read or stored, so nothing touches it before the unlock.
-                val images = FlowImageStore(
-                    directory = { File(applicationContext.cacheDir, "voidhash-paywall-images") },
-                    download = { url -> downloadFlowImage(httpClient, url, gate) },
-                    onWarning = warn,
-                    isMetered = { isActiveNetworkMetered(applicationContext) },
-                )
-                val packages = FlowPackageStore(
-                    // Content-addressed, so every project of the app can share it.
-                    directory = File(applicationContext.cacheDir, "voidhash-paywall-packages"),
-                    cacheManager = cacheManager,
-                    download = { url -> downloadFlowPackage(httpClient, url, gate) },
-                    onWarning = warn,
-                    // Behind the load, so neither a preload nor a presentation waits for images.
-                    onLoaded = { sha256, bytes -> scope.launch { images.prefetch(sha256) { flowPackageImages(bytes) } } },
-                )
+            flowPackages = flowPackages,
+            bundledFlows = flowPackages?.let { BundledFlows.assets(applicationContext) },
+            flowCoordinatorFactory = flowPackages?.let { packages ->
+                val renderer = checkNotNull(flowRenderer)
+                val images = checkNotNull(flowImages)
                 val factory: (FlowHost) -> FlowCoordinator = { host ->
                     FlowCoordinator(
                         host = host,
@@ -532,13 +550,15 @@ object Voidhash {
                         onActivityChanged = currentActivity::set,
                         loadImage = images::load,
                         discardImage = images::discard,
+                        elapsedMs = SystemSdkClock::elapsed,
                     )
                 }
                 factory
             },
             flowEngine = { flowRenderer?.engineCapabilities },
             openUrl = { url -> openExternal(applicationContext, url) },
-            requestPermission = { activity, permission -> requestFlowPermission(activity, permission, warn) },
+            // The app's handler of a permission, else the SDK's own; a permission neither knows is unavailable.
+            permissionHandler = { permission -> flowPermissionHandler(permission, options.flowPermissionHandlers, warn) },
             diagnostics = diagnostics,
             // Each client stops only what it started itself: a client shut down after a later
             // configure must leave its successor's callbacks and monitor running.

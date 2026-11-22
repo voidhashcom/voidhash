@@ -74,6 +74,9 @@ data class NativeClientConfiguration(
   val flowRuntime: NativeFlowRuntime,
   @DoNotStrip
   @Keep
+  val flowLoading: NativeFlowLoading,
+  @DoNotStrip
+  @Keep
   val screenTrackingEnabled: Boolean,
   @DoNotStrip
   @Keep
@@ -117,6 +120,7 @@ data class NativeClientConfiguration(
       && Objects.deepEquals(this.flowRevisions, other.flowRevisions)
       && Objects.deepEquals(this.flowCapabilities, other.flowCapabilities)
       && Objects.deepEquals(this.flowRuntime, other.flowRuntime)
+      && Objects.deepEquals(this.flowLoading, other.flowLoading)
       && Objects.deepEquals(this.screenTrackingEnabled, other.screenTrackingEnabled)
       && Objects.deepEquals(this.featureFlagMaxWaitMs, other.featureFlagMaxWaitMs)
       && Objects.deepEquals(this.featureFlagDefaults, other.featureFlagDefaults)
@@ -146,6 +150,7 @@ data class NativeClientConfiguration(
       flowRevisions,
       flowCapabilities,
       flowRuntime,
+      flowLoading,
       screenTrackingEnabled,
       featureFlagMaxWaitMs,
       featureFlagDefaults,
@@ -164,8 +169,8 @@ data class NativeClientConfiguration(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Boolean, developmentMode: Boolean, distinctId: String?, readOnly: Boolean, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Boolean, automaticLifecycleEvents: Boolean, installAttribution: Boolean, metaAppId: String?, preloadLocations: Array<String>, flowRevisions: Array<NativeFlowRevision>, flowCapabilities: Array<NativeFlowCapability>, flowRuntime: NativeFlowRuntime, screenTrackingEnabled: Boolean, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Map<String, Boolean>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String): NativeClientConfiguration {
-      return NativeClientConfiguration(publishableKey, baseUrl, ingestUrl, debug, developmentMode, distinctId, readOnly, analyticsConsent, chosenAnalyticsConsent, analyticsWhilePending, grantConsentOnIdentify, automaticLifecycleEvents, installAttribution, metaAppId, preloadLocations, flowRevisions, flowCapabilities, flowRuntime, screenTrackingEnabled, featureFlagMaxWaitMs, featureFlagDefaults, internalSchemaJson, appStoreMessages, purchaseIntents, sdkVersion)
+    private fun fromCpp(publishableKey: String, baseUrl: String, ingestUrl: String?, debug: Boolean, developmentMode: Boolean, distinctId: String?, readOnly: Boolean, analyticsConsent: NativeAnalyticsConsent, chosenAnalyticsConsent: NativeAnalyticsConsent?, analyticsWhilePending: NativePendingAnalytics, grantConsentOnIdentify: Boolean, automaticLifecycleEvents: Boolean, installAttribution: Boolean, metaAppId: String?, preloadLocations: Array<String>, flowRevisions: Array<NativeFlowRevision>, flowCapabilities: Array<NativeFlowCapability>, flowRuntime: NativeFlowRuntime, flowLoading: NativeFlowLoading, screenTrackingEnabled: Boolean, featureFlagMaxWaitMs: Double?, featureFlagDefaults: Map<String, Boolean>?, internalSchemaJson: String?, appStoreMessages: NativeAppStoreMessages, purchaseIntents: NativePurchaseIntents, sdkVersion: String): NativeClientConfiguration {
+      return NativeClientConfiguration(publishableKey, baseUrl, ingestUrl, debug, developmentMode, distinctId, readOnly, analyticsConsent, chosenAnalyticsConsent, analyticsWhilePending, grantConsentOnIdentify, automaticLifecycleEvents, installAttribution, metaAppId, preloadLocations, flowRevisions, flowCapabilities, flowRuntime, flowLoading, screenTrackingEnabled, featureFlagMaxWaitMs, featureFlagDefaults, internalSchemaJson, appStoreMessages, purchaseIntents, sdkVersion)
     }
   }
 }

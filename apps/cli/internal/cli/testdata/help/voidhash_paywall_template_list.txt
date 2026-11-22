@@ -1,0 +1,25 @@
+List the templates a new paywall or onboarding flow can start from, with what each holds and the
+slugs of the products it sells. A paywall made from one needs products with those slugs, or others
+chosen in the dashboard, before it can be deployed.
+
+Usage:
+  voidhash paywall template list [flags]
+
+Flags:
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --kind <paywall|onboarding|feedback|reactivation|custom>
+                           Only the templates for flows of this purpose
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash paywall template list
+  voidhash paywall template list --kind onboarding -q

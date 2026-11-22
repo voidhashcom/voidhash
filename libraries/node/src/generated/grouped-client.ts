@@ -1147,6 +1147,18 @@ export const groupCoreClient = <ProjectIdError>(
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.experimentsCreate(resolvedProjectId, request.payload),
       ),
+    deployVariant: (request: {
+      params: { readonly experimentId: string; readonly variantId: string };
+      payload: Parameters<VoidhashCoreClient["experimentsDeployVariant"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.experimentsDeployVariant(
+          resolvedProjectId,
+          request.params["experimentId"],
+          request.params["variantId"],
+          request.payload,
+        ),
+      ),
     get: (request: { params: { readonly experimentId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.experimentsGet(resolvedProjectId, request.params["experimentId"]),
@@ -1948,6 +1960,16 @@ export const groupCoreClient = <ProjectIdError>(
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallLocationsGet(resolvedProjectId, request.params["paywallLocationId"]),
       ),
+    getDefaultAnswer: (request: {
+      params: { readonly paywallLocationId: string; readonly interfaceRevision?: number };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallLocationsGetDefaultAnswer(
+          resolvedProjectId,
+          request.params["paywallLocationId"],
+          { interfaceRevision: request.params["interfaceRevision"] },
+        ),
+      ),
     list: (request?: {
       params?: {
         readonly cursor?: string;
@@ -2121,6 +2143,13 @@ export const groupCoreClient = <ProjectIdError>(
           request.params["buildId"],
         ),
       ),
+    duplicate: (request: {
+      params: { readonly paywallId: string };
+      payload: Parameters<VoidhashCoreClient["paywallsDuplicate"]>[2];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsDuplicate(resolvedProjectId, request.params["paywallId"], request.payload),
+      ),
     get: (request: { params: { readonly paywallId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsGet(resolvedProjectId, request.params["paywallId"]),
@@ -2128,6 +2157,16 @@ export const groupCoreClient = <ProjectIdError>(
     getBuild: (request: { params: { readonly paywallId: string; readonly buildId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsGetBuild(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["buildId"],
+        ),
+      ),
+    getBuildWithdrawal: (request: {
+      params: { readonly paywallId: string; readonly buildId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsGetBuildWithdrawal(
           resolvedProjectId,
           request.params["paywallId"],
           request.params["buildId"],
@@ -2150,12 +2189,18 @@ export const groupCoreClient = <ProjectIdError>(
         }),
       ),
     listBuilds: (request: {
-      params: { readonly paywallId: string; readonly cursor?: string; readonly limit?: number };
+      params: {
+        readonly paywallId: string;
+        readonly cursor?: string;
+        readonly limit?: number;
+        readonly isWithdrawn?: "true" | "false";
+      };
     }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsListBuilds(resolvedProjectId, request.params["paywallId"], {
           cursor: request.params["cursor"],
           limit: request.params["limit"],
+          isWithdrawn: request.params["isWithdrawn"],
         }),
       ),
     listLocations: (request: {
@@ -2163,6 +2208,15 @@ export const groupCoreClient = <ProjectIdError>(
     }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsListLocations(resolvedProjectId, request.params["paywallId"], {
+          cursor: request.params["cursor"],
+          limit: request.params["limit"],
+        }),
+      ),
+    listUses: (request: {
+      params: { readonly paywallId: string; readonly cursor?: string; readonly limit?: number };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsListUses(resolvedProjectId, request.params["paywallId"], {
           cursor: request.params["cursor"],
           limit: request.params["limit"],
         }),
@@ -2177,6 +2231,26 @@ export const groupCoreClient = <ProjectIdError>(
           request.params["paywallLocationId"],
         ),
       ),
+    restoreBuild: (request: { params: { readonly paywallId: string; readonly buildId: string } }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsRestoreBuild(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["buildId"],
+        ),
+      ),
+    setEnvironment: (request: {
+      params: { readonly paywallId: string; readonly environment: "production" | "test" };
+      payload: Parameters<VoidhashCoreClient["paywallsSetEnvironment"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsSetEnvironment(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["environment"],
+          request.payload,
+        ),
+      ),
     unarchive: (request: { params: { readonly paywallId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsUnarchive(resolvedProjectId, request.params["paywallId"]),
@@ -2187,6 +2261,32 @@ export const groupCoreClient = <ProjectIdError>(
     }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paywallsUpdate(resolvedProjectId, request.params["paywallId"], request.payload),
+      ),
+    withdrawBuild: (request: {
+      params: { readonly paywallId: string; readonly buildId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallsWithdrawBuild(
+          resolvedProjectId,
+          request.params["paywallId"],
+          request.params["buildId"],
+        ),
+      ),
+  },
+  paywallTemplates: {
+    list: (request?: {
+      params?: {
+        readonly cursor?: string;
+        readonly limit?: number;
+        readonly kind?: "paywall" | "onboarding" | "feedback" | "reactivation" | "custom";
+      };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paywallTemplatesList(resolvedProjectId, {
+          cursor: request?.params?.["cursor"],
+          limit: request?.params?.["limit"],
+          kind: request?.params?.["kind"],
+        }),
       ),
   },
   perks: {

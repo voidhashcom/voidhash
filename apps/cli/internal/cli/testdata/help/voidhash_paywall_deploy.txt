@@ -1,8 +1,21 @@
 Make a paywall's design live: build it, wait for the build, and deploy it to every location that
 shows the paywall. --build deploys an existing build instead, such as an older one to roll back.
 
-Asks first when a location shows the paywall, because end users see the change on their next visit;
---yes skips that. Without a terminal and without --yes, nothing is built.
+--env test deploys to test only: apps using a test key get the build, and end users keep what they
+see. Try it on a device, then deploy the same build with --env production. --env production leaves a
+build test has of its own in place. Without --env the build goes to both, and test follows
+production again: from then on a deploy to production reaches apps using a test key too, until a
+build is deployed to test alone.
+
+Asks first when a location shows the paywall and the deploy reaches production, because end users
+see the change on their next visit; --yes skips that. Without a terminal and without --yes, nothing
+is built.
+
+Warns, and deploys anyway, when a language of the design has texts without a translation: end users
+reading it see the design's own language there.
+
+An arm of a running or paused experiment keeps the build it started with; the result names each one.
+'voidhash experiment deploy-arm' moves an arm to another build.
 
 Usage:
   voidhash paywall deploy [paywall] [flags]
@@ -11,15 +24,17 @@ Arguments:
   paywall  The paywall's slug, name or id
 
 Flags:
-      --build <number>     Deploy this existing build, by number or id, such as an older one to roll
-                           back (default: build the current design)
-  -h, --help               Show help for this command
-      --json               Print the API objects as JSON, for scripts
-      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
-                           directory's project, then your default project)
-  -q, --quiet              Print only ids, one per line
-      --timeout <seconds>  How many seconds to wait for the build (default: 300)
-  -y, --yes                Make the change without asking for confirmation
+      --build <number>         Deploy this existing build, by number or id, such as an older one to
+                               roll back (default: build the current design)
+      --env <production|test>  Deploy to this environment only: production (end users) or test (apps
+                               using a test key) (default: both)
+  -h, --help                   Show help for this command
+      --json                   Print the API objects as JSON, for scripts
+      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
+                               this directory's project, then your default project)
+  -q, --quiet                  Print only ids, one per line
+      --timeout <seconds>      How many seconds to wait for the build (default: 300)
+  -y, --yes                    Make the change without asking for confirmation
 
 Global flags:
   -d, --debug              Print each request and full error detail to standard error
@@ -28,5 +43,6 @@ Global flags:
                            (default: VOIDHASH_PROFILE)
 
 Examples:
-  voidhash paywall deploy pro
-  voidhash paywall deploy pro --build 3 --yes
+  voidhash paywall deploy pro --env test
+  voidhash paywall deploy pro --build 3 --env production --yes
+  voidhash paywall deploy pro --build 2 --yes

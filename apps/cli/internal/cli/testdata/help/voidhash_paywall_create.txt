@@ -1,5 +1,6 @@
-Create an empty paywall or onboarding flow. It is designed in the dashboard, and nobody sees it
-until it is deployed and a location shows it.
+Create a paywall or onboarding flow, empty or starting as a template's design ('voidhash paywall
+template list'). It is designed in the dashboard, and nobody sees it until it is deployed and a
+location shows it.
 
 Usage:
   voidhash paywall create [flags]
@@ -7,13 +8,16 @@ Usage:
 Flags:
   -h, --help                       Show help for this command
       --json                       Print the API objects as JSON, for scripts
-      --kind <paywall|onboarding>  A paywall (the default), or onboarding, a flow of screens
+      --kind <paywall|onboarding>  A paywall (the default, or the template's purpose), or
+                                   onboarding, a flow of screens
       --name <name>                What people see, such as Summer sale
       --project <project>          Project to act on: its id, slug, organization/slug or name
                                    (default: this directory's project, then your default project)
   -q, --quiet                      Print only ids, one per line
       --slug <slug>                How analytics name it (default: made from the name); it cannot
                                    change later
+      --template <template>        A template whose design it starts as, such as plan-picker;
+                                   'voidhash paywall template list' lists them
 
 Global flags:
   -d, --debug              Print each request and full error detail to standard error
@@ -23,4 +27,5 @@ Global flags:
 
 Examples:
   voidhash paywall create --name "Summer sale"
+  voidhash paywall create --name "Summer sale" --template plan-picker
   voidhash paywall create --name Welcome --slug welcome --kind onboarding

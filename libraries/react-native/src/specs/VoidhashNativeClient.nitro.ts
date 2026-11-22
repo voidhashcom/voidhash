@@ -150,6 +150,7 @@ export interface NativeFlowPresentation {
  * (`linked`) or the flow runtime modules the server offers (`module`).
  */
 export type NativeFlowRuntime = "linked" | "module";
+export type NativeFlowLoading = "standard" | "none";
 
 /** What a flow may do beyond purchases, restores, closing and analytics. */
 export type NativeFlowCapability = "links" | "notifications" | "tracking" | "attributes";
@@ -247,6 +248,11 @@ export interface NativeClientConfiguration {
    * process, it stays for the process.
    */
   readonly flowRuntime: NativeFlowRuntime;
+  /**
+   * The `flowLoading` option: `none` turns the linked native renderer's loading
+   * screen off.
+   */
+  readonly flowLoading: NativeFlowLoading;
   /** `false` turns every `screen()` into a no-op. */
   readonly screenTrackingEnabled: boolean;
   /**

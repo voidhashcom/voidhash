@@ -37,6 +37,12 @@ class SdkPurchasePaywallContext
      */
     protected $paywallReleaseId;
     /**
+     * `bundled` when the purchase was made on a flow the app ships, shown because the location could not be resolved. Such a purchase is credited to the showing, paywall and release as any other, but to no A/B test variant, and assigns nobody to one. Leave it out for a flow the location answered; any other value is treated the same.
+     *
+     * @var string|null
+     */
+    protected $source;
+    /**
      * The id of the showing `POST /sdk/resolve-paywall` returned, which credits the purchase to the paywall that sold it.
      *
      * @return string
@@ -122,6 +128,28 @@ class SdkPurchasePaywallContext
     {
         $this->initialized['paywallReleaseId'] = true;
         $this->paywallReleaseId = $paywallReleaseId;
+        return $this;
+    }
+    /**
+     * `bundled` when the purchase was made on a flow the app ships, shown because the location could not be resolved. Such a purchase is credited to the showing, paywall and release as any other, but to no A/B test variant, and assigns nobody to one. Leave it out for a flow the location answered; any other value is treated the same.
+     *
+     * @return string|null
+     */
+    public function getSource(): ?string
+    {
+        return $this->source;
+    }
+    /**
+     * `bundled` when the purchase was made on a flow the app ships, shown because the location could not be resolved. Such a purchase is credited to the showing, paywall and release as any other, but to no A/B test variant, and assigns nobody to one. Leave it out for a flow the location answered; any other value is treated the same.
+     *
+     * @param string|null $source
+     *
+     * @return self
+     */
+    public function setSource(?string $source): self
+    {
+        $this->initialized['source'] = true;
+        $this->source = $source;
         return $this;
     }
 }

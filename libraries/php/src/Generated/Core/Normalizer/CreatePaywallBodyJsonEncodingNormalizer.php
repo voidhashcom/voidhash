@@ -46,6 +46,12 @@ class CreatePaywallBodyJsonEncodingNormalizer implements DenormalizerInterface, 
         if (\array_key_exists('kind', $data)) {
             $object->setKind($data['kind']);
         }
+        if (\array_key_exists('template', $data) && $data['template'] !== null) {
+            $object->setTemplate($data['template']);
+        }
+        elseif (\array_key_exists('template', $data) && $data['template'] === null) {
+            $object->setTemplate(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -55,6 +61,9 @@ class CreatePaywallBodyJsonEncodingNormalizer implements DenormalizerInterface, 
         $dataArray['slug'] = $data->getSlug();
         if ($data->isInitialized('kind') && null !== $data->getKind()) {
             $dataArray['kind'] = $data->getKind();
+        }
+        if ($data->isInitialized('template')) {
+            $dataArray['template'] = $data->getTemplate();
         }
         return $dataArray;
     }

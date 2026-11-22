@@ -43,6 +43,9 @@ class ConcludeExperimentBodyJsonEncodingNormalizer implements DenormalizerInterf
         elseif (\array_key_exists('winningVariantId', $data) && $data['winningVariantId'] === null) {
             $object->setWinningVariantId(null);
         }
+        if (\array_key_exists('rollOut', $data)) {
+            $object->setRollOut($data['rollOut']);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -50,6 +53,9 @@ class ConcludeExperimentBodyJsonEncodingNormalizer implements DenormalizerInterf
         $dataArray = [];
         if ($data->isInitialized('winningVariantId')) {
             $dataArray['winningVariantId'] = $data->getWinningVariantId();
+        }
+        if ($data->isInitialized('rollOut') && null !== $data->getRollOut()) {
+            $dataArray['rollOut'] = $data->getRollOut();
         }
         return $dataArray;
     }

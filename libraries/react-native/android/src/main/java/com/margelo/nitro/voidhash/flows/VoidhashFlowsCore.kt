@@ -22,12 +22,14 @@ internal object VoidhashFlowsCore {
      * The renderer of the `ui` module when the app compiles it in, found without naming it
      * ([FlowRendererDiscovery]); `null` without one, or when it cannot be created. With
      * [runtimeModules] (the `flowRuntime: "module"` option), it draws flows with the flow runtime
-     * module each flow names.
+     * module each flow names. Without [showsLoading] (the `flowLoading: "none"` option), it shows
+     * no loading screen while a flow waits.
      */
-    fun linkedRenderer(runtimeModules: Boolean = false): FlowRenderer? =
+    fun linkedRenderer(runtimeModules: Boolean = false, showsLoading: Boolean = true): FlowRenderer? =
         try {
             FlowRendererDiscovery.linkedRenderer()?.also { renderer ->
                 if (runtimeModules) renderer.useRuntimeModules()
+                if (!showsLoading) renderer.useLoading(false)
             }
         } catch (error: ServiceConfigurationError) {
             null
@@ -47,6 +49,7 @@ internal object VoidhashFlowsCore {
     fun encode(result: FlowResult): String {
         val json = JSONObject().put("outcome", result.outcome).put("output", JSONObject(result.output))
         result.productId?.let { json.put("productId", it) }
+        json.put("wasShown", result.wasShown)
         return json.toString()
     }
 

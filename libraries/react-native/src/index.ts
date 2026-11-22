@@ -32,6 +32,7 @@ export { DEFAULT_FLOW_CAPABILITIES } from "./core/flows/flows";
 export type {
   FlowCapability,
   FlowErrorCode,
+  FlowLoading,
   FlowResult,
   FlowRuntime,
   PresentFlowArguments,

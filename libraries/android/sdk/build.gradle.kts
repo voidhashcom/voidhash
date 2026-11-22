@@ -41,6 +41,9 @@ kotlin {
         )
         // The SDK's own code uses what it offers host SDKs freely.
         optIn.add("com.voidhash.sdk.VoidhashHostApi")
+        // Interface members with a body are the JVM's default methods, so an implementation written
+        // in Java gets their defaults.
+        freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
 
@@ -49,6 +52,9 @@ dependencies {
     api(project((findProperty("voidhash.coreProjectPath") as String?) ?: ":core"))
     api("com.android.billingclient:billing:9.1.0")
     implementation("com.android.installreferrer:installreferrer:2.2")
+    // `@RestrictTo` on what only the SDK's own flow renderer calls; class-retained, so no
+    // dependency at run time.
+    compileOnly("androidx.annotation:annotation:1.3.0")
     implementation("com.google.android.gms:play-services-base:18.7.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

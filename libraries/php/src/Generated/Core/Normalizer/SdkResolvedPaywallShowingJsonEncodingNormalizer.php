@@ -70,6 +70,12 @@ class SdkResolvedPaywallShowingJsonEncodingNormalizer implements DenormalizerInt
         if (\array_key_exists('type', $data)) {
             $object->setType($data['type']);
         }
+        if (\array_key_exists('exposureToken', $data) && $data['exposureToken'] !== null) {
+            $object->setExposureToken($data['exposureToken']);
+        }
+        elseif (\array_key_exists('exposureToken', $data) && $data['exposureToken'] === null) {
+            $object->setExposureToken(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -82,6 +88,9 @@ class SdkResolvedPaywallShowingJsonEncodingNormalizer implements DenormalizerInt
         $dataArray['paywallReleaseId'] = $data->getPaywallReleaseId();
         $dataArray['startedAt'] = $data->getStartedAt();
         $dataArray['type'] = $data->getType();
+        if ($data->isInitialized('exposureToken')) {
+            $dataArray['exposureToken'] = $data->getExposureToken();
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

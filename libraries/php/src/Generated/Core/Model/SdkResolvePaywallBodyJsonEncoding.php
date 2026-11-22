@@ -25,6 +25,12 @@ class SdkResolvePaywallBodyJsonEncoding
      */
     protected $interfaceRevision;
     /**
+     * Whether the SDK reports an A/B test exposure itself, by sending the answer's `showing.exposureToken` as the `exposureToken` property of the first event of each presentation of the answer (`$paywall_viewed`, `$paywall_load_failed` or `$paywall_load_cancelled`) and of `$paywall_handed_off` when it hands the answer to the app's own interface. When true no exposure is recorded on resolving, so a person is counted once a flow is presented or handed to the app, not when it is prefetched; when absent or false it is recorded on resolving and no token is answered.
+     *
+     * @var bool|null
+     */
+    protected $reportsExposure;
+    /**
      * The slug of the location to show a paywall at.
      *
      * @return string
@@ -66,6 +72,28 @@ class SdkResolvePaywallBodyJsonEncoding
     {
         $this->initialized['interfaceRevision'] = true;
         $this->interfaceRevision = $interfaceRevision;
+        return $this;
+    }
+    /**
+     * Whether the SDK reports an A/B test exposure itself, by sending the answer's `showing.exposureToken` as the `exposureToken` property of the first event of each presentation of the answer (`$paywall_viewed`, `$paywall_load_failed` or `$paywall_load_cancelled`) and of `$paywall_handed_off` when it hands the answer to the app's own interface. When true no exposure is recorded on resolving, so a person is counted once a flow is presented or handed to the app, not when it is prefetched; when absent or false it is recorded on resolving and no token is answered.
+     *
+     * @return bool|null
+     */
+    public function getReportsExposure(): ?bool
+    {
+        return $this->reportsExposure;
+    }
+    /**
+     * Whether the SDK reports an A/B test exposure itself, by sending the answer's `showing.exposureToken` as the `exposureToken` property of the first event of each presentation of the answer (`$paywall_viewed`, `$paywall_load_failed` or `$paywall_load_cancelled`) and of `$paywall_handed_off` when it hands the answer to the app's own interface. When true no exposure is recorded on resolving, so a person is counted once a flow is presented or handed to the app, not when it is prefetched; when absent or false it is recorded on resolving and no token is answered.
+     *
+     * @param bool|null $reportsExposure
+     *
+     * @return self
+     */
+    public function setReportsExposure(?bool $reportsExposure): self
+    {
+        $this->initialized['reportsExposure'] = true;
+        $this->reportsExposure = $reportsExposure;
         return $this;
     }
 }

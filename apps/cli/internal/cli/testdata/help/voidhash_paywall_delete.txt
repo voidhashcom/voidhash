@@ -1,5 +1,6 @@
-Delete a paywall that no location shows, with its design and builds. This cannot be undone. Asks
-first; --yes skips that.
+Delete a paywall and its builds; its design can no longer be opened. A paywall a location shows, a
+location's rule or pin names, or an A/B test places cannot be deleted, and the command lists where
+it is in use. This cannot be undone. Asks first; --yes skips that.
 
 Usage:
   voidhash paywall delete [paywall] [flags]

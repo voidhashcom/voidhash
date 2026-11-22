@@ -31,6 +31,12 @@ class AnalyticsChartFilters
      */
     protected $countries;
     /**
+     * Only paywall presentations whose package came from these sources: `network` (downloaded), `cache`, `bundled` (shipped in the app), `other`, or `unknown` for presentations that name none.
+     *
+     * @var list<string>|null
+     */
+    protected $packageSources;
+    /**
      * Only these platforms: `ios`, `android` or `web`.
      *
      * @var list<string>|null
@@ -112,6 +118,28 @@ class AnalyticsChartFilters
     {
         $this->initialized['countries'] = true;
         $this->countries = $countries;
+        return $this;
+    }
+    /**
+     * Only paywall presentations whose package came from these sources: `network` (downloaded), `cache`, `bundled` (shipped in the app), `other`, or `unknown` for presentations that name none.
+     *
+     * @return list<string>|null
+     */
+    public function getPackageSources(): ?array
+    {
+        return $this->packageSources;
+    }
+    /**
+     * Only paywall presentations whose package came from these sources: `network` (downloaded), `cache`, `bundled` (shipped in the app), `other`, or `unknown` for presentations that name none.
+     *
+     * @param list<string>|null $packageSources
+     *
+     * @return self
+     */
+    public function setPackageSources(?array $packageSources): self
+    {
+        $this->initialized['packageSources'] = true;
+        $this->packageSources = $packageSources;
         return $this;
     }
     /**

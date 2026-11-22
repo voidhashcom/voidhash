@@ -32,7 +32,16 @@ type Project struct {
 	Rules []M
 	// NextBuild is what a new build is when it is read back.
 	NextBuild string
-	nextID    int
+	// UsedMeanwhile names a paywall that becomes used between listing its uses and deleting
+	// it, as another person showing it somewhere meanwhile would make it.
+	UsedMeanwhile string
+	// WithoutEnvironmentDeploys answers as a server from before deploys to
+	// one environment: it has no such operation.
+	WithoutEnvironmentDeploys bool
+	// ServedInstead is the build a withdrawal says the locations showing a
+	// withdrawn build serve instead; nil says they serve no paywall.
+	ServedInstead *int
+	nextID        int
 }
 
 func paywall(id, slug, name string) M {
@@ -45,7 +54,8 @@ func paywall(id, slug, name string) M {
 func build(paywallID string, number int) M {
 	return M{
 		"id": fmt.Sprintf("pw_build_%s_%d", paywallID, number), "paywallId": paywallID, "number": number, "status": "ready",
-		"documentVersion": number * 5, "isDeployed": false, "deployedAt": nil, "flowPackage": nil, "failure": nil,
+		"documentVersion": number * 5, "isDeployed": false, "deployedAt": nil, "isDeployedInTest": false, "deployedToTestAt": nil,
+		"flowPackage": nil, "failure": nil, "isWithdrawn": false, "withdrawnAt": nil,
 		"createdByUserId": "user_1", "createdAt": DaysAgo(10 - number), "finishedAt": DaysAgo(10 - number),
 	}
 }
@@ -80,6 +90,7 @@ func NewProject() *Project {
 	welcome["kind"], welcome["isArchived"] = "onboarding", true
 	live := build("pw_pro", 1)
 	live["isDeployed"], live["deployedAt"] = true, DaysAgo(2)
+	live["isDeployedInTest"], live["deployedToTestAt"] = true, DaysAgo(2)
 	failed := build("pw_pro", 2)
 	failed["status"] = "failed"
 	failed["failure"] = M{"message": "The paywall cannot be released.", "diagnostics": []any{
@@ -165,11 +176,34 @@ func (p *Project) Install(api *clitest.FakeAPI) {
 			}
 		}
 		created := paywall(fmt.Sprintf("pw_new%d", p.id()), r.Text("slug"), r.Text("name"))
+		switch template := r.Text("template"); template {
+		case "", "plan-picker":
+		case "welcome-tour":
+			created["kind"] = "onboarding"
+		default:
+			return clitest.Failure(400, "invalid_request", "paywall_template_not_found", "There is no such template.")
+		}
 		if r.Text("kind") == "onboarding" {
 			created["kind"] = "onboarding"
 		}
 		p.Paywalls = append(p.Paywalls, created)
 		return clitest.JSON(201, created)
+	})
+	api.Handle("GET "+base+"/paywall-templates", func(r *clitest.Request) clitest.Answer {
+		templates := []any{
+			M{"id": "plan-picker", "name": "Plan picker", "description": "A one-screen paywall.", "kind": "paywall", "productSlugs": []any{"pro_yearly", "pro_monthly"}},
+			M{"id": "welcome-tour", "name": "Welcome tour", "description": "Three onboarding screens.", "kind": "onboarding", "productSlugs": []any{}},
+		}
+		if kind := r.Query.Get("kind"); kind != "" {
+			kept := []any{}
+			for _, template := range templates {
+				if template.(M)["kind"] == kind {
+					kept = append(kept, template)
+				}
+			}
+			templates = kept
+		}
+		return clitest.Paginate(r, templates)
 	})
 	withPaywall := func(handler func(r *clitest.Request, found M) clitest.Answer) func(r *clitest.Request) clitest.Answer {
 		return func(r *clitest.Request) clitest.Answer {
@@ -180,11 +214,51 @@ func (p *Project) Install(api *clitest.FakeAPI) {
 			return handler(r, found)
 		}
 	}
+	api.Handle("POST "+base+"/paywalls/{paywallId}/duplicate", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+		name, slug := r.Text("name"), r.Text("slug")
+		if name == "" {
+			name = fmt.Sprint(found["name"], " copy")
+		}
+		if slug == "" {
+			slug = fmt.Sprint(found["slug"], "-copy")
+		}
+		for _, existing := range p.Paywalls {
+			if existing["slug"] == slug {
+				return clitest.Failure(409, "conflict", "paywall_slug_taken", "Another paywall already uses that slug.")
+			}
+		}
+		copied := paywall(fmt.Sprintf("pw_copy%d", p.id()), slug, name)
+		copied["kind"] = found["kind"]
+		p.Paywalls = append(p.Paywalls, copied)
+		return clitest.JSON(201, copied)
+	}))
 	api.Handle("PATCH "+base+"/paywalls/{paywallId}", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
 		found["name"] = r.Text("name")
 		return clitest.OK(found)
 	}))
+	// The places a paywall is shown, as the server lists its uses; rules, pins and A/B tests aside.
+	usesOf := func(paywall M) []M {
+		uses := []M{}
+		for _, location := range p.Locations {
+			for _, at := range [][2]string{{"showing", "production"}, {"testShowing", "test"}} {
+				key, environment := at[0], at[1]
+				if shown, ok := location[key].(M); ok && shown["paywallId"] == paywall["id"] {
+					uses = append(uses, M{
+						"kind": "showing", "environment": environment, "paywallLocationId": location["id"], "experimentId": nil,
+						"description": fmt.Sprintf("Shown at %s (%s).", location["name"], location["slug"]),
+					})
+				}
+			}
+		}
+		return uses
+	}
+	api.Handle("GET "+base+"/paywalls/{paywallId}/uses", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+		return clitest.Paginate(r, anyOf(usesOf(found)))
+	}))
 	api.Handle("DELETE "+base+"/paywalls/{paywallId}", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+		if uses := usesOf(found); len(uses) > 0 || p.UsedMeanwhile == found["id"] {
+			return clitest.Failure(409, "conflict", "paywall_in_use", fmt.Sprintf("%q cannot be deleted while it is in use: shown at Upgrade (upgrade).", found["name"]))
+		}
 		p.Paywalls = filter(p.Paywalls, func(candidate M) bool { return candidate["id"] != found["id"] })
 		return clitest.NoContent()
 	}))
@@ -201,8 +275,16 @@ func (p *Project) Install(api *clitest.FakeAPI) {
 		sort.Slice(builds, func(a, b int) bool { return builds[a]["number"].(int) > builds[b]["number"].(int) })
 		return builds
 	}
+	// The recent builds leave out those a test marks "olderThanRecent"; isWithdrawn=true lists
+	// every withdrawn build, however old, as the server does.
 	api.Handle("GET "+base+"/paywalls/{paywallId}/builds", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
-		return clitest.Paginate(r, anyOf(buildsOf(found["id"])))
+		withdrawnOnly := r.Query.Get("isWithdrawn") == "true"
+		return clitest.Paginate(r, anyOf(filter(buildsOf(found["id"]), func(build M) bool {
+			if withdrawnOnly {
+				return build["isWithdrawn"] == true
+			}
+			return build["olderThanRecent"] != true
+		})))
 	}))
 	api.Handle("POST "+base+"/paywalls/{paywallId}/builds", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
 		number := 1
@@ -230,19 +312,82 @@ func (p *Project) Install(api *clitest.FakeAPI) {
 		}
 		return clitest.OK(target)
 	}))
+	// deploy makes target live in environment, or in both when it is empty.
+	deploy := func(found, target M, environment string) clitest.Answer {
+		for _, candidate := range p.Builds {
+			if candidate["paywallId"] != found["id"] {
+				continue
+			}
+			if environment != "test" {
+				candidate["isDeployed"] = candidate["id"] == target["id"]
+			}
+			if environment != "production" {
+				candidate["isDeployedInTest"] = candidate["id"] == target["id"]
+			}
+		}
+		if environment != "test" {
+			target["deployedAt"] = DaysAgo(0)
+		}
+		if environment != "production" {
+			target["deployedToTestAt"] = DaysAgo(0)
+		}
+		return clitest.OK(target)
+	}
 	api.Handle("POST "+base+"/paywalls/{paywallId}/builds/{buildId}/deploy", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
 		target := find(p.Builds, r.Param("buildId"))
 		if target == nil {
 			return clitest.NotFound("paywall_build_not_found", "No such build.")
 		}
-		for _, candidate := range p.Builds {
-			if candidate["paywallId"] == found["id"] {
-				candidate["isDeployed"] = candidate["id"] == target["id"]
+		if target["isWithdrawn"] == true {
+			return clitest.Failure(409, "conflict", "paywall_build_withdrawn", fmt.Sprintf("Build #%d is withdrawn, so it cannot be deployed.", target["number"]))
+		}
+		return deploy(found, target, "")
+	}))
+	// A withdrawal lists the locations whose showing serves the build while it
+	// is deployed to production, each serving ServedInstead.
+	api.Handle("GET "+base+"/paywalls/{paywallId}/builds/{buildId}/withdrawal", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+		target := find(p.Builds, r.Param("buildId"))
+		if target == nil {
+			return clitest.NotFound("paywall_build_not_found", "No such build.")
+		}
+		placements := []any{}
+		if target["isDeployed"] == true {
+			for _, shown := range filter(p.Locations, func(location M) bool {
+				showing, _ := location["showing"].(M)
+				return showing != nil && showing["paywallId"] == found["id"]
+			}) {
+				placements = append(placements, M{
+					"kind": "location", "environment": "production", "paywallLocationId": shown["id"], "paywallLocationName": shown["name"],
+					"hasShowing": true, "hasRules": false, "hasPins": false, "experimentId": nil, "experimentName": nil,
+					"variantId": nil, "variantName": nil, "isPaused": false, "servedBuildNumber": p.ServedInstead,
+				})
 			}
 		}
-		target["deployedAt"] = DaysAgo(0)
-		return clitest.OK(target)
+		return clitest.OK(M{"build": target, "placements": placements, "isTestArmsHidden": false})
 	}))
+	for verb, withdrawn := range map[string]bool{"withdraw": true, "restore": false} {
+		api.Handle("POST "+base+"/paywalls/{paywallId}/builds/{buildId}/"+verb, withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+			target := find(p.Builds, r.Param("buildId"))
+			if target == nil {
+				return clitest.NotFound("paywall_build_not_found", "No such build.")
+			}
+			target["isWithdrawn"] = withdrawn
+			target["withdrawnAt"] = nil
+			if withdrawn {
+				target["withdrawnAt"] = DaysAgo(0)
+			}
+			return clitest.OK(target)
+		}))
+	}
+	if !p.WithoutEnvironmentDeploys {
+		api.Handle("PUT "+base+"/paywalls/{paywallId}/environments/{environment}", withPaywall(func(r *clitest.Request, found M) clitest.Answer {
+			target := find(p.Builds, r.Text("buildId"))
+			if target == nil {
+				return clitest.NotFound("paywall_build_not_found", "No such build.")
+			}
+			return deploy(found, target, r.Param("environment"))
+		}))
+	}
 
 	api.Handle("GET "+base+"/paywall-locations", func(r *clitest.Request) clitest.Answer {
 		return clitest.Paginate(r, anyOf(p.Locations))
