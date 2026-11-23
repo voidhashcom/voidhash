@@ -31,7 +31,7 @@ class AnalyticsMetricResult
      */
     protected $total;
     /**
-     * `total` over the `comparison` period, bucket by bucket beside `buckets`; only with a `comparison`. A year earlier, a bucket without a counterpart, such as 29 February, is null.
+     * `total` over the `comparison` period or the `comparisonRange`, bucket by bucket beside `buckets`; only with one of them. A year earlier, a bucket without a counterpart, such as 29 February, is null. Over a `comparisonRange` it holds every bucket of that range, so it is longer than `buckets` when the range is longer: draw the first `buckets.length` values and summarise them all.
      *
      * @var list<float>|null
      */
@@ -121,7 +121,7 @@ class AnalyticsMetricResult
         return $this;
     }
     /**
-     * `total` over the `comparison` period, bucket by bucket beside `buckets`; only with a `comparison`. A year earlier, a bucket without a counterpart, such as 29 February, is null.
+     * `total` over the `comparison` period or the `comparisonRange`, bucket by bucket beside `buckets`; only with one of them. A year earlier, a bucket without a counterpart, such as 29 February, is null. Over a `comparisonRange` it holds every bucket of that range, so it is longer than `buckets` when the range is longer: draw the first `buckets.length` values and summarise them all.
      *
      * @return list<float>|null
      */
@@ -130,7 +130,7 @@ class AnalyticsMetricResult
         return $this->previousTotal;
     }
     /**
-     * `total` over the `comparison` period, bucket by bucket beside `buckets`; only with a `comparison`. A year earlier, a bucket without a counterpart, such as 29 February, is null.
+     * `total` over the `comparison` period or the `comparisonRange`, bucket by bucket beside `buckets`; only with one of them. A year earlier, a bucket without a counterpart, such as 29 February, is null. Over a `comparisonRange` it holds every bucket of that range, so it is longer than `buckets` when the range is longer: draw the first `buckets.length` values and summarise them all.
      *
      * @param list<float>|null $previousTotal
      *

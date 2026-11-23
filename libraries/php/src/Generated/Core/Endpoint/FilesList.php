@@ -6,7 +6,7 @@ class FilesList extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint imp
 {
     protected $projectId;
     /**
-     * Lists a folder's contents (the top level without `parentId`), folders first and then by name. `sort=recent` lists every board by last change instead, and `isArchived=true` lists the trash. Fails with `not_found` (`file_not_found`) for a folder that isn't there or is in the trash.
+     * Lists a folder's contents (the top level without `parentId`), folders first and then by name. `sort=recent` lists every board, dashboard and report by last change instead, `kind` every file of one kind wherever it is, `search` files by part of their name, and `isArchived=true` lists the trash. Fails with `not_found` (`file_not_found`) for a folder that isn't there or is in the trash.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.

@@ -29,7 +29,7 @@ class AnalyticsMetricResultSeriesItem
      */
     protected $values;
     /**
-     * The group's values over the `comparison` period, lined up as `previousTotal`; only with a `comparison`, and empty for a group that period did not show on its own.
+     * The group's values over the `comparison` period or the `comparisonRange`, lined up as `previousTotal` and as long as it; only with one of them, and empty for a group that period did not show on its own.
      *
      * @var list<float>|null
      */
@@ -97,7 +97,7 @@ class AnalyticsMetricResultSeriesItem
         return $this;
     }
     /**
-     * The group's values over the `comparison` period, lined up as `previousTotal`; only with a `comparison`, and empty for a group that period did not show on its own.
+     * The group's values over the `comparison` period or the `comparisonRange`, lined up as `previousTotal` and as long as it; only with one of them, and empty for a group that period did not show on its own.
      *
      * @return list<float>|null
      */
@@ -106,7 +106,7 @@ class AnalyticsMetricResultSeriesItem
         return $this->previousValues;
     }
     /**
-     * The group's values over the `comparison` period, lined up as `previousTotal`; only with a `comparison`, and empty for a group that period did not show on its own.
+     * The group's values over the `comparison` period or the `comparisonRange`, lined up as `previousTotal` and as long as it; only with one of them, and empty for a group that period did not show on its own.
      *
      * @param list<float>|null $previousValues
      *

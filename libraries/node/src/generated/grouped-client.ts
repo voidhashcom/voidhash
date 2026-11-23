@@ -1400,7 +1400,7 @@ export const groupCoreClient = <ProjectIdError>(
         readonly cursor?: string;
         readonly limit?: number;
         readonly parentId?: string;
-        readonly kind?: "folder" | "board" | "dashboard";
+        readonly kind?: "folder" | "board" | "dashboard" | "report";
         readonly isArchived?: "true" | "false";
         readonly sort?: "name" | "recent";
         readonly search?: string;
@@ -2577,6 +2577,48 @@ export const groupCoreClient = <ProjectIdError>(
             limit: request.params["limit"],
             status: request.params["status"],
           },
+        ),
+      ),
+  },
+  reports: {
+    createInsight: (request: {
+      params: { readonly reportId: string };
+      payload: Parameters<VoidhashCoreClient["reportsCreateInsight"]>[2];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.reportsCreateInsight(resolvedProjectId, request.params["reportId"], request.payload),
+      ),
+    deleteInsight: (request: {
+      params: { readonly reportId: string; readonly insightId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.reportsDeleteInsight(
+          resolvedProjectId,
+          request.params["reportId"],
+          request.params["insightId"],
+        ),
+      ),
+    get: (request: { params: { readonly reportId: string } }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.reportsGet(resolvedProjectId, request.params["reportId"]),
+      ),
+    update: (request: {
+      params: { readonly reportId: string };
+      payload: Parameters<VoidhashCoreClient["reportsUpdate"]>[2];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.reportsUpdate(resolvedProjectId, request.params["reportId"], request.payload),
+      ),
+    updateInsight: (request: {
+      params: { readonly reportId: string; readonly insightId: string };
+      payload: Parameters<VoidhashCoreClient["reportsUpdateInsight"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.reportsUpdateInsight(
+          resolvedProjectId,
+          request.params["reportId"],
+          request.params["insightId"],
+          request.payload,
         ),
       ),
   },

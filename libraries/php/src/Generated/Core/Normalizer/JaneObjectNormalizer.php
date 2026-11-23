@@ -238,6 +238,58 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\CreateCommentBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreateCommentBodyJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ReportInsightJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ReportInsightJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ChartTileInput::class => \Voidhash\Generated\Core\Normalizer\ChartTileInputNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInput::class => \Voidhash\Generated\Core\Normalizer\InsightInputNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputSeriesItem::class => \Voidhash\Generated\Core\Normalizer\InsightInputSeriesItemNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputFunnel::class => \Voidhash\Generated\Core\Normalizer\InsightInputFunnelNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputRetention::class => \Voidhash\Generated\Core\Normalizer\InsightInputRetentionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputPaths::class => \Voidhash\Generated\Core\Normalizer\InsightInputPathsNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputStickiness::class => \Voidhash\Generated\Core\Normalizer\InsightInputStickinessNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputLifecycle::class => \Voidhash\Generated\Core\Normalizer\InsightInputLifecycleNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputTrend::class => \Voidhash\Generated\Core\Normalizer\InsightInputTrendNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\InsightInputTrendGoalsItem::class => \Voidhash\Generated\Core\Normalizer\InsightInputTrendGoalsItemNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\FunnelExclusionSteps::class => \Voidhash\Generated\Core\Normalizer\FunnelExclusionStepsNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreGroupDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreGroupDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreCohortDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreCohortDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExplorePropertyDimension::class => \Voidhash\Generated\Core\Normalizer\ExplorePropertyDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreTraitDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreTraitDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExplorePlanDimension::class => \Voidhash\Generated\Core\Normalizer\ExplorePlanDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreBillingPeriodDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreProductDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreProductDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreStoreDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreStoreDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreFilter::class => \Voidhash\Generated\Core\Normalizer\ExploreFilterNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\UpdateReportInsightBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdateReportInsightBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\CreateReportInsightBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreateReportInsightBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ReportJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ReportJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\UpdateReportBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdateReportBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ReportContentEdit::class => \Voidhash\Generated\Core\Normalizer\ReportContentEditNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\BoardLabelJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\BoardLabelJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\UpdateBoardLabelBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdateBoardLabelBodyJsonEncodingNormalizer::class,
@@ -996,6 +1048,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\AnalyticsMetricQuery::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricQueryNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricComparisonRangeNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\AnalyticsGroupDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsGroupDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsCohortDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsCohortDimensionNormalizer::class,
@@ -1514,6 +1568,32 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CommentReactionJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdateCommentBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreateCommentBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ReportInsightJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ChartTileInput::class => false,
+            \Voidhash\Generated\Core\Model\InsightInput::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputSeriesItem::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputFunnel::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputRetention::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputPaths::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputStickiness::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputLifecycle::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputTrend::class => false,
+            \Voidhash\Generated\Core\Model\InsightInputTrendGoalsItem::class => false,
+            \Voidhash\Generated\Core\Model\FunnelExclusionSteps::class => false,
+            \Voidhash\Generated\Core\Model\ExploreGroupDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreCohortDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExplorePropertyDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreTraitDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExplorePlanDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreProductDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreStoreDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreFilter::class => false,
+            \Voidhash\Generated\Core\Model\UpdateReportInsightBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\CreateReportInsightBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ReportJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\UpdateReportBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ReportContentEdit::class => false,
             \Voidhash\Generated\Core\Model\BoardLabelJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdateBoardLabelBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreateBoardLabelBodyJsonEncoding::class => false,
@@ -1893,6 +1973,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreateAnalyticsCohortBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricPoint::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricQuery::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsGroupDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsCohortDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsPropertyDimension::class => false,

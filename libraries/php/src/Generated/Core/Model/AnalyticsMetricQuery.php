@@ -55,11 +55,15 @@ class AnalyticsMetricQuery
      */
     protected $split;
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given.
+     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @var string|null
      */
     protected $comparison;
+    /**
+     * @var AnalyticsMetricComparisonRange
+     */
+    protected $comparisonRange;
     /**
      * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for MRR, a balance, nor for statistics other than `sum`. Defaults to false.
      *
@@ -227,7 +231,7 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given.
+     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @return string|null
      */
@@ -236,7 +240,7 @@ class AnalyticsMetricQuery
         return $this->comparison;
     }
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given.
+     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @param string|null $comparison
      *
@@ -246,6 +250,24 @@ class AnalyticsMetricQuery
     {
         $this->initialized['comparison'] = true;
         $this->comparison = $comparison;
+        return $this;
+    }
+    /**
+     * @return AnalyticsMetricComparisonRange
+     */
+    public function getComparisonRange(): AnalyticsMetricComparisonRange
+    {
+        return $this->comparisonRange;
+    }
+    /**
+     * @param AnalyticsMetricComparisonRange $comparisonRange
+     *
+     * @return self
+     */
+    public function setComparisonRange(AnalyticsMetricComparisonRange $comparisonRange): self
+    {
+        $this->initialized['comparisonRange'] = true;
+        $this->comparisonRange = $comparisonRange;
         return $this;
     }
     /**

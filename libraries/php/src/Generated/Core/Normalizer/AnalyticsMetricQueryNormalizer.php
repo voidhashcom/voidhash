@@ -114,6 +114,9 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         elseif (\array_key_exists('comparison', $data) && $data['comparison'] === null) {
             $object->setComparison(null);
         }
+        if (\array_key_exists('comparisonRange', $data)) {
+            $object->setComparisonRange($this->denormalizer->denormalize($data['comparisonRange'], \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class, 'json', $context));
+        }
         if (\array_key_exists('isCumulative', $data) && $data['isCumulative'] !== null) {
             $object->setIsCumulative($data['isCumulative']);
         }
@@ -186,6 +189,9 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         }
         if ($data->isInitialized('comparison')) {
             $dataArray['comparison'] = $data->getComparison();
+        }
+        if ($data->isInitialized('comparisonRange') && null !== $data->getComparisonRange()) {
+            $dataArray['comparisonRange'] = $this->normalizer->normalize($data->getComparisonRange(), 'json', $context);
         }
         if ($data->isInitialized('isCumulative')) {
             $dataArray['isCumulative'] = $data->getIsCumulative();

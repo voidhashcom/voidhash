@@ -1643,6 +1643,179 @@ const (
 	BoardTaskPriorityUrgent BoardTaskPriority = "urgent"
 )
 
+// Defines values for ChartTileInputChartId.
+const (
+	ChartTileInputChartIdAcquisitionByChannel         ChartTileInputChartId = "acquisition_by_channel"
+	ChartTileInputChartIdAcquisitionMix               ChartTileInputChartId = "acquisition_mix"
+	ChartTileInputChartIdActivePeople                 ChartTileInputChartId = "active_people"
+	ChartTileInputChartIdActivityBeforeChurn          ChartTileInputChartId = "activity_before_churn"
+	ChartTileInputChartIdActivityHeatmap              ChartTileInputChartId = "activity_heatmap"
+	ChartTileInputChartIdAdBreakdown                  ChartTileInputChartId = "ad_breakdown"
+	ChartTileInputChartIdAhaMoments                   ChartTileInputChartId = "aha_moments"
+	ChartTileInputChartIdAppUpdates                   ChartTileInputChartId = "app_updates"
+	ChartTileInputChartIdArpuTrend                    ChartTileInputChartId = "arpu_trend"
+	ChartTileInputChartIdAttributedRevenueShare       ChartTileInputChartId = "attributed_revenue_share"
+	ChartTileInputChartIdAttributionWindowSensitivity ChartTileInputChartId = "attribution_window_sensitivity"
+	ChartTileInputChartIdBillingRecovery              ChartTileInputChartId = "billing_recovery"
+	ChartTileInputChartIdBlendedReturn                ChartTileInputChartId = "blended_return"
+	ChartTileInputChartIdBrowsers                     ChartTileInputChartId = "browsers"
+	ChartTileInputChartIdBusinessSnapshot             ChartTileInputChartId = "business_snapshot"
+	ChartTileInputChartIdCacTrend                     ChartTileInputChartId = "cac_trend"
+	ChartTileInputChartIdCampaignTraffic              ChartTileInputChartId = "campaign_traffic"
+	ChartTileInputChartIdChartMarkers                 ChartTileInputChartId = "chart_markers"
+	ChartTileInputChartIdChurnByReason                ChartTileInputChartId = "churn_by_reason"
+	ChartTileInputChartIdChurnByUsage                 ChartTileInputChartId = "churn_by_usage"
+	ChartTileInputChartIdCityMap                      ChartTileInputChartId = "city_map"
+	ChartTileInputChartIdCityTable                    ChartTileInputChartId = "city_table"
+	ChartTileInputChartIdCloseInterceptOutcome        ChartTileInputChartId = "close_intercept_outcome"
+	ChartTileInputChartIdConstantCurrencyGrowth       ChartTileInputChartId = "constant_currency_growth"
+	ChartTileInputChartIdConversionLag                ChartTileInputChartId = "conversion_lag"
+	ChartTileInputChartIdCountryMap                   ChartTileInputChartId = "country_map"
+	ChartTileInputChartIdCountryTable                 ChartTileInputChartId = "country_table"
+	ChartTileInputChartIdCrashFreePeople              ChartTileInputChartId = "crash_free_people"
+	ChartTileInputChartIdCrossSurfaceJourneys         ChartTileInputChartId = "cross_surface_journeys"
+	ChartTileInputChartIdCustomerConcentration        ChartTileInputChartId = "customer_concentration"
+	ChartTileInputChartIdDaysActive                   ChartTileInputChartId = "days_active"
+	ChartTileInputChartIdDeviceBrands                 ChartTileInputChartId = "device_brands"
+	ChartTileInputChartIdDeviceClasses                ChartTileInputChartId = "device_classes"
+	ChartTileInputChartIdEntitlementsByPerk           ChartTileInputChartId = "entitlements_by_perk"
+	ChartTileInputChartIdEventLag                     ChartTileInputChartId = "event_lag"
+	ChartTileInputChartIdEventTrend                   ChartTileInputChartId = "event_trend"
+	ChartTileInputChartIdEventsByName                 ChartTileInputChartId = "events_by_name"
+	ChartTileInputChartIdExitPages                    ChartTileInputChartId = "exit_pages"
+	ChartTileInputChartIdExitScreens                  ChartTileInputChartId = "exit_screens"
+	ChartTileInputChartIdExperimentLift               ChartTileInputChartId = "experiment_lift"
+	ChartTileInputChartIdExperimentResults            ChartTileInputChartId = "experiment_results"
+	ChartTileInputChartIdFeatureAdoption              ChartTileInputChartId = "feature_adoption"
+	ChartTileInputChartIdFilterOptions                ChartTileInputChartId = "filter_options"
+	ChartTileInputChartIdFirstVsLastTouch             ChartTileInputChartId = "first_vs_last_touch"
+	ChartTileInputChartIdFlowBundledShare             ChartTileInputChartId = "flow_bundled_share"
+	ChartTileInputChartIdFlowDropoff                  ChartTileInputChartId = "flow_dropoff"
+	ChartTileInputChartIdFlowOutcomes                 ChartTileInputChartId = "flow_outcomes"
+	ChartTileInputChartIdFlowPackageSources           ChartTileInputChartId = "flow_package_sources"
+	ChartTileInputChartIdFlowReleaseHealth            ChartTileInputChartId = "flow_release_health"
+	ChartTileInputChartIdFunnelBySurface              ChartTileInputChartId = "funnel_by_surface"
+	ChartTileInputChartIdGraceOutcomes                ChartTileInputChartId = "grace_outcomes"
+	ChartTileInputChartIdGroupTypesOverLimit          ChartTileInputChartId = "group_types_over_limit"
+	ChartTileInputChartIdInstallFunnel                ChartTileInputChartId = "install_funnel"
+	ChartTileInputChartIdInstalls                     ChartTileInputChartId = "installs"
+	ChartTileInputChartIdLandingConversion            ChartTileInputChartId = "landing_conversion"
+	ChartTileInputChartIdLandingPages                 ChartTileInputChartId = "landing_pages"
+	ChartTileInputChartIdLifetimeRevenueDistribution  ChartTileInputChartId = "lifetime_revenue_distribution"
+	ChartTileInputChartIdLocalTimeActivity            ChartTileInputChartId = "local_time_activity"
+	ChartTileInputChartIdLocaleVsCountry              ChartTileInputChartId = "locale_vs_country"
+	ChartTileInputChartIdLocales                      ChartTileInputChartId = "locales"
+	ChartTileInputChartIdLtvByCohort                  ChartTileInputChartId = "ltv_by_cohort"
+	ChartTileInputChartIdLtvByDimension               ChartTileInputChartId = "ltv_by_dimension"
+	ChartTileInputChartIdMrrAtRisk                    ChartTileInputChartId = "mrr_at_risk"
+	ChartTileInputChartIdMrrMovements                 ChartTileInputChartId = "mrr_movements"
+	ChartTileInputChartIdMrrTrend                     ChartTileInputChartId = "mrr_trend"
+	ChartTileInputChartIdOfferPerformance             ChartTileInputChartId = "offer_performance"
+	ChartTileInputChartIdOperatingSystems             ChartTileInputChartId = "operating_systems"
+	ChartTileInputChartIdOpportunityQuadrant          ChartTileInputChartId = "opportunity_quadrant"
+	ChartTileInputChartIdOsVersions                   ChartTileInputChartId = "os_versions"
+	ChartTileInputChartIdOutboundClicks               ChartTileInputChartId = "outbound_clicks"
+	ChartTileInputChartIdPagesPerSession              ChartTileInputChartId = "pages_per_session"
+	ChartTileInputChartIdPaidVsOrganicLtv             ChartTileInputChartId = "paid_vs_organic_ltv"
+	ChartTileInputChartIdPaywallConversionByLocale    ChartTileInputChartId = "paywall_conversion_by_locale"
+	ChartTileInputChartIdPaywallConversionTrend       ChartTileInputChartId = "paywall_conversion_trend"
+	ChartTileInputChartIdPaywallFunnel                ChartTileInputChartId = "paywall_funnel"
+	ChartTileInputChartIdPeopleByTrait                ChartTileInputChartId = "people_by_trait"
+	ChartTileInputChartIdPeopleLifecycle              ChartTileInputChartId = "people_lifecycle"
+	ChartTileInputChartIdPlanMixByPaywall             ChartTileInputChartId = "plan_mix_by_paywall"
+	ChartTileInputChartIdPlanSwitching                ChartTileInputChartId = "plan_switching"
+	ChartTileInputChartIdPredictedPayback             ChartTileInputChartId = "predicted_payback"
+	ChartTileInputChartIdPriceIncreaseOutcome         ChartTileInputChartId = "price_increase_outcome"
+	ChartTileInputChartIdPriceVsConversion            ChartTileInputChartId = "price_vs_conversion"
+	ChartTileInputChartIdPurchasersWithoutEvents      ChartTileInputChartId = "purchasers_without_events"
+	ChartTileInputChartIdPushFailures                 ChartTileInputChartId = "push_failures"
+	ChartTileInputChartIdPushOpenRate                 ChartTileInputChartId = "push_open_rate"
+	ChartTileInputChartIdPushReachable                ChartTileInputChartId = "push_reachable"
+	ChartTileInputChartIdPushReturnRate               ChartTileInputChartId = "push_return_rate"
+	ChartTileInputChartIdPushRevenueAfter             ChartTileInputChartId = "push_revenue_after"
+	ChartTileInputChartIdPushSends                    ChartTileInputChartId = "push_sends"
+	ChartTileInputChartIdQuickRatio                   ChartTileInputChartId = "quick_ratio"
+	ChartTileInputChartIdRefundRate                   ChartTileInputChartId = "refund_rate"
+	ChartTileInputChartIdRefundTrend                  ChartTileInputChartId = "refund_trend"
+	ChartTileInputChartIdRejectedEvents               ChartTileInputChartId = "rejected_events"
+	ChartTileInputChartIdRenewalCalendar              ChartTileInputChartId = "renewal_calendar"
+	ChartTileInputChartIdRenewalPredictors            ChartTileInputChartId = "renewal_predictors"
+	ChartTileInputChartIdRenewalRateByNumber          ChartTileInputChartId = "renewal_rate_by_number"
+	ChartTileInputChartIdRetentionBySegment           ChartTileInputChartId = "retention_by_segment"
+	ChartTileInputChartIdRetentionCohorts             ChartTileInputChartId = "retention_cohorts"
+	ChartTileInputChartIdRevenueBridge                ChartTileInputChartId = "revenue_bridge"
+	ChartTileInputChartIdRevenueByBillingPeriod       ChartTileInputChartId = "revenue_by_billing_period"
+	ChartTileInputChartIdRevenueByCurrency            ChartTileInputChartId = "revenue_by_currency"
+	ChartTileInputChartIdRevenueByPlacement           ChartTileInputChartId = "revenue_by_placement"
+	ChartTileInputChartIdRevenueByProduct             ChartTileInputChartId = "revenue_by_product"
+	ChartTileInputChartIdRevenueByStore               ChartTileInputChartId = "revenue_by_store"
+	ChartTileInputChartIdRevenueForecast              ChartTileInputChartId = "revenue_forecast"
+	ChartTileInputChartIdRevenueNewVsRenewal          ChartTileInputChartId = "revenue_new_vs_renewal"
+	ChartTileInputChartIdRevenueOneTimeVsSubscription ChartTileInputChartId = "revenue_one_time_vs_subscription"
+	ChartTileInputChartIdRevenuePerThousandViews      ChartTileInputChartId = "revenue_per_thousand_views"
+	ChartTileInputChartIdRevenueRetention             ChartTileInputChartId = "revenue_retention"
+	ChartTileInputChartIdScreenTime                   ChartTileInputChartId = "screen_time"
+	ChartTileInputChartIdSdkVersions                  ChartTileInputChartId = "sdk_versions"
+	ChartTileInputChartIdSelfReportedSource           ChartTileInputChartId = "self_reported_source"
+	ChartTileInputChartIdSessionLength                ChartTileInputChartId = "session_length"
+	ChartTileInputChartIdSessionsPerDay               ChartTileInputChartId = "sessions_per_day"
+	ChartTileInputChartIdSessionsPerPerson            ChartTileInputChartId = "sessions_per_person"
+	ChartTileInputChartIdSharedAccess                 ChartTileInputChartId = "shared_access"
+	ChartTileInputChartIdStickinessRatio              ChartTileInputChartId = "stickiness_ratio"
+	ChartTileInputChartIdStoreFeeRate                 ChartTileInputChartId = "store_fee_rate"
+	ChartTileInputChartIdStoreNotificationLag         ChartTileInputChartId = "store_notification_lag"
+	ChartTileInputChartIdStorefrontVsIp               ChartTileInputChartId = "storefront_vs_ip"
+	ChartTileInputChartIdSubscriberMovements          ChartTileInputChartId = "subscriber_movements"
+	ChartTileInputChartIdSubscribersByPlan            ChartTileInputChartId = "subscribers_by_plan"
+	ChartTileInputChartIdSurvivalCurves               ChartTileInputChartId = "survival_curves"
+	ChartTileInputChartIdTimeInApp                    ChartTileInputChartId = "time_in_app"
+	ChartTileInputChartIdTimeToFirstAction            ChartTileInputChartId = "time_to_first_action"
+	ChartTileInputChartIdTimeToRefund                 ChartTileInputChartId = "time_to_refund"
+	ChartTileInputChartIdTimeToWinback                ChartTileInputChartId = "time_to_winback"
+	ChartTileInputChartIdTodayVsLastWeek              ChartTileInputChartId = "today_vs_last_week"
+	ChartTileInputChartIdTopDevices                   ChartTileInputChartId = "top_devices"
+	ChartTileInputChartIdTopEvents                    ChartTileInputChartId = "top_events"
+	ChartTileInputChartIdTopPages                     ChartTileInputChartId = "top_pages"
+	ChartTileInputChartIdTopReferrers                 ChartTileInputChartId = "top_referrers"
+	ChartTileInputChartIdTopScreens                   ChartTileInputChartId = "top_screens"
+	ChartTileInputChartIdTouchesBeforeConversion      ChartTileInputChartId = "touches_before_conversion"
+	ChartTileInputChartIdTrialCancelDay               ChartTileInputChartId = "trial_cancel_day"
+	ChartTileInputChartIdTrialConversionBy            ChartTileInputChartId = "trial_conversion_by"
+	ChartTileInputChartIdTrialStartRate               ChartTileInputChartId = "trial_start_rate"
+	ChartTileInputChartIdTrialsEndingSoon             ChartTileInputChartId = "trials_ending_soon"
+	ChartTileInputChartIdUnattributedRevenueByCountry ChartTileInputChartId = "unattributed_revenue_by_country"
+	ChartTileInputChartIdUninstallSignals             ChartTileInputChartId = "uninstall_signals"
+	ChartTileInputChartIdUserPaths                    ChartTileInputChartId = "user_paths"
+	ChartTileInputChartIdVersionAdoption              ChartTileInputChartId = "version_adoption"
+	ChartTileInputChartIdVersionQuality               ChartTileInputChartId = "version_quality"
+	ChartTileInputChartIdWebEngagement                ChartTileInputChartId = "web_engagement"
+	ChartTileInputChartIdWebToAppHandoff              ChartTileInputChartId = "web_to_app_handoff"
+	ChartTileInputChartIdWebTraffic                   ChartTileInputChartId = "web_traffic"
+	ChartTileInputChartIdWebVitals                    ChartTileInputChartId = "web_vitals"
+	ChartTileInputChartIdWebVitalsByPage              ChartTileInputChartId = "web_vitals_by_page"
+	ChartTileInputChartIdWebhookHealth                ChartTileInputChartId = "webhook_health"
+	ChartTileInputChartIdWebhookLatency               ChartTileInputChartId = "webhook_latency"
+	ChartTileInputChartIdWinbacks                     ChartTileInputChartId = "winbacks"
+)
+
+// Defines values for ChartTileInputRange0.
+const (
+	ChartTileInputRangeLast30d     ChartTileInputRange0 = "last_30d"
+	ChartTileInputRangeLast365d    ChartTileInputRange0 = "last_365d"
+	ChartTileInputRangeLast7d      ChartTileInputRange0 = "last_7d"
+	ChartTileInputRangeLast90d     ChartTileInputRange0 = "last_90d"
+	ChartTileInputRangeLastMonth   ChartTileInputRange0 = "last_month"
+	ChartTileInputRangeLastQuarter ChartTileInputRange0 = "last_quarter"
+	ChartTileInputRangeLastWeek    ChartTileInputRange0 = "last_week"
+	ChartTileInputRangeLastYear    ChartTileInputRange0 = "last_year"
+	ChartTileInputRangeThisMonth   ChartTileInputRange0 = "this_month"
+	ChartTileInputRangeThisQuarter ChartTileInputRange0 = "this_quarter"
+	ChartTileInputRangeThisWeek    ChartTileInputRange0 = "this_week"
+	ChartTileInputRangeThisYear    ChartTileInputRange0 = "this_year"
+	ChartTileInputRangeToday       ChartTileInputRange0 = "today"
+	ChartTileInputRangeYesterday   ChartTileInputRange0 = "yesterday"
+)
+
 // Defines values for ComponentConformanceCheckStatus.
 const (
 	Fail ComponentConformanceCheckStatus = "fail"
@@ -1773,6 +1946,62 @@ const (
 	ExperimentStatusRunning   ExperimentStatus = "running"
 )
 
+// Defines values for ExploreBillingPeriodDimensionKind.
+const (
+	ExploreBillingPeriodDimensionKindBillingPeriod ExploreBillingPeriodDimensionKind = "billing_period"
+)
+
+// Defines values for ExploreCohortDimensionKind.
+const (
+	ExploreCohortDimensionKindCohort ExploreCohortDimensionKind = "cohort"
+)
+
+// Defines values for ExploreFilterOp.
+const (
+	ExploreFilterOpContains    ExploreFilterOp = "contains"
+	ExploreFilterOpEndsWith    ExploreFilterOp = "ends_with"
+	ExploreFilterOpGt          ExploreFilterOp = "gt"
+	ExploreFilterOpIn          ExploreFilterOp = "in"
+	ExploreFilterOpIsNotSet    ExploreFilterOp = "is_not_set"
+	ExploreFilterOpIsSet       ExploreFilterOp = "is_set"
+	ExploreFilterOpLt          ExploreFilterOp = "lt"
+	ExploreFilterOpNotContains ExploreFilterOp = "not_contains"
+	ExploreFilterOpNotIn       ExploreFilterOp = "not_in"
+	ExploreFilterOpNotRegex    ExploreFilterOp = "not_regex"
+	ExploreFilterOpRegex       ExploreFilterOp = "regex"
+	ExploreFilterOpStartsWith  ExploreFilterOp = "starts_with"
+)
+
+// Defines values for ExploreGroupDimensionKind.
+const (
+	ExploreGroupDimensionKindGroup ExploreGroupDimensionKind = "group"
+)
+
+// Defines values for ExplorePlanDimensionKind.
+const (
+	ExplorePlanDimensionKindPlan ExplorePlanDimensionKind = "plan"
+)
+
+// Defines values for ExploreProductDimensionKind.
+const (
+	ExploreProductDimensionKindProduct ExploreProductDimensionKind = "product"
+)
+
+// Defines values for ExplorePropertyDimensionKind.
+const (
+	ExplorePropertyDimensionKindProperty ExplorePropertyDimensionKind = "property"
+)
+
+// Defines values for ExploreStoreDimensionKind.
+const (
+	ExploreStoreDimensionKindStore ExploreStoreDimensionKind = "store"
+)
+
+// Defines values for ExploreTraitDimensionKind.
+const (
+	ExploreTraitDimensionKindTrait ExploreTraitDimensionKind = "trait"
+)
+
 // Defines values for FeatureFlagConditionAttribute.
 const (
 	FeatureFlagConditionAttributeAppVersion FeatureFlagConditionAttribute = "app_version"
@@ -1829,6 +2058,7 @@ const (
 const (
 	Board             FileKind = "board"
 	FileKindDashboard FileKind = "dashboard"
+	FileKindReport    FileKind = "report"
 	Folder            FileKind = "folder"
 )
 
@@ -1836,6 +2066,7 @@ const (
 const (
 	FileRoleBoards     FileRole = "boards"
 	FileRoleDashboards FileRole = "dashboards"
+	FileRoleReports    FileRole = "reports"
 	FileRoleUnfiled    FileRole = "unfiled"
 )
 
@@ -1845,6 +2076,206 @@ const (
 	FlowInterfaceActionFieldTypeList    FlowInterfaceActionFieldType = "list"
 	FlowInterfaceActionFieldTypeNumber  FlowInterfaceActionFieldType = "number"
 	FlowInterfaceActionFieldTypeString  FlowInterfaceActionFieldType = "string"
+)
+
+// Defines values for InsightInputActor0Kind.
+const (
+	InsightInputActorKindPerson InsightInputActor0Kind = "person"
+)
+
+// Defines values for InsightInputActor1Kind.
+const (
+	InsightInputActorKindSession InsightInputActor1Kind = "session"
+)
+
+// Defines values for InsightInputActor2Kind.
+const (
+	InsightInputActorKindGroup InsightInputActor2Kind = "group"
+)
+
+// Defines values for InsightInputActor3Kind.
+const (
+	InsightInputActorKindProperty InsightInputActor3Kind = "property"
+)
+
+// Defines values for InsightInputComparison.
+const (
+	InsightInputComparisonPreviousPeriod InsightInputComparison = "previous_period"
+	InsightInputComparisonPreviousYear   InsightInputComparison = "previous_year"
+)
+
+// Defines values for InsightInputDisplay.
+const (
+	InsightInputDisplayBreakdown InsightInputDisplay = "breakdown"
+	InsightInputDisplayNumber    InsightInputDisplay = "number"
+	InsightInputDisplayTrend     InsightInputDisplay = "trend"
+)
+
+// Defines values for InsightInputFunnelAttribution.
+const (
+	InsightInputFunnelAttributionAllSteps   InsightInputFunnelAttribution = "all_steps"
+	InsightInputFunnelAttributionFirstTouch InsightInputFunnelAttribution = "first_touch"
+	InsightInputFunnelAttributionLastTouch  InsightInputFunnelAttribution = "last_touch"
+	InsightInputFunnelAttributionStep       InsightInputFunnelAttribution = "step"
+)
+
+// Defines values for InsightInputFunnelLayout.
+const (
+	InsightInputFunnelLayoutColumns InsightInputFunnelLayout = "columns"
+	InsightInputFunnelLayoutRows    InsightInputFunnelLayout = "rows"
+)
+
+// Defines values for InsightInputFunnelOrder.
+const (
+	InsightInputFunnelOrderAny        InsightInputFunnelOrder = "any"
+	InsightInputFunnelOrderSequential InsightInputFunnelOrder = "sequential"
+	InsightInputFunnelOrderStrict     InsightInputFunnelOrder = "strict"
+)
+
+// Defines values for InsightInputFunnelReference.
+const (
+	InsightInputFunnelReferencePrevious InsightInputFunnelReference = "previous"
+	InsightInputFunnelReferenceTotal    InsightInputFunnelReference = "total"
+)
+
+// Defines values for InsightInputFunnelView.
+const (
+	InsightInputFunnelViewSteps         InsightInputFunnelView = "steps"
+	InsightInputFunnelViewTimeToConvert InsightInputFunnelView = "time_to_convert"
+	InsightInputFunnelViewTrends        InsightInputFunnelView = "trends"
+)
+
+// Defines values for InsightInputFunnelWindowUnit.
+const (
+	InsightInputFunnelWindowUnitDay    InsightInputFunnelWindowUnit = "day"
+	InsightInputFunnelWindowUnitHour   InsightInputFunnelWindowUnit = "hour"
+	InsightInputFunnelWindowUnitMinute InsightInputFunnelWindowUnit = "minute"
+	InsightInputFunnelWindowUnitWeek   InsightInputFunnelWindowUnit = "week"
+)
+
+// Defines values for InsightInputGranularity.
+const (
+	InsightInputGranularityDaily   InsightInputGranularity = "daily"
+	InsightInputGranularityMonthly InsightInputGranularity = "monthly"
+	InsightInputGranularityWeekly  InsightInputGranularity = "weekly"
+)
+
+// Defines values for InsightInputKind.
+const (
+	InsightInputKindFunnels    InsightInputKind = "funnels"
+	InsightInputKindLifecycle  InsightInputKind = "lifecycle"
+	InsightInputKindPaths      InsightInputKind = "paths"
+	InsightInputKindRetention  InsightInputKind = "retention"
+	InsightInputKindStickiness InsightInputKind = "stickiness"
+	InsightInputKindTrends     InsightInputKind = "trends"
+)
+
+// Defines values for InsightInputLifecycleHidden.
+const (
+	InsightInputLifecycleHiddenDormant      InsightInputLifecycleHidden = "dormant"
+	InsightInputLifecycleHiddenNew          InsightInputLifecycleHidden = "new"
+	InsightInputLifecycleHiddenResurrecting InsightInputLifecycleHidden = "resurrecting"
+	InsightInputLifecycleHiddenReturning    InsightInputLifecycleHidden = "returning"
+)
+
+// Defines values for InsightInputLifecycleValueMode.
+const (
+	InsightInputLifecycleValueModeCount      InsightInputLifecycleValueMode = "count"
+	InsightInputLifecycleValueModePercentage InsightInputLifecycleValueMode = "percentage"
+)
+
+// Defines values for InsightInputPathsItem.
+const (
+	InsightInputPathsItemEventName  InsightInputPathsItem = "event_name"
+	InsightInputPathsItemScreenName InsightInputPathsItem = "screen_name"
+)
+
+// Defines values for InsightInputRange0.
+const (
+	InsightInputRangeLast30d     InsightInputRange0 = "last_30d"
+	InsightInputRangeLast365d    InsightInputRange0 = "last_365d"
+	InsightInputRangeLast7d      InsightInputRange0 = "last_7d"
+	InsightInputRangeLast90d     InsightInputRange0 = "last_90d"
+	InsightInputRangeLastMonth   InsightInputRange0 = "last_month"
+	InsightInputRangeLastQuarter InsightInputRange0 = "last_quarter"
+	InsightInputRangeLastWeek    InsightInputRange0 = "last_week"
+	InsightInputRangeLastYear    InsightInputRange0 = "last_year"
+	InsightInputRangeThisMonth   InsightInputRange0 = "this_month"
+	InsightInputRangeThisQuarter InsightInputRange0 = "this_quarter"
+	InsightInputRangeThisWeek    InsightInputRange0 = "this_week"
+	InsightInputRangeThisYear    InsightInputRange0 = "this_year"
+	InsightInputRangeToday       InsightInputRange0 = "today"
+	InsightInputRangeYesterday   InsightInputRange0 = "yesterday"
+)
+
+// Defines values for InsightInputRetentionPeriod.
+const (
+	InsightInputRetentionPeriodDay   InsightInputRetentionPeriod = "day"
+	InsightInputRetentionPeriodMonth InsightInputRetentionPeriod = "month"
+	InsightInputRetentionPeriodWeek  InsightInputRetentionPeriod = "week"
+)
+
+// Defines values for InsightInputRetentionReference.
+const (
+	InsightInputRetentionReferenceCohort   InsightInputRetentionReference = "cohort"
+	InsightInputRetentionReferencePrevious InsightInputRetentionReference = "previous"
+)
+
+// Defines values for InsightInputRetentionType.
+const (
+	InsightInputRetentionTypeFirstTime InsightInputRetentionType = "first_time"
+	InsightInputRetentionTypeRecurring InsightInputRetentionType = "recurring"
+)
+
+// Defines values for InsightInputSeriesAggregation.
+const (
+	InsightInputSeriesAggregationCount          InsightInputSeriesAggregation = "count"
+	InsightInputSeriesAggregationFirstTime      InsightInputSeriesAggregation = "first_time"
+	InsightInputSeriesAggregationMonthlyActive  InsightInputSeriesAggregation = "monthly_active"
+	InsightInputSeriesAggregationPerPerson      InsightInputSeriesAggregation = "per_person"
+	InsightInputSeriesAggregationProperty       InsightInputSeriesAggregation = "property"
+	InsightInputSeriesAggregationUniqueGroups   InsightInputSeriesAggregation = "unique_groups"
+	InsightInputSeriesAggregationUniquePeople   InsightInputSeriesAggregation = "unique_people"
+	InsightInputSeriesAggregationUniqueSessions InsightInputSeriesAggregation = "unique_sessions"
+	InsightInputSeriesAggregationWeeklyActive   InsightInputSeriesAggregation = "weekly_active"
+)
+
+// Defines values for InsightInputSeriesMetric.
+const (
+	InsightInputSeriesMetricEvent   InsightInputSeriesMetric = "event"
+	InsightInputSeriesMetricMrr     InsightInputSeriesMetric = "mrr"
+	InsightInputSeriesMetricRevenue InsightInputSeriesMetric = "revenue"
+)
+
+// Defines values for InsightInputSeriesStatistic.
+const (
+	InsightInputSeriesStatisticAverage InsightInputSeriesStatistic = "average"
+	InsightInputSeriesStatisticMaximum InsightInputSeriesStatistic = "maximum"
+	InsightInputSeriesStatisticMedian  InsightInputSeriesStatistic = "median"
+	InsightInputSeriesStatisticMinimum InsightInputSeriesStatistic = "minimum"
+	InsightInputSeriesStatisticP75     InsightInputSeriesStatistic = "p75"
+	InsightInputSeriesStatisticP90     InsightInputSeriesStatistic = "p90"
+	InsightInputSeriesStatisticP95     InsightInputSeriesStatistic = "p95"
+	InsightInputSeriesStatisticP99     InsightInputSeriesStatistic = "p99"
+	InsightInputSeriesStatisticSum     InsightInputSeriesStatistic = "sum"
+)
+
+// Defines values for InsightInputStickinessComputation.
+const (
+	InsightInputStickinessComputationCumulative InsightInputStickinessComputation = "cumulative"
+	InsightInputStickinessComputationExact      InsightInputStickinessComputation = "exact"
+)
+
+// Defines values for InsightInputTrendChart.
+const (
+	InsightInputTrendChartArea     InsightInputTrendChart = "area"
+	InsightInputTrendChartAuto     InsightInputTrendChart = "auto"
+	InsightInputTrendChartBar      InsightInputTrendChart = "bar"
+	InsightInputTrendChartBarTotal InsightInputTrendChart = "bar_total"
+	InsightInputTrendChartLine     InsightInputTrendChart = "line"
+	InsightInputTrendChartNumber   InsightInputTrendChart = "number"
+	InsightInputTrendChartPie      InsightInputTrendChart = "pie"
+	InsightInputTrendChartTable    InsightInputTrendChart = "table"
 )
 
 // Defines values for IntegrationEnvironment.
@@ -2327,6 +2758,12 @@ const (
 const (
 	RegisterDeviceBodyJsonEncodingProviderApns RegisterDeviceBodyJsonEncodingProvider = "apns"
 	RegisterDeviceBodyJsonEncodingProviderFcm  RegisterDeviceBodyJsonEncodingProvider = "fcm"
+)
+
+// Defines values for ReportInsightKind.
+const (
+	ReportInsightKindChart   ReportInsightKind = "chart"
+	ReportInsightKindInsight ReportInsightKind = "insight"
 )
 
 // Defines values for SandboxActionJsonEncodingAction.
@@ -6767,6 +7204,15 @@ type AnalyticsMetric struct {
 	union json.RawMessage
 }
 
+// AnalyticsMetricComparisonRange defines model for AnalyticsMetricComparisonRange.
+type AnalyticsMetricComparisonRange struct {
+	// End The end of the compared range, as an ISO 8601 timestamp. Truncated to the second.
+	End string `json:"end"`
+
+	// Start The start of the compared range, as an ISO 8601 timestamp, no later than `end`. Truncated to the second.
+	Start string `json:"start"`
+}
+
 // AnalyticsMetricDimension What a metric is split or narrowed by; `kind` says which.
 type AnalyticsMetricDimension struct {
 	union json.RawMessage
@@ -6795,7 +7241,7 @@ type AnalyticsMetricPoint struct {
 	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
 	Group *string `json:"group"`
 
-	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison`. Defaults to false.
+	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
 	IsPrevious *bool `json:"isPrevious"`
 
 	// Query One metric to measure over a time range.
@@ -6804,8 +7250,9 @@ type AnalyticsMetricPoint struct {
 
 // AnalyticsMetricQuery One metric to measure over a time range.
 type AnalyticsMetricQuery struct {
-	// Comparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given.
-	Comparison *AnalyticsMetricQueryComparison `json:"comparison"`
+	// Comparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+	Comparison      *AnalyticsMetricQueryComparison `json:"comparison"`
+	ComparisonRange *AnalyticsMetricComparisonRange `json:"comparisonRange,omitempty"`
 
 	// Filters Up to 10 conditions every row must meet; none keeps everything.
 	Filters *[]AnalyticsMetricFilter `json:"filters"`
@@ -6835,7 +7282,7 @@ type AnalyticsMetricQuery struct {
 	Timezone *string `json:"timezone"`
 }
 
-// AnalyticsMetricQueryComparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given.
+// AnalyticsMetricQueryComparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
 type AnalyticsMetricQueryComparison string
 
 // AnalyticsMetricQueryGranularity The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
@@ -6864,7 +7311,7 @@ type AnalyticsMetricResult struct {
 	// IsWithheld Whether the values are withheld because a trait or a group's property narrowed them to fewer than five people.
 	IsWithheld bool `json:"isWithheld"`
 
-	// PreviousTotal `total` over the `comparison` period, bucket by bucket beside `buckets`; only with a `comparison`. A year earlier, a bucket without a counterpart, such as 29 February, is null.
+	// PreviousTotal `total` over the `comparison` period or the `comparisonRange`, bucket by bucket beside `buckets`; only with one of them. A year earlier, a bucket without a counterpart, such as 29 February, is null. Over a `comparisonRange` it holds every bucket of that range, so it is longer than `buckets` when the range is longer: draw the first `buckets.length` values and summarise them all.
 	PreviousTotal *[]float32 `json:"previousTotal"`
 
 	// Series One series per group of the split, biggest first; none without one.
@@ -6875,7 +7322,7 @@ type AnalyticsMetricResult struct {
 		// Label A name for the key, such as a product's name; null when the key is its name.
 		Label *string `json:"label"`
 
-		// PreviousValues The group's values over the `comparison` period, lined up as `previousTotal`; only with a `comparison`, and empty for a group that period did not show on its own.
+		// PreviousValues The group's values over the `comparison` period or the `comparisonRange`, lined up as `previousTotal` and as long as it; only with one of them, and empty for a group that period did not show on its own.
 		PreviousValues *[]float32 `json:"previousValues"`
 		Values         []float32  `json:"values"`
 	} `json:"series"`
@@ -8154,6 +8601,29 @@ type CancelPaymentSourceSubscriptionBody struct {
 	IsImmediate *bool `json:"isImmediate"`
 }
 
+// ChartTileInput defines model for ChartTileInput.
+type ChartTileInput struct {
+	// ChartId The built-in chart drawn, by its id in the chart catalog.
+	ChartId ChartTileInputChartId `json:"chartId"`
+
+	// Range The days it covers: a named range, which moves with today, or `YYYY-MM-DD..YYYY-MM-DD`; `last_30d` unless given.
+	Range *ChartTileInput_Range `json:"range,omitempty"`
+}
+
+// ChartTileInputChartId The built-in chart drawn, by its id in the chart catalog.
+type ChartTileInputChartId string
+
+// ChartTileInputRange0 defines model for ChartTileInput.Range.0.
+type ChartTileInputRange0 string
+
+// ChartTileInputRange1 defines model for .
+type ChartTileInputRange1 = string
+
+// ChartTileInput_Range The days it covers: a named range, which moves with today, or `YYYY-MM-DD..YYYY-MM-DD`; `last_30d` unless given.
+type ChartTileInput_Range struct {
+	union json.RawMessage
+}
+
 // ChartsReportBodyJsonEncoding defines model for ChartsReportBodyJsonEncoding.
 type ChartsReportBodyJsonEncoding struct {
 	// Queries The charts to compute, 1 to 20.
@@ -8493,6 +8963,7 @@ type CreateFeedbackBodyJsonEncodingTopic string
 
 // CreateFileBodyJsonEncoding defines model for CreateFileBodyJsonEncoding.
 type CreateFileBodyJsonEncoding struct {
+	// Kind What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
 	Kind     FileKind `json:"kind"`
 	Name     string   `json:"name"`
 	ParentId *string  `json:"parentId"`
@@ -8766,6 +9237,15 @@ type CreatePushNotificationBodyJsonEncodingPriority string
 type CreatePushNotificationConfigurationBodyJsonEncoding struct {
 	// Type The push service: `fcm` for Firebase Cloud Messaging, `apns` for the Apple Push Notification service.
 	Type PushNotificationProviderType `json:"type"`
+}
+
+// CreateReportInsightBodyJsonEncoding defines model for CreateReportInsightBodyJsonEncoding.
+type CreateReportInsightBodyJsonEncoding struct {
+	Chart   *ChartTileInput `json:"chart,omitempty"`
+	Insight *InsightInput   `json:"insight,omitempty"`
+
+	// Title The insight's title, 1 to 255 characters.
+	Title string `json:"title"`
 }
 
 // CreateSandboxActionBodyJsonEncoding defines model for CreateSandboxActionBodyJsonEncoding.
@@ -9201,6 +9681,92 @@ type ExperimentVariantResultJsonEncoding struct {
 	VariantId string `json:"variantId"`
 }
 
+// ExploreBillingPeriodDimension How often a subscription renews.
+type ExploreBillingPeriodDimension struct {
+	Kind ExploreBillingPeriodDimensionKind `json:"kind"`
+}
+
+// ExploreBillingPeriodDimensionKind defines model for ExploreBillingPeriodDimension.Kind.
+type ExploreBillingPeriodDimensionKind string
+
+// ExploreCohortDimension Whether a person is in a cohort; a split names the cohorts in `cohortIds`.
+type ExploreCohortDimension struct {
+	CohortIds *[]string                  `json:"cohortIds"`
+	Kind      ExploreCohortDimensionKind `json:"kind"`
+}
+
+// ExploreCohortDimensionKind defines model for ExploreCohortDimension.Kind.
+type ExploreCohortDimensionKind string
+
+// ExploreFilter One filter: how `dimension`'s value compares (`op`) with `values`.
+type ExploreFilter struct {
+	Dimension ExploreFilter_Dimension `json:"dimension"`
+	Op        ExploreFilterOp         `json:"op"`
+	Values    []string                `json:"values"`
+}
+
+// ExploreFilter_Dimension defines model for ExploreFilter.Dimension.
+type ExploreFilter_Dimension struct {
+	union json.RawMessage
+}
+
+// ExploreFilterOp defines model for ExploreFilter.Op.
+type ExploreFilterOp string
+
+// ExploreGroupDimension A group of the event of type `groupType`, or its property `key`.
+type ExploreGroupDimension struct {
+	// GroupType A group type's key, such as `organization` or `company`: a lower-case letter, then up to 63 lower-case letters, digits or underscores.
+	GroupType string                    `json:"groupType"`
+	Key       *string                   `json:"key"`
+	Kind      ExploreGroupDimensionKind `json:"kind"`
+}
+
+// ExploreGroupDimensionKind defines model for ExploreGroupDimension.Kind.
+type ExploreGroupDimensionKind string
+
+// ExplorePlanDimension A subscriber's plan.
+type ExplorePlanDimension struct {
+	Kind ExplorePlanDimensionKind `json:"kind"`
+}
+
+// ExplorePlanDimensionKind defines model for ExplorePlanDimension.Kind.
+type ExplorePlanDimensionKind string
+
+// ExploreProductDimension The product bought.
+type ExploreProductDimension struct {
+	Kind ExploreProductDimensionKind `json:"kind"`
+}
+
+// ExploreProductDimensionKind defines model for ExploreProductDimension.Kind.
+type ExploreProductDimensionKind string
+
+// ExplorePropertyDimension An event's property `key`.
+type ExplorePropertyDimension struct {
+	Key  string                       `json:"key"`
+	Kind ExplorePropertyDimensionKind `json:"kind"`
+}
+
+// ExplorePropertyDimensionKind defines model for ExplorePropertyDimension.Kind.
+type ExplorePropertyDimensionKind string
+
+// ExploreStoreDimension The store a purchase was made in.
+type ExploreStoreDimension struct {
+	Kind ExploreStoreDimensionKind `json:"kind"`
+}
+
+// ExploreStoreDimensionKind defines model for ExploreStoreDimension.Kind.
+type ExploreStoreDimensionKind string
+
+// ExploreTraitDimension A person's trait `key`, in `bins` when given for a numeric one.
+type ExploreTraitDimension struct {
+	Bins *[]float32                `json:"bins"`
+	Key  string                    `json:"key"`
+	Kind ExploreTraitDimensionKind `json:"kind"`
+}
+
+// ExploreTraitDimensionKind defines model for ExploreTraitDimension.Kind.
+type ExploreTraitDimensionKind string
+
 // FeatureFlagConditionAttribute What the condition compares: a `trait` of the end user, named by `key`, or what their app reports when it asks: its `platform` (`ios`, `android` or `web`), its `app_version`, the operating system's `os_version`, the two-letter `country` the request came from, or the end user's `locale`.
 type FeatureFlagConditionAttribute string
 
@@ -9454,18 +10020,20 @@ type FileEntryJsonEncoding struct {
 	CreatedAt  string         `json:"createdAt"`
 	CreatedBy  ParticipantRef `json:"createdBy"`
 	Id         string         `json:"id"`
-	Kind       FileKind       `json:"kind"`
-	Name       string         `json:"name"`
-	OwnerBot   *string        `json:"ownerBot"`
-	OwnerUser  *string        `json:"ownerUser"`
-	ParentId   *string        `json:"parentId"`
-	ProjectId  string         `json:"projectId"`
-	Role       FileRole       `json:"role"`
-	UpdatedAt  string         `json:"updatedAt"`
-	UpdatedBy  ParticipantRef `json:"updatedBy"`
+
+	// Kind What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+	Kind      FileKind       `json:"kind"`
+	Name      string         `json:"name"`
+	OwnerBot  *string        `json:"ownerBot"`
+	OwnerUser *string        `json:"ownerUser"`
+	ParentId  *string        `json:"parentId"`
+	ProjectId string         `json:"projectId"`
+	Role      FileRole       `json:"role"`
+	UpdatedAt string         `json:"updatedAt"`
+	UpdatedBy ParticipantRef `json:"updatedBy"`
 }
 
-// FileKind defines model for FileKind.
+// FileKind What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
 type FileKind string
 
 // FilePathEntryJsonEncoding defines model for FilePathEntryJsonEncoding.
@@ -9479,20 +10047,22 @@ type FileRole string
 
 // FileWithPathJsonEncoding defines model for FileWithPathJsonEncoding.
 type FileWithPathJsonEncoding struct {
-	ArchivedAt *string                     `json:"archivedAt"`
-	CreatedAt  string                      `json:"createdAt"`
-	CreatedBy  ParticipantRef              `json:"createdBy"`
-	Id         string                      `json:"id"`
-	Kind       FileKind                    `json:"kind"`
-	Name       string                      `json:"name"`
-	OwnerBot   *string                     `json:"ownerBot"`
-	OwnerUser  *string                     `json:"ownerUser"`
-	ParentId   *string                     `json:"parentId"`
-	Path       []FilePathEntryJsonEncoding `json:"path"`
-	ProjectId  string                      `json:"projectId"`
-	Role       FileRole                    `json:"role"`
-	UpdatedAt  string                      `json:"updatedAt"`
-	UpdatedBy  ParticipantRef              `json:"updatedBy"`
+	ArchivedAt *string        `json:"archivedAt"`
+	CreatedAt  string         `json:"createdAt"`
+	CreatedBy  ParticipantRef `json:"createdBy"`
+	Id         string         `json:"id"`
+
+	// Kind What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+	Kind      FileKind                    `json:"kind"`
+	Name      string                      `json:"name"`
+	OwnerBot  *string                     `json:"ownerBot"`
+	OwnerUser *string                     `json:"ownerUser"`
+	ParentId  *string                     `json:"parentId"`
+	Path      []FilePathEntryJsonEncoding `json:"path"`
+	ProjectId string                      `json:"projectId"`
+	Role      FileRole                    `json:"role"`
+	UpdatedAt string                      `json:"updatedAt"`
+	UpdatedBy ParticipantRef              `json:"updatedBy"`
 }
 
 // FlowInterfaceActionField defines model for FlowInterfaceActionField.
@@ -9534,6 +10104,18 @@ type FlowPackageDiagnostic struct {
 
 	// NodeId The id of the design node the problem concerns; absent when it concerns no single node.
 	NodeId *string `json:"nodeId"`
+}
+
+// FunnelExclusionSteps defines model for FunnelExclusionSteps.
+type FunnelExclusionSteps struct {
+	// Event The event that takes a person out of the funnel.
+	Event string `json:"event"`
+
+	// From The step it counts after, by its index from 0.
+	From int `json:"from"`
+
+	// To The step it counts before, by its index from 0; after `from`.
+	To int `json:"to"`
 }
 
 // ImagePreviewJsonEncoding A copy of an image small enough for a model to look at: upright, at most 1568 pixels on its longest side, and a JPEG on white.
@@ -9594,6 +10176,308 @@ type IngestPolicyJsonEncoding struct {
 
 	// BuiltinEvents Every built-in event setting.
 	BuiltinEvents []BuiltinEventSettingJsonEncoding `json:"builtinEvents"`
+}
+
+// InsightInput defines model for InsightInput.
+type InsightInput struct {
+	// Actor Whom a funnel, retention, stickiness or lifecycle counts: `person`, `session` (funnels only), the groups of a `group` type, or the values of an event `property`. People unless given.
+	Actor *InsightInput_Actor `json:"actor,omitempty"`
+
+	// Compare Whether it compares with an earlier period: the days of `comparisonRange` when given, else the one `comparison` names. True unless given: a new insight compares with the period before.
+	Compare *bool `json:"compare,omitempty"`
+
+	// Comparison What it compares with: `previous_period` or `previous_year`; the previous period unless given.
+	Comparison      *InsightInputComparison `json:"comparison,omitempty"`
+	ComparisonRange *string                 `json:"comparisonRange,omitempty"`
+
+	// Display How it draws: its chart (`trend`), one number with a sparkline (`number`), or its groups as bars (`breakdown`); `trend` unless given.
+	Display *InsightInputDisplay `json:"display,omitempty"`
+
+	// Filters Filters every series takes where they apply, at most 10; none unless given.
+	Filters *[]ExploreFilter `json:"filters,omitempty"`
+
+	// Funnel A funnel's rules; defaults unless given.
+	Funnel *struct {
+		// Attribution With a split, which value groups a person: the one on their first step, their last step reached, one every step shares, or the one on `attributionStep`.
+		Attribution *InsightInputFunnelAttribution `json:"attribution,omitempty"`
+
+		// AttributionStep The step `step` attribution reads, by its index from 0.
+		AttributionStep *int `json:"attributionStep,omitempty"`
+
+		// Exclusions Events that take a person out when done between two steps, at most 10.
+		Exclusions *[]FunnelExclusionSteps `json:"exclusions,omitempty"`
+
+		// Layout Steps side by side (`columns`) or one under another (`rows`).
+		Layout *InsightInputFunnelLayout `json:"layout,omitempty"`
+
+		// Order The order steps must happen in: `sequential` (in order, anything between), `strict` (nothing between) or `any`. `sequential` unless given.
+		Order *InsightInputFunnelOrder `json:"order,omitempty"`
+
+		// Reference What a step's conversion is a share of: the first step (`total`) or the step before (`previous`).
+		Reference *InsightInputFunnelReference `json:"reference,omitempty"`
+
+		// View What the funnel shows: people through each step, the time they took, or conversion over time.
+		View *InsightInputFunnelView `json:"view,omitempty"`
+
+		// WindowUnit The unit of `windowValue`: minute, hour, day or week; `day` unless given.
+		WindowUnit *InsightInputFunnelWindowUnit `json:"windowUnit,omitempty"`
+
+		// WindowValue How long after the first step the last may come, in `windowUnit`s; 14 unless given.
+		WindowValue *int `json:"windowValue,omitempty"`
+	} `json:"funnel,omitempty"`
+
+	// Granularity The periods it counts in: daily, weekly or monthly; weekly unless given.
+	Granularity *InsightInputGranularity `json:"granularity,omitempty"`
+
+	// Kind The question asked: trends, funnels, retention, paths, stickiness, lifecycle; `trends` unless given.
+	Kind *InsightInputKind `json:"kind,omitempty"`
+
+	// Lifecycle How lifecycle shows its groups; defaults unless given.
+	Lifecycle *struct {
+		// Hidden Groups hidden from the chart: new, returning, resurrecting, dormant.
+		Hidden *[]InsightInputLifecycleHidden `json:"hidden,omitempty"`
+
+		// ValueMode Groups shown as people (`count`) or as shares of the active (`percentage`).
+		ValueMode *InsightInputLifecycleValueMode `json:"valueMode,omitempty"`
+	} `json:"lifecycle,omitempty"`
+
+	// Markers Whether releases and other changes are marked on the chart; true unless given.
+	Markers *bool `json:"markers,omitempty"`
+
+	// Paths Which paths are followed; defaults unless given.
+	Paths *struct {
+		// CollapseRepeated Whether an event repeated in a row counts once; true unless given.
+		CollapseRepeated *bool `json:"collapseRepeated,omitempty"`
+
+		// Depth How many steps each path is followed for, from 2 to 20; 5 unless given.
+		Depth *int `json:"depth,omitempty"`
+
+		// EdgeLimit How many of the most travelled links are drawn, from 1 to 200; 50 unless given.
+		EdgeLimit *int `json:"edgeLimit,omitempty"`
+
+		// End The event paths end at.
+		End *string `json:"end,omitempty"`
+
+		// Exclude Events left out of paths, at most 50.
+		Exclude *[]string `json:"exclude,omitempty"`
+
+		// Item Paths of event names (`event_name`) or of the screens the app reported (`screen_name`).
+		Item *InsightInputPathsItem `json:"item,omitempty"`
+
+		// MaxEdgeCount Links more sessions took than this are left out.
+		MaxEdgeCount *int `json:"maxEdgeCount,omitempty"`
+
+		// MinEdgeCount Links fewer sessions took than this are left out.
+		MinEdgeCount *int `json:"minEdgeCount,omitempty"`
+
+		// Start The event paths start from.
+		Start *string `json:"start,omitempty"`
+	} `json:"paths,omitempty"`
+
+	// Range The days it covers: a named range, which moves with today, or `YYYY-MM-DD..YYYY-MM-DD`; `last_30d` unless given.
+	Range *InsightInput_Range `json:"range,omitempty"`
+
+	// Retention Retention's rules; defaults unless given.
+	Retention *struct {
+		// Cumulative Whether a period counts people who came back in it or in any period after.
+		Cumulative *bool `json:"cumulative,omitempty"`
+
+		// Intervals How many periods are followed, the first included, from 1 to 24; 8 unless given.
+		Intervals *int `json:"intervals,omitempty"`
+
+		// Period The period people start and come back in: day, week or month; `week` unless given.
+		Period *InsightInputRetentionPeriod `json:"period,omitempty"`
+
+		// Reference What a period's rate is a share of: the starting cohort or the period before.
+		Reference *InsightInputRetentionReference `json:"reference,omitempty"`
+
+		// Type Who starts: anyone doing the start event (`recurring`) or people doing it for the first time (`first_time`).
+		Type *InsightInputRetentionType `json:"type,omitempty"`
+	} `json:"retention,omitempty"`
+
+	// Series What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
+	Series []struct {
+		// Aggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
+		Aggregation *InsightInputSeriesAggregation `json:"aggregation,omitempty"`
+
+		// Event The event an `event` series counts, such as `paywall_viewed`.
+		Event *string `json:"event,omitempty"`
+
+		// Filters Filters that narrow this series alone, at most 10; none unless given.
+		Filters *[]ExploreFilter `json:"filters,omitempty"`
+
+		// GroupType The group type whose groups a `unique_groups` aggregation counts, such as `organization`.
+		GroupType *string `json:"groupType,omitempty"`
+
+		// Metric What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
+		Metric InsightInputSeriesMetric `json:"metric"`
+
+		// Property The numeric event property a `property` aggregation reads.
+		Property *string `json:"property,omitempty"`
+
+		// Statistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
+		Statistic *InsightInputSeriesStatistic `json:"statistic,omitempty"`
+	} `json:"series"`
+	Split *InsightSplit `json:"split,omitempty"`
+
+	// Stickiness How stickiness counts; defaults unless given.
+	Stickiness *struct {
+		// Computation People active on exactly N periods (`exact`) or on N or more (`cumulative`).
+		Computation *InsightInputStickinessComputation `json:"computation,omitempty"`
+	} `json:"stickiness,omitempty"`
+
+	// Trend What a trend computes and how it draws; defaults unless given.
+	Trend *struct {
+		// Chart How the trend draws: auto, line, bar, area, number, table, pie, bar_total; `auto` unless given.
+		Chart *InsightInputTrendChart `json:"chart,omitempty"`
+
+		// Cumulative Whether each point is the sum of every one up to it.
+		Cumulative *bool `json:"cumulative,omitempty"`
+
+		// Formula Series combined by their letters, such as `A / B * 100`, drawn in their place.
+		Formula *string `json:"formula,omitempty"`
+
+		// Goals Lines across the chart at values to reach, at most 5.
+		Goals *[]struct {
+			// Label What the goal line is labelled.
+			Label string `json:"label"`
+
+			// Value The value the goal line is drawn at.
+			Value float32 `json:"value"`
+		} `json:"goals,omitempty"`
+
+		// LogScale Whether the value axis is logarithmic.
+		LogScale *bool `json:"logScale,omitempty"`
+
+		// PercentStack Whether stacked lines draw as shares of their total.
+		PercentStack *bool `json:"percentStack,omitempty"`
+
+		// ShowValues Whether each point is labelled with its value.
+		ShowValues *bool `json:"showValues,omitempty"`
+
+		// Smoothing Each point the average of this many up to it, from 1 to 28; 1 leaves them be.
+		Smoothing *int `json:"smoothing,omitempty"`
+	} `json:"trend,omitempty"`
+}
+
+// InsightInputActor0 defines model for .
+type InsightInputActor0 struct {
+	Kind InsightInputActor0Kind `json:"kind"`
+}
+
+// InsightInputActor0Kind defines model for InsightInput.Actor.0.Kind.
+type InsightInputActor0Kind string
+
+// InsightInputActor1 defines model for .
+type InsightInputActor1 struct {
+	Kind InsightInputActor1Kind `json:"kind"`
+}
+
+// InsightInputActor1Kind defines model for InsightInput.Actor.1.Kind.
+type InsightInputActor1Kind string
+
+// InsightInputActor2 defines model for .
+type InsightInputActor2 struct {
+	// GroupType A group type's key, such as `organization` or `company`: a lower-case letter, then up to 63 lower-case letters, digits or underscores.
+	GroupType string                 `json:"groupType"`
+	Kind      InsightInputActor2Kind `json:"kind"`
+}
+
+// InsightInputActor2Kind defines model for InsightInput.Actor.2.Kind.
+type InsightInputActor2Kind string
+
+// InsightInputActor3 defines model for .
+type InsightInputActor3 struct {
+	// Key The event property whose values are counted.
+	Key  string                 `json:"key"`
+	Kind InsightInputActor3Kind `json:"kind"`
+}
+
+// InsightInputActor3Kind defines model for InsightInput.Actor.3.Kind.
+type InsightInputActor3Kind string
+
+// InsightInput_Actor Whom a funnel, retention, stickiness or lifecycle counts: `person`, `session` (funnels only), the groups of a `group` type, or the values of an event `property`. People unless given.
+type InsightInput_Actor struct {
+	union json.RawMessage
+}
+
+// InsightInputComparison What it compares with: `previous_period` or `previous_year`; the previous period unless given.
+type InsightInputComparison string
+
+// InsightInputDisplay How it draws: its chart (`trend`), one number with a sparkline (`number`), or its groups as bars (`breakdown`); `trend` unless given.
+type InsightInputDisplay string
+
+// InsightInputFunnelAttribution With a split, which value groups a person: the one on their first step, their last step reached, one every step shares, or the one on `attributionStep`.
+type InsightInputFunnelAttribution string
+
+// InsightInputFunnelLayout Steps side by side (`columns`) or one under another (`rows`).
+type InsightInputFunnelLayout string
+
+// InsightInputFunnelOrder The order steps must happen in: `sequential` (in order, anything between), `strict` (nothing between) or `any`. `sequential` unless given.
+type InsightInputFunnelOrder string
+
+// InsightInputFunnelReference What a step's conversion is a share of: the first step (`total`) or the step before (`previous`).
+type InsightInputFunnelReference string
+
+// InsightInputFunnelView What the funnel shows: people through each step, the time they took, or conversion over time.
+type InsightInputFunnelView string
+
+// InsightInputFunnelWindowUnit The unit of `windowValue`: minute, hour, day or week; `day` unless given.
+type InsightInputFunnelWindowUnit string
+
+// InsightInputGranularity The periods it counts in: daily, weekly or monthly; weekly unless given.
+type InsightInputGranularity string
+
+// InsightInputKind The question asked: trends, funnels, retention, paths, stickiness, lifecycle; `trends` unless given.
+type InsightInputKind string
+
+// InsightInputLifecycleHidden defines model for InsightInput.Lifecycle.Hidden.
+type InsightInputLifecycleHidden string
+
+// InsightInputLifecycleValueMode Groups shown as people (`count`) or as shares of the active (`percentage`).
+type InsightInputLifecycleValueMode string
+
+// InsightInputPathsItem Paths of event names (`event_name`) or of the screens the app reported (`screen_name`).
+type InsightInputPathsItem string
+
+// InsightInputRange0 defines model for InsightInput.Range.0.
+type InsightInputRange0 string
+
+// InsightInputRange1 defines model for .
+type InsightInputRange1 = string
+
+// InsightInput_Range The days it covers: a named range, which moves with today, or `YYYY-MM-DD..YYYY-MM-DD`; `last_30d` unless given.
+type InsightInput_Range struct {
+	union json.RawMessage
+}
+
+// InsightInputRetentionPeriod The period people start and come back in: day, week or month; `week` unless given.
+type InsightInputRetentionPeriod string
+
+// InsightInputRetentionReference What a period's rate is a share of: the starting cohort or the period before.
+type InsightInputRetentionReference string
+
+// InsightInputRetentionType Who starts: anyone doing the start event (`recurring`) or people doing it for the first time (`first_time`).
+type InsightInputRetentionType string
+
+// InsightInputSeriesAggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
+type InsightInputSeriesAggregation string
+
+// InsightInputSeriesMetric What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
+type InsightInputSeriesMetric string
+
+// InsightInputSeriesStatistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
+type InsightInputSeriesStatistic string
+
+// InsightInputStickinessComputation People active on exactly N periods (`exact`) or on N or more (`cumulative`).
+type InsightInputStickinessComputation string
+
+// InsightInputTrendChart How the trend draws: auto, line, bar, area, number, table, pie, bar_total; `auto` unless given.
+type InsightInputTrendChart string
+
+// InsightSplit defines model for InsightSplit.
+type InsightSplit struct {
+	union json.RawMessage
 }
 
 // InsightsReportBodyJsonEncoding defines model for InsightsReportBodyJsonEncoding.
@@ -9987,7 +10871,7 @@ type MetricActorsReportBodyJsonEncoding struct {
 	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
 	Group *string `json:"group"`
 
-	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison`. Defaults to false.
+	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
 	IsPrevious *bool `json:"isPrevious"`
 
 	// Limit How many actors to return, from 1 to 200. Defaults to 50.
@@ -12285,6 +13169,53 @@ type ReplacePaywallLocationRulesBodyJsonEncoding struct {
 	} `json:"rules"`
 }
 
+// ReportContentEdit defines model for ReportContentEdit.
+type ReportContentEdit struct {
+	// NewText What replaces it; empty removes it.
+	NewText string `json:"newText"`
+
+	// OldText Text of the report's Markdown, as `reports.get` answers it, to replace. It must occur exactly once, after the edits before it.
+	OldText string `json:"oldText"`
+}
+
+// ReportInsightJsonEncoding defines model for ReportInsightJsonEncoding.
+type ReportInsightJsonEncoding struct {
+	// Blocks How many `<#insight:ID>` blocks of the body show it; 0 when only inline values do, or nothing.
+	Blocks int             `json:"blocks"`
+	Chart  *ChartTileInput `json:"chart,omitempty"`
+
+	// Id The insight's id, which `<#insight:ID>` and `<#value:ID>` in the body name.
+	Id      string        `json:"id"`
+	Insight *InsightInput `json:"insight,omitempty"`
+
+	// Kind What an insight shows: an `insight` asks its own Explore query; a `chart` draws one of the built-in charts.
+	Kind ReportInsightKind `json:"kind"`
+
+	// Title The insight's title, shown above its chart.
+	Title string `json:"title"`
+
+	// Values How many `<#value:ID>` inline values in the body's text show it.
+	Values int `json:"values"`
+}
+
+// ReportInsightKind What an insight shows: an `insight` asks its own Explore query; a `chart` draws one of the built-in charts.
+type ReportInsightKind string
+
+// ReportJsonEncoding defines model for ReportJsonEncoding.
+type ReportJsonEncoding struct {
+	// Content The report's body as GitHub-flavored Markdown, with two tokens for its analytics. `<#insight:ID>` alone in a paragraph is the chart or table of the report's insight `ID`. `<#value:ID>` inside text is a live number from insight `ID`, and `<#value:ID:SHOW>` says which: `value`, `previous`, `change`, `difference`, `direction` (`value` unless given). Every `ID` is one of the report's `insights`. A report is live and has no controls: each number and chart shows the period its insight runs over, unless its token ends in `@RANGE`, a period of its own: a named range such as `today`, `last_30d` or `last_year`, which moves with today, or fixed days such as `2025-01-01..2025-12-31`, also written `2025`, `2025-10` or `2025-11-12` and read back as their days. So `Revenue was <#value:ID@2025> last year, compared to <#value:ID@today> today.` A token inside a code span or code block, or with an escaped character, stays text.
+	Content string `json:"content"`
+
+	// Id The report's id, which is its file's id in Files.
+	Id string `json:"id"`
+
+	// Insights Its insights, in the order they were added, each with where the body shows it.
+	Insights []ReportInsightJsonEncoding `json:"insights"`
+
+	// Name The report's name, its file's name in Files.
+	Name string `json:"name"`
+}
+
 // RotateApiKeyBodyJsonEncoding defines model for RotateApiKeyBodyJsonEncoding.
 type RotateApiKeyBodyJsonEncoding struct {
 	// OverlapSeconds Seconds the previous secret keeps working so deployments can switch over, up to 604,800 (7 days). Omit to stop it at once.
@@ -14030,6 +14961,24 @@ type UpdatePushNotificationConfigurationBodyJsonEncoding struct {
 
 	// Name The new display name.
 	Name *string `json:"name"`
+}
+
+// UpdateReportBodyJsonEncoding defines model for UpdateReportBodyJsonEncoding.
+type UpdateReportBodyJsonEncoding struct {
+	// Content Replaces the whole body. The report's body as GitHub-flavored Markdown, with two tokens for its analytics. `<#insight:ID>` alone in a paragraph is the chart or table of the report's insight `ID`. `<#value:ID>` inside text is a live number from insight `ID`, and `<#value:ID:SHOW>` says which: `value`, `previous`, `change`, `difference`, `direction` (`value` unless given). Every `ID` is one of the report's `insights`. A report is live and has no controls: each number and chart shows the period its insight runs over, unless its token ends in `@RANGE`, a period of its own: a named range such as `today`, `last_30d` or `last_year`, which moves with today, or fixed days such as `2025-01-01..2025-12-31`, also written `2025`, `2025-10` or `2025-11-12` and read back as their days. So `Revenue was <#value:ID@2025> last year, compared to <#value:ID@today> today.` A token inside a code span or code block, or with an escaped character, stays text. Not with `contentEdits`.
+	Content *string `json:"content"`
+
+	// ContentEdits Changes parts of the body instead, up to 100 edits applied in order to its Markdown; all or none apply. Not with `content`.
+	ContentEdits *[]ReportContentEdit `json:"contentEdits"`
+}
+
+// UpdateReportInsightBodyJsonEncoding defines model for UpdateReportInsightBodyJsonEncoding.
+type UpdateReportInsightBodyJsonEncoding struct {
+	Chart   *ChartTileInput `json:"chart,omitempty"`
+	Insight *InsightInput   `json:"insight,omitempty"`
+
+	// Title The insight's title, 1 to 255 characters.
+	Title *string `json:"title"`
 }
 
 // UpdateSandboxSettingsBodyJsonEncoding defines model for UpdateSandboxSettingsBodyJsonEncoding.
@@ -16772,6 +17721,15 @@ type ComponentRegistryUpdateVersionJSONRequestBody = UpdatePublishedComponentVer
 // ComponentRegistryUpsertPublisherJSONRequestBody defines body for ComponentRegistryUpsertPublisher for application/json ContentType.
 type ComponentRegistryUpsertPublisherJSONRequestBody = UpsertRegistryPublisherBodyJsonEncoding
 
+// ReportsUpdateJSONRequestBody defines body for ReportsUpdate for application/json ContentType.
+type ReportsUpdateJSONRequestBody = UpdateReportBodyJsonEncoding
+
+// ReportsCreateInsightJSONRequestBody defines body for ReportsCreateInsight for application/json ContentType.
+type ReportsCreateInsightJSONRequestBody = CreateReportInsightBodyJsonEncoding
+
+// ReportsUpdateInsightJSONRequestBody defines body for ReportsUpdateInsight for application/json ContentType.
+type ReportsUpdateInsightJSONRequestBody = UpdateReportInsightBodyJsonEncoding
+
 // SandboxCreateActionJSONRequestBody defines body for SandboxCreateAction for application/json ContentType.
 type SandboxCreateActionJSONRequestBody = CreateSandboxActionBodyJsonEncoding
 
@@ -18702,6 +19660,68 @@ func (t *AutomationVariable_DefaultValue) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsChartTileInputRange0 returns the union data inside the ChartTileInput_Range as a ChartTileInputRange0
+func (t ChartTileInput_Range) AsChartTileInputRange0() (ChartTileInputRange0, error) {
+	var body ChartTileInputRange0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromChartTileInputRange0 overwrites any union data inside the ChartTileInput_Range as the provided ChartTileInputRange0
+func (t *ChartTileInput_Range) FromChartTileInputRange0(v ChartTileInputRange0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeChartTileInputRange0 performs a merge with any union data inside the ChartTileInput_Range, using the provided ChartTileInputRange0
+func (t *ChartTileInput_Range) MergeChartTileInputRange0(v ChartTileInputRange0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsChartTileInputRange1 returns the union data inside the ChartTileInput_Range as a ChartTileInputRange1
+func (t ChartTileInput_Range) AsChartTileInputRange1() (ChartTileInputRange1, error) {
+	var body ChartTileInputRange1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromChartTileInputRange1 overwrites any union data inside the ChartTileInput_Range as the provided ChartTileInputRange1
+func (t *ChartTileInput_Range) FromChartTileInputRange1(v ChartTileInputRange1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeChartTileInputRange1 performs a merge with any union data inside the ChartTileInput_Range, using the provided ChartTileInputRange1
+func (t *ChartTileInput_Range) MergeChartTileInputRange1(v ChartTileInputRange1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ChartTileInput_Range) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ChartTileInput_Range) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // AsCreateAutomationRunBodyJsonEncodingInputs0 returns the union data inside the CreateAutomationRunBodyJsonEncoding_Inputs_AdditionalProperties as a CreateAutomationRunBodyJsonEncodingInputs0
 func (t CreateAutomationRunBodyJsonEncoding_Inputs_AdditionalProperties) AsCreateAutomationRunBodyJsonEncodingInputs0() (CreateAutomationRunBodyJsonEncodingInputs0, error) {
 	var body CreateAutomationRunBodyJsonEncodingInputs0
@@ -18786,6 +19806,618 @@ func (t CreateAutomationRunBodyJsonEncoding_Inputs_AdditionalProperties) Marshal
 }
 
 func (t *CreateAutomationRunBodyJsonEncoding_Inputs_AdditionalProperties) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsExploreStoreDimension returns the union data inside the ExploreFilter_Dimension as a ExploreStoreDimension
+func (t ExploreFilter_Dimension) AsExploreStoreDimension() (ExploreStoreDimension, error) {
+	var body ExploreStoreDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreStoreDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreStoreDimension
+func (t *ExploreFilter_Dimension) FromExploreStoreDimension(v ExploreStoreDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreStoreDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreStoreDimension
+func (t *ExploreFilter_Dimension) MergeExploreStoreDimension(v ExploreStoreDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreProductDimension returns the union data inside the ExploreFilter_Dimension as a ExploreProductDimension
+func (t ExploreFilter_Dimension) AsExploreProductDimension() (ExploreProductDimension, error) {
+	var body ExploreProductDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreProductDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreProductDimension
+func (t *ExploreFilter_Dimension) FromExploreProductDimension(v ExploreProductDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreProductDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreProductDimension
+func (t *ExploreFilter_Dimension) MergeExploreProductDimension(v ExploreProductDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreBillingPeriodDimension returns the union data inside the ExploreFilter_Dimension as a ExploreBillingPeriodDimension
+func (t ExploreFilter_Dimension) AsExploreBillingPeriodDimension() (ExploreBillingPeriodDimension, error) {
+	var body ExploreBillingPeriodDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreBillingPeriodDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreBillingPeriodDimension
+func (t *ExploreFilter_Dimension) FromExploreBillingPeriodDimension(v ExploreBillingPeriodDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreBillingPeriodDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreBillingPeriodDimension
+func (t *ExploreFilter_Dimension) MergeExploreBillingPeriodDimension(v ExploreBillingPeriodDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePlanDimension returns the union data inside the ExploreFilter_Dimension as a ExplorePlanDimension
+func (t ExploreFilter_Dimension) AsExplorePlanDimension() (ExplorePlanDimension, error) {
+	var body ExplorePlanDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePlanDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExplorePlanDimension
+func (t *ExploreFilter_Dimension) FromExplorePlanDimension(v ExplorePlanDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePlanDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExplorePlanDimension
+func (t *ExploreFilter_Dimension) MergeExplorePlanDimension(v ExplorePlanDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreTraitDimension returns the union data inside the ExploreFilter_Dimension as a ExploreTraitDimension
+func (t ExploreFilter_Dimension) AsExploreTraitDimension() (ExploreTraitDimension, error) {
+	var body ExploreTraitDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreTraitDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreTraitDimension
+func (t *ExploreFilter_Dimension) FromExploreTraitDimension(v ExploreTraitDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreTraitDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreTraitDimension
+func (t *ExploreFilter_Dimension) MergeExploreTraitDimension(v ExploreTraitDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePropertyDimension returns the union data inside the ExploreFilter_Dimension as a ExplorePropertyDimension
+func (t ExploreFilter_Dimension) AsExplorePropertyDimension() (ExplorePropertyDimension, error) {
+	var body ExplorePropertyDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePropertyDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExplorePropertyDimension
+func (t *ExploreFilter_Dimension) FromExplorePropertyDimension(v ExplorePropertyDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePropertyDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExplorePropertyDimension
+func (t *ExploreFilter_Dimension) MergeExplorePropertyDimension(v ExplorePropertyDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreCohortDimension returns the union data inside the ExploreFilter_Dimension as a ExploreCohortDimension
+func (t ExploreFilter_Dimension) AsExploreCohortDimension() (ExploreCohortDimension, error) {
+	var body ExploreCohortDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreCohortDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreCohortDimension
+func (t *ExploreFilter_Dimension) FromExploreCohortDimension(v ExploreCohortDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreCohortDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreCohortDimension
+func (t *ExploreFilter_Dimension) MergeExploreCohortDimension(v ExploreCohortDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreGroupDimension returns the union data inside the ExploreFilter_Dimension as a ExploreGroupDimension
+func (t ExploreFilter_Dimension) AsExploreGroupDimension() (ExploreGroupDimension, error) {
+	var body ExploreGroupDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreGroupDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreGroupDimension
+func (t *ExploreFilter_Dimension) FromExploreGroupDimension(v ExploreGroupDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreGroupDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreGroupDimension
+func (t *ExploreFilter_Dimension) MergeExploreGroupDimension(v ExploreGroupDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ExploreFilter_Dimension) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ExploreFilter_Dimension) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsInsightInputActor0 returns the union data inside the InsightInput_Actor as a InsightInputActor0
+func (t InsightInput_Actor) AsInsightInputActor0() (InsightInputActor0, error) {
+	var body InsightInputActor0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputActor0 overwrites any union data inside the InsightInput_Actor as the provided InsightInputActor0
+func (t *InsightInput_Actor) FromInsightInputActor0(v InsightInputActor0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputActor0 performs a merge with any union data inside the InsightInput_Actor, using the provided InsightInputActor0
+func (t *InsightInput_Actor) MergeInsightInputActor0(v InsightInputActor0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInsightInputActor1 returns the union data inside the InsightInput_Actor as a InsightInputActor1
+func (t InsightInput_Actor) AsInsightInputActor1() (InsightInputActor1, error) {
+	var body InsightInputActor1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputActor1 overwrites any union data inside the InsightInput_Actor as the provided InsightInputActor1
+func (t *InsightInput_Actor) FromInsightInputActor1(v InsightInputActor1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputActor1 performs a merge with any union data inside the InsightInput_Actor, using the provided InsightInputActor1
+func (t *InsightInput_Actor) MergeInsightInputActor1(v InsightInputActor1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInsightInputActor2 returns the union data inside the InsightInput_Actor as a InsightInputActor2
+func (t InsightInput_Actor) AsInsightInputActor2() (InsightInputActor2, error) {
+	var body InsightInputActor2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputActor2 overwrites any union data inside the InsightInput_Actor as the provided InsightInputActor2
+func (t *InsightInput_Actor) FromInsightInputActor2(v InsightInputActor2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputActor2 performs a merge with any union data inside the InsightInput_Actor, using the provided InsightInputActor2
+func (t *InsightInput_Actor) MergeInsightInputActor2(v InsightInputActor2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInsightInputActor3 returns the union data inside the InsightInput_Actor as a InsightInputActor3
+func (t InsightInput_Actor) AsInsightInputActor3() (InsightInputActor3, error) {
+	var body InsightInputActor3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputActor3 overwrites any union data inside the InsightInput_Actor as the provided InsightInputActor3
+func (t *InsightInput_Actor) FromInsightInputActor3(v InsightInputActor3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputActor3 performs a merge with any union data inside the InsightInput_Actor, using the provided InsightInputActor3
+func (t *InsightInput_Actor) MergeInsightInputActor3(v InsightInputActor3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t InsightInput_Actor) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *InsightInput_Actor) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsInsightInputRange0 returns the union data inside the InsightInput_Range as a InsightInputRange0
+func (t InsightInput_Range) AsInsightInputRange0() (InsightInputRange0, error) {
+	var body InsightInputRange0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputRange0 overwrites any union data inside the InsightInput_Range as the provided InsightInputRange0
+func (t *InsightInput_Range) FromInsightInputRange0(v InsightInputRange0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputRange0 performs a merge with any union data inside the InsightInput_Range, using the provided InsightInputRange0
+func (t *InsightInput_Range) MergeInsightInputRange0(v InsightInputRange0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInsightInputRange1 returns the union data inside the InsightInput_Range as a InsightInputRange1
+func (t InsightInput_Range) AsInsightInputRange1() (InsightInputRange1, error) {
+	var body InsightInputRange1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsightInputRange1 overwrites any union data inside the InsightInput_Range as the provided InsightInputRange1
+func (t *InsightInput_Range) FromInsightInputRange1(v InsightInputRange1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInsightInputRange1 performs a merge with any union data inside the InsightInput_Range, using the provided InsightInputRange1
+func (t *InsightInput_Range) MergeInsightInputRange1(v InsightInputRange1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t InsightInput_Range) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *InsightInput_Range) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsExploreStoreDimension returns the union data inside the InsightSplit as a ExploreStoreDimension
+func (t InsightSplit) AsExploreStoreDimension() (ExploreStoreDimension, error) {
+	var body ExploreStoreDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreStoreDimension overwrites any union data inside the InsightSplit as the provided ExploreStoreDimension
+func (t *InsightSplit) FromExploreStoreDimension(v ExploreStoreDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreStoreDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreStoreDimension
+func (t *InsightSplit) MergeExploreStoreDimension(v ExploreStoreDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreProductDimension returns the union data inside the InsightSplit as a ExploreProductDimension
+func (t InsightSplit) AsExploreProductDimension() (ExploreProductDimension, error) {
+	var body ExploreProductDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreProductDimension overwrites any union data inside the InsightSplit as the provided ExploreProductDimension
+func (t *InsightSplit) FromExploreProductDimension(v ExploreProductDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreProductDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreProductDimension
+func (t *InsightSplit) MergeExploreProductDimension(v ExploreProductDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreBillingPeriodDimension returns the union data inside the InsightSplit as a ExploreBillingPeriodDimension
+func (t InsightSplit) AsExploreBillingPeriodDimension() (ExploreBillingPeriodDimension, error) {
+	var body ExploreBillingPeriodDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreBillingPeriodDimension overwrites any union data inside the InsightSplit as the provided ExploreBillingPeriodDimension
+func (t *InsightSplit) FromExploreBillingPeriodDimension(v ExploreBillingPeriodDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreBillingPeriodDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreBillingPeriodDimension
+func (t *InsightSplit) MergeExploreBillingPeriodDimension(v ExploreBillingPeriodDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePlanDimension returns the union data inside the InsightSplit as a ExplorePlanDimension
+func (t InsightSplit) AsExplorePlanDimension() (ExplorePlanDimension, error) {
+	var body ExplorePlanDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePlanDimension overwrites any union data inside the InsightSplit as the provided ExplorePlanDimension
+func (t *InsightSplit) FromExplorePlanDimension(v ExplorePlanDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePlanDimension performs a merge with any union data inside the InsightSplit, using the provided ExplorePlanDimension
+func (t *InsightSplit) MergeExplorePlanDimension(v ExplorePlanDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreTraitDimension returns the union data inside the InsightSplit as a ExploreTraitDimension
+func (t InsightSplit) AsExploreTraitDimension() (ExploreTraitDimension, error) {
+	var body ExploreTraitDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreTraitDimension overwrites any union data inside the InsightSplit as the provided ExploreTraitDimension
+func (t *InsightSplit) FromExploreTraitDimension(v ExploreTraitDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreTraitDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreTraitDimension
+func (t *InsightSplit) MergeExploreTraitDimension(v ExploreTraitDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePropertyDimension returns the union data inside the InsightSplit as a ExplorePropertyDimension
+func (t InsightSplit) AsExplorePropertyDimension() (ExplorePropertyDimension, error) {
+	var body ExplorePropertyDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePropertyDimension overwrites any union data inside the InsightSplit as the provided ExplorePropertyDimension
+func (t *InsightSplit) FromExplorePropertyDimension(v ExplorePropertyDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePropertyDimension performs a merge with any union data inside the InsightSplit, using the provided ExplorePropertyDimension
+func (t *InsightSplit) MergeExplorePropertyDimension(v ExplorePropertyDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreCohortDimension returns the union data inside the InsightSplit as a ExploreCohortDimension
+func (t InsightSplit) AsExploreCohortDimension() (ExploreCohortDimension, error) {
+	var body ExploreCohortDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreCohortDimension overwrites any union data inside the InsightSplit as the provided ExploreCohortDimension
+func (t *InsightSplit) FromExploreCohortDimension(v ExploreCohortDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreCohortDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreCohortDimension
+func (t *InsightSplit) MergeExploreCohortDimension(v ExploreCohortDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreGroupDimension returns the union data inside the InsightSplit as a ExploreGroupDimension
+func (t InsightSplit) AsExploreGroupDimension() (ExploreGroupDimension, error) {
+	var body ExploreGroupDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreGroupDimension overwrites any union data inside the InsightSplit as the provided ExploreGroupDimension
+func (t *InsightSplit) FromExploreGroupDimension(v ExploreGroupDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreGroupDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreGroupDimension
+func (t *InsightSplit) MergeExploreGroupDimension(v ExploreGroupDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t InsightSplit) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *InsightSplit) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
@@ -21346,6 +22978,27 @@ type ClientInterface interface {
 	ComponentRegistryUpsertPublisherWithBody(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ComponentRegistryUpsertPublisher(ctx context.Context, projectId string, body ComponentRegistryUpsertPublisherJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportsGet request
+	ReportsGet(ctx context.Context, projectId string, reportId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportsUpdateWithBody request with any body
+	ReportsUpdateWithBody(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReportsUpdate(ctx context.Context, projectId string, reportId string, body ReportsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportsCreateInsightWithBody request with any body
+	ReportsCreateInsightWithBody(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReportsCreateInsight(ctx context.Context, projectId string, reportId string, body ReportsCreateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportsDeleteInsight request
+	ReportsDeleteInsight(ctx context.Context, projectId string, reportId string, insightId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportsUpdateInsightWithBody request with any body
+	ReportsUpdateInsightWithBody(ctx context.Context, projectId string, reportId string, insightId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReportsUpdateInsight(ctx context.Context, projectId string, reportId string, insightId string, body ReportsUpdateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SandboxCreateActionWithBody request with any body
 	SandboxCreateActionWithBody(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -26653,6 +28306,102 @@ func (c *Client) ComponentRegistryUpsertPublisherWithBody(ctx context.Context, p
 
 func (c *Client) ComponentRegistryUpsertPublisher(ctx context.Context, projectId string, body ComponentRegistryUpsertPublisherJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewComponentRegistryUpsertPublisherRequest(c.Server, projectId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsGet(ctx context.Context, projectId string, reportId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsGetRequest(c.Server, projectId, reportId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsUpdateWithBody(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsUpdateRequestWithBody(c.Server, projectId, reportId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsUpdate(ctx context.Context, projectId string, reportId string, body ReportsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsUpdateRequest(c.Server, projectId, reportId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsCreateInsightWithBody(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsCreateInsightRequestWithBody(c.Server, projectId, reportId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsCreateInsight(ctx context.Context, projectId string, reportId string, body ReportsCreateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsCreateInsightRequest(c.Server, projectId, reportId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsDeleteInsight(ctx context.Context, projectId string, reportId string, insightId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsDeleteInsightRequest(c.Server, projectId, reportId, insightId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsUpdateInsightWithBody(ctx context.Context, projectId string, reportId string, insightId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsUpdateInsightRequestWithBody(c.Server, projectId, reportId, insightId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportsUpdateInsight(ctx context.Context, projectId string, reportId string, insightId string, body ReportsUpdateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportsUpdateInsightRequest(c.Server, projectId, reportId, insightId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -45230,6 +46979,264 @@ func NewComponentRegistryUpsertPublisherRequestWithBody(server string, projectId
 	return req, nil
 }
 
+// NewReportsGetRequest generates requests for ReportsGet
+func NewReportsGetRequest(server string, projectId string, reportId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "reportId", runtime.ParamLocationPath, reportId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/reports/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReportsUpdateRequest calls the generic ReportsUpdate builder with application/json body
+func NewReportsUpdateRequest(server string, projectId string, reportId string, body ReportsUpdateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReportsUpdateRequestWithBody(server, projectId, reportId, "application/json", bodyReader)
+}
+
+// NewReportsUpdateRequestWithBody generates requests for ReportsUpdate with any type of body
+func NewReportsUpdateRequestWithBody(server string, projectId string, reportId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "reportId", runtime.ParamLocationPath, reportId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/reports/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReportsCreateInsightRequest calls the generic ReportsCreateInsight builder with application/json body
+func NewReportsCreateInsightRequest(server string, projectId string, reportId string, body ReportsCreateInsightJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReportsCreateInsightRequestWithBody(server, projectId, reportId, "application/json", bodyReader)
+}
+
+// NewReportsCreateInsightRequestWithBody generates requests for ReportsCreateInsight with any type of body
+func NewReportsCreateInsightRequestWithBody(server string, projectId string, reportId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "reportId", runtime.ParamLocationPath, reportId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/reports/%s/insights", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReportsDeleteInsightRequest generates requests for ReportsDeleteInsight
+func NewReportsDeleteInsightRequest(server string, projectId string, reportId string, insightId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "reportId", runtime.ParamLocationPath, reportId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "insightId", runtime.ParamLocationPath, insightId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/reports/%s/insights/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReportsUpdateInsightRequest calls the generic ReportsUpdateInsight builder with application/json body
+func NewReportsUpdateInsightRequest(server string, projectId string, reportId string, insightId string, body ReportsUpdateInsightJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReportsUpdateInsightRequestWithBody(server, projectId, reportId, insightId, "application/json", bodyReader)
+}
+
+// NewReportsUpdateInsightRequestWithBody generates requests for ReportsUpdateInsight with any type of body
+func NewReportsUpdateInsightRequestWithBody(server string, projectId string, reportId string, insightId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "reportId", runtime.ParamLocationPath, reportId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "insightId", runtime.ParamLocationPath, insightId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/reports/%s/insights/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSandboxCreateActionRequest calls the generic SandboxCreateAction builder with application/json body
 func NewSandboxCreateActionRequest(server string, projectId string, body SandboxCreateActionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -50781,6 +52788,27 @@ type ClientWithResponsesInterface interface {
 	ComponentRegistryUpsertPublisherWithBodyWithResponse(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ComponentRegistryUpsertPublisherResponse, error)
 
 	ComponentRegistryUpsertPublisherWithResponse(ctx context.Context, projectId string, body ComponentRegistryUpsertPublisherJSONRequestBody, reqEditors ...RequestEditorFn) (*ComponentRegistryUpsertPublisherResponse, error)
+
+	// ReportsGetWithResponse request
+	ReportsGetWithResponse(ctx context.Context, projectId string, reportId string, reqEditors ...RequestEditorFn) (*ReportsGetResponse, error)
+
+	// ReportsUpdateWithBodyWithResponse request with any body
+	ReportsUpdateWithBodyWithResponse(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsUpdateResponse, error)
+
+	ReportsUpdateWithResponse(ctx context.Context, projectId string, reportId string, body ReportsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsUpdateResponse, error)
+
+	// ReportsCreateInsightWithBodyWithResponse request with any body
+	ReportsCreateInsightWithBodyWithResponse(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsCreateInsightResponse, error)
+
+	ReportsCreateInsightWithResponse(ctx context.Context, projectId string, reportId string, body ReportsCreateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsCreateInsightResponse, error)
+
+	// ReportsDeleteInsightWithResponse request
+	ReportsDeleteInsightWithResponse(ctx context.Context, projectId string, reportId string, insightId string, reqEditors ...RequestEditorFn) (*ReportsDeleteInsightResponse, error)
+
+	// ReportsUpdateInsightWithBodyWithResponse request with any body
+	ReportsUpdateInsightWithBodyWithResponse(ctx context.Context, projectId string, reportId string, insightId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsUpdateInsightResponse, error)
+
+	ReportsUpdateInsightWithResponse(ctx context.Context, projectId string, reportId string, insightId string, body ReportsUpdateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsUpdateInsightResponse, error)
 
 	// SandboxCreateActionWithBodyWithResponse request with any body
 	SandboxCreateActionWithBodyWithResponse(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SandboxCreateActionResponse, error)
@@ -59852,6 +61880,149 @@ func (r ComponentRegistryUpsertPublisherResponse) StatusCode() int {
 	return 0
 }
 
+type ReportsGetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ReportJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+	JSON503      *UnavailableErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportsGetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportsGetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReportsUpdateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ReportJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+	JSON503      *UnavailableErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportsUpdateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportsUpdateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReportsCreateInsightResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ReportInsightJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+	JSON503      *UnavailableErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportsCreateInsightResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportsCreateInsightResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReportsDeleteInsightResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+	JSON503      *UnavailableErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportsDeleteInsightResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportsDeleteInsightResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReportsUpdateInsightResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ReportInsightJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+	JSON503      *UnavailableErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportsUpdateInsightResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportsUpdateInsightResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type SandboxCreateActionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -64769,6 +66940,75 @@ func (c *ClientWithResponses) ComponentRegistryUpsertPublisherWithResponse(ctx c
 		return nil, err
 	}
 	return ParseComponentRegistryUpsertPublisherResponse(rsp)
+}
+
+// ReportsGetWithResponse request returning *ReportsGetResponse
+func (c *ClientWithResponses) ReportsGetWithResponse(ctx context.Context, projectId string, reportId string, reqEditors ...RequestEditorFn) (*ReportsGetResponse, error) {
+	rsp, err := c.ReportsGet(ctx, projectId, reportId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsGetResponse(rsp)
+}
+
+// ReportsUpdateWithBodyWithResponse request with arbitrary body returning *ReportsUpdateResponse
+func (c *ClientWithResponses) ReportsUpdateWithBodyWithResponse(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsUpdateResponse, error) {
+	rsp, err := c.ReportsUpdateWithBody(ctx, projectId, reportId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsUpdateResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReportsUpdateWithResponse(ctx context.Context, projectId string, reportId string, body ReportsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsUpdateResponse, error) {
+	rsp, err := c.ReportsUpdate(ctx, projectId, reportId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsUpdateResponse(rsp)
+}
+
+// ReportsCreateInsightWithBodyWithResponse request with arbitrary body returning *ReportsCreateInsightResponse
+func (c *ClientWithResponses) ReportsCreateInsightWithBodyWithResponse(ctx context.Context, projectId string, reportId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsCreateInsightResponse, error) {
+	rsp, err := c.ReportsCreateInsightWithBody(ctx, projectId, reportId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsCreateInsightResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReportsCreateInsightWithResponse(ctx context.Context, projectId string, reportId string, body ReportsCreateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsCreateInsightResponse, error) {
+	rsp, err := c.ReportsCreateInsight(ctx, projectId, reportId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsCreateInsightResponse(rsp)
+}
+
+// ReportsDeleteInsightWithResponse request returning *ReportsDeleteInsightResponse
+func (c *ClientWithResponses) ReportsDeleteInsightWithResponse(ctx context.Context, projectId string, reportId string, insightId string, reqEditors ...RequestEditorFn) (*ReportsDeleteInsightResponse, error) {
+	rsp, err := c.ReportsDeleteInsight(ctx, projectId, reportId, insightId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsDeleteInsightResponse(rsp)
+}
+
+// ReportsUpdateInsightWithBodyWithResponse request with arbitrary body returning *ReportsUpdateInsightResponse
+func (c *ClientWithResponses) ReportsUpdateInsightWithBodyWithResponse(ctx context.Context, projectId string, reportId string, insightId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportsUpdateInsightResponse, error) {
+	rsp, err := c.ReportsUpdateInsightWithBody(ctx, projectId, reportId, insightId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsUpdateInsightResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReportsUpdateInsightWithResponse(ctx context.Context, projectId string, reportId string, insightId string, body ReportsUpdateInsightJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportsUpdateInsightResponse, error) {
+	rsp, err := c.ReportsUpdateInsight(ctx, projectId, reportId, insightId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportsUpdateInsightResponse(rsp)
 }
 
 // SandboxCreateActionWithBodyWithResponse request with arbitrary body returning *SandboxCreateActionResponse
@@ -85496,6 +87736,367 @@ func ParseComponentRegistryUpsertPublisherResponse(rsp *http.Response) (*Compone
 			return nil, err
 		}
 		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportsGetResponse parses an HTTP response from a ReportsGetWithResponse call
+func ParseReportsGetResponse(rsp *http.Response) (*ReportsGetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportsGetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReportJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest UnavailableErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportsUpdateResponse parses an HTTP response from a ReportsUpdateWithResponse call
+func ParseReportsUpdateResponse(rsp *http.Response) (*ReportsUpdateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportsUpdateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReportJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest UnavailableErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportsCreateInsightResponse parses an HTTP response from a ReportsCreateInsightWithResponse call
+func ParseReportsCreateInsightResponse(rsp *http.Response) (*ReportsCreateInsightResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportsCreateInsightResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ReportInsightJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest UnavailableErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportsDeleteInsightResponse parses an HTTP response from a ReportsDeleteInsightWithResponse call
+func ParseReportsDeleteInsightResponse(rsp *http.Response) (*ReportsDeleteInsightResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportsDeleteInsightResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest UnavailableErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportsUpdateInsightResponse parses an HTTP response from a ReportsUpdateInsightWithResponse call
+func ParseReportsUpdateInsightResponse(rsp *http.Response) (*ReportsUpdateInsightResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportsUpdateInsightResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReportInsightJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest UnavailableErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

@@ -5427,7 +5427,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\NoticesUpdatePreferences($organizationId, $requestBody), $fetch);
     }
     /**
-     * Lists a folder's contents (the top level without `parentId`), folders first and then by name. `sort=recent` lists every board by last change instead, and `isArchived=true` lists the trash. Fails with `not_found` (`file_not_found`) for a folder that isn't there or is in the trash.
+     * Lists a folder's contents (the top level without `parentId`), folders first and then by name. `sort=recent` lists every board, dashboard and report by last change instead, `kind` every file of one kind wherever it is, `search` files by part of their name, and `isArchived=true` lists the trash. Fails with `not_found` (`file_not_found`) for a folder that isn't there or is in the trash.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -5453,7 +5453,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\FilesList($projectId, $queryParameters), $fetch);
     }
     /**
-     * Creates a folder or a board, at the top level or inside the folder `parentId`. A new board starts with the columns Backlog, Todo, In progress and Done. Fails with `conflict` (`file_conflict`) when `parentId` isn't a folder.
+     * Creates a folder, board, dashboard or report (`kind`), at the top level or inside the folder `parentId`. A new board starts with the columns Backlog, Todo, In progress and Done; a new dashboard or report starts empty, with the variables Range (the last 30 days) and Compare (the period before). `reports.*` then writes what is in a report. Fails with `conflict` (`file_conflict`) when `parentId` isn't a folder.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreateFileBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -5917,6 +5917,105 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     public function boardsUpdateLabel(string $projectId, string $boardId, string $labelId, \Voidhash\Generated\Core\Model\UpdateBoardLabelBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
     {
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\BoardsUpdateLabel($projectId, $boardId, $labelId, $requestBody), $fetch);
+    }
+    /**
+     * Reads a report: its body as Markdown, and its insights, each with its whole query and where the body shows it. A report has no controls of its own. Fails with `not_found` (`report_not_found`) for a report that isn't there, is in the trash, or is another kind of file, and `unavailable` (`reports_unavailable`) when reports can't be reached on this deployment.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $reportId The report's id: its file's id in Files, `file_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetInternalServerErrorException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsGetServiceUnavailableException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ReportJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function reportsGet(string $projectId, string $reportId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ReportsGet($projectId, $reportId), $fetch);
+    }
+    /**
+     * Writes a report's body, whole with `content` or in parts with `contentEdits`. A report is live and has no controls; a number or chart in it can show a period of its own with `@RANGE` at the end of its token. Everything the request carries is checked before anything is written. Blocks the write leaves as they were keep their place, so people typing elsewhere in the report aren't disturbed. Fails with `invalid_request` (`invalid_body`, `unknown_report_insight`, `unknown_value_show`, `invalid_report_period`, `report_too_long`, `report_block_too_large`, `report_text_not_found`, `report_text_not_unique` or `report_content_ambiguous`) for a field it doesn't know, a body naming an insight the report doesn't have (add it with `reports.createInsight` first), an inline value saying what none says, a token over a period that isn't one (a period is a named range such as `last_30d`, days such as `2025-01-01..2025-12-31`, or `2025`, `2025-10`, `2025-11-12`), a body too long, an edit's `oldText` that isn't there exactly once, or neither or both of `content` and `contentEdits`, with `param` naming the field or edit. A long body is written in several steps: `unavailable` (`report_partly_written`) or `conflict` (`report_write_incomplete` or `report_changed_while_writing`) mean only part of it was, and sending the same `content` again finishes it.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $reportId The report's id: its file's id in Files, `file_...`.
+     * @param \Voidhash\Generated\Core\Model\UpdateReportBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInternalServerErrorException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateServiceUnavailableException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ReportJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function reportsUpdate(string $projectId, string $reportId, \Voidhash\Generated\Core\Model\UpdateReportBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ReportsUpdate($projectId, $reportId, $requestBody), $fetch);
+    }
+    /**
+     * Adds an insight to a report, which nothing shows until the body places it with `<#insight:ID>` or `<#value:ID>` (`reports.update`). Give its query as `insight`, or a built-in chart as `chart`. An insight covers the last 30 days and compares with the period before unless it says otherwise: `range` for other days, `compare: false` for no comparison, `comparison: previous_year` or fixed days in `comparisonRange` for another one. A report has no controls, so what it shows is exactly what its insights and the body's tokens say; one number or chart is put on another period with `@RANGE` on its token, the insight unchanged. The answer holds the query as stored, with what was left out filled in. Fails with `invalid_request` (`invalid_body`, `insight_definition_missing` or `insight_definition_ambiguous`) for a field it doesn't know (named in the message), or neither or both of `insight` and `chart`.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $reportId The report's id: its file's id in Files, `file_...`.
+     * @param \Voidhash\Generated\Core\Model\CreateReportInsightBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightInternalServerErrorException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsCreateInsightServiceUnavailableException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ReportInsightJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function reportsCreateInsight(string $projectId, string $reportId, \Voidhash\Generated\Core\Model\CreateReportInsightBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ReportsCreateInsight($projectId, $reportId, $requestBody), $fetch);
+    }
+    /**
+     * Takes an insight out of a report, with every `<#insight:ID>` block and `<#value:ID>` value of the body that shows it. Fails with `not_found` (`report_insight_not_found`) for an insight the report doesn't have.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $reportId The report's id: its file's id in Files, `file_...`.
+     * @param string $insightId The insight's id, from the report's `insights`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightInternalServerErrorException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsDeleteInsightServiceUnavailableException
+     *
+     * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
+     */
+    public function reportsDeleteInsight(string $projectId, string $reportId, string $insightId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ReportsDeleteInsight($projectId, $reportId, $insightId), $fetch);
+    }
+    /**
+     * Changes an insight's title or what it asks. A query or chart replaces the one it had whole, filled in as a new one is: a field left out takes its default (the last 30 days, compared with the period before) rather than keeping its stored value, so send every field to keep; what `reports.get` answers for it holds every field and stores the same again. Its kind stays. Fails with `not_found` (`report_insight_not_found`) for an insight the report doesn't have, and `invalid_request` (`invalid_body` or `insight_kind_fixed`) for a field it doesn't know or a query of the other kind.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $reportId The report's id: its file's id in Files, `file_...`.
+     * @param string $insightId The insight's id, from the report's `insights`.
+     * @param \Voidhash\Generated\Core\Model\UpdateReportInsightBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightInternalServerErrorException
+     * @throws \Voidhash\Generated\Core\Exception\ReportsUpdateInsightServiceUnavailableException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ReportInsightJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function reportsUpdateInsight(string $projectId, string $reportId, string $insightId, \Voidhash\Generated\Core\Model\UpdateReportInsightBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ReportsUpdateInsight($projectId, $reportId, $insightId, $requestBody), $fetch);
     }
     /**
      * Lists one thing's comments, oldest first. Fails with `invalid_request` (`comment_subject_invalid`) for a subject type that can't have comments, and `not_found` (`comment_subject_not_found`) for something that isn't there.

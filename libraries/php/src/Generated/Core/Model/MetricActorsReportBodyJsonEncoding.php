@@ -31,7 +31,7 @@ class MetricActorsReportBodyJsonEncoding
      */
     protected $group;
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison`. Defaults to false.
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @var bool|null
      */
@@ -121,7 +121,7 @@ class MetricActorsReportBodyJsonEncoding
         return $this;
     }
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison`. Defaults to false.
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @return bool|null
      */
@@ -130,7 +130,7 @@ class MetricActorsReportBodyJsonEncoding
         return $this->isPrevious;
     }
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison`. Defaults to false.
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @param bool|null $isPrevious
      *

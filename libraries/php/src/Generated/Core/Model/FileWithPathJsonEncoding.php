@@ -25,6 +25,8 @@ class FileWithPathJsonEncoding
      */
     protected $parentId;
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @var string
      */
     protected $kind;
@@ -123,6 +125,8 @@ class FileWithPathJsonEncoding
         return $this;
     }
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @return string
      */
     public function getKind(): string
@@ -130,6 +134,8 @@ class FileWithPathJsonEncoding
         return $this->kind;
     }
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @param string $kind
      *
      * @return self

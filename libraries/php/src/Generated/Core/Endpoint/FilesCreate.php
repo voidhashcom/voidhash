@@ -6,7 +6,7 @@ class FilesCreate extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint i
 {
     protected $projectId;
     /**
-     * Creates a folder or a board, at the top level or inside the folder `parentId`. A new board starts with the columns Backlog, Todo, In progress and Done. Fails with `conflict` (`file_conflict`) when `parentId` isn't a folder.
+     * Creates a folder, board, dashboard or report (`kind`), at the top level or inside the folder `parentId`. A new board starts with the columns Backlog, Todo, In progress and Done; a new dashboard or report starts empty, with the variables Range (the last 30 days) and Compare (the period before). `reports.*` then writes what is in a report. Fails with `conflict` (`file_conflict`) when `parentId` isn't a folder.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreateFileBodyJsonEncoding $requestBody
      */

@@ -13,6 +13,8 @@ class CreateFileBodyJsonEncoding
         return array_key_exists($property, $this->initialized);
     }
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @var string
      */
     protected $kind;
@@ -25,6 +27,8 @@ class CreateFileBodyJsonEncoding
      */
     protected $parentId;
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @return string
      */
     public function getKind(): string
@@ -32,6 +36,8 @@ class CreateFileBodyJsonEncoding
         return $this->kind;
     }
     /**
+     * What an entry is: a `folder`, or a file whose content is read and written through its own group: a `board` (`boards.*`), a `dashboard`, or a `report` (`reports.*`).
+     *
      * @param string $kind
      *
      * @return self
