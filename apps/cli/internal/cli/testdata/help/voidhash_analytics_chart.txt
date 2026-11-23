@@ -1,5 +1,5 @@
-Run one of the charts the dashboard shows: retention, paywalls, web traffic, installs, countries and
-more. 'voidhash analytics charts' lists them.
+Run one of the built-in charts Studio shows: retention, paywalls, web traffic, installs, countries
+and more. 'voidhash analytics charts' lists them.
 
 A time series reads as one number per line: the total of counts and money, the latest value of rates
 and stocks. Tables show their first 25 rows. --json has the whole result.

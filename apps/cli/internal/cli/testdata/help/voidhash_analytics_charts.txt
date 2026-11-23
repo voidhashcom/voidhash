@@ -1,5 +1,6 @@
-List the charts the dashboard shows, by the page they are on. 'voidhash analytics chart <chart>'
-runs one. --json also has what each measures, and the dimensions and metrics it takes.
+List the built-in charts, by section: the built-in dashboard in Studio a chart is on, or overview
+for the charts of the whole business that are on none. 'voidhash analytics chart <chart>' runs one.
+--json also has what each measures, and the dimensions and metrics it takes.
 
 Usage:
   voidhash analytics charts [flags]
@@ -9,7 +10,7 @@ Flags:
       --json   Print the API objects as JSON, for scripts
   -q, --quiet  Print only ids, one per line
       --section <overview|revenue|subscribers|trials|churn|audience|paywalls|acquisition|web|app|locations|push|health>
-               Only the charts of one page of the dashboard
+               Only the charts of one built-in dashboard, or overview
 
 Global flags:
   -d, --debug              Print each request and full error detail to standard error

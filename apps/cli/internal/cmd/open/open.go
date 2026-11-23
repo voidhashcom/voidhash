@@ -43,7 +43,7 @@ var pages = []page{
 	{name: "components", path: "components"},
 	{name: "events", path: "activity/events"},
 	{name: "event-settings", path: "settings/events"},
-	{name: "analytics", path: "analytics/revenue"},
+	{name: "analytics", path: "analytics/dashboards"},
 	{name: "ads", path: "ads"},
 	{name: "ad-accounts", path: "settings/ad-accounts"},
 	{name: "campaigns", path: "ads/campaigns"},

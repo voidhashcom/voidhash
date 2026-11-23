@@ -17,7 +17,7 @@ import (
 )
 
 // chartsJSON is the catalog of the project's built-in charts, one object
-// per chart in the order the dashboard's pages show them. It is the catalog
+// per chart in the order Studio's built-in dashboards show them. It is the catalog
 // in packages/lib/src/analytics-charts.ts (without the charts the dashboard
 // keeps for itself), which is where a chart is added or changed; charts.json
 // is then written again from it with `go generate`, and a test fails while
@@ -55,13 +55,13 @@ var sections = []string{"overview", "revenue", "subscribers", "trials", "churn",
 func newCharts(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "charts",
-		Short: "List the charts the dashboard shows.",
-		Long:  "List the charts the dashboard shows, by the page they are on. 'voidhash analytics chart <chart>' runs one. --json also has what each measures, and the dimensions and metrics it takes.",
+		Short: "List the built-in charts.",
+		Long:  "List the built-in charts, by section: the built-in dashboard in Studio a chart is on, or overview for the charts of the whole business that are on none. 'voidhash analytics chart <chart>' runs one. --json also has what each measures, and the dimensions and metrics it takes.",
 		Example: `voidhash analytics charts
 voidhash analytics charts --section paywalls
 voidhash analytics charts --json`,
 	}
-	section := cli.AddChoiceFlag(cmd, "section", "", sections, "", "Only the charts of one page of the dashboard")
+	section := cli.AddChoiceFlag(cmd, "section", "", sections, "", "Only the charts of one built-in dashboard, or overview")
 	output := cli.AddOutputFlags(cmd)
 	cmd.RunE = func(*cobra.Command, []string) error {
 		mode, err := output.Mode()
@@ -78,7 +78,7 @@ voidhash analytics charts --json`,
 		}
 		cli.PrintTable(app, []cli.Column[chart]{
 			{Header: "CHART", Cell: func(item chart) string { return item.ID }},
-			{Header: "PAGE", Cell: func(item chart) string { return item.Section }},
+			{Header: "SECTION", Cell: func(item chart) string { return item.Section }},
 			{Header: "TITLE", Cell: func(item chart) string { return item.Title }},
 		}, charts.Items, "No charts.")
 		app.Notef("Run one with 'voidhash analytics chart <chart>'.")
@@ -91,8 +91,8 @@ voidhash analytics charts --json`,
 func newChart(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "chart",
-		Short: "Run one of the charts the dashboard shows.",
-		Long: `Run one of the charts the dashboard shows: retention, paywalls, web traffic, installs, countries and more. 'voidhash analytics charts' lists them.
+		Short: "Run one of the built-in charts.",
+		Long: `Run one of the built-in charts Studio shows: retention, paywalls, web traffic, installs, countries and more. 'voidhash analytics charts' lists them.
 
 A time series reads as one number per line: the total of counts and money, the latest value of rates and stocks. Tables show their first 25 rows. --json has the whole result.`,
 		Example: `voidhash analytics chart mrr_trend --last 90d --by week

@@ -1,6 +1,6 @@
 // Package analytics holds `voidhash analytics`: who campaigns and other
 // touches brought in, how their revenue grows, whether tracking works, the
-// charts the dashboard shows, and alerts on events that look broken.
+// built-in charts, and alerts on events that look broken.
 package analytics
 
 import (
@@ -20,7 +20,7 @@ func New(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "analytics",
 		Short: "Acquisition, cohorts, tracking health, charts and alerts.",
-		Long:  "Who your campaigns and other touches brought in, how their revenue grows, whether tracking works, every chart the dashboard shows, and alerts on events that look broken.",
+		Long:  "Who your campaigns and other touches brought in, how their revenue grows, whether tracking works, every built-in chart, and alerts on events that look broken.",
 	}
 	cmd.AddCommand(newAcquisition(app), newCohorts(app), newHealth(app), newCharts(app), newChart(app), newAlerts(app))
 	return cmd
