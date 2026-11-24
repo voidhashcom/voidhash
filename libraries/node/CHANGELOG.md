@@ -1,5 +1,11 @@
 # @voidhash/node
 
+## 0.3.0
+
+### Minor Changes
+
+- Read and write reports, documents with live analytics in a project's Files: `reports.get` and `reports.update` read and write a report's Markdown body, where each number and chart can show a period of its own, and `reports.createInsight`, `updateInsight` and `deleteInsight` manage the insights it shows, each a whole query that covers the last 30 days and compares with the period before unless it says otherwise. Files of kind `report` are created, listed, moved and trashed with `files`. A metric query can also compare with a fixed range, `comparisonRange`.
+
 ## 0.2.0
 
 ### Minor Changes

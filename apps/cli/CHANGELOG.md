@@ -1,5 +1,11 @@
 # voidhash-cli
 
+## 0.2.1
+
+### Patch Changes
+
+- `voidhash open analytics` opens the project's dashboards in Studio, where its built-in analytics dashboards are listed. `voidhash analytics charts` names the column of each chart's section `SECTION`, which is the built-in dashboard in Studio the chart is on, or `overview` for the charts of the whole business that are on none; `--section` takes the same values as before, and `--json` and `-q` print the same output.
+
 ## 0.2.0
 
 ### Minor Changes
