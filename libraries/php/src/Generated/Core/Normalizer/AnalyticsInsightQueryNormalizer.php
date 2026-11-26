@@ -47,6 +47,9 @@ class AnalyticsInsightQueryNormalizer implements DenormalizerInterface, Normaliz
         elseif (\array_key_exists('breakdowns', $data) && $data['breakdowns'] === null) {
             $object->setBreakdowns(null);
         }
+        if (\array_key_exists('basis', $data)) {
+            $object->setBasis($data['basis']);
+        }
         if (\array_key_exists('filter', $data)) {
             $value_1 = $data['filter'];
             if (is_array($data['filter']) and \array_key_exists('field', $data['filter']) and (\array_key_exists('op', $data['filter']) and ($data['filter']['op'] == 'eq' or $data['filter']['op'] == 'neq' or $data['filter']['op'] == 'in' or $data['filter']['op'] == 'not_in' or $data['filter']['op'] == 'gt' or $data['filter']['op'] == 'gte' or $data['filter']['op'] == 'lt' or $data['filter']['op'] == 'lte' or $data['filter']['op'] == 'contains' or $data['filter']['op'] == 'exists')) and (\array_key_exists('type', $data['filter']) and $data['filter']['type'] == 'predicate')) {
@@ -104,6 +107,9 @@ class AnalyticsInsightQueryNormalizer implements DenormalizerInterface, Normaliz
                 $values[] = $this->normalizer->normalize($value, 'json', $context);
             }
             $dataArray['breakdowns'] = $values;
+        }
+        if ($data->isInitialized('basis') && null !== $data->getBasis()) {
+            $dataArray['basis'] = $data->getBasis();
         }
         if ($data->isInitialized('filter') && null !== $data->getFilter()) {
             $value_1 = $data->getFilter();

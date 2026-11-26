@@ -76,6 +76,9 @@ class AnalyticsChartQueryNormalizer implements DenormalizerInterface, Normalizer
         if (\array_key_exists('filters', $data)) {
             $object->setFilters($this->denormalizer->denormalize($data['filters'], \Voidhash\Generated\Core\Model\AnalyticsChartFilters::class, 'json', $context));
         }
+        if (\array_key_exists('basis', $data)) {
+            $object->setBasis($data['basis']);
+        }
         if (\array_key_exists('options', $data)) {
             $object->setOptions($this->denormalizer->denormalize($data['options'], \Voidhash\Generated\Core\Model\AnalyticsChartOptions::class, 'json', $context));
         }
@@ -104,6 +107,9 @@ class AnalyticsChartQueryNormalizer implements DenormalizerInterface, Normalizer
         }
         if ($data->isInitialized('filters') && null !== $data->getFilters()) {
             $dataArray['filters'] = $this->normalizer->normalize($data->getFilters(), 'json', $context);
+        }
+        if ($data->isInitialized('basis') && null !== $data->getBasis()) {
+            $dataArray['basis'] = $data->getBasis();
         }
         if ($data->isInitialized('options') && null !== $data->getOptions()) {
             $dataArray['options'] = $this->normalizer->normalize($data->getOptions(), 'json', $context);

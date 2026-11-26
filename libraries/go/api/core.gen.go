@@ -648,6 +648,16 @@ const (
 	AdsResultChangeTypeWebsitePurchase AdsResultChangeType = "website_purchase"
 )
 
+// Defines values for AnalyticsActiveSubscriptionsMetricKind.
+const (
+	AnalyticsActiveSubscriptionsMetricKindActiveSubscriptions AnalyticsActiveSubscriptionsMetricKind = "active_subscriptions"
+)
+
+// Defines values for AnalyticsActiveTrialsMetricKind.
+const (
+	AnalyticsActiveTrialsMetricKindActiveTrials AnalyticsActiveTrialsMetricKind = "active_trials"
+)
+
 // Defines values for AnalyticsActorKind.
 const (
 	AnalyticsActorKindGroup    AnalyticsActorKind = "group"
@@ -658,12 +668,13 @@ const (
 
 // Defines values for AnalyticsActorValueKind.
 const (
-	AnalyticsActorValueKindEvents   AnalyticsActorValueKind = "events"
-	AnalyticsActorValueKindMoney    AnalyticsActorValueKind = "money"
-	AnalyticsActorValueKindPeriods  AnalyticsActorValueKind = "periods"
-	AnalyticsActorValueKindProperty AnalyticsActorValueKind = "property"
-	AnalyticsActorValueKindSeconds  AnalyticsActorValueKind = "seconds"
-	AnalyticsActorValueKindSessions AnalyticsActorValueKind = "sessions"
+	AnalyticsActorValueKindEvents        AnalyticsActorValueKind = "events"
+	AnalyticsActorValueKindMoney         AnalyticsActorValueKind = "money"
+	AnalyticsActorValueKindPeriods       AnalyticsActorValueKind = "periods"
+	AnalyticsActorValueKindProperty      AnalyticsActorValueKind = "property"
+	AnalyticsActorValueKindSeconds       AnalyticsActorValueKind = "seconds"
+	AnalyticsActorValueKindSessions      AnalyticsActorValueKind = "sessions"
+	AnalyticsActorValueKindSubscriptions AnalyticsActorValueKind = "subscriptions"
 )
 
 // Defines values for AnalyticsAlertKind.
@@ -900,6 +911,7 @@ const (
 	RevenueOneTimeVsSubscription AnalyticsChartId = "revenue_one_time_vs_subscription"
 	RevenuePerThousandViews      AnalyticsChartId = "revenue_per_thousand_views"
 	RevenueRetention             AnalyticsChartId = "revenue_retention"
+	RevenueTrend                 AnalyticsChartId = "revenue_trend"
 	ScreenTime                   AnalyticsChartId = "screen_time"
 	SdkVersions                  AnalyticsChartId = "sdk_versions"
 	SelfReportedSource           AnalyticsChartId = "self_reported_source"
@@ -1049,6 +1061,23 @@ const (
 	Table AnalyticsChartTableResultShape = "table"
 )
 
+// Defines values for AnalyticsChurnedMrrMetricBasis.
+const (
+	AnalyticsChurnedMrrMetricBasisGross    AnalyticsChurnedMrrMetricBasis = "gross"
+	AnalyticsChurnedMrrMetricBasisNetOfTax AnalyticsChurnedMrrMetricBasis = "net_of_tax"
+	AnalyticsChurnedMrrMetricBasisProceeds AnalyticsChurnedMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsChurnedMrrMetricKind.
+const (
+	AnalyticsChurnedMrrMetricKindChurnedMrr AnalyticsChurnedMrrMetricKind = "churned_mrr"
+)
+
+// Defines values for AnalyticsChurnedSubscriptionsMetricKind.
+const (
+	AnalyticsChurnedSubscriptionsMetricKindChurnedSubscriptions AnalyticsChurnedSubscriptionsMetricKind = "churned_subscriptions"
+)
+
 // Defines values for AnalyticsCohortCohortConditionKind.
 const (
 	AnalyticsCohortCohortConditionKindCohort AnalyticsCohortCohortConditionKind = "cohort"
@@ -1151,6 +1180,23 @@ const (
 	AnalyticsCohortTraitConditionOpStartsWith  AnalyticsCohortTraitConditionOp = "starts_with"
 )
 
+// Defines values for AnalyticsContractionMrrMetricBasis.
+const (
+	AnalyticsContractionMrrMetricBasisGross    AnalyticsContractionMrrMetricBasis = "gross"
+	AnalyticsContractionMrrMetricBasisNetOfTax AnalyticsContractionMrrMetricBasis = "net_of_tax"
+	AnalyticsContractionMrrMetricBasisProceeds AnalyticsContractionMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsContractionMrrMetricKind.
+const (
+	AnalyticsContractionMrrMetricKindContractionMrr AnalyticsContractionMrrMetricKind = "contraction_mrr"
+)
+
+// Defines values for AnalyticsCountryDimensionKind.
+const (
+	AnalyticsCountryDimensionKindCountry AnalyticsCountryDimensionKind = "country"
+)
+
 // Defines values for AnalyticsCustomTimeRangePreset.
 const (
 	AnalyticsCustomTimeRangePresetCustom AnalyticsCustomTimeRangePreset = "custom"
@@ -1205,6 +1251,18 @@ const (
 	AnalyticsEventMetricStatisticP95     AnalyticsEventMetricStatistic = "p95"
 	AnalyticsEventMetricStatisticP99     AnalyticsEventMetricStatistic = "p99"
 	AnalyticsEventMetricStatisticSum     AnalyticsEventMetricStatistic = "sum"
+)
+
+// Defines values for AnalyticsExpansionMrrMetricBasis.
+const (
+	AnalyticsExpansionMrrMetricBasisGross    AnalyticsExpansionMrrMetricBasis = "gross"
+	AnalyticsExpansionMrrMetricBasisNetOfTax AnalyticsExpansionMrrMetricBasis = "net_of_tax"
+	AnalyticsExpansionMrrMetricBasisProceeds AnalyticsExpansionMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsExpansionMrrMetricKind.
+const (
+	AnalyticsExpansionMrrMetricKindExpansionMrr AnalyticsExpansionMrrMetricKind = "expansion_mrr"
 )
 
 // Defines values for AnalyticsFilterAndType.
@@ -1287,31 +1345,31 @@ const (
 
 // Defines values for AnalyticsInsightResponseItemInsightId.
 const (
-	ActiveSubscribersGrowth AnalyticsInsightResponseItemInsightId = "active_subscribers_growth"
-	ActiveSubscriptions     AnalyticsInsightResponseItemInsightId = "active_subscriptions"
-	ActiveTrials            AnalyticsInsightResponseItemInsightId = "active_trials"
-	Arppu                   AnalyticsInsightResponseItemInsightId = "arppu"
-	Arpu                    AnalyticsInsightResponseItemInsightId = "arpu"
-	Arr                     AnalyticsInsightResponseItemInsightId = "arr"
-	ChurnRate               AnalyticsInsightResponseItemInsightId = "churn_rate"
-	ChurnedRevenue          AnalyticsInsightResponseItemInsightId = "churned_revenue"
-	ChurnedSubscriptions    AnalyticsInsightResponseItemInsightId = "churned_subscriptions"
-	ContractionMrr          AnalyticsInsightResponseItemInsightId = "contraction_mrr"
-	ExpansionMrr            AnalyticsInsightResponseItemInsightId = "expansion_mrr"
-	Mrr                     AnalyticsInsightResponseItemInsightId = "mrr"
-	MrrGrowthRate           AnalyticsInsightResponseItemInsightId = "mrr_growth_rate"
-	NetNewMrr               AnalyticsInsightResponseItemInsightId = "net_new_mrr"
-	NewMrr                  AnalyticsInsightResponseItemInsightId = "new_mrr"
-	NewPersons              AnalyticsInsightResponseItemInsightId = "new_persons"
-	NewSubscriptions        AnalyticsInsightResponseItemInsightId = "new_subscriptions"
-	PersonCount             AnalyticsInsightResponseItemInsightId = "person_count"
-	ReactivationMrr         AnalyticsInsightResponseItemInsightId = "reactivation_mrr"
-	Retention               AnalyticsInsightResponseItemInsightId = "retention"
-	Revenue                 AnalyticsInsightResponseItemInsightId = "revenue"
-	SubscriberLifetimeValue AnalyticsInsightResponseItemInsightId = "subscriber_lifetime_value"
-	TrialConversionRate     AnalyticsInsightResponseItemInsightId = "trial_conversion_rate"
-	TrialConversions        AnalyticsInsightResponseItemInsightId = "trial_conversions"
-	Trials                  AnalyticsInsightResponseItemInsightId = "trials"
+	AnalyticsInsightResponseItemInsightIdActiveSubscribersGrowth AnalyticsInsightResponseItemInsightId = "active_subscribers_growth"
+	AnalyticsInsightResponseItemInsightIdActiveSubscriptions     AnalyticsInsightResponseItemInsightId = "active_subscriptions"
+	AnalyticsInsightResponseItemInsightIdActiveTrials            AnalyticsInsightResponseItemInsightId = "active_trials"
+	AnalyticsInsightResponseItemInsightIdArppu                   AnalyticsInsightResponseItemInsightId = "arppu"
+	AnalyticsInsightResponseItemInsightIdArpu                    AnalyticsInsightResponseItemInsightId = "arpu"
+	AnalyticsInsightResponseItemInsightIdArr                     AnalyticsInsightResponseItemInsightId = "arr"
+	AnalyticsInsightResponseItemInsightIdChurnRate               AnalyticsInsightResponseItemInsightId = "churn_rate"
+	AnalyticsInsightResponseItemInsightIdChurnedRevenue          AnalyticsInsightResponseItemInsightId = "churned_revenue"
+	AnalyticsInsightResponseItemInsightIdChurnedSubscriptions    AnalyticsInsightResponseItemInsightId = "churned_subscriptions"
+	AnalyticsInsightResponseItemInsightIdContractionMrr          AnalyticsInsightResponseItemInsightId = "contraction_mrr"
+	AnalyticsInsightResponseItemInsightIdExpansionMrr            AnalyticsInsightResponseItemInsightId = "expansion_mrr"
+	AnalyticsInsightResponseItemInsightIdMrr                     AnalyticsInsightResponseItemInsightId = "mrr"
+	AnalyticsInsightResponseItemInsightIdMrrGrowthRate           AnalyticsInsightResponseItemInsightId = "mrr_growth_rate"
+	AnalyticsInsightResponseItemInsightIdNetNewMrr               AnalyticsInsightResponseItemInsightId = "net_new_mrr"
+	AnalyticsInsightResponseItemInsightIdNewMrr                  AnalyticsInsightResponseItemInsightId = "new_mrr"
+	AnalyticsInsightResponseItemInsightIdNewPersons              AnalyticsInsightResponseItemInsightId = "new_persons"
+	AnalyticsInsightResponseItemInsightIdNewSubscriptions        AnalyticsInsightResponseItemInsightId = "new_subscriptions"
+	AnalyticsInsightResponseItemInsightIdPersonCount             AnalyticsInsightResponseItemInsightId = "person_count"
+	AnalyticsInsightResponseItemInsightIdReactivationMrr         AnalyticsInsightResponseItemInsightId = "reactivation_mrr"
+	AnalyticsInsightResponseItemInsightIdRetention               AnalyticsInsightResponseItemInsightId = "retention"
+	AnalyticsInsightResponseItemInsightIdRevenue                 AnalyticsInsightResponseItemInsightId = "revenue"
+	AnalyticsInsightResponseItemInsightIdSubscriberLifetimeValue AnalyticsInsightResponseItemInsightId = "subscriber_lifetime_value"
+	AnalyticsInsightResponseItemInsightIdTrialConversionRate     AnalyticsInsightResponseItemInsightId = "trial_conversion_rate"
+	AnalyticsInsightResponseItemInsightIdTrialConversions        AnalyticsInsightResponseItemInsightId = "trial_conversions"
+	AnalyticsInsightResponseItemInsightIdTrials                  AnalyticsInsightResponseItemInsightId = "trials"
 )
 
 // Defines values for AnalyticsInsightResponseItemResult0Kind.
@@ -1365,9 +1423,62 @@ const (
 	AnalyticsMetricResultUnitMoney AnalyticsMetricResultUnit = "money"
 )
 
+// Defines values for AnalyticsMoneyBasis.
+const (
+	AnalyticsMoneyBasisGross    AnalyticsMoneyBasis = "gross"
+	AnalyticsMoneyBasisNetOfTax AnalyticsMoneyBasis = "net_of_tax"
+	AnalyticsMoneyBasisProceeds AnalyticsMoneyBasis = "proceeds"
+)
+
+// Defines values for AnalyticsMrrMetricBasis.
+const (
+	AnalyticsMrrMetricBasisGross    AnalyticsMrrMetricBasis = "gross"
+	AnalyticsMrrMetricBasisNetOfTax AnalyticsMrrMetricBasis = "net_of_tax"
+	AnalyticsMrrMetricBasisProceeds AnalyticsMrrMetricBasis = "proceeds"
+)
+
 // Defines values for AnalyticsMrrMetricKind.
 const (
 	AnalyticsMrrMetricKindMrr AnalyticsMrrMetricKind = "mrr"
+)
+
+// Defines values for AnalyticsNetNewMrrMetricBasis.
+const (
+	AnalyticsNetNewMrrMetricBasisGross    AnalyticsNetNewMrrMetricBasis = "gross"
+	AnalyticsNetNewMrrMetricBasisNetOfTax AnalyticsNetNewMrrMetricBasis = "net_of_tax"
+	AnalyticsNetNewMrrMetricBasisProceeds AnalyticsNetNewMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsNetNewMrrMetricKind.
+const (
+	AnalyticsNetNewMrrMetricKindNetNewMrr AnalyticsNetNewMrrMetricKind = "net_new_mrr"
+)
+
+// Defines values for AnalyticsNewMrrMetricBasis.
+const (
+	AnalyticsNewMrrMetricBasisGross    AnalyticsNewMrrMetricBasis = "gross"
+	AnalyticsNewMrrMetricBasisNetOfTax AnalyticsNewMrrMetricBasis = "net_of_tax"
+	AnalyticsNewMrrMetricBasisProceeds AnalyticsNewMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsNewMrrMetricKind.
+const (
+	AnalyticsNewMrrMetricKindNewMrr AnalyticsNewMrrMetricKind = "new_mrr"
+)
+
+// Defines values for AnalyticsNewSubscriptionsMetricKind.
+const (
+	AnalyticsNewSubscriptionsMetricKindNewSubscriptions AnalyticsNewSubscriptionsMetricKind = "new_subscriptions"
+)
+
+// Defines values for AnalyticsNewTrialsMetricKind.
+const (
+	AnalyticsNewTrialsMetricKindNewTrials AnalyticsNewTrialsMetricKind = "new_trials"
+)
+
+// Defines values for AnalyticsPayingCustomersMetricKind.
+const (
+	AnalyticsPayingCustomersMetricKindPayingCustomers AnalyticsPayingCustomersMetricKind = "paying_customers"
 )
 
 // Defines values for AnalyticsPlanDimensionKind.
@@ -1397,6 +1508,37 @@ const (
 	AnalyticsPropertyDimensionKindProperty AnalyticsPropertyDimensionKind = "property"
 )
 
+// Defines values for AnalyticsReactivationMrrMetricBasis.
+const (
+	AnalyticsReactivationMrrMetricBasisGross    AnalyticsReactivationMrrMetricBasis = "gross"
+	AnalyticsReactivationMrrMetricBasisNetOfTax AnalyticsReactivationMrrMetricBasis = "net_of_tax"
+	AnalyticsReactivationMrrMetricBasisProceeds AnalyticsReactivationMrrMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsReactivationMrrMetricKind.
+const (
+	AnalyticsReactivationMrrMetricKindReactivationMrr AnalyticsReactivationMrrMetricKind = "reactivation_mrr"
+)
+
+// Defines values for AnalyticsRefundsMetricBasis.
+const (
+	AnalyticsRefundsMetricBasisGross    AnalyticsRefundsMetricBasis = "gross"
+	AnalyticsRefundsMetricBasisNetOfTax AnalyticsRefundsMetricBasis = "net_of_tax"
+	AnalyticsRefundsMetricBasisProceeds AnalyticsRefundsMetricBasis = "proceeds"
+)
+
+// Defines values for AnalyticsRefundsMetricKind.
+const (
+	AnalyticsRefundsMetricKindRefunds AnalyticsRefundsMetricKind = "refunds"
+)
+
+// Defines values for AnalyticsRevenueMetricBasis.
+const (
+	AnalyticsRevenueMetricBasisGross    AnalyticsRevenueMetricBasis = "gross"
+	AnalyticsRevenueMetricBasisNetOfTax AnalyticsRevenueMetricBasis = "net_of_tax"
+	AnalyticsRevenueMetricBasisProceeds AnalyticsRevenueMetricBasis = "proceeds"
+)
+
 // Defines values for AnalyticsRevenueMetricKind.
 const (
 	AnalyticsRevenueMetricKindRevenue AnalyticsRevenueMetricKind = "revenue"
@@ -1415,6 +1557,11 @@ const (
 // Defines values for AnalyticsTraitDimensionKind.
 const (
 	AnalyticsTraitDimensionKindTrait AnalyticsTraitDimensionKind = "trait"
+)
+
+// Defines values for AnalyticsTrialConversionsMetricKind.
+const (
+	AnalyticsTrialConversionsMetricKindTrialConversions AnalyticsTrialConversionsMetricKind = "trial_conversions"
 )
 
 // Defines values for ApiKeyType.
@@ -1754,6 +1901,7 @@ const (
 	ChartTileInputChartIdRevenueOneTimeVsSubscription ChartTileInputChartId = "revenue_one_time_vs_subscription"
 	ChartTileInputChartIdRevenuePerThousandViews      ChartTileInputChartId = "revenue_per_thousand_views"
 	ChartTileInputChartIdRevenueRetention             ChartTileInputChartId = "revenue_retention"
+	ChartTileInputChartIdRevenueTrend                 ChartTileInputChartId = "revenue_trend"
 	ChartTileInputChartIdScreenTime                   ChartTileInputChartId = "screen_time"
 	ChartTileInputChartIdSdkVersions                  ChartTileInputChartId = "sdk_versions"
 	ChartTileInputChartIdSelfReportedSource           ChartTileInputChartId = "self_reported_source"
@@ -1954,6 +2102,11 @@ const (
 // Defines values for ExploreCohortDimensionKind.
 const (
 	ExploreCohortDimensionKindCohort ExploreCohortDimensionKind = "cohort"
+)
+
+// Defines values for ExploreCountryDimensionKind.
+const (
+	ExploreCountryDimensionKindCountry ExploreCountryDimensionKind = "country"
 )
 
 // Defines values for ExploreFilterOp.
@@ -2225,39 +2378,6 @@ const (
 const (
 	InsightInputRetentionTypeFirstTime InsightInputRetentionType = "first_time"
 	InsightInputRetentionTypeRecurring InsightInputRetentionType = "recurring"
-)
-
-// Defines values for InsightInputSeriesAggregation.
-const (
-	InsightInputSeriesAggregationCount          InsightInputSeriesAggregation = "count"
-	InsightInputSeriesAggregationFirstTime      InsightInputSeriesAggregation = "first_time"
-	InsightInputSeriesAggregationMonthlyActive  InsightInputSeriesAggregation = "monthly_active"
-	InsightInputSeriesAggregationPerPerson      InsightInputSeriesAggregation = "per_person"
-	InsightInputSeriesAggregationProperty       InsightInputSeriesAggregation = "property"
-	InsightInputSeriesAggregationUniqueGroups   InsightInputSeriesAggregation = "unique_groups"
-	InsightInputSeriesAggregationUniquePeople   InsightInputSeriesAggregation = "unique_people"
-	InsightInputSeriesAggregationUniqueSessions InsightInputSeriesAggregation = "unique_sessions"
-	InsightInputSeriesAggregationWeeklyActive   InsightInputSeriesAggregation = "weekly_active"
-)
-
-// Defines values for InsightInputSeriesMetric.
-const (
-	InsightInputSeriesMetricEvent   InsightInputSeriesMetric = "event"
-	InsightInputSeriesMetricMrr     InsightInputSeriesMetric = "mrr"
-	InsightInputSeriesMetricRevenue InsightInputSeriesMetric = "revenue"
-)
-
-// Defines values for InsightInputSeriesStatistic.
-const (
-	InsightInputSeriesStatisticAverage InsightInputSeriesStatistic = "average"
-	InsightInputSeriesStatisticMaximum InsightInputSeriesStatistic = "maximum"
-	InsightInputSeriesStatisticMedian  InsightInputSeriesStatistic = "median"
-	InsightInputSeriesStatisticMinimum InsightInputSeriesStatistic = "minimum"
-	InsightInputSeriesStatisticP75     InsightInputSeriesStatistic = "p75"
-	InsightInputSeriesStatisticP90     InsightInputSeriesStatistic = "p90"
-	InsightInputSeriesStatisticP95     InsightInputSeriesStatistic = "p95"
-	InsightInputSeriesStatisticP99     InsightInputSeriesStatistic = "p99"
-	InsightInputSeriesStatisticSum     InsightInputSeriesStatistic = "sum"
 )
 
 // Defines values for InsightInputStickinessComputation.
@@ -3060,6 +3180,60 @@ const (
 // Defines values for SdkSyncIosTransactionBodyPlatform.
 const (
 	SdkSyncIosTransactionBodyPlatformIos SdkSyncIosTransactionBodyPlatform = "ios"
+)
+
+// Defines values for SeriesBasisAggregation.
+const (
+	Count          SeriesBasisAggregation = "count"
+	FirstTime      SeriesBasisAggregation = "first_time"
+	MonthlyActive  SeriesBasisAggregation = "monthly_active"
+	PerPerson      SeriesBasisAggregation = "per_person"
+	Property       SeriesBasisAggregation = "property"
+	UniqueGroups   SeriesBasisAggregation = "unique_groups"
+	UniquePeople   SeriesBasisAggregation = "unique_people"
+	UniqueSessions SeriesBasisAggregation = "unique_sessions"
+	WeeklyActive   SeriesBasisAggregation = "weekly_active"
+)
+
+// Defines values for SeriesBasisBasis.
+const (
+	Gross    SeriesBasisBasis = "gross"
+	NetOfTax SeriesBasisBasis = "net_of_tax"
+	Proceeds SeriesBasisBasis = "proceeds"
+)
+
+// Defines values for SeriesBasisMetric.
+const (
+	SeriesBasisMetricActiveSubscriptions  SeriesBasisMetric = "active_subscriptions"
+	SeriesBasisMetricActiveTrials         SeriesBasisMetric = "active_trials"
+	SeriesBasisMetricChurnedMrr           SeriesBasisMetric = "churned_mrr"
+	SeriesBasisMetricChurnedSubscriptions SeriesBasisMetric = "churned_subscriptions"
+	SeriesBasisMetricContractionMrr       SeriesBasisMetric = "contraction_mrr"
+	SeriesBasisMetricEvent                SeriesBasisMetric = "event"
+	SeriesBasisMetricExpansionMrr         SeriesBasisMetric = "expansion_mrr"
+	SeriesBasisMetricMrr                  SeriesBasisMetric = "mrr"
+	SeriesBasisMetricNetNewMrr            SeriesBasisMetric = "net_new_mrr"
+	SeriesBasisMetricNewMrr               SeriesBasisMetric = "new_mrr"
+	SeriesBasisMetricNewSubscriptions     SeriesBasisMetric = "new_subscriptions"
+	SeriesBasisMetricNewTrials            SeriesBasisMetric = "new_trials"
+	SeriesBasisMetricPayingCustomers      SeriesBasisMetric = "paying_customers"
+	SeriesBasisMetricReactivationMrr      SeriesBasisMetric = "reactivation_mrr"
+	SeriesBasisMetricRefunds              SeriesBasisMetric = "refunds"
+	SeriesBasisMetricRevenue              SeriesBasisMetric = "revenue"
+	SeriesBasisMetricTrialConversions     SeriesBasisMetric = "trial_conversions"
+)
+
+// Defines values for SeriesBasisStatistic.
+const (
+	Average SeriesBasisStatistic = "average"
+	Maximum SeriesBasisStatistic = "maximum"
+	Median  SeriesBasisStatistic = "median"
+	Minimum SeriesBasisStatistic = "minimum"
+	P75     SeriesBasisStatistic = "p75"
+	P90     SeriesBasisStatistic = "p90"
+	P95     SeriesBasisStatistic = "p95"
+	P99     SeriesBasisStatistic = "p99"
+	Sum     SeriesBasisStatistic = "sum"
 )
 
 // Defines values for SubscriptionReason.
@@ -6000,10 +6174,26 @@ type AdsRevision struct {
 	Spend int `json:"spend"`
 }
 
+// AnalyticsActiveSubscriptionsMetric Paid subscriptions active at the end of each period, as the Active subscriptions card counts them: one cancelled at its period's end stays active until it expires. A balance, so its periods don't add up.
+type AnalyticsActiveSubscriptionsMetric struct {
+	Kind AnalyticsActiveSubscriptionsMetricKind `json:"kind"`
+}
+
+// AnalyticsActiveSubscriptionsMetricKind defines model for AnalyticsActiveSubscriptionsMetric.Kind.
+type AnalyticsActiveSubscriptionsMetricKind string
+
+// AnalyticsActiveTrialsMetric Subscriptions in a free trial at the end of each period, as the Active trials card counts them. A balance, so its periods don't add up.
+type AnalyticsActiveTrialsMetric struct {
+	Kind AnalyticsActiveTrialsMetricKind `json:"kind"`
+}
+
+// AnalyticsActiveTrialsMetricKind defines model for AnalyticsActiveTrialsMetric.Kind.
+type AnalyticsActiveTrialsMetricKind string
+
 // AnalyticsActorKind What the point counts: `person` (a metric's people), `group` (the groups `unique_groups` counts), `session` or `property` (an event property's values).
 type AnalyticsActorKind string
 
-// AnalyticsActorValueKind What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; or retention `periods` returned in.
+// AnalyticsActorValueKind What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
 type AnalyticsActorValueKind string
 
 // AnalyticsAlertJsonEncoding defines model for AnalyticsAlertJsonEncoding.
@@ -6066,7 +6256,7 @@ type AnalyticsAlertKind string
 // AnalyticsAlertState How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
 type AnalyticsAlertState string
 
-// AnalyticsBillingPeriodDimension How often the product bills: `weekly`, `monthly`, `quarterly`, `semiannual`, `annual` or `one_time`. Revenue and MRR only.
+// AnalyticsBillingPeriodDimension How often the product bills: `weekly`, `monthly`, `quarterly`, `semiannual`, `annual` or `one_time`. Every metric but an event's.
 type AnalyticsBillingPeriodDimension struct {
 	Kind AnalyticsBillingPeriodDimensionKind `json:"kind"`
 }
@@ -6164,6 +6354,30 @@ type AnalyticsChartCurvesResultShape string
 // AnalyticsChartCurvesResultUnit What the values are: `count`; `money`, in integer minor units of the result's `currency`; `rate`, a share from 0 to 1; `ratio` or `score`; or a duration in `milliseconds`, `seconds`, `minutes` or `days`.
 type AnalyticsChartCurvesResultUnit string
 
+// AnalyticsChartExcludedFilters What to leave out, each a list of up to 100 values, by the same keys as the filters that keep. A chart ignores the keys its catalog entry does not list.
+type AnalyticsChartExcludedFilters struct {
+	// AppVersions No events from these app versions.
+	AppVersions *[]string `json:"appVersions"`
+
+	// CohortIds Nobody in any of these cohorts, by cohort id.
+	CohortIds *[]string `json:"cohortIds"`
+
+	// Countries None of these countries, as ISO 3166 alpha-2 codes.
+	Countries *[]string `json:"countries"`
+
+	// PackageSources No paywall presentations whose package came from these sources.
+	PackageSources *[]string `json:"packageSources"`
+
+	// Platforms None of these platforms.
+	Platforms *[]string `json:"platforms"`
+
+	// ProductIds No purchases of these products, by id (`prod_...`).
+	ProductIds *[]string `json:"productIds"`
+
+	// Stores No purchases from these stores, such as `stripe`.
+	Stores *[]string `json:"stores"`
+}
+
 // AnalyticsChartFilters What to narrow the chart by, each a list of up to 100 values. A chart ignores the filters its catalog entry does not list; the `filter_options` chart returns the values each filter takes.
 type AnalyticsChartFilters struct {
 	// AppVersions Only events from these app versions, as the SDKs report them, such as `2.4.0`.
@@ -6174,6 +6388,9 @@ type AnalyticsChartFilters struct {
 
 	// Countries Only these countries, as ISO 3166 alpha-2 codes such as `US`.
 	Countries *[]string `json:"countries"`
+
+	// Exclude What to leave out, each a list of up to 100 values, by the same keys as the filters that keep. A chart ignores the keys its catalog entry does not list.
+	Exclude *AnalyticsChartExcludedFilters `json:"exclude,omitempty"`
 
 	// PackageSources Only paywall presentations whose package came from these sources: `network` (downloaded), `cache`, `bundled` (shipped in the app), `other`, or `unknown` for presentations that name none.
 	PackageSources *[]string `json:"packageSources"`
@@ -6433,6 +6650,9 @@ type AnalyticsChartPointsResultUnit string
 
 // AnalyticsChartQuery One chart of the catalog to compute over a time range.
 type AnalyticsChartQuery struct {
+	// Basis What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+	Basis *AnalyticsMoneyBasis `json:"basis,omitempty"`
+
 	// ChartId A chart of the catalog, such as `mrr_trend` or `paywall_funnel`.
 	ChartId AnalyticsChartId `json:"chartId"`
 
@@ -6589,6 +6809,27 @@ type AnalyticsChartTableResultColumnsUnit string
 // AnalyticsChartTableResultShape Always `table`.
 type AnalyticsChartTableResultShape string
 
+// AnalyticsChurnedMrrMetric MRR lost in each period by subscriptions that stopped paying, as a positive amount, as the Churned MRR card (`builtin/churned_revenue`) counts it. It adds up over periods.
+type AnalyticsChurnedMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsChurnedMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsChurnedMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsChurnedMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsChurnedMrrMetricBasis string
+
+// AnalyticsChurnedMrrMetricKind defines model for AnalyticsChurnedMrrMetric.Kind.
+type AnalyticsChurnedMrrMetricKind string
+
+// AnalyticsChurnedSubscriptionsMetric Subscriptions that ended in each period, by a cancellation taking effect at once or an expiry, trials included, as the Churned subscribers card counts them; a cancellation at the period's end counts when the subscription expires. It adds up over periods.
+type AnalyticsChurnedSubscriptionsMetric struct {
+	Kind AnalyticsChurnedSubscriptionsMetricKind `json:"kind"`
+}
+
+// AnalyticsChurnedSubscriptionsMetricKind defines model for AnalyticsChurnedSubscriptionsMetric.Kind.
+type AnalyticsChurnedSubscriptionsMetricKind string
+
 // AnalyticsCohortCohortCondition People in another cohort, or not in it. Cohorts may name each other 3 deep, never in a circle.
 type AnalyticsCohortCohortCondition struct {
 	// CohortId The other cohort's id, of the same project.
@@ -6619,7 +6860,7 @@ type AnalyticsCohortDefinition struct {
 // AnalyticsCohortDefinitionMatch Whether people must match `all` of the conditions, or `any` one of them.
 type AnalyticsCohortDefinitionMatch string
 
-// AnalyticsCohortDimension Whether the person is in a cohort, as the cohort holds people when the query runs. A filter takes `in` or `not_in` with cohort ids as values. A split names its cohorts in `cohortIds`: a person in several counts in each, so the groups overlap and don't add up to `total` (`hasOverlappingGroups`), and people in none count in no group; unlike a trait, a cohort keeps its group however few people it holds. Every metric reads it of a person: an event's, or for MRR and revenue the one who pays. The id of a variant of an A/B test is a cohort id too, holding the people the test gave that variant, so a split by a test's variant ids compares them on any metric.
+// AnalyticsCohortDimension Whether the person is in a cohort, as the cohort holds people when the query runs. A filter takes `in` or `not_in` with cohort ids as values. A split names its cohorts in `cohortIds`: a person in several counts in each, so the groups overlap and don't add up to `total` (`hasOverlappingGroups`), and people in none count in no group; unlike a trait, a cohort keeps its group however few people it holds. Every metric reads it of a person: an event's, or for money and subscriptions the one who pays or subscribes. The id of a variant of an A/B test is a cohort id too, holding the people the test gave that variant, so a split by a test's variant ids compares them on any metric.
 type AnalyticsCohortDimension struct {
 	// CohortIds The cohorts a split compares, 1 to 5 ids, each a group of its own keyed by its id and labelled by its name. Splits only: a filter names its cohorts in its values.
 	CohortIds *[]string                    `json:"cohortIds"`
@@ -6782,6 +7023,27 @@ type AnalyticsCohortTraitConditionKind string
 // AnalyticsCohortTraitConditionOp How the value compares with `values`: `in` and `not_in` exactly; `contains`, `not_contains`, `starts_with` and `ends_with` as text, ignoring case; `regex` and `not_regex` with the first value as an RE2 pattern; `is_set` and `is_not_set` take no values; `gt` and `lt` compare a number with the first value.
 type AnalyticsCohortTraitConditionOp string
 
+// AnalyticsContractionMrrMetric MRR lost in each period by subscriptions paying less, as a positive amount, as the Contraction MRR card counts it. A subscription moving to a cheaper product loses its old product's MRR and adds the new one's, so split or narrowed by product, the new product's group reads that leg as a negative contraction. It adds up over periods.
+type AnalyticsContractionMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsContractionMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsContractionMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsContractionMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsContractionMrrMetricBasis string
+
+// AnalyticsContractionMrrMetricKind defines model for AnalyticsContractionMrrMetric.Kind.
+type AnalyticsContractionMrrMetricKind string
+
+// AnalyticsCountryDimension A country, as an ISO 3166 alpha-2 code such as `US`. For a charge, the country of the store's storefront it was made in; for MRR and subscriptions, the storefront their subscription was first charged in; for an event, the country it was sent from.
+type AnalyticsCountryDimension struct {
+	Kind AnalyticsCountryDimensionKind `json:"kind"`
+}
+
+// AnalyticsCountryDimensionKind defines model for AnalyticsCountryDimension.Kind.
+type AnalyticsCountryDimensionKind string
+
 // AnalyticsCustomTimeRange An explicit range between two instants.
 type AnalyticsCustomTimeRange struct {
 	// End The end of the range, as an ISO 8601 timestamp. Truncated to the second.
@@ -6900,6 +7162,19 @@ type AnalyticsEventMetricKind string
 // AnalyticsEventMetricStatistic What `per_person` and `property` take of their numbers: `average` unless given. Not used by other aggregations.
 type AnalyticsEventMetricStatistic string
 
+// AnalyticsExpansionMrrMetric MRR added in each period by subscriptions paying more, by an upgrade or a price rise, as the Expansion MRR card counts it. It adds up over periods.
+type AnalyticsExpansionMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsExpansionMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsExpansionMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsExpansionMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsExpansionMrrMetricBasis string
+
+// AnalyticsExpansionMrrMetricKind defines model for AnalyticsExpansionMrrMetric.Kind.
+type AnalyticsExpansionMrrMetricKind string
+
 // AnalyticsFilterAnd Matches what every one of its filters matches.
 type AnalyticsFilterAnd struct {
 	// Filters The filters that must all match.
@@ -6943,20 +7218,20 @@ type AnalyticsFilterOrType string
 
 // AnalyticsFilterPredicate A filter comparing one field with a value.
 type AnalyticsFilterPredicate struct {
-	// Field The field compared: `product.id` or `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight.
+	// Field The field compared: `store` (the store's provider id, such as `apple-app-store`), `product.id`, `country` (the store's storefront country, an ISO 3166 alpha-2 code such as `US`) and `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight. A subscription insight narrows subscription by subscription: by its product at each change, so a subscription that moves to a product left out ends there, and by the storefront it was first charged in.
 	Field string `json:"field"`
 
-	// Op How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on `project.id`; another operator fails with `unsupported_filter`.
+	// Op How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on every field but `provider.environment`, to leave values out; another operator fails with `unsupported_filter`. Filters on different fields combine with `and`; `or` joins values to keep of one field, and `not` wraps one comparison.
 	Op AnalyticsFilterPredicateOp `json:"op"`
 
 	// Type Always `predicate`: a single comparison.
 	Type AnalyticsFilterPredicateType `json:"type"`
 
-	// Value The value compared with, or a list of values for `in` and `not_in`. Ids are strings and `provider.environment` is a number; a missing or null value matches nothing.
+	// Value The value compared with, or a list of up to 100 values, each text of at most 256 characters, for `in` and `not_in`. Ids, stores and countries are strings and `provider.environment` is a number; a missing or null value matches nothing.
 	Value *AnalyticsFilterPredicate_Value `json:"value"`
 }
 
-// AnalyticsFilterPredicateOp How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on `project.id`; another operator fails with `unsupported_filter`.
+// AnalyticsFilterPredicateOp How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on every field but `provider.environment`, to leave values out; another operator fails with `unsupported_filter`. Filters on different fields combine with `and`; `or` joins values to keep of one field, and `not` wraps one comparison.
 type AnalyticsFilterPredicateOp string
 
 // AnalyticsFilterPredicateType Always `predicate`: a single comparison.
@@ -6988,7 +7263,7 @@ type AnalyticsFilterPredicate_Value_3_Item struct {
 	union json.RawMessage
 }
 
-// AnalyticsFilterPredicate_Value The value compared with, or a list of values for `in` and `not_in`. Ids are strings and `provider.environment` is a number; a missing or null value matches nothing.
+// AnalyticsFilterPredicate_Value The value compared with, or a list of up to 100 values, each text of at most 256 characters, for `in` and `not_in`. Ids, stores and countries are strings and `provider.environment` is a number; a missing or null value matches nothing.
 type AnalyticsFilterPredicate_Value struct {
 	union json.RawMessage
 }
@@ -7085,6 +7360,9 @@ type AnalyticsGroupTypeJsonEncoding struct {
 
 // AnalyticsInsightQuery One built-in insight to compute over a time range.
 type AnalyticsInsightQuery struct {
+	// Basis What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+	Basis *AnalyticsMoneyBasis `json:"basis,omitempty"`
+
 	// Breakdowns Fields to split the result by. Not supported by any built-in insight yet; leave it out.
 	Breakdowns *[]AnalyticsBreakdown `json:"breakdowns"`
 
@@ -7199,7 +7477,7 @@ type AnalyticsInsightResponseItem_Result struct {
 	union json.RawMessage
 }
 
-// AnalyticsMetric What to measure: MRR, revenue, or one of the project's own events; `kind` says which.
+// AnalyticsMetric What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
 type AnalyticsMetric struct {
 	union json.RawMessage
 }
@@ -7260,7 +7538,7 @@ type AnalyticsMetricQuery struct {
 	// Granularity The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
 	Granularity *AnalyticsMetricQueryGranularity `json:"granularity"`
 
-	// IsCumulative Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for MRR, a balance, nor for statistics other than `sum`. Defaults to false.
+	// IsCumulative Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `paying_customers`, `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for the balances `mrr`, `active_subscriptions` and `active_trials`, nor for statistics other than `sum`. Defaults to false.
 	IsCumulative *bool `json:"isCumulative"`
 
 	// Key A name you choose for the query, returned on its result.
@@ -7269,7 +7547,7 @@ type AnalyticsMetricQuery struct {
 	// Limit How many groups of a split to return, biggest first, 1 to 50; the rest are summed under `$other`. Defaults to 10. Bins of a trait are all returned.
 	Limit *int `json:"limit"`
 
-	// Metric What to measure: MRR, revenue, or one of the project's own events; `kind` says which.
+	// Metric What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
 	Metric AnalyticsMetric `json:"metric"`
 
 	// Split What a metric is split or narrowed by; `kind` says which.
@@ -7337,13 +7615,71 @@ type AnalyticsMetricResult struct {
 // AnalyticsMetricResultUnit `money`, in integer minor units of the response's `currency`, or `count`.
 type AnalyticsMetricResultUnit string
 
+// AnalyticsMoneyBasis What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+type AnalyticsMoneyBasis string
+
 // AnalyticsMrrMetric Monthly recurring revenue at the end of each period, as the MRR chart shows it, in the organization's reporting currency.
 type AnalyticsMrrMetric struct {
-	Kind AnalyticsMrrMetricKind `json:"kind"`
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsMrrMetricKind   `json:"kind"`
 }
+
+// AnalyticsMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsMrrMetricBasis string
 
 // AnalyticsMrrMetricKind defines model for AnalyticsMrrMetric.Kind.
 type AnalyticsMrrMetricKind string
+
+// AnalyticsNetNewMrrMetric New, expansion and reactivation MRR less contraction and churned MRR in each period, signed, as the Net new MRR card counts it; corrections of MRR recognized wrongly are left out. It adds up over periods.
+type AnalyticsNetNewMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsNetNewMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsNetNewMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsNetNewMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsNetNewMrrMetricBasis string
+
+// AnalyticsNetNewMrrMetricKind defines model for AnalyticsNetNewMrrMetric.Kind.
+type AnalyticsNetNewMrrMetricKind string
+
+// AnalyticsNewMrrMetric MRR added in each period by subscriptions starting to pay, as the New MRR card counts it. It adds up over periods.
+type AnalyticsNewMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsNewMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsNewMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsNewMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsNewMrrMetricBasis string
+
+// AnalyticsNewMrrMetricKind defines model for AnalyticsNewMrrMetric.Kind.
+type AnalyticsNewMrrMetricKind string
+
+// AnalyticsNewSubscriptionsMetric Paid subscriptions started in each period, not counting trials or a trial becoming paid, as the New subscriptions card counts them. It adds up over periods.
+type AnalyticsNewSubscriptionsMetric struct {
+	Kind AnalyticsNewSubscriptionsMetricKind `json:"kind"`
+}
+
+// AnalyticsNewSubscriptionsMetricKind defines model for AnalyticsNewSubscriptionsMetric.Kind.
+type AnalyticsNewSubscriptionsMetricKind string
+
+// AnalyticsNewTrialsMetric Free trials started in each period, as the Trials card (`builtin/trials`) counts them. It adds up over periods.
+type AnalyticsNewTrialsMetric struct {
+	Kind AnalyticsNewTrialsMetricKind `json:"kind"`
+}
+
+// AnalyticsNewTrialsMetricKind defines model for AnalyticsNewTrialsMetric.Kind.
+type AnalyticsNewTrialsMetricKind string
+
+// AnalyticsPayingCustomersMetric The people with a charge in each period (a money event for more than nothing), each once however many they paid, as ARPPU counts them, so ARPPU is `revenue` over it. Counted per period and per group, so neither adds up.
+type AnalyticsPayingCustomersMetric struct {
+	Kind AnalyticsPayingCustomersMetricKind `json:"kind"`
+}
+
+// AnalyticsPayingCustomersMetricKind defines model for AnalyticsPayingCustomersMetric.Kind.
+type AnalyticsPayingCustomersMetricKind string
 
 // AnalyticsPersonJsonEncoding defines model for AnalyticsPersonJsonEncoding.
 type AnalyticsPersonJsonEncoding struct {
@@ -7422,7 +7758,7 @@ type AnalyticsPresetTimeRange struct {
 // AnalyticsPresetTimeRangePreset A window ending now: `today`, `last_7d`, `last_30d`, `last_90d`, `last_365d`, or month, quarter or year to date (`mtd`, `qtd`, `ytd`). `today` and the to-date windows start at midnight in the query's time zone; the `last_` windows are the exact span before now.
 type AnalyticsPresetTimeRangePreset string
 
-// AnalyticsProductDimension The product, by id (`prod_...`). Revenue and MRR only.
+// AnalyticsProductDimension The product, by id (`prod_...`): a charge's, an MRR change's, or a subscription's at the time, so one that moves to another product leaves the old one's group and joins the new one's. Every metric but an event's.
 type AnalyticsProductDimension struct {
 	Kind AnalyticsProductDimensionKind `json:"kind"`
 }
@@ -7440,15 +7776,46 @@ type AnalyticsPropertyDimension struct {
 // AnalyticsPropertyDimensionKind defines model for AnalyticsPropertyDimension.Kind.
 type AnalyticsPropertyDimensionKind string
 
+// AnalyticsReactivationMrrMetric MRR added in each period by subscriptions that churned paying again, as the Reactivation MRR card counts it. It adds up over periods.
+type AnalyticsReactivationMrrMetric struct {
+	// Basis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsReactivationMrrMetricBasis `json:"basis"`
+	Kind  AnalyticsReactivationMrrMetricKind   `json:"kind"`
+}
+
+// AnalyticsReactivationMrrMetricBasis What each subscription's price counts: `net_of_tax` unless given, `gross` with tax, or `proceeds` without tax and the store's commission.
+type AnalyticsReactivationMrrMetricBasis string
+
+// AnalyticsReactivationMrrMetricKind defines model for AnalyticsReactivationMrrMetric.Kind.
+type AnalyticsReactivationMrrMetricKind string
+
+// AnalyticsRefundsMetric What went back to customers in each period, as a positive amount at the moment it happened: refunds, chargebacks and revoked purchases, partial ones included, less refunds the store reversed, the money a charge's refunds took off revenue as the refund charts count it. Revenue plus refunds is what was charged. It adds up over periods.
+type AnalyticsRefundsMetric struct {
+	// Basis What each refund counts: `gross` unless given, `net_of_tax` without tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsRefundsMetricBasis `json:"basis"`
+	Kind  AnalyticsRefundsMetricKind   `json:"kind"`
+}
+
+// AnalyticsRefundsMetricBasis What each refund counts: `gross` unless given, `net_of_tax` without tax, or `proceeds` without tax and the store's commission.
+type AnalyticsRefundsMetricBasis string
+
+// AnalyticsRefundsMetricKind defines model for AnalyticsRefundsMetric.Kind.
+type AnalyticsRefundsMetricKind string
+
 // AnalyticsRevenueMetric What customers paid in each period, refunds taken off, as the revenue charts add it up.
 type AnalyticsRevenueMetric struct {
-	Kind AnalyticsRevenueMetricKind `json:"kind"`
+	// Basis What each charge counts: `gross` unless given, `net_of_tax` without tax, or `proceeds` without tax and the store's commission.
+	Basis *AnalyticsRevenueMetricBasis `json:"basis"`
+	Kind  AnalyticsRevenueMetricKind   `json:"kind"`
 }
+
+// AnalyticsRevenueMetricBasis What each charge counts: `gross` unless given, `net_of_tax` without tax, or `proceeds` without tax and the store's commission.
+type AnalyticsRevenueMetricBasis string
 
 // AnalyticsRevenueMetricKind defines model for AnalyticsRevenueMetric.Kind.
 type AnalyticsRevenueMetricKind string
 
-// AnalyticsStoreDimension The store or payment source, such as `apple-app-store`. Revenue and MRR only.
+// AnalyticsStoreDimension The store or payment source, such as `apple-app-store`. Every metric but an event's.
 type AnalyticsStoreDimension struct {
 	Kind AnalyticsStoreDimensionKind `json:"kind"`
 }
@@ -7456,7 +7823,7 @@ type AnalyticsStoreDimension struct {
 // AnalyticsStoreDimensionKind defines model for AnalyticsStoreDimension.Kind.
 type AnalyticsStoreDimensionKind string
 
-// AnalyticsStoreProductDimension The product in a store a purchase was made as, such as an App Store product id or a Stripe price, by its Voidhash id; a split labels it with the store's product id and the store. Revenue and MRR only. MRR by store product is exact only once the project's revenue history is ready for store products to move (always for a project that recognized no MRR before store products could move, else after its history was repaired); until then a subscription's MRR can stay on a store product it moved off within a product.
+// AnalyticsStoreProductDimension The product in a store a purchase was made as, such as an App Store product id or a Stripe price, by its Voidhash id; a split labels it with the store's product id and the store. Every metric but an event's. MRR by store product is exact only once the project's revenue history is ready for store products to move (always for a project that recognized no MRR before store products could move, else after its history was repaired); until then a subscription's MRR can stay on a store product it moved off within a product.
 type AnalyticsStoreProductDimension struct {
 	Kind AnalyticsStoreProductDimensionKind `json:"kind"`
 }
@@ -7478,7 +7845,7 @@ type AnalyticsTimeRange struct {
 	union json.RawMessage
 }
 
-// AnalyticsTraitDimension A trait of the person, as it was at the time: when an event happened, or at the end of the period for MRR.
+// AnalyticsTraitDimension A trait of the person, as it was at the time: when an event or a charge happened, or at the end of the period for MRR, active subscriptions and active trials.
 type AnalyticsTraitDimension struct {
 	// Bins Ascending bounds that group a numeric trait, such as `[18, 25, 35]` for under 18, 18–24, 25–34 and 35 and over.
 	Bins *[]float32 `json:"bins"`
@@ -7490,6 +7857,14 @@ type AnalyticsTraitDimension struct {
 
 // AnalyticsTraitDimensionKind defines model for AnalyticsTraitDimension.Kind.
 type AnalyticsTraitDimensionKind string
+
+// AnalyticsTrialConversionsMetric Trials that became paid in each period, counted once each at the subscription's first paid renewal after its trial started, and split and narrowed by what the trial started as, as the Trial conversions card counts them. It adds up over periods.
+type AnalyticsTrialConversionsMetric struct {
+	Kind AnalyticsTrialConversionsMetricKind `json:"kind"`
+}
+
+// AnalyticsTrialConversionsMetricKind defines model for AnalyticsTrialConversionsMetric.Kind.
+type AnalyticsTrialConversionsMetricKind string
 
 // ApiKeyJsonEncoding defines model for ApiKeyJsonEncoding.
 type ApiKeyJsonEncoding struct {
@@ -9698,6 +10073,14 @@ type ExploreCohortDimension struct {
 // ExploreCohortDimensionKind defines model for ExploreCohortDimension.Kind.
 type ExploreCohortDimensionKind string
 
+// ExploreCountryDimension A country, as an ISO 3166 alpha-2 code such as `US`: for MRR and revenue the country of the store's storefront, for an event the country it was sent from.
+type ExploreCountryDimension struct {
+	Kind ExploreCountryDimensionKind `json:"kind"`
+}
+
+// ExploreCountryDimensionKind defines model for ExploreCountryDimension.Kind.
+type ExploreCountryDimensionKind string
+
 // ExploreFilter One filter: how `dimension`'s value compares (`op`) with `values`.
 type ExploreFilter struct {
 	Dimension ExploreFilter_Dimension `json:"dimension"`
@@ -10296,29 +10679,8 @@ type InsightInput struct {
 	} `json:"retention,omitempty"`
 
 	// Series What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
-	Series []struct {
-		// Aggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
-		Aggregation *InsightInputSeriesAggregation `json:"aggregation,omitempty"`
-
-		// Event The event an `event` series counts, such as `paywall_viewed`.
-		Event *string `json:"event,omitempty"`
-
-		// Filters Filters that narrow this series alone, at most 10; none unless given.
-		Filters *[]ExploreFilter `json:"filters,omitempty"`
-
-		// GroupType The group type whose groups a `unique_groups` aggregation counts, such as `organization`.
-		GroupType *string `json:"groupType,omitempty"`
-
-		// Metric What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
-		Metric InsightInputSeriesMetric `json:"metric"`
-
-		// Property The numeric event property a `property` aggregation reads.
-		Property *string `json:"property,omitempty"`
-
-		// Statistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
-		Statistic *InsightInputSeriesStatistic `json:"statistic,omitempty"`
-	} `json:"series"`
-	Split *InsightSplit `json:"split,omitempty"`
+	Series []SeriesBasis `json:"series"`
+	Split  *InsightSplit `json:"split,omitempty"`
 
 	// Stickiness How stickiness counts; defaults unless given.
 	Stickiness *struct {
@@ -10459,15 +10821,6 @@ type InsightInputRetentionReference string
 
 // InsightInputRetentionType Who starts: anyone doing the start event (`recurring`) or people doing it for the first time (`first_time`).
 type InsightInputRetentionType string
-
-// InsightInputSeriesAggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
-type InsightInputSeriesAggregation string
-
-// InsightInputSeriesMetric What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
-type InsightInputSeriesMetric string
-
-// InsightInputSeriesStatistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
-type InsightInputSeriesStatistic string
 
 // InsightInputStickinessComputation People active on exactly N periods (`exact`) or on N or more (`cumulative`).
 type InsightInputStickinessComputation string
@@ -10904,7 +11257,7 @@ type MetricActorsReportResultJsonEncoding struct {
 	// Total How many actors the point holds, of those `search` keeps: for a count of people or groups, its value.
 	Total int `json:"total"`
 
-	// ValueKind What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; or retention `periods` returned in.
+	// ValueKind What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
 	ValueKind AnalyticsActorValueKind `json:"valueKind"`
 }
 
@@ -14299,6 +14652,45 @@ type SdkVersionSeen struct {
 	// Version The SDK version; null when events did not report one.
 	Version *string `json:"version"`
 }
+
+// SeriesBasis defines model for SeriesBasis.
+type SeriesBasis struct {
+	// Aggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
+	Aggregation *SeriesBasisAggregation `json:"aggregation,omitempty"`
+
+	// Basis What a series of money (`mrr`, `revenue`, an MRR movement, `refunds`) counts of each charge: `gross` (What customers paid, tax and the store's commission included.), `net_of_tax` (What customers paid without tax, before the store's commission.), `proceeds` (What you keep: what customers paid without tax and the store's commission.). MRR and its movements are net of tax, revenue and refunds gross, unless given; a count or an event has none.
+	Basis *SeriesBasisBasis `json:"basis,omitempty"`
+
+	// Event The event an `event` series counts, such as `paywall_viewed`.
+	Event *string `json:"event,omitempty"`
+
+	// Filters Filters that narrow this series alone, at most 10; none unless given.
+	Filters *[]ExploreFilter `json:"filters,omitempty"`
+
+	// GroupType The group type whose groups a `unique_groups` aggregation counts, such as `organization`.
+	GroupType *string `json:"groupType,omitempty"`
+
+	// Metric What the series measures: `mrr` (monthly recurring revenue), `revenue`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `refunds`, a count of subscriptions or trials (`active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `active_trials`, `new_trials`, `trial_conversions`), `paying_customers`, or `event` (an event the app sends, named in `event`).
+	Metric SeriesBasisMetric `json:"metric"`
+
+	// Property The numeric event property a `property` aggregation reads.
+	Property *string `json:"property,omitempty"`
+
+	// Statistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
+	Statistic *SeriesBasisStatistic `json:"statistic,omitempty"`
+}
+
+// SeriesBasisAggregation How an `event` series counts its events in each period: count, unique_people, unique_sessions, unique_groups, first_time, weekly_active, monthly_active, per_person, property. `count` unless given.
+type SeriesBasisAggregation string
+
+// SeriesBasisBasis What a series of money (`mrr`, `revenue`, an MRR movement, `refunds`) counts of each charge: `gross` (What customers paid, tax and the store's commission included.), `net_of_tax` (What customers paid without tax, before the store's commission.), `proceeds` (What you keep: what customers paid without tax and the store's commission.). MRR and its movements are net of tax, revenue and refunds gross, unless given; a count or an event has none.
+type SeriesBasisBasis string
+
+// SeriesBasisMetric What the series measures: `mrr` (monthly recurring revenue), `revenue`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `refunds`, a count of subscriptions or trials (`active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `active_trials`, `new_trials`, `trial_conversions`), `paying_customers`, or `event` (an event the app sends, named in `event`).
+type SeriesBasisMetric string
+
+// SeriesBasisStatistic What a `per_person` or `property` aggregation takes of its numbers: sum, average, minimum, maximum, median, p75, p90, p95, p99.
+type SeriesBasisStatistic string
 
 // SessionJsonEncoding defines model for SessionJsonEncoding.
 type SessionJsonEncoding struct {
@@ -19230,6 +19622,370 @@ func (t *AnalyticsMetric) MergeAnalyticsRevenueMetric(v AnalyticsRevenueMetric) 
 	return err
 }
 
+// AsAnalyticsNewMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsNewMrrMetric
+func (t AnalyticsMetric) AsAnalyticsNewMrrMetric() (AnalyticsNewMrrMetric, error) {
+	var body AnalyticsNewMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsNewMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsNewMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsNewMrrMetric(v AnalyticsNewMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsNewMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsNewMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsNewMrrMetric(v AnalyticsNewMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsExpansionMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsExpansionMrrMetric
+func (t AnalyticsMetric) AsAnalyticsExpansionMrrMetric() (AnalyticsExpansionMrrMetric, error) {
+	var body AnalyticsExpansionMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsExpansionMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsExpansionMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsExpansionMrrMetric(v AnalyticsExpansionMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsExpansionMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsExpansionMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsExpansionMrrMetric(v AnalyticsExpansionMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsReactivationMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsReactivationMrrMetric
+func (t AnalyticsMetric) AsAnalyticsReactivationMrrMetric() (AnalyticsReactivationMrrMetric, error) {
+	var body AnalyticsReactivationMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsReactivationMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsReactivationMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsReactivationMrrMetric(v AnalyticsReactivationMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsReactivationMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsReactivationMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsReactivationMrrMetric(v AnalyticsReactivationMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsContractionMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsContractionMrrMetric
+func (t AnalyticsMetric) AsAnalyticsContractionMrrMetric() (AnalyticsContractionMrrMetric, error) {
+	var body AnalyticsContractionMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsContractionMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsContractionMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsContractionMrrMetric(v AnalyticsContractionMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsContractionMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsContractionMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsContractionMrrMetric(v AnalyticsContractionMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsChurnedMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsChurnedMrrMetric
+func (t AnalyticsMetric) AsAnalyticsChurnedMrrMetric() (AnalyticsChurnedMrrMetric, error) {
+	var body AnalyticsChurnedMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsChurnedMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsChurnedMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsChurnedMrrMetric(v AnalyticsChurnedMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsChurnedMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsChurnedMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsChurnedMrrMetric(v AnalyticsChurnedMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsNetNewMrrMetric returns the union data inside the AnalyticsMetric as a AnalyticsNetNewMrrMetric
+func (t AnalyticsMetric) AsAnalyticsNetNewMrrMetric() (AnalyticsNetNewMrrMetric, error) {
+	var body AnalyticsNetNewMrrMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsNetNewMrrMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsNetNewMrrMetric
+func (t *AnalyticsMetric) FromAnalyticsNetNewMrrMetric(v AnalyticsNetNewMrrMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsNetNewMrrMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsNetNewMrrMetric
+func (t *AnalyticsMetric) MergeAnalyticsNetNewMrrMetric(v AnalyticsNetNewMrrMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsRefundsMetric returns the union data inside the AnalyticsMetric as a AnalyticsRefundsMetric
+func (t AnalyticsMetric) AsAnalyticsRefundsMetric() (AnalyticsRefundsMetric, error) {
+	var body AnalyticsRefundsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsRefundsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsRefundsMetric
+func (t *AnalyticsMetric) FromAnalyticsRefundsMetric(v AnalyticsRefundsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsRefundsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsRefundsMetric
+func (t *AnalyticsMetric) MergeAnalyticsRefundsMetric(v AnalyticsRefundsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsActiveSubscriptionsMetric returns the union data inside the AnalyticsMetric as a AnalyticsActiveSubscriptionsMetric
+func (t AnalyticsMetric) AsAnalyticsActiveSubscriptionsMetric() (AnalyticsActiveSubscriptionsMetric, error) {
+	var body AnalyticsActiveSubscriptionsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsActiveSubscriptionsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsActiveSubscriptionsMetric
+func (t *AnalyticsMetric) FromAnalyticsActiveSubscriptionsMetric(v AnalyticsActiveSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsActiveSubscriptionsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsActiveSubscriptionsMetric
+func (t *AnalyticsMetric) MergeAnalyticsActiveSubscriptionsMetric(v AnalyticsActiveSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsActiveTrialsMetric returns the union data inside the AnalyticsMetric as a AnalyticsActiveTrialsMetric
+func (t AnalyticsMetric) AsAnalyticsActiveTrialsMetric() (AnalyticsActiveTrialsMetric, error) {
+	var body AnalyticsActiveTrialsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsActiveTrialsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsActiveTrialsMetric
+func (t *AnalyticsMetric) FromAnalyticsActiveTrialsMetric(v AnalyticsActiveTrialsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsActiveTrialsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsActiveTrialsMetric
+func (t *AnalyticsMetric) MergeAnalyticsActiveTrialsMetric(v AnalyticsActiveTrialsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsNewSubscriptionsMetric returns the union data inside the AnalyticsMetric as a AnalyticsNewSubscriptionsMetric
+func (t AnalyticsMetric) AsAnalyticsNewSubscriptionsMetric() (AnalyticsNewSubscriptionsMetric, error) {
+	var body AnalyticsNewSubscriptionsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsNewSubscriptionsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsNewSubscriptionsMetric
+func (t *AnalyticsMetric) FromAnalyticsNewSubscriptionsMetric(v AnalyticsNewSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsNewSubscriptionsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsNewSubscriptionsMetric
+func (t *AnalyticsMetric) MergeAnalyticsNewSubscriptionsMetric(v AnalyticsNewSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsChurnedSubscriptionsMetric returns the union data inside the AnalyticsMetric as a AnalyticsChurnedSubscriptionsMetric
+func (t AnalyticsMetric) AsAnalyticsChurnedSubscriptionsMetric() (AnalyticsChurnedSubscriptionsMetric, error) {
+	var body AnalyticsChurnedSubscriptionsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsChurnedSubscriptionsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsChurnedSubscriptionsMetric
+func (t *AnalyticsMetric) FromAnalyticsChurnedSubscriptionsMetric(v AnalyticsChurnedSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsChurnedSubscriptionsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsChurnedSubscriptionsMetric
+func (t *AnalyticsMetric) MergeAnalyticsChurnedSubscriptionsMetric(v AnalyticsChurnedSubscriptionsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsNewTrialsMetric returns the union data inside the AnalyticsMetric as a AnalyticsNewTrialsMetric
+func (t AnalyticsMetric) AsAnalyticsNewTrialsMetric() (AnalyticsNewTrialsMetric, error) {
+	var body AnalyticsNewTrialsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsNewTrialsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsNewTrialsMetric
+func (t *AnalyticsMetric) FromAnalyticsNewTrialsMetric(v AnalyticsNewTrialsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsNewTrialsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsNewTrialsMetric
+func (t *AnalyticsMetric) MergeAnalyticsNewTrialsMetric(v AnalyticsNewTrialsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsTrialConversionsMetric returns the union data inside the AnalyticsMetric as a AnalyticsTrialConversionsMetric
+func (t AnalyticsMetric) AsAnalyticsTrialConversionsMetric() (AnalyticsTrialConversionsMetric, error) {
+	var body AnalyticsTrialConversionsMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsTrialConversionsMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsTrialConversionsMetric
+func (t *AnalyticsMetric) FromAnalyticsTrialConversionsMetric(v AnalyticsTrialConversionsMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsTrialConversionsMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsTrialConversionsMetric
+func (t *AnalyticsMetric) MergeAnalyticsTrialConversionsMetric(v AnalyticsTrialConversionsMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsPayingCustomersMetric returns the union data inside the AnalyticsMetric as a AnalyticsPayingCustomersMetric
+func (t AnalyticsMetric) AsAnalyticsPayingCustomersMetric() (AnalyticsPayingCustomersMetric, error) {
+	var body AnalyticsPayingCustomersMetric
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsPayingCustomersMetric overwrites any union data inside the AnalyticsMetric as the provided AnalyticsPayingCustomersMetric
+func (t *AnalyticsMetric) FromAnalyticsPayingCustomersMetric(v AnalyticsPayingCustomersMetric) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsPayingCustomersMetric performs a merge with any union data inside the AnalyticsMetric, using the provided AnalyticsPayingCustomersMetric
+func (t *AnalyticsMetric) MergeAnalyticsPayingCustomersMetric(v AnalyticsPayingCustomersMetric) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsAnalyticsEventMetric returns the union data inside the AnalyticsMetric as a AnalyticsEventMetric
 func (t AnalyticsMetric) AsAnalyticsEventMetric() (AnalyticsEventMetric, error) {
 	var body AnalyticsEventMetric
@@ -19334,6 +20090,32 @@ func (t *AnalyticsMetricDimension) FromAnalyticsStoreProductDimension(v Analytic
 
 // MergeAnalyticsStoreProductDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsStoreProductDimension
 func (t *AnalyticsMetricDimension) MergeAnalyticsStoreProductDimension(v AnalyticsStoreProductDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsCountryDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsCountryDimension
+func (t AnalyticsMetricDimension) AsAnalyticsCountryDimension() (AnalyticsCountryDimension, error) {
+	var body AnalyticsCountryDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsCountryDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsCountryDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsCountryDimension(v AnalyticsCountryDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsCountryDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsCountryDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsCountryDimension(v AnalyticsCountryDimension) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -19862,6 +20644,32 @@ func (t *ExploreFilter_Dimension) MergeExploreProductDimension(v ExploreProductD
 	return err
 }
 
+// AsExploreCountryDimension returns the union data inside the ExploreFilter_Dimension as a ExploreCountryDimension
+func (t ExploreFilter_Dimension) AsExploreCountryDimension() (ExploreCountryDimension, error) {
+	var body ExploreCountryDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreCountryDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreCountryDimension
+func (t *ExploreFilter_Dimension) FromExploreCountryDimension(v ExploreCountryDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreCountryDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreCountryDimension
+func (t *ExploreFilter_Dimension) MergeExploreCountryDimension(v ExploreCountryDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsExploreBillingPeriodDimension returns the union data inside the ExploreFilter_Dimension as a ExploreBillingPeriodDimension
 func (t ExploreFilter_Dimension) AsExploreBillingPeriodDimension() (ExploreBillingPeriodDimension, error) {
 	var body ExploreBillingPeriodDimension
@@ -20246,6 +21054,32 @@ func (t *InsightSplit) FromExploreProductDimension(v ExploreProductDimension) er
 
 // MergeExploreProductDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreProductDimension
 func (t *InsightSplit) MergeExploreProductDimension(v ExploreProductDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreCountryDimension returns the union data inside the InsightSplit as a ExploreCountryDimension
+func (t InsightSplit) AsExploreCountryDimension() (ExploreCountryDimension, error) {
+	var body ExploreCountryDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreCountryDimension overwrites any union data inside the InsightSplit as the provided ExploreCountryDimension
+func (t *InsightSplit) FromExploreCountryDimension(v ExploreCountryDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreCountryDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreCountryDimension
+func (t *InsightSplit) MergeExploreCountryDimension(v ExploreCountryDimension) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

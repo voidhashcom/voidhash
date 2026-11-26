@@ -107,6 +107,9 @@ class AnalyticsChartFiltersNormalizer implements DenormalizerInterface, Normaliz
         elseif (\array_key_exists('stores', $data) && $data['stores'] === null) {
             $object->setStores(null);
         }
+        if (\array_key_exists('exclude', $data)) {
+            $object->setExclude($this->denormalizer->denormalize($data['exclude'], \Voidhash\Generated\Core\Model\AnalyticsChartExcludedFilters::class, 'json', $context));
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -160,6 +163,9 @@ class AnalyticsChartFiltersNormalizer implements DenormalizerInterface, Normaliz
                 $values_6[] = $value_6;
             }
             $dataArray['stores'] = $values_6;
+        }
+        if ($data->isInitialized('exclude') && null !== $data->getExclude()) {
+            $dataArray['exclude'] = $this->normalizer->normalize($data->getExclude(), 'json', $context);
         }
         return $dataArray;
     }

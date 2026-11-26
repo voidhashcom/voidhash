@@ -40,12 +40,21 @@ class AnalyticsMrrMetricNormalizer implements DenormalizerInterface, NormalizerI
         if (\array_key_exists('kind', $data)) {
             $object->setKind($data['kind']);
         }
+        if (\array_key_exists('basis', $data) && $data['basis'] !== null) {
+            $object->setBasis($data['basis']);
+        }
+        elseif (\array_key_exists('basis', $data) && $data['basis'] === null) {
+            $object->setBasis(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $dataArray = [];
         $dataArray['kind'] = $data->getKind();
+        if ($data->isInitialized('basis')) {
+            $dataArray['basis'] = $data->getBasis();
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

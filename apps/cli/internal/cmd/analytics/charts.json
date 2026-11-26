@@ -27,7 +27,7 @@
     "section": "overview",
     "group": "Business",
     "title": "Business snapshot",
-    "description": "The numbers investors ask for: run rate, growth, retained revenue, what a customer is worth against what one costs, and how fast that pays back.",
+    "description": "The numbers investors ask for: run rate, growth, retained revenue, what a customer is worth against what one costs, and how fast that pays back. Run rate, growth and retention are MRR net of tax; lifetime value is after commission and tax.",
     "shape": "stats",
     "display": "stats",
     "unit": "money",
@@ -57,7 +57,8 @@
     "shape": "series",
     "display": "area",
     "unit": "money",
-    "filters": ["product"],
+    "filters": ["store", "product", "country"],
+    "basis": "net_of_tax",
     "labels": {
       "mrr": "MRR"
     },
@@ -72,7 +73,8 @@
     "shape": "series",
     "display": "diverging_bar",
     "unit": "money",
-    "filters": ["product"],
+    "filters": ["store", "product", "country"],
+    "basis": "net_of_tax",
     "labels": {
       "new": "New",
       "expansion": "Expansion",
@@ -90,7 +92,8 @@
     "shape": "series",
     "display": "line",
     "unit": "ratio",
-    "filters": ["product"],
+    "filters": ["store", "product", "country"],
+    "basis": "net_of_tax",
     "labels": {
       "quick_ratio": "Quick ratio"
     }
@@ -100,11 +103,12 @@
     "section": "revenue",
     "group": "Recurring revenue",
     "title": "Revenue per person",
-    "description": "ARPU is revenue per person active in the period; ARPPU is revenue per person who paid in it.",
+    "description": "ARPU is revenue per person active in the period; ARPPU is revenue per person who paid in it. A store, product or country narrows the revenue and who paid, not the people active: someone active has none until they buy.",
     "shape": "series",
     "display": "line",
     "unit": "money",
-    "filters": ["product"],
+    "filters": ["store", "product", "country"],
+    "basis": "gross",
     "labels": {
       "arpu": "ARPU",
       "arppu": "ARPPU"
@@ -140,6 +144,21 @@
     "filters": ["product", "country"]
   },
   {
+    "id": "revenue_trend",
+    "section": "revenue",
+    "group": "Where it comes from",
+    "title": "Revenue",
+    "description": "What customers paid in each period, refunds taken off: the Revenue card's numbers over time.",
+    "shape": "series",
+    "display": "line",
+    "unit": "money",
+    "filters": ["store", "product", "country"],
+    "basis": "gross",
+    "labels": {
+      "revenue": "Revenue"
+    }
+  },
+  {
     "id": "revenue_by_store",
     "section": "revenue",
     "group": "Where it comes from",
@@ -148,7 +167,8 @@
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
-    "filters": ["product", "country"]
+    "filters": ["product", "country"],
+    "basis": "gross"
   },
   {
     "id": "revenue_by_product",
@@ -159,7 +179,8 @@
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
-    "filters": ["store", "country"]
+    "filters": ["store", "country"],
+    "basis": "gross"
   },
   {
     "id": "revenue_by_billing_period",
@@ -170,7 +191,8 @@
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
-    "filters": ["store", "product", "country"]
+    "filters": ["store", "product", "country"],
+    "basis": "gross"
   },
   {
     "id": "revenue_new_vs_renewal",
@@ -182,6 +204,7 @@
     "display": "stacked_bar",
     "unit": "money",
     "filters": ["store", "product", "country"],
+    "basis": "gross",
     "labels": {
       "new": "First payments",
       "renewal": "Renewals",
@@ -198,6 +221,7 @@
     "display": "stacked_bar",
     "unit": "money",
     "filters": ["store", "product", "country"],
+    "basis": "gross",
     "labels": {
       "subscription": "Subscriptions",
       "one_time": "One-time purchases"
@@ -212,7 +236,8 @@
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
-    "filters": ["store", "product", "country"]
+    "filters": ["store", "product", "country"],
+    "basis": "gross"
   },
   {
     "id": "constant_currency_growth",
@@ -224,6 +249,7 @@
     "display": "line",
     "unit": "money",
     "filters": ["store", "product", "country"],
+    "basis": "gross",
     "labels": {
       "reported": "As reported",
       "constant": "At constant rates"
@@ -246,7 +272,7 @@
     "section": "revenue",
     "group": "Customers",
     "title": "Customer concentration",
-    "description": "The share of lifetime revenue that the biggest customers brought in.",
+    "description": "The share of lifetime revenue, after commission and tax, that the biggest customers brought in.",
     "shape": "stats",
     "display": "stats",
     "unit": "rate",
@@ -268,7 +294,7 @@
     "section": "revenue",
     "group": "Looking ahead",
     "title": "Renewals due",
-    "description": "Paid subscriptions due to renew in the next 30 days at today's price, and those that will end instead because auto-renew is off.",
+    "description": "Paid subscriptions due to renew in the next 30 days at today's price net of tax, and those that will end instead because auto-renew is off.",
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
@@ -316,7 +342,7 @@
     "shape": "series",
     "display": "diverging_bar",
     "unit": "count",
-    "filters": ["product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "new": "New",
       "reactivated": "Reactivated",
@@ -361,7 +387,8 @@
     "shape": "curves",
     "display": "curves",
     "unit": "money",
-    "filters": ["store", "product", "country"]
+    "filters": ["store", "product", "country"],
+    "basis": "gross"
   },
   {
     "id": "ltv_by_dimension",
@@ -372,7 +399,7 @@
     "shape": "table",
     "display": "table",
     "unit": "money",
-    "filters": [],
+    "filters": ["store", "product", "country"],
     "dimensions": {
       "store": "Store",
       "country": "Country",
@@ -424,7 +451,7 @@
     "shape": "table",
     "display": "table",
     "unit": "rate",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "dimensions": {
       "plan": "Plan",
       "length": "Trial length",
@@ -477,7 +504,7 @@
     "shape": "curves",
     "display": "curves",
     "unit": "rate",
-    "filters": ["store", "product"]
+    "filters": ["store", "product", "country"]
   },
   {
     "id": "renewal_rate_by_number",
@@ -488,7 +515,7 @@
     "shape": "table",
     "display": "bars",
     "unit": "rate",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "rate": "Renewed",
       "due": "Due"
@@ -506,7 +533,7 @@
     "shape": "table",
     "display": "table",
     "unit": "rate",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "doers": "Did it",
       "doer_rate": "Renewed, did it",
@@ -528,7 +555,8 @@
     "shape": "series",
     "display": "line",
     "unit": "rate",
-    "filters": ["product"],
+    "filters": ["store", "product"],
+    "basis": "net_of_tax",
     "labels": {
       "net": "Net",
       "gross": "Gross"
@@ -543,7 +571,7 @@
     "shape": "series",
     "display": "stacked_bar",
     "unit": "count",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "voluntary": "Chose to leave",
       "billing_error": "Billing failed",
@@ -560,7 +588,7 @@
     "shape": "histogram",
     "display": "histogram",
     "unit": "days",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "consentSensitive": true
   },
   {
@@ -572,7 +600,7 @@
     "shape": "table",
     "display": "bars",
     "unit": "rate",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "rate": "Churned",
       "subscribers": "Subscribers"
@@ -587,7 +615,7 @@
     "section": "churn",
     "group": "At risk",
     "title": "MRR at risk",
-    "description": "MRR of active subscribers with auto-renew off, by the week it ends.",
+    "description": "MRR, net of tax, of active subscribers with auto-renew off, by the week it ends.",
     "shape": "series",
     "display": "stacked_bar",
     "unit": "money",
@@ -638,7 +666,7 @@
     "shape": "series",
     "display": "line",
     "unit": "count",
-    "filters": ["store", "product"],
+    "filters": ["store", "product", "country"],
     "labels": {
       "winbacks": "Won back"
     }
@@ -652,14 +680,14 @@
     "shape": "histogram",
     "display": "histogram",
     "unit": "days",
-    "filters": ["store", "product"]
+    "filters": ["store", "product", "country"]
   },
   {
     "id": "refund_rate",
     "section": "churn",
     "group": "Refunds",
     "title": "Refund rate by segment",
-    "description": "Charges in the period that were refunded, for each segment.",
+    "description": "Charges in the period that were refunded, for each segment, and what customers paid for them, tax and store commission included.",
     "shape": "table",
     "display": "table",
     "unit": "rate",
@@ -1173,6 +1201,7 @@
     "display": "table",
     "unit": "money",
     "filters": ["store", "product", "country"],
+    "basis": "gross",
     "dimensions": {
       "placement": "Placement",
       "paywall": "Paywall",
@@ -1197,6 +1226,7 @@
     "display": "bars",
     "unit": "money",
     "filters": ["platform", "country"],
+    "basis": "gross",
     "labels": {
       "per_thousand": "Per 1,000 views",
       "viewers": "Viewers"
@@ -1217,6 +1247,7 @@
     "display": "stacked_bar",
     "unit": "money",
     "filters": ["store", "product", "country"],
+    "basis": "gross",
     "labels": {
       "paywall": "On a paywall",
       "elsewhere": "Elsewhere"
@@ -1276,6 +1307,7 @@
     "display": "table",
     "unit": "money",
     "filters": ["platform"],
+    "basis": "gross",
     "labels": {
       "monthly_price": "Monthly price",
       "viewers": "Viewers",
@@ -1382,6 +1414,7 @@
     "display": "table",
     "unit": "count",
     "filters": [],
+    "basis": "gross",
     "labels": {
       "exposed": "Exposed",
       "buyers": "Buyers",
@@ -2434,6 +2467,7 @@
     "display": "stacked_bar",
     "unit": "money",
     "filters": [],
+    "basis": "gross",
     "labels": {
       "revenue": "Revenue"
     }

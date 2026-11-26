@@ -49,7 +49,7 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
         if (\array_key_exists('series', $data)) {
             $values = [];
             foreach ($data['series'] as $value) {
-                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\InsightInputSeriesItem::class, 'json', $context);
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\SeriesBasis::class, 'json', $context);
             }
             $object->setSeries($values);
         }
@@ -87,6 +87,8 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreStoreDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'product')) {
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreProductDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'country')) {
+                $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreCountryDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'billing_period')) {
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'plan')) {
@@ -167,6 +169,8 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
         if ($data->isInitialized('split') && null !== $data->getSplit()) {
             $value_2 = $data->getSplit();
             if (is_object($data->getSplit())) {
+                $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
                 $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             } elseif (is_object($data->getSplit())) {
                 $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);

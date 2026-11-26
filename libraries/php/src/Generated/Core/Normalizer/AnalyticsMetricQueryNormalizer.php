@@ -49,6 +49,34 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
                 $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsMrrMetric::class, 'json', $context);
             } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'revenue')) {
                 $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsRevenueMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'new_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsNewMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'expansion_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsExpansionMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'reactivation_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsReactivationMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'contraction_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsContractionMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'churned_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsChurnedMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'net_new_mrr')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsNetNewMrrMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'refunds')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsRefundsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'active_subscriptions')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsActiveSubscriptionsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'active_trials')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsActiveTrialsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'new_subscriptions')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsNewSubscriptionsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'churned_subscriptions')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsChurnedSubscriptionsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'new_trials')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsNewTrialsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'trial_conversions')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsTrialConversionsMetric::class, 'json', $context);
+            } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'paying_customers')) {
+                $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsPayingCustomersMetric::class, 'json', $context);
             } elseif (is_array($data['metric']) and (\array_key_exists('kind', $data['metric']) and $data['metric']['kind'] == 'event') and \array_key_exists('eventName', $data['metric']) and (\array_key_exists('aggregation', $data['metric']) and ($data['metric']['aggregation'] == 'count' or $data['metric']['aggregation'] == 'unique_people' or $data['metric']['aggregation'] == 'unique_sessions' or $data['metric']['aggregation'] == 'unique_groups' or $data['metric']['aggregation'] == 'first_time' or $data['metric']['aggregation'] == 'weekly_active' or $data['metric']['aggregation'] == 'monthly_active' or $data['metric']['aggregation'] == 'per_person' or $data['metric']['aggregation'] == 'property'))) {
                 $value = $this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsEventMetric::class, 'json', $context);
             }
@@ -93,6 +121,8 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'store_product')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'country')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'billing_period')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'plan')) {
@@ -142,6 +172,34 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
             $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
         } elseif (is_object($data->getMetric())) {
             $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        } elseif (is_object($data->getMetric())) {
+            $value = $this->normalizer->normalize($data->getMetric(), 'json', $context);
         }
         $dataArray['metric'] = $value;
         $value_1 = $data->getTimeRange();
@@ -167,6 +225,8 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         if ($data->isInitialized('split') && null !== $data->getSplit()) {
             $value_3 = $data->getSplit();
             if (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);

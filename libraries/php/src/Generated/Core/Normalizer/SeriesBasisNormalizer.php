@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class InsightInputSeriesItemNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class SeriesBasisNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class InsightInputSeriesItemNormalizer implements DenormalizerInterface, Normali
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\Core\Model\InsightInputSeriesItem::class;
+        return $type === \Voidhash\Generated\Core\Model\SeriesBasis::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\Core\Model\InsightInputSeriesItem::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\Core\Model\SeriesBasis::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\Core\Model\InsightInputSeriesItem();
+        $object = new \Voidhash\Generated\Core\Model\SeriesBasis();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -54,6 +54,9 @@ class InsightInputSeriesItemNormalizer implements DenormalizerInterface, Normali
         }
         if (\array_key_exists('groupType', $data)) {
             $object->setGroupType($data['groupType']);
+        }
+        if (\array_key_exists('basis', $data)) {
+            $object->setBasis($data['basis']);
         }
         if (\array_key_exists('filters', $data)) {
             $values = [];
@@ -83,6 +86,9 @@ class InsightInputSeriesItemNormalizer implements DenormalizerInterface, Normali
         if ($data->isInitialized('groupType') && null !== $data->getGroupType()) {
             $dataArray['groupType'] = $data->getGroupType();
         }
+        if ($data->isInitialized('basis') && null !== $data->getBasis()) {
+            $dataArray['basis'] = $data->getBasis();
+        }
         if ($data->isInitialized('filters') && null !== $data->getFilters()) {
             $values = [];
             foreach ($data->getFilters() as $value) {
@@ -94,6 +100,6 @@ class InsightInputSeriesItemNormalizer implements DenormalizerInterface, Normali
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\Core\Model\InsightInputSeriesItem::class => false];
+        return [\Voidhash\Generated\Core\Model\SeriesBasis::class => false];
     }
 }

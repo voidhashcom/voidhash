@@ -25,7 +25,7 @@ class MetricActorsReportResultJsonEncoding
      */
     protected $groupType;
     /**
-     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; or retention `periods` returned in.
+     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
      *
      * @var string
      */
@@ -99,7 +99,7 @@ class MetricActorsReportResultJsonEncoding
         return $this;
     }
     /**
-     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; or retention `periods` returned in.
+     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
      *
      * @return string
      */
@@ -108,7 +108,7 @@ class MetricActorsReportResultJsonEncoding
         return $this->valueKind;
     }
     /**
-     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; or retention `periods` returned in.
+     * What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
      *
      * @param string $valueKind
      *

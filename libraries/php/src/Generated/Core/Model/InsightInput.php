@@ -21,7 +21,7 @@ class InsightInput
     /**
      * What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
      *
-     * @var list<InsightInputSeriesItem>
+     * @var list<SeriesBasis>
      */
     protected $series;
     /**
@@ -71,7 +71,7 @@ class InsightInput
      */
     protected $filters;
     /**
-     * @var ExploreStoreDimension|ExploreProductDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     protected $split;
     /**
@@ -141,7 +141,7 @@ class InsightInput
     /**
      * What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
      *
-     * @return list<InsightInputSeriesItem>
+     * @return list<SeriesBasis>
      */
     public function getSeries(): array
     {
@@ -150,7 +150,7 @@ class InsightInput
     /**
      * What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
      *
-     * @param list<InsightInputSeriesItem> $series
+     * @param list<SeriesBasis> $series
      *
      * @return self
      */
@@ -333,14 +333,14 @@ class InsightInput
         return $this;
     }
     /**
-     * @return ExploreStoreDimension|ExploreProductDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     public function getSplit()
     {
         return $this->split;
     }
     /**
-     * @param ExploreStoreDimension|ExploreProductDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $split
+     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $split
      *
      * @return self
      */

@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\Core\Model;
 
-class InsightInputSeriesItem
+class SeriesBasis
 {
     /**
      * @var array
@@ -13,7 +13,7 @@ class InsightInputSeriesItem
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
+     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `refunds`, a count of subscriptions or trials (`active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `active_trials`, `new_trials`, `trial_conversions`), `paying_customers`, or `event` (an event the app sends, named in `event`).
      *
      * @var string
      */
@@ -49,13 +49,19 @@ class InsightInputSeriesItem
      */
     protected $groupType;
     /**
+     * What a series of money (`mrr`, `revenue`, an MRR movement, `refunds`) counts of each charge: `gross` (What customers paid, tax and the store's commission included.), `net_of_tax` (What customers paid without tax, before the store's commission.), `proceeds` (What you keep: what customers paid without tax and the store's commission.). MRR and its movements are net of tax, revenue and refunds gross, unless given; a count or an event has none.
+     *
+     * @var string
+     */
+    protected $basis;
+    /**
      * Filters that narrow this series alone, at most 10; none unless given.
      *
      * @var list<ExploreFilter>
      */
     protected $filters;
     /**
-     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
+     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `refunds`, a count of subscriptions or trials (`active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `active_trials`, `new_trials`, `trial_conversions`), `paying_customers`, or `event` (an event the app sends, named in `event`).
      *
      * @return string
      */
@@ -64,7 +70,7 @@ class InsightInputSeriesItem
         return $this->metric;
     }
     /**
-     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, or `event` (an event the app sends, named in `event`).
+     * What the series measures: `mrr` (monthly recurring revenue), `revenue`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `refunds`, a count of subscriptions or trials (`active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `active_trials`, `new_trials`, `trial_conversions`), `paying_customers`, or `event` (an event the app sends, named in `event`).
      *
      * @param string $metric
      *
@@ -184,6 +190,28 @@ class InsightInputSeriesItem
     {
         $this->initialized['groupType'] = true;
         $this->groupType = $groupType;
+        return $this;
+    }
+    /**
+     * What a series of money (`mrr`, `revenue`, an MRR movement, `refunds`) counts of each charge: `gross` (What customers paid, tax and the store's commission included.), `net_of_tax` (What customers paid without tax, before the store's commission.), `proceeds` (What you keep: what customers paid without tax and the store's commission.). MRR and its movements are net of tax, revenue and refunds gross, unless given; a count or an event has none.
+     *
+     * @return string
+     */
+    public function getBasis(): string
+    {
+        return $this->basis;
+    }
+    /**
+     * What a series of money (`mrr`, `revenue`, an MRR movement, `refunds`) counts of each charge: `gross` (What customers paid, tax and the store's commission included.), `net_of_tax` (What customers paid without tax, before the store's commission.), `proceeds` (What you keep: what customers paid without tax and the store's commission.). MRR and its movements are net of tax, revenue and refunds gross, unless given; a count or an event has none.
+     *
+     * @param string $basis
+     *
+     * @return self
+     */
+    public function setBasis(string $basis): self
+    {
+        $this->initialized['basis'] = true;
+        $this->basis = $basis;
         return $this;
     }
     /**

@@ -55,6 +55,12 @@ class AnalyticsChartQuery
      */
     protected $filters;
     /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @var string
+     */
+    protected $basis;
+    /**
      * Choices a chart reads, each named in its catalog entry; the others are ignored.
      *
      * @var AnalyticsChartOptions
@@ -212,6 +218,28 @@ class AnalyticsChartQuery
     {
         $this->initialized['filters'] = true;
         $this->filters = $filters;
+        return $this;
+    }
+    /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @return string
+     */
+    public function getBasis(): string
+    {
+        return $this->basis;
+    }
+    /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @param string $basis
+     *
+     * @return self
+     */
+    public function setBasis(string $basis): self
+    {
+        $this->initialized['basis'] = true;
+        $this->basis = $basis;
         return $this;
     }
     /**

@@ -45,6 +45,8 @@ class AnalyticsMetricFilterNormalizer implements DenormalizerInterface, Normaliz
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'store_product')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'country')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'billing_period')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'plan')) {
@@ -77,6 +79,8 @@ class AnalyticsMetricFilterNormalizer implements DenormalizerInterface, Normaliz
         $dataArray = [];
         $value = $data->getDimension();
         if (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
         } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);

@@ -13,13 +13,13 @@ class AnalyticsFilterPredicate
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * The field compared: `product.id` or `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight.
+     * The field compared: `store` (the store's provider id, such as `apple-app-store`), `product.id`, `country` (the store's storefront country, an ISO 3166 alpha-2 code such as `US`) and `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight. A subscription insight narrows subscription by subscription: by its product at each change, so a subscription that moves to a product left out ends there, and by the storefront it was first charged in.
      *
      * @var string
      */
     protected $field;
     /**
-     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on `project.id`; another operator fails with `unsupported_filter`.
+     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on every field but `provider.environment`, to leave values out; another operator fails with `unsupported_filter`. Filters on different fields combine with `and`; `or` joins values to keep of one field, and `not` wraps one comparison.
      *
      * @var string
      */
@@ -31,13 +31,13 @@ class AnalyticsFilterPredicate
      */
     protected $type;
     /**
-     * The value compared with, or a list of values for `in` and `not_in`. Ids are strings and `provider.environment` is a number; a missing or null value matches nothing.
+     * The value compared with, or a list of up to 100 values, each text of at most 256 characters, for `in` and `not_in`. Ids, stores and countries are strings and `provider.environment` is a number; a missing or null value matches nothing.
      *
      * @var mixed|null
      */
     protected $value;
     /**
-     * The field compared: `product.id` or `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight.
+     * The field compared: `store` (the store's provider id, such as `apple-app-store`), `product.id`, `country` (the store's storefront country, an ISO 3166 alpha-2 code such as `US`) and `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight. A subscription insight narrows subscription by subscription: by its product at each change, so a subscription that moves to a product left out ends there, and by the storefront it was first charged in.
      *
      * @return string
      */
@@ -46,7 +46,7 @@ class AnalyticsFilterPredicate
         return $this->field;
     }
     /**
-     * The field compared: `product.id` or `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight.
+     * The field compared: `store` (the store's provider id, such as `apple-app-store`), `product.id`, `country` (the store's storefront country, an ISO 3166 alpha-2 code such as `US`) and `provider.environment` (store environment: 1 production, 2 sandbox, 3 test) on revenue and subscription insights, `project.id` on every insight. A subscription insight narrows subscription by subscription: by its product at each change, so a subscription that moves to a product left out ends there, and by the storefront it was first charged in.
      *
      * @param string $field
      *
@@ -59,7 +59,7 @@ class AnalyticsFilterPredicate
         return $this;
     }
     /**
-     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on `project.id`; another operator fails with `unsupported_filter`.
+     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on every field but `provider.environment`, to leave values out; another operator fails with `unsupported_filter`. Filters on different fields combine with `and`; `or` joins values to keep of one field, and `not` wraps one comparison.
      *
      * @return string
      */
@@ -68,7 +68,7 @@ class AnalyticsFilterPredicate
         return $this->op;
     }
     /**
-     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on `project.id`; another operator fails with `unsupported_filter`.
+     * How `field` is compared with `value`. Insights support `eq` and `in` on every field, and `neq` and `not_in` on every field but `provider.environment`, to leave values out; another operator fails with `unsupported_filter`. Filters on different fields combine with `and`; `or` joins values to keep of one field, and `not` wraps one comparison.
      *
      * @param string $op
      *
@@ -103,7 +103,7 @@ class AnalyticsFilterPredicate
         return $this;
     }
     /**
-     * The value compared with, or a list of values for `in` and `not_in`. Ids are strings and `provider.environment` is a number; a missing or null value matches nothing.
+     * The value compared with, or a list of up to 100 values, each text of at most 256 characters, for `in` and `not_in`. Ids, stores and countries are strings and `provider.environment` is a number; a missing or null value matches nothing.
      *
      * @return mixed
      */
@@ -112,7 +112,7 @@ class AnalyticsFilterPredicate
         return $this->value;
     }
     /**
-     * The value compared with, or a list of values for `in` and `not_in`. Ids are strings and `provider.environment` is a number; a missing or null value matches nothing.
+     * The value compared with, or a list of up to 100 values, each text of at most 256 characters, for `in` and `not_in`. Ids, stores and countries are strings and `provider.environment` is a number; a missing or null value matches nothing.
      *
      * @param mixed $value
      *

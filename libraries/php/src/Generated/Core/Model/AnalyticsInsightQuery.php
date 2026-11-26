@@ -19,6 +19,12 @@ class AnalyticsInsightQuery
      */
     protected $breakdowns;
     /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @var string
+     */
+    protected $basis;
+    /**
      * A filter: one comparison, or `and`, `or` and `not` combining others.
      *
      * @var AnalyticsFilterPredicate|AnalyticsFilterAnd|AnalyticsFilterOr|AnalyticsFilterNot
@@ -80,6 +86,28 @@ class AnalyticsInsightQuery
     {
         $this->initialized['breakdowns'] = true;
         $this->breakdowns = $breakdowns;
+        return $this;
+    }
+    /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @return string
+     */
+    public function getBasis(): string
+    {
+        return $this->basis;
+    }
+    /**
+     * What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+     *
+     * @param string $basis
+     *
+     * @return self
+     */
+    public function setBasis(string $basis): self
+    {
+        $this->initialized['basis'] = true;
+        $this->basis = $basis;
         return $this;
     }
     /**

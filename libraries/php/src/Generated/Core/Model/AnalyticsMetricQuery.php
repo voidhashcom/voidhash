@@ -19,9 +19,9 @@ class AnalyticsMetricQuery
      */
     protected $key;
     /**
-     * What to measure: MRR, revenue, or one of the project's own events; `kind` says which.
+     * What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
      *
-     * @var AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsEventMetric
+     * @var AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsNewMrrMetric|AnalyticsExpansionMrrMetric|AnalyticsReactivationMrrMetric|AnalyticsContractionMrrMetric|AnalyticsChurnedMrrMetric|AnalyticsNetNewMrrMetric|AnalyticsRefundsMetric|AnalyticsActiveSubscriptionsMetric|AnalyticsActiveTrialsMetric|AnalyticsNewSubscriptionsMetric|AnalyticsChurnedSubscriptionsMetric|AnalyticsNewTrialsMetric|AnalyticsTrialConversionsMetric|AnalyticsPayingCustomersMetric|AnalyticsEventMetric
      */
     protected $metric;
     /**
@@ -51,7 +51,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     protected $split;
     /**
@@ -65,7 +65,7 @@ class AnalyticsMetricQuery
      */
     protected $comparisonRange;
     /**
-     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for MRR, a balance, nor for statistics other than `sum`. Defaults to false.
+     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `paying_customers`, `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for the balances `mrr`, `active_subscriptions` and `active_trials`, nor for statistics other than `sum`. Defaults to false.
      *
      * @var bool|null
      */
@@ -99,18 +99,18 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * What to measure: MRR, revenue, or one of the project's own events; `kind` says which.
+     * What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
      *
-     * @return AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsEventMetric
+     * @return AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsNewMrrMetric|AnalyticsExpansionMrrMetric|AnalyticsReactivationMrrMetric|AnalyticsContractionMrrMetric|AnalyticsChurnedMrrMetric|AnalyticsNetNewMrrMetric|AnalyticsRefundsMetric|AnalyticsActiveSubscriptionsMetric|AnalyticsActiveTrialsMetric|AnalyticsNewSubscriptionsMetric|AnalyticsChurnedSubscriptionsMetric|AnalyticsNewTrialsMetric|AnalyticsTrialConversionsMetric|AnalyticsPayingCustomersMetric|AnalyticsEventMetric
      */
     public function getMetric()
     {
         return $this->metric;
     }
     /**
-     * What to measure: MRR, revenue, or one of the project's own events; `kind` says which.
+     * What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
      *
-     * @param AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsEventMetric $metric
+     * @param AnalyticsMrrMetric|AnalyticsRevenueMetric|AnalyticsNewMrrMetric|AnalyticsExpansionMrrMetric|AnalyticsReactivationMrrMetric|AnalyticsContractionMrrMetric|AnalyticsChurnedMrrMetric|AnalyticsNetNewMrrMetric|AnalyticsRefundsMetric|AnalyticsActiveSubscriptionsMetric|AnalyticsActiveTrialsMetric|AnalyticsNewSubscriptionsMetric|AnalyticsChurnedSubscriptionsMetric|AnalyticsNewTrialsMetric|AnalyticsTrialConversionsMetric|AnalyticsPayingCustomersMetric|AnalyticsEventMetric $metric
      *
      * @return self
      */
@@ -211,7 +211,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     public function getSplit()
     {
@@ -220,7 +220,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
+     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
      *
      * @return self
      */
@@ -271,7 +271,7 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for MRR, a balance, nor for statistics other than `sum`. Defaults to false.
+     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `paying_customers`, `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for the balances `mrr`, `active_subscriptions` and `active_trials`, nor for statistics other than `sum`. Defaults to false.
      *
      * @return bool|null
      */
@@ -280,7 +280,7 @@ class AnalyticsMetricQuery
         return $this->isCumulative;
     }
     /**
-     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for MRR, a balance, nor for statistics other than `sum`. Defaults to false.
+     * Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `paying_customers`, `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for the balances `mrr`, `active_subscriptions` and `active_trials`, nor for statistics other than `sum`. Defaults to false.
      *
      * @param bool|null $isCumulative
      *

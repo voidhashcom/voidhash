@@ -55,6 +55,12 @@ class AnalyticsChartFilters
      */
     protected $stores;
     /**
+     * What to leave out, each a list of up to 100 values, by the same keys as the filters that keep. A chart ignores the keys its catalog entry does not list.
+     *
+     * @var AnalyticsChartExcludedFilters
+     */
+    protected $exclude;
+    /**
      * Only events from these app versions, as the SDKs report them, such as `2.4.0`.
      *
      * @return list<string>|null
@@ -206,6 +212,28 @@ class AnalyticsChartFilters
     {
         $this->initialized['stores'] = true;
         $this->stores = $stores;
+        return $this;
+    }
+    /**
+     * What to leave out, each a list of up to 100 values, by the same keys as the filters that keep. A chart ignores the keys its catalog entry does not list.
+     *
+     * @return AnalyticsChartExcludedFilters
+     */
+    public function getExclude(): AnalyticsChartExcludedFilters
+    {
+        return $this->exclude;
+    }
+    /**
+     * What to leave out, each a list of up to 100 values, by the same keys as the filters that keep. A chart ignores the keys its catalog entry does not list.
+     *
+     * @param AnalyticsChartExcludedFilters $exclude
+     *
+     * @return self
+     */
+    public function setExclude(AnalyticsChartExcludedFilters $exclude): self
+    {
+        $this->initialized['exclude'] = true;
+        $this->exclude = $exclude;
         return $this;
     }
 }
