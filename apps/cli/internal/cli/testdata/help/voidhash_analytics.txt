@@ -10,7 +10,7 @@ Commands:
   health       Check that web and app tracking report what measuring ads relies on.
   charts       List the built-in charts.
   chart        Run one of the built-in charts.
-  alerts       Rules that tell owners and admins when events look broken.
+  alerts       Rules that tell owners and admins when events or money look wrong.
 
 Flags:
   -h, --help  Show help for this command

@@ -270,6 +270,14 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ExplorePlanDimension::class => \Voidhash\Generated\Core\Normalizer\ExplorePlanDimensionNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ExploreAcquisitionSourceDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreAcquisitionSourceDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExploreOfferDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreOfferDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExplorePlacementDimension::class => \Voidhash\Generated\Core\Normalizer\ExplorePlacementDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ExplorePaywallDimension::class => \Voidhash\Generated\Core\Normalizer\ExplorePaywallDimensionNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreBillingPeriodDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ExploreCountryDimension::class => \Voidhash\Generated\Core\Normalizer\ExploreCountryDimensionNormalizer::class,
@@ -1062,6 +1070,14 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsPlanDimensionNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\AnalyticsAcquisitionSourceDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAcquisitionSourceDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsOfferDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsOfferDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsPlacementDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsPlacementDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsPaywallDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsPaywallDimensionNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsBillingPeriodDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsCountryDimensionNormalizer::class,
@@ -1113,6 +1129,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\AnalyticsMrrMetric::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMrrMetricNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsAlertJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAlertJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAlertMetricNormalizer::class,
         
         \Voidhash\Generated\Core\Model\UpdateAnalyticsAlertBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdateAnalyticsAlertBodyJsonEncodingNormalizer::class,
         
@@ -1618,6 +1636,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ExplorePropertyDimension::class => false,
             \Voidhash\Generated\Core\Model\ExploreTraitDimension::class => false,
             \Voidhash\Generated\Core\Model\ExplorePlanDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreAcquisitionSourceDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExploreOfferDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExplorePlacementDimension::class => false,
+            \Voidhash\Generated\Core\Model\ExplorePaywallDimension::class => false,
             \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class => false,
             \Voidhash\Generated\Core\Model\ExploreCountryDimension::class => false,
             \Voidhash\Generated\Core\Model\ExploreProductDimension::class => false,
@@ -2014,6 +2036,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsPropertyDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsTraitDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsAcquisitionSourceDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsOfferDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsPlacementDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsPaywallDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class => false,
@@ -2040,6 +2066,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsRevenueMetric::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMrrMetric::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsAlertJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class => false,
             \Voidhash\Generated\Core\Model\UpdateAnalyticsAlertBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreateAnalyticsAlertBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\LiveUsersResultJsonEncoding::class => false,

@@ -31,17 +31,41 @@ class AnalyticsAlertJsonEncoding
      */
     protected $name;
     /**
-     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
      *
      * @var string
      */
     protected $kind;
     /**
-     * The event counted or watched; for `failure_share`, the event of a failed attempt.
+     * The event counted or watched; for `failure_share`, the event of a failed attempt; null for a metric alert.
+     *
+     * @var string|null
+     */
+    protected $eventName;
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @var AnalyticsAlertMetric
+     */
+    protected $metric;
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @var list<AnalyticsMetricFilter>
+     */
+    protected $filters;
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
      *
      * @var string
      */
-    protected $eventName;
+    protected $direction;
+    /**
+     * For a money metric (`mrr`, its movements, `revenue` and `refunds`), the ISO 4217 code its `threshold`, `value` and `baseline` are in, as integer minor units: the organization's reporting currency when the alert was saved, unless it named another. The alert keeps it when the organization's reporting currency changes, and is measured in it. Null for a count and an event alert.
+     *
+     * @var string|null
+     */
+    protected $currency;
     /**
      * The event of an attempt that worked, for `failure_share`; null for the other kinds.
      *
@@ -49,13 +73,13 @@ class AnalyticsAlertJsonEncoding
      */
     protected $successEventName;
     /**
-     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days).
+     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert.
      *
      * @var int
      */
     protected $windowHours;
     /**
-     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for the others, such as 0.2 for 20%.
+     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for `failure_share` and `volume_drop`, such as 0.2 for 20%; for `metric_threshold` the metric's value, a money metric's in integer minor units of `currency` (500000 for 5,000.00 euros, 5000 for 5,000 yen) and a count's as a whole number; for `metric_change` a share of the compared value, such as 0.1 for 10%.
      *
      * @var float
      */
@@ -73,19 +97,19 @@ class AnalyticsAlertJsonEncoding
      */
     protected $isEnabled;
     /**
-     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
+     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
      *
      * @var string
      */
     protected $state;
     /**
-     * What the latest check read: a count, or for `failure_share` a share between 0 and 1; null before the first check.
+     * What the latest check read: a count; for `failure_share` a share between 0 and 1; for a metric alert the metric, a money metric's in integer minor units of `currency` and a count's as a number. Null before the first check, and while a metric's result was withheld for narrowing to fewer than five people.
      *
      * @var float|null
      */
     protected $value;
     /**
-     * The usual count a `volume_drop` alert compared with, the median of the same window in earlier weeks; null until it has one, and for the other kinds.
+     * What the latest check compared with: for `volume_drop` the usual count, the median of the same window in earlier weeks; for `metric_change` the metric over the compared window, money in integer minor units of `currency`. Null until it has one, and for the other kinds.
      *
      * @var float|null
      */
@@ -96,6 +120,12 @@ class AnalyticsAlertJsonEncoding
      * @var int|null
      */
     protected $baselineWeeks;
+    /**
+     * Why a metric alert cannot be measured, in plain words, while its `state` is `cannot_measure`; null in every other state.
+     *
+     * @var string|null
+     */
+    protected $problem;
     /**
      * The end of the latest window checked, as an ISO 8601 timestamp; null before the first check.
      *
@@ -181,7 +211,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
      *
      * @return string
      */
@@ -190,7 +220,7 @@ class AnalyticsAlertJsonEncoding
         return $this->kind;
     }
     /**
-     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+     * What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
      *
      * @param string $kind
      *
@@ -203,25 +233,113 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * The event counted or watched; for `failure_share`, the event of a failed attempt.
+     * The event counted or watched; for `failure_share`, the event of a failed attempt; null for a metric alert.
      *
-     * @return string
+     * @return string|null
      */
-    public function getEventName(): string
+    public function getEventName(): ?string
     {
         return $this->eventName;
     }
     /**
-     * The event counted or watched; for `failure_share`, the event of a failed attempt.
+     * The event counted or watched; for `failure_share`, the event of a failed attempt; null for a metric alert.
      *
-     * @param string $eventName
+     * @param string|null $eventName
      *
      * @return self
      */
-    public function setEventName(string $eventName): self
+    public function setEventName(?string $eventName): self
     {
         $this->initialized['eventName'] = true;
         $this->eventName = $eventName;
+        return $this;
+    }
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @return AnalyticsAlertMetric
+     */
+    public function getMetric(): AnalyticsAlertMetric
+    {
+        return $this->metric;
+    }
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @param AnalyticsAlertMetric $metric
+     *
+     * @return self
+     */
+    public function setMetric(AnalyticsAlertMetric $metric): self
+    {
+        $this->initialized['metric'] = true;
+        $this->metric = $metric;
+        return $this;
+    }
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @return list<AnalyticsMetricFilter>
+     */
+    public function getFilters(): array
+    {
+        return $this->filters;
+    }
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @param list<AnalyticsMetricFilter> $filters
+     *
+     * @return self
+     */
+    public function setFilters(array $filters): self
+    {
+        $this->initialized['filters'] = true;
+        $this->filters = $filters;
+        return $this;
+    }
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+     *
+     * @return string
+     */
+    public function getDirection(): string
+    {
+        return $this->direction;
+    }
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+     *
+     * @param string $direction
+     *
+     * @return self
+     */
+    public function setDirection(string $direction): self
+    {
+        $this->initialized['direction'] = true;
+        $this->direction = $direction;
+        return $this;
+    }
+    /**
+     * For a money metric (`mrr`, its movements, `revenue` and `refunds`), the ISO 4217 code its `threshold`, `value` and `baseline` are in, as integer minor units: the organization's reporting currency when the alert was saved, unless it named another. The alert keeps it when the organization's reporting currency changes, and is measured in it. Null for a count and an event alert.
+     *
+     * @return string|null
+     */
+    public function getCurrency(): ?string
+    {
+        return $this->currency;
+    }
+    /**
+     * For a money metric (`mrr`, its movements, `revenue` and `refunds`), the ISO 4217 code its `threshold`, `value` and `baseline` are in, as integer minor units: the organization's reporting currency when the alert was saved, unless it named another. The alert keeps it when the organization's reporting currency changes, and is measured in it. Null for a count and an event alert.
+     *
+     * @param string|null $currency
+     *
+     * @return self
+     */
+    public function setCurrency(?string $currency): self
+    {
+        $this->initialized['currency'] = true;
+        $this->currency = $currency;
         return $this;
     }
     /**
@@ -247,7 +365,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days).
+     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert.
      *
      * @return int
      */
@@ -256,7 +374,7 @@ class AnalyticsAlertJsonEncoding
         return $this->windowHours;
     }
     /**
-     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days).
+     * The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert.
      *
      * @param int $windowHours
      *
@@ -269,7 +387,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for the others, such as 0.2 for 20%.
+     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for `failure_share` and `volume_drop`, such as 0.2 for 20%; for `metric_threshold` the metric's value, a money metric's in integer minor units of `currency` (500000 for 5,000.00 euros, 5000 for 5,000 yen) and a count's as a whole number; for `metric_change` a share of the compared value, such as 0.1 for 10%.
      *
      * @return float
      */
@@ -278,7 +396,7 @@ class AnalyticsAlertJsonEncoding
         return $this->threshold;
     }
     /**
-     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for the others, such as 0.2 for 20%.
+     * When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for `failure_share` and `volume_drop`, such as 0.2 for 20%; for `metric_threshold` the metric's value, a money metric's in integer minor units of `currency` (500000 for 5,000.00 euros, 5000 for 5,000 yen) and a count's as a whole number; for `metric_change` a share of the compared value, such as 0.1 for 10%.
      *
      * @param float $threshold
      *
@@ -335,7 +453,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
+     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
      *
      * @return string
      */
@@ -344,7 +462,7 @@ class AnalyticsAlertJsonEncoding
         return $this->state;
     }
     /**
-     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
+     * How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
      *
      * @param string $state
      *
@@ -357,7 +475,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * What the latest check read: a count, or for `failure_share` a share between 0 and 1; null before the first check.
+     * What the latest check read: a count; for `failure_share` a share between 0 and 1; for a metric alert the metric, a money metric's in integer minor units of `currency` and a count's as a number. Null before the first check, and while a metric's result was withheld for narrowing to fewer than five people.
      *
      * @return float|null
      */
@@ -366,7 +484,7 @@ class AnalyticsAlertJsonEncoding
         return $this->value;
     }
     /**
-     * What the latest check read: a count, or for `failure_share` a share between 0 and 1; null before the first check.
+     * What the latest check read: a count; for `failure_share` a share between 0 and 1; for a metric alert the metric, a money metric's in integer minor units of `currency` and a count's as a number. Null before the first check, and while a metric's result was withheld for narrowing to fewer than five people.
      *
      * @param float|null $value
      *
@@ -379,7 +497,7 @@ class AnalyticsAlertJsonEncoding
         return $this;
     }
     /**
-     * The usual count a `volume_drop` alert compared with, the median of the same window in earlier weeks; null until it has one, and for the other kinds.
+     * What the latest check compared with: for `volume_drop` the usual count, the median of the same window in earlier weeks; for `metric_change` the metric over the compared window, money in integer minor units of `currency`. Null until it has one, and for the other kinds.
      *
      * @return float|null
      */
@@ -388,7 +506,7 @@ class AnalyticsAlertJsonEncoding
         return $this->baseline;
     }
     /**
-     * The usual count a `volume_drop` alert compared with, the median of the same window in earlier weeks; null until it has one, and for the other kinds.
+     * What the latest check compared with: for `volume_drop` the usual count, the median of the same window in earlier weeks; for `metric_change` the metric over the compared window, money in integer minor units of `currency`. Null until it has one, and for the other kinds.
      *
      * @param float|null $baseline
      *
@@ -420,6 +538,28 @@ class AnalyticsAlertJsonEncoding
     {
         $this->initialized['baselineWeeks'] = true;
         $this->baselineWeeks = $baselineWeeks;
+        return $this;
+    }
+    /**
+     * Why a metric alert cannot be measured, in plain words, while its `state` is `cannot_measure`; null in every other state.
+     *
+     * @return string|null
+     */
+    public function getProblem(): ?string
+    {
+        return $this->problem;
+    }
+    /**
+     * Why a metric alert cannot be measured, in plain words, while its `state` is `cannot_measure`; null in every other state.
+     *
+     * @param string|null $problem
+     *
+     * @return self
+     */
+    public function setProblem(?string $problem): self
+    {
+        $this->initialized['problem'] = true;
+        $this->problem = $problem;
         return $this;
     }
     /**

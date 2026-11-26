@@ -31,13 +31,13 @@ class AnalyticsChartQuery
      */
     protected $timeRange;
     /**
-     * The width of each point of a series chart: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each point of a series chart: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`. A chart that draws no time series, or has a period of its own, ignores it.
      *
      * @var string|null
      */
     protected $granularity;
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @var string|null
      */
@@ -133,7 +133,7 @@ class AnalyticsChartQuery
         return $this;
     }
     /**
-     * The width of each point of a series chart: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each point of a series chart: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`. A chart that draws no time series, or has a period of its own, ignores it.
      *
      * @return string|null
      */
@@ -142,7 +142,7 @@ class AnalyticsChartQuery
         return $this->granularity;
     }
     /**
-     * The width of each point of a series chart: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each point of a series chart: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`. A chart that draws no time series, or has a period of its own, ignores it.
      *
      * @param string|null $granularity
      *
@@ -155,7 +155,7 @@ class AnalyticsChartQuery
         return $this;
     }
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @return string|null
      */
@@ -164,7 +164,7 @@ class AnalyticsChartQuery
         return $this->timezone;
     }
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @param string|null $timezone
      *

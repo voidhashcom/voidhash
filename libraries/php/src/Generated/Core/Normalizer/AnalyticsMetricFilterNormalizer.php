@@ -49,6 +49,14 @@ class AnalyticsMetricFilterNormalizer implements DenormalizerInterface, Normaliz
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'billing_period')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'paywall')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsPaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'placement')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsPlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'offer')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'acquisition_source')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsAcquisitionSourceDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'plan')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'trait') and \array_key_exists('key', $data['dimension'])) {
@@ -79,6 +87,14 @@ class AnalyticsMetricFilterNormalizer implements DenormalizerInterface, Normaliz
         $dataArray = [];
         $value = $data->getDimension();
         if (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
         } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);

@@ -648,6 +648,11 @@ const (
 	AdsResultChangeTypeWebsitePurchase AdsResultChangeType = "website_purchase"
 )
 
+// Defines values for AnalyticsAcquisitionSourceDimensionKind.
+const (
+	AnalyticsAcquisitionSourceDimensionKindAcquisitionSource AnalyticsAcquisitionSourceDimensionKind = "acquisition_source"
+)
+
 // Defines values for AnalyticsActiveSubscriptionsMetricKind.
 const (
 	AnalyticsActiveSubscriptionsMetricKindActiveSubscriptions AnalyticsActiveSubscriptionsMetricKind = "active_subscriptions"
@@ -677,15 +682,47 @@ const (
 	AnalyticsActorValueKindSubscriptions AnalyticsActorValueKind = "subscriptions"
 )
 
+// Defines values for AnalyticsAlertDirection.
+const (
+	AnalyticsAlertDirectionAbove  AnalyticsAlertDirection = "above"
+	AnalyticsAlertDirectionBelow  AnalyticsAlertDirection = "below"
+	AnalyticsAlertDirectionDown   AnalyticsAlertDirection = "down"
+	AnalyticsAlertDirectionEither AnalyticsAlertDirection = "either"
+	AnalyticsAlertDirectionUp     AnalyticsAlertDirection = "up"
+)
+
 // Defines values for AnalyticsAlertKind.
 const (
-	EventCount   AnalyticsAlertKind = "event_count"
-	FailureShare AnalyticsAlertKind = "failure_share"
-	VolumeDrop   AnalyticsAlertKind = "volume_drop"
+	EventCount      AnalyticsAlertKind = "event_count"
+	FailureShare    AnalyticsAlertKind = "failure_share"
+	MetricChange    AnalyticsAlertKind = "metric_change"
+	MetricThreshold AnalyticsAlertKind = "metric_threshold"
+	VolumeDrop      AnalyticsAlertKind = "volume_drop"
+)
+
+// Defines values for AnalyticsAlertMetricKind.
+const (
+	AnalyticsAlertMetricKindActiveSubscriptions  AnalyticsAlertMetricKind = "active_subscriptions"
+	AnalyticsAlertMetricKindActiveTrials         AnalyticsAlertMetricKind = "active_trials"
+	AnalyticsAlertMetricKindChurnedMrr           AnalyticsAlertMetricKind = "churned_mrr"
+	AnalyticsAlertMetricKindChurnedSubscriptions AnalyticsAlertMetricKind = "churned_subscriptions"
+	AnalyticsAlertMetricKindContractionMrr       AnalyticsAlertMetricKind = "contraction_mrr"
+	AnalyticsAlertMetricKindExpansionMrr         AnalyticsAlertMetricKind = "expansion_mrr"
+	AnalyticsAlertMetricKindMrr                  AnalyticsAlertMetricKind = "mrr"
+	AnalyticsAlertMetricKindNetNewMrr            AnalyticsAlertMetricKind = "net_new_mrr"
+	AnalyticsAlertMetricKindNewMrr               AnalyticsAlertMetricKind = "new_mrr"
+	AnalyticsAlertMetricKindNewSubscriptions     AnalyticsAlertMetricKind = "new_subscriptions"
+	AnalyticsAlertMetricKindNewTrials            AnalyticsAlertMetricKind = "new_trials"
+	AnalyticsAlertMetricKindPayingCustomers      AnalyticsAlertMetricKind = "paying_customers"
+	AnalyticsAlertMetricKindReactivationMrr      AnalyticsAlertMetricKind = "reactivation_mrr"
+	AnalyticsAlertMetricKindRefunds              AnalyticsAlertMetricKind = "refunds"
+	AnalyticsAlertMetricKindRevenue              AnalyticsAlertMetricKind = "revenue"
+	AnalyticsAlertMetricKindTrialConversions     AnalyticsAlertMetricKind = "trial_conversions"
 )
 
 // Defines values for AnalyticsAlertState.
 const (
+	AnalyticsAlertStateCannotMeasure    AnalyticsAlertState = "cannot_measure"
 	AnalyticsAlertStateFiring           AnalyticsAlertState = "firing"
 	AnalyticsAlertStateNotEnoughHistory AnalyticsAlertState = "not_enough_history"
 	AnalyticsAlertStateNotEnoughVolume  AnalyticsAlertState = "not_enough_volume"
@@ -1001,10 +1038,12 @@ const (
 
 // Defines values for AnalyticsChartQueryGranularity.
 const (
-	AnalyticsChartQueryGranularityDay   AnalyticsChartQueryGranularity = "day"
-	AnalyticsChartQueryGranularityHour  AnalyticsChartQueryGranularity = "hour"
-	AnalyticsChartQueryGranularityMonth AnalyticsChartQueryGranularity = "month"
-	AnalyticsChartQueryGranularityWeek  AnalyticsChartQueryGranularity = "week"
+	AnalyticsChartQueryGranularityDay     AnalyticsChartQueryGranularity = "day"
+	AnalyticsChartQueryGranularityHour    AnalyticsChartQueryGranularity = "hour"
+	AnalyticsChartQueryGranularityMonth   AnalyticsChartQueryGranularity = "month"
+	AnalyticsChartQueryGranularityQuarter AnalyticsChartQueryGranularity = "quarter"
+	AnalyticsChartQueryGranularityWeek    AnalyticsChartQueryGranularity = "week"
+	AnalyticsChartQueryGranularityYear    AnalyticsChartQueryGranularity = "year"
 )
 
 // Defines values for AnalyticsChartSeriesResultShape.
@@ -1411,10 +1450,12 @@ const (
 
 // Defines values for AnalyticsMetricQueryGranularity.
 const (
-	AnalyticsMetricQueryGranularityDay   AnalyticsMetricQueryGranularity = "day"
-	AnalyticsMetricQueryGranularityHour  AnalyticsMetricQueryGranularity = "hour"
-	AnalyticsMetricQueryGranularityMonth AnalyticsMetricQueryGranularity = "month"
-	AnalyticsMetricQueryGranularityWeek  AnalyticsMetricQueryGranularity = "week"
+	AnalyticsMetricQueryGranularityDay     AnalyticsMetricQueryGranularity = "day"
+	AnalyticsMetricQueryGranularityHour    AnalyticsMetricQueryGranularity = "hour"
+	AnalyticsMetricQueryGranularityMonth   AnalyticsMetricQueryGranularity = "month"
+	AnalyticsMetricQueryGranularityQuarter AnalyticsMetricQueryGranularity = "quarter"
+	AnalyticsMetricQueryGranularityWeek    AnalyticsMetricQueryGranularity = "week"
+	AnalyticsMetricQueryGranularityYear    AnalyticsMetricQueryGranularity = "year"
 )
 
 // Defines values for AnalyticsMetricResultUnit.
@@ -1476,9 +1517,24 @@ const (
 	AnalyticsNewTrialsMetricKindNewTrials AnalyticsNewTrialsMetricKind = "new_trials"
 )
 
+// Defines values for AnalyticsOfferDimensionKind.
+const (
+	AnalyticsOfferDimensionKindOffer AnalyticsOfferDimensionKind = "offer"
+)
+
 // Defines values for AnalyticsPayingCustomersMetricKind.
 const (
 	AnalyticsPayingCustomersMetricKindPayingCustomers AnalyticsPayingCustomersMetricKind = "paying_customers"
+)
+
+// Defines values for AnalyticsPaywallDimensionKind.
+const (
+	AnalyticsPaywallDimensionKindPaywall AnalyticsPaywallDimensionKind = "paywall"
+)
+
+// Defines values for AnalyticsPlacementDimensionKind.
+const (
+	AnalyticsPlacementDimensionKindPlacement AnalyticsPlacementDimensionKind = "placement"
 )
 
 // Defines values for AnalyticsPlanDimensionKind.
@@ -2094,6 +2150,11 @@ const (
 	ExperimentStatusRunning   ExperimentStatus = "running"
 )
 
+// Defines values for ExploreAcquisitionSourceDimensionKind.
+const (
+	AcquisitionSource ExploreAcquisitionSourceDimensionKind = "acquisition_source"
+)
+
 // Defines values for ExploreBillingPeriodDimensionKind.
 const (
 	ExploreBillingPeriodDimensionKindBillingPeriod ExploreBillingPeriodDimensionKind = "billing_period"
@@ -2128,6 +2189,21 @@ const (
 // Defines values for ExploreGroupDimensionKind.
 const (
 	ExploreGroupDimensionKindGroup ExploreGroupDimensionKind = "group"
+)
+
+// Defines values for ExploreOfferDimensionKind.
+const (
+	Offer ExploreOfferDimensionKind = "offer"
+)
+
+// Defines values for ExplorePaywallDimensionKind.
+const (
+	ExplorePaywallDimensionKindPaywall ExplorePaywallDimensionKind = "paywall"
+)
+
+// Defines values for ExplorePlacementDimensionKind.
+const (
+	Placement ExplorePlacementDimensionKind = "placement"
 )
 
 // Defines values for ExplorePlanDimensionKind.
@@ -2308,9 +2384,11 @@ const (
 
 // Defines values for InsightInputGranularity.
 const (
-	InsightInputGranularityDaily   InsightInputGranularity = "daily"
-	InsightInputGranularityMonthly InsightInputGranularity = "monthly"
-	InsightInputGranularityWeekly  InsightInputGranularity = "weekly"
+	InsightInputGranularityDaily     InsightInputGranularity = "daily"
+	InsightInputGranularityMonthly   InsightInputGranularity = "monthly"
+	InsightInputGranularityQuarterly InsightInputGranularity = "quarterly"
+	InsightInputGranularityWeekly    InsightInputGranularity = "weekly"
+	InsightInputGranularityYearly    InsightInputGranularity = "yearly"
 )
 
 // Defines values for InsightInputKind.
@@ -3445,11 +3523,11 @@ const (
 
 // Defines values for PaywallTemplatesListParamsKind.
 const (
-	PaywallTemplatesListParamsKindCustom       PaywallTemplatesListParamsKind = "custom"
-	PaywallTemplatesListParamsKindFeedback     PaywallTemplatesListParamsKind = "feedback"
-	PaywallTemplatesListParamsKindOnboarding   PaywallTemplatesListParamsKind = "onboarding"
-	PaywallTemplatesListParamsKindPaywall      PaywallTemplatesListParamsKind = "paywall"
-	PaywallTemplatesListParamsKindReactivation PaywallTemplatesListParamsKind = "reactivation"
+	Custom       PaywallTemplatesListParamsKind = "custom"
+	Feedback     PaywallTemplatesListParamsKind = "feedback"
+	Onboarding   PaywallTemplatesListParamsKind = "onboarding"
+	Paywall      PaywallTemplatesListParamsKind = "paywall"
+	Reactivation PaywallTemplatesListParamsKind = "reactivation"
 )
 
 // Defines values for PaywallsListParamsIsArchived.
@@ -6174,6 +6252,14 @@ type AdsRevision struct {
 	Spend int `json:"spend"`
 }
 
+// AnalyticsAcquisitionSourceDimension The ad network of the person's first campaign touch, such as `meta`, as lifetime value by source reads it, as it is now; `$unknown` for a person with no tracked touch. Every metric reads it of a person: an event's, or for money and subscriptions the one who pays or subscribes. As by a trait, a value of fewer than five people counts under `$other`.
+type AnalyticsAcquisitionSourceDimension struct {
+	Kind AnalyticsAcquisitionSourceDimensionKind `json:"kind"`
+}
+
+// AnalyticsAcquisitionSourceDimensionKind defines model for AnalyticsAcquisitionSourceDimension.Kind.
+type AnalyticsAcquisitionSourceDimensionKind string
+
 // AnalyticsActiveSubscriptionsMetric Paid subscriptions active at the end of each period, as the Active subscriptions card counts them: one cancelled at its period's end stays active until it expires. A balance, so its periods don't add up.
 type AnalyticsActiveSubscriptionsMetric struct {
 	Kind AnalyticsActiveSubscriptionsMetricKind `json:"kind"`
@@ -6196,9 +6282,15 @@ type AnalyticsActorKind string
 // AnalyticsActorValueKind What each actor's `value` is: their `events` in the point; `sessions`; `money` they paid, or their MRR at the bucket's end, in integer minor units of `currency`; a `property` statistic of their numbers; `seconds` to convert; retention `periods` returned in; or the `subscriptions` (or trials) they hold at the bucket's end.
 type AnalyticsActorValueKind string
 
+// AnalyticsAlertDirection Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+type AnalyticsAlertDirection string
+
+// AnalyticsAlertFilters What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+type AnalyticsAlertFilters = []AnalyticsMetricFilter
+
 // AnalyticsAlertJsonEncoding defines model for AnalyticsAlertJsonEncoding.
 type AnalyticsAlertJsonEncoding struct {
-	// Baseline The usual count a `volume_drop` alert compared with, the median of the same window in earlier weeks; null until it has one, and for the other kinds.
+	// Baseline What the latest check compared with: for `volume_drop` the usual count, the median of the same window in earlier weeks; for `metric_change` the metric over the compared window, money in integer minor units of `currency`. Null until it has one, and for the other kinds.
 	Baseline *float32 `json:"baseline"`
 
 	// BaselineWeeks How many of the four earlier weeks a `volume_drop` alert could read at its latest check; it needs 2 to judge. Null for the other kinds and before the first check.
@@ -6210,8 +6302,17 @@ type AnalyticsAlertJsonEncoding struct {
 	// CreatedAt When the alert was created, as an ISO 8601 timestamp.
 	CreatedAt string `json:"createdAt"`
 
-	// EventName The event counted or watched; for `failure_share`, the event of a failed attempt.
-	EventName string `json:"eventName"`
+	// Currency For a money metric (`mrr`, its movements, `revenue` and `refunds`), the ISO 4217 code its `threshold`, `value` and `baseline` are in, as integer minor units: the organization's reporting currency when the alert was saved, unless it named another. The alert keeps it when the organization's reporting currency changes, and is measured in it. Null for a count and an event alert.
+	Currency *string `json:"currency"`
+
+	// Direction Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+	Direction AnalyticsAlertDirection `json:"direction"`
+
+	// EventName The event counted or watched; for `failure_share`, the event of a failed attempt; null for a metric alert.
+	EventName *string `json:"eventName"`
+
+	// Filters What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+	Filters AnalyticsAlertFilters `json:"filters"`
 
 	// FiringSince When the alert started firing, as an ISO 8601 timestamp; null while it is not firing.
 	FiringSince *string `json:"firingSince"`
@@ -6222,8 +6323,11 @@ type AnalyticsAlertJsonEncoding struct {
 	// IsEnabled Whether the alert is checked; a turned-off alert is not.
 	IsEnabled bool `json:"isEnabled"`
 
-	// Kind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+	// Kind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
 	Kind AnalyticsAlertKind `json:"kind"`
+
+	// Metric The built-in metric a metric alert watches, with the basis of its money.
+	Metric AnalyticsAlertMetric `json:"metric"`
 
 	// MinPeople The distinct people an `event_count` alert's events must come from, so one device's retries stay quiet; null for the other kinds.
 	MinPeople *int `json:"minPeople"`
@@ -6231,29 +6335,44 @@ type AnalyticsAlertJsonEncoding struct {
 	// Name The alert's name, shown in Studio and in its notices.
 	Name string `json:"name"`
 
+	// Problem Why a metric alert cannot be measured, in plain words, while its `state` is `cannot_measure`; null in every other state.
+	Problem *string `json:"problem"`
+
 	// ProjectId The project whose events the alert watches.
 	ProjectId string `json:"projectId"`
 
-	// State How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
+	// State How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
 	State AnalyticsAlertState `json:"state"`
 
 	// SuccessEventName The event of an attempt that worked, for `failure_share`; null for the other kinds.
 	SuccessEventName *string `json:"successEventName"`
 
-	// Threshold When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for the others, such as 0.2 for 20%.
+	// Threshold When the alert fires: a count of at least 1 for `event_count`; a share between 0 and 1 for `failure_share` and `volume_drop`, such as 0.2 for 20%; for `metric_threshold` the metric's value, a money metric's in integer minor units of `currency` (500000 for 5,000.00 euros, 5000 for 5,000 yen) and a count's as a whole number; for `metric_change` a share of the compared value, such as 0.1 for 10%.
 	Threshold float32 `json:"threshold"`
 
-	// Value What the latest check read: a count, or for `failure_share` a share between 0 and 1; null before the first check.
+	// Value What the latest check read: a count; for `failure_share` a share between 0 and 1; for a metric alert the metric, a money metric's in integer minor units of `currency` and a count's as a number. Null before the first check, and while a metric's result was withheld for narrowing to fewer than five people.
 	Value *float32 `json:"value"`
 
-	// WindowHours The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days).
+	// WindowHours The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert.
 	WindowHours int `json:"windowHours"`
 }
 
-// AnalyticsAlertKind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+// AnalyticsAlertKind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
 type AnalyticsAlertKind string
 
-// AnalyticsAlertState How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge; or `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with.
+// AnalyticsAlertMetric The built-in metric a metric alert watches, with the basis of its money.
+type AnalyticsAlertMetric struct {
+	// Basis What an amount counts of a charge: `gross`, everything the customer paid; `net_of_tax`, that without tax; `proceeds`, that without tax and the store's commission.
+	Basis *AnalyticsMoneyBasis `json:"basis,omitempty"`
+
+	// Kind The metric, as the metric query names it: `mrr`, `revenue`, `refunds`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `paying_customers`, `active_trials`, `new_trials` or `trial_conversions`. A flow (revenue, refunds, the movements, new and churned subscribers, new and converted trials) is summed over the window; a balance (MRR, active subscriptions, active trials) is read at the window's end; paying customers are counted once over it.
+	Kind AnalyticsAlertMetricKind `json:"kind"`
+}
+
+// AnalyticsAlertMetricKind The metric, as the metric query names it: `mrr`, `revenue`, `refunds`, an MRR movement (`new_mrr`, `expansion_mrr`, `reactivation_mrr`, `contraction_mrr`, `churned_mrr`, `net_new_mrr`), `active_subscriptions`, `new_subscriptions`, `churned_subscriptions`, `paying_customers`, `active_trials`, `new_trials` or `trial_conversions`. A flow (revenue, refunds, the movements, new and churned subscribers, new and converted trials) is summed over the window; a balance (MRR, active subscriptions, active trials) is read at the window's end; paying customers are counted once over it.
+type AnalyticsAlertMetricKind string
+
+// AnalyticsAlertState How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
 type AnalyticsAlertState string
 
 // AnalyticsBillingPeriodDimension How often the product bills: `weekly`, `monthly`, `quarterly`, `semiannual`, `annual` or `one_time`. Every metric but an event's.
@@ -6575,6 +6694,9 @@ type AnalyticsChartOptionsPeriod string
 
 // AnalyticsChartOptionsResult The values a project's charts can be filtered by.
 type AnalyticsChartOptionsResult struct {
+	// AcquisitionSources Up to 200 ad networks of people's first campaign touch, the most people first, to split or narrow metrics by `acquisition_source`.
+	AcquisitionSources []Objects1 `json:"acquisitionSources"`
+
 	// AppVersions Up to 200 app versions seen in the last 90 days, most frequent first, for `filters.appVersions`.
 	AppVersions []Objects1 `json:"appVersions"`
 
@@ -6587,10 +6709,16 @@ type AnalyticsChartOptionsResult struct {
 	// Experiments The project's experiments that are not archived, for `options.experimentId`.
 	Experiments []Objects1 `json:"experiments"`
 
+	// Offers Up to 200 store offers redeemed in the last 90 days, most redeemed first, to split or narrow metrics by `offer`; the value is the store's offer id, which names itself.
+	Offers []Objects1 `json:"offers"`
+
 	// PackageSources The package sources of paywall presentations seen in the last 90 days, most frequent first, for `filters.packageSources`; `unknown` for presentations that name none.
 	PackageSources []Objects1 `json:"packageSources"`
 
-	// Placements The project's paywall locations that are not archived, for `options.placementId`.
+	// Paywalls The project's paywalls that are not archived, to split or narrow metrics by `paywall`.
+	Paywalls []Objects1 `json:"paywalls"`
+
+	// Placements The project's paywall locations that are not archived, for `options.placementId` and to split or narrow metrics by `placement`.
 	Placements []Objects1 `json:"placements"`
 
 	// Platforms Up to 200 platforms seen in the last 90 days, most frequent first, for `filters.platforms`.
@@ -6659,7 +6787,7 @@ type AnalyticsChartQuery struct {
 	// Filters What to narrow the chart by, each a list of up to 100 values. A chart ignores the filters its catalog entry does not list; the `filter_options` chart returns the values each filter takes.
 	Filters *AnalyticsChartFilters `json:"filters,omitempty"`
 
-	// Granularity The width of each point of a series chart: `hour`, `day`, `week` or `month`. Defaults to `day`.
+	// Granularity The width of each point of a series chart: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`. A chart that draws no time series, or has a period of its own, ignores it.
 	Granularity *AnalyticsChartQueryGranularity `json:"granularity"`
 
 	// HasComparison Whether to also return the period of the same length just before the range, for series and stats charts. Defaults to false.
@@ -6674,11 +6802,11 @@ type AnalyticsChartQuery struct {
 	// TimeRange The time range a query covers: a named window ending now, or an explicit `start` and `end`. Each result echoes the absolute range it resolved to.
 	TimeRange AnalyticsTimeRange `json:"timeRange"`
 
-	// Timezone The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+	// Timezone The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
 	Timezone *string `json:"timezone"`
 }
 
-// AnalyticsChartQueryGranularity The width of each point of a series chart: `hour`, `day`, `week` or `month`. Defaults to `day`.
+// AnalyticsChartQueryGranularity The width of each point of a series chart: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`. A chart that draws no time series, or has a period of its own, ignores it.
 type AnalyticsChartQueryGranularity string
 
 // AnalyticsChartResponseItem One chart's result, with the query's key.
@@ -7535,7 +7663,7 @@ type AnalyticsMetricQuery struct {
 	// Filters Up to 10 conditions every row must meet; none keeps everything.
 	Filters *[]AnalyticsMetricFilter `json:"filters"`
 
-	// Granularity The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
+	// Granularity The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
 	Granularity *AnalyticsMetricQueryGranularity `json:"granularity"`
 
 	// IsCumulative Whether each bucket counts from the range's start through it: money, counts, first times and sums add up, and `paying_customers`, `unique_people`, `unique_sessions`, `unique_groups`, `weekly_active` and `monthly_active` count each person, session or group once, in the first bucket they show in, so the last bucket is everyone over the range. Not for the balances `mrr`, `active_subscriptions` and `active_trials`, nor for statistics other than `sum`. Defaults to false.
@@ -7556,14 +7684,14 @@ type AnalyticsMetricQuery struct {
 	// TimeRange The time range a query covers: a named window ending now, or an explicit `start` and `end`. Each result echoes the absolute range it resolved to.
 	TimeRange AnalyticsTimeRange `json:"timeRange"`
 
-	// Timezone The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+	// Timezone The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
 	Timezone *string `json:"timezone"`
 }
 
 // AnalyticsMetricQueryComparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
 type AnalyticsMetricQueryComparison string
 
-// AnalyticsMetricQueryGranularity The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
+// AnalyticsMetricQueryGranularity The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
 type AnalyticsMetricQueryGranularity string
 
 // AnalyticsMetricResponseItem defines model for AnalyticsMetricResponseItem.
@@ -7673,6 +7801,14 @@ type AnalyticsNewTrialsMetric struct {
 // AnalyticsNewTrialsMetricKind defines model for AnalyticsNewTrialsMetric.Kind.
 type AnalyticsNewTrialsMetricKind string
 
+// AnalyticsOfferDimension The store offer a subscription had redeemed, by the store's offer id: the latest it redeemed at or before the row's moment, a redemption at the same instant as a charge counting before it. A charge, MRR change, start, churn or conversion counts under the offer in force when it happened, a refund under its charge's when the refund names the charge's transaction (else at its own moment), and MRR and active subscriptions and trials under each subscription's offer at each bucket's end. `$unknown` (no offer) before a subscription's first redemption, for one that redeemed none and for one-time purchases. Nothing records when an offer's price ends, so a subscription stays under its latest offer until it redeems another; only the App Store reports redemptions. Every metric but an event's.
+type AnalyticsOfferDimension struct {
+	Kind AnalyticsOfferDimensionKind `json:"kind"`
+}
+
+// AnalyticsOfferDimensionKind defines model for AnalyticsOfferDimension.Kind.
+type AnalyticsOfferDimensionKind string
+
 // AnalyticsPayingCustomersMetric The people with a charge in each period (a money event for more than nothing), each once however many they paid, as ARPPU counts them, so ARPPU is `revenue` over it. Counted per period and per group, so neither adds up.
 type AnalyticsPayingCustomersMetric struct {
 	Kind AnalyticsPayingCustomersMetricKind `json:"kind"`
@@ -7680,6 +7816,14 @@ type AnalyticsPayingCustomersMetric struct {
 
 // AnalyticsPayingCustomersMetricKind defines model for AnalyticsPayingCustomersMetric.Kind.
 type AnalyticsPayingCustomersMetricKind string
+
+// AnalyticsPaywallDimension The paywall a purchase was made on, by id, as the app reported it with the purchase; a split labels it with the paywall's name. A subscription keeps the paywall it was bought on for all of its charges, MRR and counts, renewals and events recorded before the report arrived included; `$unknown` for a purchase no paywall was reported for. Every metric but an event's.
+type AnalyticsPaywallDimension struct {
+	Kind AnalyticsPaywallDimensionKind `json:"kind"`
+}
+
+// AnalyticsPaywallDimensionKind defines model for AnalyticsPaywallDimension.Kind.
+type AnalyticsPaywallDimensionKind string
 
 // AnalyticsPersonJsonEncoding defines model for AnalyticsPersonJsonEncoding.
 type AnalyticsPersonJsonEncoding struct {
@@ -7695,6 +7839,14 @@ type AnalyticsPersonJsonEncoding struct {
 	// Name Their name; null without one.
 	Name *string `json:"name"`
 }
+
+// AnalyticsPlacementDimension The paywall location a purchase's paywall was shown at, by id; a split labels it with the location's name. A subscription keeps it as it keeps its `paywall`; `$unknown` for a purchase no paywall was reported for. Every metric but an event's.
+type AnalyticsPlacementDimension struct {
+	Kind AnalyticsPlacementDimensionKind `json:"kind"`
+}
+
+// AnalyticsPlacementDimensionKind defines model for AnalyticsPlacementDimension.Kind.
+type AnalyticsPlacementDimensionKind string
 
 // AnalyticsPlanDimension The product a person paid for at the time, by id, or `free` without a paid subscription.
 type AnalyticsPlanDimension struct {
@@ -9143,11 +9295,23 @@ type ConnectedAppJsonEncodingKind string
 
 // CreateAnalyticsAlertBodyJsonEncoding defines model for CreateAnalyticsAlertBodyJsonEncoding.
 type CreateAnalyticsAlertBodyJsonEncoding struct {
-	// EventName The event to count or watch, up to 256 characters; for `failure_share`, the event of a failed attempt.
-	EventName string `json:"eventName"`
+	// Currency For a money metric only: the ISO 4217 code its `threshold` is in, one the organization could report in, such as `EUR`; the organization's reporting currency (USD until one is chosen) when omitted. The alert is measured in it whatever the organization reports in later.
+	Currency *string `json:"currency"`
 
-	// Kind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before.
+	// Direction Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+	Direction *AnalyticsAlertDirection `json:"direction,omitempty"`
+
+	// EventName The event to count or watch, up to 256 characters; for `failure_share`, the event of a failed attempt. Required for an event alert, and not allowed for a metric alert.
+	EventName *string `json:"eventName"`
+
+	// Filters What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+	Filters *AnalyticsAlertFilters `json:"filters,omitempty"`
+
+	// Kind What the alert watches: `event_count` fires when an event happens at least `threshold` times to at least `minPeople` people; `failure_share` fires when the share of attempts that failed is clearly above `threshold`, an attempt being `eventName` (the failure) or `successEventName`; `volume_drop` fires when an event falls by at least `threshold` against the median of the same window in the four weeks before; `metric_threshold` fires when a built-in `metric` over the window is `above` or `below` `threshold`; `metric_change` fires when it changed by at least the share `threshold`, `up`, `down` or `either`, against the window before (for a flow over 24 hours, the same 24 hours a week earlier). More kinds may be added: treat one you don't know as unknown rather than failing.
 	Kind AnalyticsAlertKind `json:"kind"`
+
+	// Metric The built-in metric a metric alert watches, with the basis of its money.
+	Metric *AnalyticsAlertMetric `json:"metric,omitempty"`
 
 	// MinPeople The distinct people an `event_count` alert's events must come from: at least 1, and 2 when omitted. Only allowed for `event_count`.
 	MinPeople *int `json:"minPeople"`
@@ -9158,10 +9322,10 @@ type CreateAnalyticsAlertBodyJsonEncoding struct {
 	// SuccessEventName The event of an attempt that worked, different from `eventName`. Required for `failure_share`, and only allowed there.
 	SuccessEventName *string `json:"successEventName"`
 
-	// Threshold When the alert fires: for `event_count` a whole count of at least 1; for `failure_share` and `volume_drop` a share greater than 0 and less than 1, such as 0.2 for 20%.
+	// Threshold When the alert fires: for `event_count` a whole count of at least 1; for `failure_share` and `volume_drop` a share greater than 0 and less than 1, such as 0.2 for 20%; for `metric_threshold` the metric's value, 0 or more but for `net_new_mrr`: a money metric's (`mrr`, its movements, `revenue`, `refunds`) in integer minor units of `currency` (500000 for 5,000.00 euros, 5000 for 5,000 yen), a count's as a whole number; for `metric_change` a share above 0 of the compared value, at most 1 for `down` and 10 otherwise. A change compared with less than 20 subscriptions, trials or people, or 10,000 minor units of money (100.00, or 10,000 in a currency without cents), says `not_enough_volume`.
 	Threshold float32 `json:"threshold"`
 
-	// WindowHours The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days).
+	// WindowHours The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert. A threshold on a balance (MRR, active subscriptions or trials) reads it as it stands at each check and takes `24`.
 	WindowHours int `json:"windowHours"`
 }
 
@@ -10056,6 +10220,14 @@ type ExperimentVariantResultJsonEncoding struct {
 	VariantId string `json:"variantId"`
 }
 
+// ExploreAcquisitionSourceDimension The ad network a person was first reached through, as it is now; groups of fewer than five people count as Other.
+type ExploreAcquisitionSourceDimension struct {
+	Kind ExploreAcquisitionSourceDimensionKind `json:"kind"`
+}
+
+// ExploreAcquisitionSourceDimensionKind defines model for ExploreAcquisitionSourceDimension.Kind.
+type ExploreAcquisitionSourceDimensionKind string
+
 // ExploreBillingPeriodDimension How often a subscription renews.
 type ExploreBillingPeriodDimension struct {
 	Kind ExploreBillingPeriodDimensionKind `json:"kind"`
@@ -10106,6 +10278,30 @@ type ExploreGroupDimension struct {
 
 // ExploreGroupDimensionKind defines model for ExploreGroupDimension.Kind.
 type ExploreGroupDimensionKind string
+
+// ExploreOfferDimension The store offer a subscription redeemed, by the store's offer id; only the App Store reports redemptions. Not an event's.
+type ExploreOfferDimension struct {
+	Kind ExploreOfferDimensionKind `json:"kind"`
+}
+
+// ExploreOfferDimensionKind defines model for ExploreOfferDimension.Kind.
+type ExploreOfferDimensionKind string
+
+// ExplorePaywallDimension The paywall a purchase was made on, by id; a subscription keeps it for all of its charges. Not an event's.
+type ExplorePaywallDimension struct {
+	Kind ExplorePaywallDimensionKind `json:"kind"`
+}
+
+// ExplorePaywallDimensionKind defines model for ExplorePaywallDimension.Kind.
+type ExplorePaywallDimensionKind string
+
+// ExplorePlacementDimension The paywall location that showed a purchase's paywall, by id; a subscription keeps it for all of its charges. Not an event's.
+type ExplorePlacementDimension struct {
+	Kind ExplorePlacementDimensionKind `json:"kind"`
+}
+
+// ExplorePlacementDimensionKind defines model for ExplorePlacementDimension.Kind.
+type ExplorePlacementDimensionKind string
 
 // ExplorePlanDimension A subscriber's plan.
 type ExplorePlanDimension struct {
@@ -10609,7 +10805,7 @@ type InsightInput struct {
 		WindowValue *int `json:"windowValue,omitempty"`
 	} `json:"funnel,omitempty"`
 
-	// Granularity The periods it counts in: daily, weekly or monthly; weekly unless given.
+	// Granularity The periods it counts in: daily, weekly, monthly, or calendar quarterly or yearly, in the request's time zone; weekly unless given. Stickiness counts in days, weeks or months only.
 	Granularity *InsightInputGranularity `json:"granularity,omitempty"`
 
 	// Kind The question asked: trends, funnels, retention, paths, stickiness, lifecycle; `trends` unless given.
@@ -10787,7 +10983,7 @@ type InsightInputFunnelView string
 // InsightInputFunnelWindowUnit The unit of `windowValue`: minute, hour, day or week; `day` unless given.
 type InsightInputFunnelWindowUnit string
 
-// InsightInputGranularity The periods it counts in: daily, weekly or monthly; weekly unless given.
+// InsightInputGranularity The periods it counts in: daily, weekly, monthly, or calendar quarterly or yearly, in the request's time zone; weekly unless given. Stickiness counts in days, weeks or months only.
 type InsightInputGranularity string
 
 // InsightInputKind The question asked: trends, funnels, retention, paths, stickiness, lifecycle; `trends` unless given.
@@ -14989,11 +15185,23 @@ type UpdateAdSettingsBodyJsonEncoding struct {
 
 // UpdateAnalyticsAlertBodyJsonEncoding defines model for UpdateAnalyticsAlertBodyJsonEncoding.
 type UpdateAnalyticsAlertBodyJsonEncoding struct {
-	// EventName The new event to count or watch; for `failure_share`, the event of a failed attempt.
+	// Currency The currency the alert's `threshold` is in, for a money metric only; send `threshold` with it, which is read in it. Omitted, the alert keeps its own, or takes the organization's reporting currency when its metric becomes money.
+	Currency *string `json:"currency"`
+
+	// Direction Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+	Direction *AnalyticsAlertDirection `json:"direction,omitempty"`
+
+	// EventName The new event to count or watch; for `failure_share`, the event of a failed attempt. Event alerts only.
 	EventName *string `json:"eventName"`
+
+	// Filters What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+	Filters *AnalyticsAlertFilters `json:"filters,omitempty"`
 
 	// IsEnabled Whether the alert is checked; `false` turns it off.
 	IsEnabled *bool `json:"isEnabled"`
+
+	// Metric The built-in metric a metric alert watches, with the basis of its money.
+	Metric *AnalyticsAlertMetric `json:"metric,omitempty"`
 
 	// MinPeople The new minimum of distinct people, at least 1; for `event_count` alerts only.
 	MinPeople *int `json:"minPeople"`
@@ -15004,10 +15212,10 @@ type UpdateAnalyticsAlertBodyJsonEncoding struct {
 	// SuccessEventName The new event of an attempt that worked, for `failure_share` alerts only.
 	SuccessEventName *string `json:"successEventName"`
 
-	// Threshold The new threshold: a whole count of at least 1 for `event_count`, a share between 0 and 1 for the others.
+	// Threshold The new threshold, read as `CreateAnalyticsAlertBody.threshold` is for the alert's kind.
 	Threshold *float32 `json:"threshold"`
 
-	// WindowHours The new window in hours: `1`, `6`, `24` or `168`.
+	// WindowHours The new window in hours: `1`, `6`, `24` or `168` for an event alert, `24`, `168` or `720` for a metric alert.
 	WindowHours *int `json:"windowHours"`
 }
 
@@ -20152,6 +20360,110 @@ func (t *AnalyticsMetricDimension) MergeAnalyticsBillingPeriodDimension(v Analyt
 	return err
 }
 
+// AsAnalyticsPaywallDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsPaywallDimension
+func (t AnalyticsMetricDimension) AsAnalyticsPaywallDimension() (AnalyticsPaywallDimension, error) {
+	var body AnalyticsPaywallDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsPaywallDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsPaywallDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsPaywallDimension(v AnalyticsPaywallDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsPaywallDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsPaywallDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsPaywallDimension(v AnalyticsPaywallDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsPlacementDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsPlacementDimension
+func (t AnalyticsMetricDimension) AsAnalyticsPlacementDimension() (AnalyticsPlacementDimension, error) {
+	var body AnalyticsPlacementDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsPlacementDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsPlacementDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsPlacementDimension(v AnalyticsPlacementDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsPlacementDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsPlacementDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsPlacementDimension(v AnalyticsPlacementDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsOfferDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsOfferDimension
+func (t AnalyticsMetricDimension) AsAnalyticsOfferDimension() (AnalyticsOfferDimension, error) {
+	var body AnalyticsOfferDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsOfferDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsOfferDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsOfferDimension(v AnalyticsOfferDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsOfferDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsOfferDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsOfferDimension(v AnalyticsOfferDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnalyticsAcquisitionSourceDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsAcquisitionSourceDimension
+func (t AnalyticsMetricDimension) AsAnalyticsAcquisitionSourceDimension() (AnalyticsAcquisitionSourceDimension, error) {
+	var body AnalyticsAcquisitionSourceDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnalyticsAcquisitionSourceDimension overwrites any union data inside the AnalyticsMetricDimension as the provided AnalyticsAcquisitionSourceDimension
+func (t *AnalyticsMetricDimension) FromAnalyticsAcquisitionSourceDimension(v AnalyticsAcquisitionSourceDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnalyticsAcquisitionSourceDimension performs a merge with any union data inside the AnalyticsMetricDimension, using the provided AnalyticsAcquisitionSourceDimension
+func (t *AnalyticsMetricDimension) MergeAnalyticsAcquisitionSourceDimension(v AnalyticsAcquisitionSourceDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsAnalyticsPlanDimension returns the union data inside the AnalyticsMetricDimension as a AnalyticsPlanDimension
 func (t AnalyticsMetricDimension) AsAnalyticsPlanDimension() (AnalyticsPlanDimension, error) {
 	var body AnalyticsPlanDimension
@@ -20696,6 +21008,110 @@ func (t *ExploreFilter_Dimension) MergeExploreBillingPeriodDimension(v ExploreBi
 	return err
 }
 
+// AsExplorePaywallDimension returns the union data inside the ExploreFilter_Dimension as a ExplorePaywallDimension
+func (t ExploreFilter_Dimension) AsExplorePaywallDimension() (ExplorePaywallDimension, error) {
+	var body ExplorePaywallDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePaywallDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExplorePaywallDimension
+func (t *ExploreFilter_Dimension) FromExplorePaywallDimension(v ExplorePaywallDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePaywallDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExplorePaywallDimension
+func (t *ExploreFilter_Dimension) MergeExplorePaywallDimension(v ExplorePaywallDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePlacementDimension returns the union data inside the ExploreFilter_Dimension as a ExplorePlacementDimension
+func (t ExploreFilter_Dimension) AsExplorePlacementDimension() (ExplorePlacementDimension, error) {
+	var body ExplorePlacementDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePlacementDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExplorePlacementDimension
+func (t *ExploreFilter_Dimension) FromExplorePlacementDimension(v ExplorePlacementDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePlacementDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExplorePlacementDimension
+func (t *ExploreFilter_Dimension) MergeExplorePlacementDimension(v ExplorePlacementDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreOfferDimension returns the union data inside the ExploreFilter_Dimension as a ExploreOfferDimension
+func (t ExploreFilter_Dimension) AsExploreOfferDimension() (ExploreOfferDimension, error) {
+	var body ExploreOfferDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreOfferDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreOfferDimension
+func (t *ExploreFilter_Dimension) FromExploreOfferDimension(v ExploreOfferDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreOfferDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreOfferDimension
+func (t *ExploreFilter_Dimension) MergeExploreOfferDimension(v ExploreOfferDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreAcquisitionSourceDimension returns the union data inside the ExploreFilter_Dimension as a ExploreAcquisitionSourceDimension
+func (t ExploreFilter_Dimension) AsExploreAcquisitionSourceDimension() (ExploreAcquisitionSourceDimension, error) {
+	var body ExploreAcquisitionSourceDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreAcquisitionSourceDimension overwrites any union data inside the ExploreFilter_Dimension as the provided ExploreAcquisitionSourceDimension
+func (t *ExploreFilter_Dimension) FromExploreAcquisitionSourceDimension(v ExploreAcquisitionSourceDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreAcquisitionSourceDimension performs a merge with any union data inside the ExploreFilter_Dimension, using the provided ExploreAcquisitionSourceDimension
+func (t *ExploreFilter_Dimension) MergeExploreAcquisitionSourceDimension(v ExploreAcquisitionSourceDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsExplorePlanDimension returns the union data inside the ExploreFilter_Dimension as a ExplorePlanDimension
 func (t ExploreFilter_Dimension) AsExplorePlanDimension() (ExplorePlanDimension, error) {
 	var body ExplorePlanDimension
@@ -21106,6 +21522,110 @@ func (t *InsightSplit) FromExploreBillingPeriodDimension(v ExploreBillingPeriodD
 
 // MergeExploreBillingPeriodDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreBillingPeriodDimension
 func (t *InsightSplit) MergeExploreBillingPeriodDimension(v ExploreBillingPeriodDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePaywallDimension returns the union data inside the InsightSplit as a ExplorePaywallDimension
+func (t InsightSplit) AsExplorePaywallDimension() (ExplorePaywallDimension, error) {
+	var body ExplorePaywallDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePaywallDimension overwrites any union data inside the InsightSplit as the provided ExplorePaywallDimension
+func (t *InsightSplit) FromExplorePaywallDimension(v ExplorePaywallDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePaywallDimension performs a merge with any union data inside the InsightSplit, using the provided ExplorePaywallDimension
+func (t *InsightSplit) MergeExplorePaywallDimension(v ExplorePaywallDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExplorePlacementDimension returns the union data inside the InsightSplit as a ExplorePlacementDimension
+func (t InsightSplit) AsExplorePlacementDimension() (ExplorePlacementDimension, error) {
+	var body ExplorePlacementDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExplorePlacementDimension overwrites any union data inside the InsightSplit as the provided ExplorePlacementDimension
+func (t *InsightSplit) FromExplorePlacementDimension(v ExplorePlacementDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExplorePlacementDimension performs a merge with any union data inside the InsightSplit, using the provided ExplorePlacementDimension
+func (t *InsightSplit) MergeExplorePlacementDimension(v ExplorePlacementDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreOfferDimension returns the union data inside the InsightSplit as a ExploreOfferDimension
+func (t InsightSplit) AsExploreOfferDimension() (ExploreOfferDimension, error) {
+	var body ExploreOfferDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreOfferDimension overwrites any union data inside the InsightSplit as the provided ExploreOfferDimension
+func (t *InsightSplit) FromExploreOfferDimension(v ExploreOfferDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreOfferDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreOfferDimension
+func (t *InsightSplit) MergeExploreOfferDimension(v ExploreOfferDimension) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExploreAcquisitionSourceDimension returns the union data inside the InsightSplit as a ExploreAcquisitionSourceDimension
+func (t InsightSplit) AsExploreAcquisitionSourceDimension() (ExploreAcquisitionSourceDimension, error) {
+	var body ExploreAcquisitionSourceDimension
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExploreAcquisitionSourceDimension overwrites any union data inside the InsightSplit as the provided ExploreAcquisitionSourceDimension
+func (t *InsightSplit) FromExploreAcquisitionSourceDimension(v ExploreAcquisitionSourceDimension) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExploreAcquisitionSourceDimension performs a merge with any union data inside the InsightSplit, using the provided ExploreAcquisitionSourceDimension
+func (t *InsightSplit) MergeExploreAcquisitionSourceDimension(v ExploreAcquisitionSourceDimension) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

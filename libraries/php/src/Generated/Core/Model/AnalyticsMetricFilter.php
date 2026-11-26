@@ -15,7 +15,7 @@ class AnalyticsMetricFilter
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     protected $dimension;
     /**
@@ -33,7 +33,7 @@ class AnalyticsMetricFilter
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     public function getDimension()
     {
@@ -42,7 +42,7 @@ class AnalyticsMetricFilter
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $dimension
+     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $dimension
      *
      * @return self
      */

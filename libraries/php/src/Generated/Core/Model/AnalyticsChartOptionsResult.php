@@ -55,11 +55,29 @@ class AnalyticsChartOptionsResult
      */
     protected $packageSources;
     /**
-     * The project's paywall locations that are not archived, for `options.placementId`.
+     * The project's paywall locations that are not archived, for `options.placementId` and to split or narrow metrics by `placement`.
      *
      * @var list<Objects1>
      */
     protected $placements;
+    /**
+     * The project's paywalls that are not archived, to split or narrow metrics by `paywall`.
+     *
+     * @var list<Objects1>
+     */
+    protected $paywalls;
+    /**
+     * Up to 200 store offers redeemed in the last 90 days, most redeemed first, to split or narrow metrics by `offer`; the value is the store's offer id, which names itself.
+     *
+     * @var list<Objects1>
+     */
+    protected $offers;
+    /**
+     * Up to 200 ad networks of people's first campaign touch, the most people first, to split or narrow metrics by `acquisition_source`.
+     *
+     * @var list<Objects1>
+     */
+    protected $acquisitionSources;
     /**
      * The project's experiments that are not archived, for `options.experimentId`.
      *
@@ -239,7 +257,7 @@ class AnalyticsChartOptionsResult
         return $this;
     }
     /**
-     * The project's paywall locations that are not archived, for `options.placementId`.
+     * The project's paywall locations that are not archived, for `options.placementId` and to split or narrow metrics by `placement`.
      *
      * @return list<Objects1>
      */
@@ -248,7 +266,7 @@ class AnalyticsChartOptionsResult
         return $this->placements;
     }
     /**
-     * The project's paywall locations that are not archived, for `options.placementId`.
+     * The project's paywall locations that are not archived, for `options.placementId` and to split or narrow metrics by `placement`.
      *
      * @param list<Objects1> $placements
      *
@@ -258,6 +276,72 @@ class AnalyticsChartOptionsResult
     {
         $this->initialized['placements'] = true;
         $this->placements = $placements;
+        return $this;
+    }
+    /**
+     * The project's paywalls that are not archived, to split or narrow metrics by `paywall`.
+     *
+     * @return list<Objects1>
+     */
+    public function getPaywalls(): array
+    {
+        return $this->paywalls;
+    }
+    /**
+     * The project's paywalls that are not archived, to split or narrow metrics by `paywall`.
+     *
+     * @param list<Objects1> $paywalls
+     *
+     * @return self
+     */
+    public function setPaywalls(array $paywalls): self
+    {
+        $this->initialized['paywalls'] = true;
+        $this->paywalls = $paywalls;
+        return $this;
+    }
+    /**
+     * Up to 200 store offers redeemed in the last 90 days, most redeemed first, to split or narrow metrics by `offer`; the value is the store's offer id, which names itself.
+     *
+     * @return list<Objects1>
+     */
+    public function getOffers(): array
+    {
+        return $this->offers;
+    }
+    /**
+     * Up to 200 store offers redeemed in the last 90 days, most redeemed first, to split or narrow metrics by `offer`; the value is the store's offer id, which names itself.
+     *
+     * @param list<Objects1> $offers
+     *
+     * @return self
+     */
+    public function setOffers(array $offers): self
+    {
+        $this->initialized['offers'] = true;
+        $this->offers = $offers;
+        return $this;
+    }
+    /**
+     * Up to 200 ad networks of people's first campaign touch, the most people first, to split or narrow metrics by `acquisition_source`.
+     *
+     * @return list<Objects1>
+     */
+    public function getAcquisitionSources(): array
+    {
+        return $this->acquisitionSources;
+    }
+    /**
+     * Up to 200 ad networks of people's first campaign touch, the most people first, to split or narrow metrics by `acquisition_source`.
+     *
+     * @param list<Objects1> $acquisitionSources
+     *
+     * @return self
+     */
+    public function setAcquisitionSources(array $acquisitionSources): self
+    {
+        $this->initialized['acquisitionSources'] = true;
+        $this->acquisitionSources = $acquisitionSources;
         return $this;
     }
     /**

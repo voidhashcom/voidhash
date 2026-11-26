@@ -13,7 +13,7 @@ class ExploreFilter
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     protected $dimension;
     /**
@@ -25,14 +25,14 @@ class ExploreFilter
      */
     protected $values;
     /**
-     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     public function getDimension()
     {
         return $this->dimension;
     }
     /**
-     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $dimension
+     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $dimension
      *
      * @return self
      */

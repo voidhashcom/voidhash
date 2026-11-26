@@ -47,6 +47,14 @@ class ExploreFilterNormalizer implements DenormalizerInterface, NormalizerInterf
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExploreCountryDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'billing_period')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'paywall')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExplorePaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'placement')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExplorePlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'offer')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExploreOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'acquisition_source')) {
+                $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExploreAcquisitionSourceDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'plan')) {
                 $value = $this->denormalizer->denormalize($data['dimension'], \Voidhash\Generated\Core\Model\ExplorePlanDimension::class, 'json', $context);
             } elseif (is_array($data['dimension']) and (\array_key_exists('kind', $data['dimension']) and $data['dimension']['kind'] == 'trait') and \array_key_exists('key', $data['dimension'])) {
@@ -77,6 +85,14 @@ class ExploreFilterNormalizer implements DenormalizerInterface, NormalizerInterf
         $dataArray = [];
         $value = $data->getDimension();
         if (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
+            $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
+        } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);
         } elseif (is_object($data->getDimension())) {
             $value = $this->normalizer->normalize($data->getDimension(), 'json', $context);

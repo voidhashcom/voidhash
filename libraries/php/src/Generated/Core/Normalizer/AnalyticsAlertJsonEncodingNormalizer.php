@@ -61,8 +61,30 @@ class AnalyticsAlertJsonEncodingNormalizer implements DenormalizerInterface, Nor
         if (\array_key_exists('kind', $data)) {
             $object->setKind($data['kind']);
         }
-        if (\array_key_exists('eventName', $data)) {
+        if (\array_key_exists('eventName', $data) && $data['eventName'] !== null) {
             $object->setEventName($data['eventName']);
+        }
+        elseif (\array_key_exists('eventName', $data) && $data['eventName'] === null) {
+            $object->setEventName(null);
+        }
+        if (\array_key_exists('metric', $data)) {
+            $object->setMetric($this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class, 'json', $context));
+        }
+        if (\array_key_exists('filters', $data)) {
+            $values = [];
+            foreach ($data['filters'] as $value) {
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\AnalyticsMetricFilter::class, 'json', $context);
+            }
+            $object->setFilters($values);
+        }
+        if (\array_key_exists('direction', $data)) {
+            $object->setDirection($data['direction']);
+        }
+        if (\array_key_exists('currency', $data) && $data['currency'] !== null) {
+            $object->setCurrency($data['currency']);
+        }
+        elseif (\array_key_exists('currency', $data) && $data['currency'] === null) {
+            $object->setCurrency(null);
         }
         if (\array_key_exists('successEventName', $data) && $data['successEventName'] !== null) {
             $object->setSuccessEventName($data['successEventName']);
@@ -106,6 +128,12 @@ class AnalyticsAlertJsonEncodingNormalizer implements DenormalizerInterface, Nor
         elseif (\array_key_exists('baselineWeeks', $data) && $data['baselineWeeks'] === null) {
             $object->setBaselineWeeks(null);
         }
+        if (\array_key_exists('problem', $data) && $data['problem'] !== null) {
+            $object->setProblem($data['problem']);
+        }
+        elseif (\array_key_exists('problem', $data) && $data['problem'] === null) {
+            $object->setProblem(null);
+        }
         if (\array_key_exists('checkedThrough', $data) && $data['checkedThrough'] !== null) {
             $object->setCheckedThrough($data['checkedThrough']);
         }
@@ -131,6 +159,14 @@ class AnalyticsAlertJsonEncodingNormalizer implements DenormalizerInterface, Nor
         $dataArray['name'] = $data->getName();
         $dataArray['kind'] = $data->getKind();
         $dataArray['eventName'] = $data->getEventName();
+        $dataArray['metric'] = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        $values = [];
+        foreach ($data->getFilters() as $value) {
+            $values[] = $this->normalizer->normalize($value, 'json', $context);
+        }
+        $dataArray['filters'] = $values;
+        $dataArray['direction'] = $data->getDirection();
+        $dataArray['currency'] = $data->getCurrency();
         $dataArray['successEventName'] = $data->getSuccessEventName();
         $dataArray['windowHours'] = $data->getWindowHours();
         $dataArray['threshold'] = $data->getThreshold();
@@ -140,6 +176,7 @@ class AnalyticsAlertJsonEncodingNormalizer implements DenormalizerInterface, Nor
         $dataArray['value'] = $data->getValue();
         $dataArray['baseline'] = $data->getBaseline();
         $dataArray['baselineWeeks'] = $data->getBaselineWeeks();
+        $dataArray['problem'] = $data->getProblem();
         $dataArray['checkedThrough'] = $data->getCheckedThrough();
         $dataArray['firingSince'] = $data->getFiringSince();
         $dataArray['createdAt'] = $data->getCreatedAt();

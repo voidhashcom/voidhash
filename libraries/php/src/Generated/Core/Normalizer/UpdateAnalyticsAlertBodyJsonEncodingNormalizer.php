@@ -55,6 +55,25 @@ class UpdateAnalyticsAlertBodyJsonEncodingNormalizer implements DenormalizerInte
         elseif (\array_key_exists('eventName', $data) && $data['eventName'] === null) {
             $object->setEventName(null);
         }
+        if (\array_key_exists('metric', $data)) {
+            $object->setMetric($this->denormalizer->denormalize($data['metric'], \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class, 'json', $context));
+        }
+        if (\array_key_exists('filters', $data)) {
+            $values = [];
+            foreach ($data['filters'] as $value) {
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\Core\Model\AnalyticsMetricFilter::class, 'json', $context);
+            }
+            $object->setFilters($values);
+        }
+        if (\array_key_exists('direction', $data)) {
+            $object->setDirection($data['direction']);
+        }
+        if (\array_key_exists('currency', $data) && $data['currency'] !== null) {
+            $object->setCurrency($data['currency']);
+        }
+        elseif (\array_key_exists('currency', $data) && $data['currency'] === null) {
+            $object->setCurrency(null);
+        }
         if (\array_key_exists('successEventName', $data) && $data['successEventName'] !== null) {
             $object->setSuccessEventName($data['successEventName']);
         }
@@ -95,6 +114,22 @@ class UpdateAnalyticsAlertBodyJsonEncodingNormalizer implements DenormalizerInte
         }
         if ($data->isInitialized('eventName')) {
             $dataArray['eventName'] = $data->getEventName();
+        }
+        if ($data->isInitialized('metric') && null !== $data->getMetric()) {
+            $dataArray['metric'] = $this->normalizer->normalize($data->getMetric(), 'json', $context);
+        }
+        if ($data->isInitialized('filters') && null !== $data->getFilters()) {
+            $values = [];
+            foreach ($data->getFilters() as $value) {
+                $values[] = $this->normalizer->normalize($value, 'json', $context);
+            }
+            $dataArray['filters'] = $values;
+        }
+        if ($data->isInitialized('direction') && null !== $data->getDirection()) {
+            $dataArray['direction'] = $data->getDirection();
+        }
+        if ($data->isInitialized('currency')) {
+            $dataArray['currency'] = $data->getCurrency();
         }
         if ($data->isInitialized('successEventName')) {
             $dataArray['successEventName'] = $data->getSuccessEventName();

@@ -31,13 +31,13 @@ class AnalyticsMetricQuery
      */
     protected $timeRange;
     /**
-     * The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
      *
      * @var string|null
      */
     protected $granularity;
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @var string|null
      */
@@ -51,7 +51,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     protected $split;
     /**
@@ -143,7 +143,7 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
      *
      * @return string|null
      */
@@ -152,7 +152,7 @@ class AnalyticsMetricQuery
         return $this->granularity;
     }
     /**
-     * The width of each bucket: `hour`, `day`, `week` or `month`. Defaults to `day`.
+     * The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
      *
      * @param string|null $granularity
      *
@@ -165,7 +165,7 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @return string|null
      */
@@ -174,7 +174,7 @@ class AnalyticsMetricQuery
         return $this->timezone;
     }
     /**
-     * The IANA time zone that sets day, week and month boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
+     * The IANA time zone that sets day, week, month, quarter and year boundaries and the start of the calendar presets, such as `Europe/Prague`. Defaults to `UTC`.
      *
      * @param string|null $timezone
      *
@@ -211,7 +211,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
      */
     public function getSplit()
     {
@@ -220,7 +220,7 @@ class AnalyticsMetricQuery
     /**
      * What a metric is split or narrowed by; `kind` says which.
      *
-     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
+     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $split
      *
      * @return self
      */

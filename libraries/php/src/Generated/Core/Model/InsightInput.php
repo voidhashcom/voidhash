@@ -53,7 +53,7 @@ class InsightInput
      */
     protected $comparisonRange;
     /**
-     * The periods it counts in: daily, weekly or monthly; weekly unless given.
+     * The periods it counts in: daily, weekly, monthly, or calendar quarterly or yearly, in the request's time zone; weekly unless given. Stickiness counts in days, weeks or months only.
      *
      * @var string
      */
@@ -71,7 +71,7 @@ class InsightInput
      */
     protected $filters;
     /**
-     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     protected $split;
     /**
@@ -267,7 +267,7 @@ class InsightInput
         return $this;
     }
     /**
-     * The periods it counts in: daily, weekly or monthly; weekly unless given.
+     * The periods it counts in: daily, weekly, monthly, or calendar quarterly or yearly, in the request's time zone; weekly unless given. Stickiness counts in days, weeks or months only.
      *
      * @return string
      */
@@ -276,7 +276,7 @@ class InsightInput
         return $this->granularity;
     }
     /**
-     * The periods it counts in: daily, weekly or monthly; weekly unless given.
+     * The periods it counts in: daily, weekly, monthly, or calendar quarterly or yearly, in the request's time zone; weekly unless given. Stickiness counts in days, weeks or months only.
      *
      * @param string $granularity
      *
@@ -333,14 +333,14 @@ class InsightInput
         return $this;
     }
     /**
-     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
      */
     public function getSplit()
     {
         return $this->split;
     }
     /**
-     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $split
+     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $split
      *
      * @return self
      */

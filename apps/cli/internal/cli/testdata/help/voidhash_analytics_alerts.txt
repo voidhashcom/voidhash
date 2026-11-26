@@ -1,12 +1,13 @@
-Rules that tell owners and admins when events look broken: an error that happens too often, too many
-failed attempts, or an event that stopped arriving. Each rule is checked every hour.
+Rules that tell owners and admins when events or money look wrong: an error that happens too often,
+too many failed attempts, an event that stopped arriving, or a metric such as MRR, revenue or trials
+crossing a value or moving by a share. Each rule is checked every hour.
 
 Usage:
   voidhash analytics alerts <command> [flags]
 
 Commands:
   list       List the project's alerts and how each stood at its latest check.
-  create     Add a rule that tells owners and admins when events look broken.
+  create     Add a rule that tells owners and admins when events or money look wrong.
   enable     Turn an alert back on.
   disable    Turn an alert off without deleting it.
   delete     Delete an alert.

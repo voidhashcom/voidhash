@@ -91,6 +91,14 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreCountryDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'billing_period')) {
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'paywall')) {
+                $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExplorePaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'placement')) {
+                $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExplorePlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'offer')) {
+                $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'acquisition_source')) {
+                $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExploreAcquisitionSourceDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'plan')) {
                 $value_2 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\ExplorePlanDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'trait') and \array_key_exists('key', $data['split'])) {
@@ -169,6 +177,14 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
         if ($data->isInitialized('split') && null !== $data->getSplit()) {
             $value_2 = $data->getSplit();
             if (is_object($data->getSplit())) {
+                $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
                 $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             } elseif (is_object($data->getSplit())) {
                 $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);

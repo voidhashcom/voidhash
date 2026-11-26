@@ -1,36 +1,65 @@
-Add a rule that tells owners and admins when events look broken. What it watches is its kind:
+Add a rule that tells owners and admins when events or money look wrong. What it watches is its
+kind:
 
-  event_count    The event happened --threshold times in the window,
-                 to at least --min-people people.
-  failure_share  More than --threshold (0 to 1) of the attempts in the
-                 window failed. An attempt is --event, the failure, or
-                 --success-event.
-  volume_drop    The event fell by --threshold (0 to 1) against the same
-                 window in the weeks before.
+  event_count       The event happened --threshold times in the window,
+                    to at least --min-people people.
+  failure_share     More than --threshold (0 to 1) of the attempts in the
+                    window failed. An attempt is --event, the failure, or
+                    --success-event.
+  volume_drop       The event fell by --threshold (0 to 1) against the same
+                    window in the weeks before.
+  metric_threshold  The --metric over the window is --direction above or
+                    below --threshold: money as you write it (5000 for
+                    5,000.00) in --currency, the organization's reporting
+                    currency unless named, which the alert keeps; counts as
+                    whole numbers. MRR and active subscriptions or trials are
+                    read as they stand, with --window-hours 24.
+  metric_change     The --metric moved by --threshold (0.1 for 10%),
+                    --direction up, down or either, against the window
+                    before; a day of a flow such as revenue against the
+                    same day a week earlier.
 
-It is first checked at the next quarter past the hour. On a terminal, what is not passed is asked
-for.
+A metric alert's window is 24, 168 or 720 hours, and --filter narrows it,
+as dimension=values or dimension!=values: store=apple-app-store,
+country!=US,CA, trait:plan=pro. It is first checked at the next quarter past
+the hour. On a terminal, what is not passed is asked for.
 
 Usage:
   voidhash analytics alerts create [flags]
 
 Flags:
-      --event <event>          The event to watch; for failure_share, the event of a failed attempt
-  -h, --help                   Show help for this command
-      --json                   Print the API object as JSON, for scripts
-      --kind <event_count|failure_share|volume_drop>
-                               What it watches: too many of an event, too many failures among
-                               attempts, or an event that fell against earlier weeks
-      --min-people <people>    For event_count: distinct people it must affect (default: 2). Use 1
-                               when one person matters
-      --name <name>            What a person reads in the notice
-      --project <project>      Project to act on: its id, slug, organization/slug or name (default:
-                               this directory's project, then your default project)
-      --success-event <event>  For failure_share: the event of an attempt that worked
-      --threshold <threshold>  For event_count, the count that fires it; for the others, a share
-                               from 0 to 1
-      --window-hours <hours>   The trailing window each hourly check reads, in hours: 1, 6, 24 or
-                               168
+      --basis <gross|net_of_tax|proceeds>
+                                   For a money metric: what its amounts count (default: the metric's
+                                   own)
+      --currency <code>            For a money metric: the ISO 4217 code its threshold is in, such
+                                   as EUR (default: the organization's reporting currency)
+      --direction <above|below|up|down|either>
+                                   For a metric alert: above or below for metric_threshold, up, down
+                                   or either for metric_change
+      --event <event>              The event to watch; for failure_share, the event of a failed
+                                   attempt
+      --filter <dimension=values>  For a metric alert: narrows it, as dimension=values or
+                                   dimension!=values; repeat for more (can be repeated)
+  -h, --help                       Show help for this command
+      --json                       Print the API object as JSON, for scripts
+      --kind <event_count|failure_share|volume_drop|metric_threshold|metric_change>
+                                   What it watches: too many of an event, too many failures among
+                                   attempts, an event that fell against earlier weeks, a metric past
+                                   a value, or a metric that moved
+      --metric <mrr|revenue|refunds|new_mrr|expansion_mrr|reactivation_mrr|contraction_mrr|churned_mrr|net_new_mrr|active_subscriptions|new_subscriptions|churned_subscriptions|paying_customers|active_trials|new_trials|trial_conversions>
+                                   For a metric alert: the built-in metric to watch
+      --min-people <people>        For event_count: distinct people it must affect (default: 2). Use
+                                   1 when one person matters
+      --name <name>                What a person reads in the notice
+      --project <project>          Project to act on: its id, slug, organization/slug or name
+                                   (default: this directory's project, then your default project)
+      --success-event <event>      For failure_share: the event of an attempt that worked
+      --threshold <threshold>      For event_count, the count that fires it; for failure_share and
+                                   volume_drop, a share from 0 to 1; for metric_threshold, the
+                                   metric's value, money as written (5000 for 5,000.00); for
+                                   metric_change, a share such as 0.1
+      --window-hours <hours>       The trailing window each hourly check reads, in hours: 1, 6, 24
+                                   or 168 for an event, 24, 168 or 720 for a metric
 
 Global flags:
   -d, --debug              Print each request and full error detail to standard error
@@ -42,3 +71,5 @@ Examples:
   voidhash analytics alerts create --name "Checkout errors" --kind event_count --event checkout_error --window-hours 1 --threshold 20
   voidhash analytics alerts create --name "Payments failing" --kind failure_share --event payment_failed --success-event payment_succeeded --window-hours 6 --threshold 0.3
   voidhash analytics alerts create --name "Signups dropped" --kind volume_drop --event signup --window-hours 24 --threshold 0.5
+  voidhash analytics alerts create --name "App Store MRR falling" --kind metric_change --metric mrr --filter store=apple-app-store --direction down --window-hours 720 --threshold 0.1
+  voidhash analytics alerts create --name "Refunds abroad" --kind metric_threshold --metric refunds --filter country!=US --direction above --window-hours 168 --threshold 500

@@ -89,33 +89,54 @@ class AnalyticsChartOptionsResultNormalizer implements DenormalizerInterface, No
             }
             $object->setPlacements($values_6);
         }
-        if (\array_key_exists('experiments', $data)) {
+        if (\array_key_exists('paywalls', $data)) {
             $values_7 = [];
-            foreach ($data['experiments'] as $value_7) {
+            foreach ($data['paywalls'] as $value_7) {
                 $values_7[] = $this->denormalizer->denormalize($value_7, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
             }
-            $object->setExperiments($values_7);
+            $object->setPaywalls($values_7);
         }
-        if (\array_key_exists('events', $data)) {
+        if (\array_key_exists('offers', $data)) {
             $values_8 = [];
-            foreach ($data['events'] as $value_8) {
+            foreach ($data['offers'] as $value_8) {
                 $values_8[] = $this->denormalizer->denormalize($value_8, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
             }
-            $object->setEvents($values_8);
+            $object->setOffers($values_8);
         }
-        if (\array_key_exists('traits', $data)) {
+        if (\array_key_exists('acquisitionSources', $data)) {
             $values_9 = [];
-            foreach ($data['traits'] as $value_9) {
+            foreach ($data['acquisitionSources'] as $value_9) {
                 $values_9[] = $this->denormalizer->denormalize($value_9, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
             }
-            $object->setTraits($values_9);
+            $object->setAcquisitionSources($values_9);
         }
-        if (\array_key_exists('properties', $data)) {
+        if (\array_key_exists('experiments', $data)) {
             $values_10 = [];
-            foreach ($data['properties'] as $value_10) {
+            foreach ($data['experiments'] as $value_10) {
                 $values_10[] = $this->denormalizer->denormalize($value_10, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
             }
-            $object->setProperties($values_10);
+            $object->setExperiments($values_10);
+        }
+        if (\array_key_exists('events', $data)) {
+            $values_11 = [];
+            foreach ($data['events'] as $value_11) {
+                $values_11[] = $this->denormalizer->denormalize($value_11, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
+            }
+            $object->setEvents($values_11);
+        }
+        if (\array_key_exists('traits', $data)) {
+            $values_12 = [];
+            foreach ($data['traits'] as $value_12) {
+                $values_12[] = $this->denormalizer->denormalize($value_12, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
+            }
+            $object->setTraits($values_12);
+        }
+        if (\array_key_exists('properties', $data)) {
+            $values_13 = [];
+            foreach ($data['properties'] as $value_13) {
+                $values_13[] = $this->denormalizer->denormalize($value_13, \Voidhash\Generated\Core\Model\Objects1::class, 'json', $context);
+            }
+            $object->setProperties($values_13);
         }
         return $object;
     }
@@ -159,25 +180,40 @@ class AnalyticsChartOptionsResultNormalizer implements DenormalizerInterface, No
         }
         $dataArray['placements'] = $values_6;
         $values_7 = [];
-        foreach ($data->getExperiments() as $value_7) {
+        foreach ($data->getPaywalls() as $value_7) {
             $values_7[] = $this->normalizer->normalize($value_7, 'json', $context);
         }
-        $dataArray['experiments'] = $values_7;
+        $dataArray['paywalls'] = $values_7;
         $values_8 = [];
-        foreach ($data->getEvents() as $value_8) {
+        foreach ($data->getOffers() as $value_8) {
             $values_8[] = $this->normalizer->normalize($value_8, 'json', $context);
         }
-        $dataArray['events'] = $values_8;
+        $dataArray['offers'] = $values_8;
         $values_9 = [];
-        foreach ($data->getTraits() as $value_9) {
+        foreach ($data->getAcquisitionSources() as $value_9) {
             $values_9[] = $this->normalizer->normalize($value_9, 'json', $context);
         }
-        $dataArray['traits'] = $values_9;
+        $dataArray['acquisitionSources'] = $values_9;
         $values_10 = [];
-        foreach ($data->getProperties() as $value_10) {
+        foreach ($data->getExperiments() as $value_10) {
             $values_10[] = $this->normalizer->normalize($value_10, 'json', $context);
         }
-        $dataArray['properties'] = $values_10;
+        $dataArray['experiments'] = $values_10;
+        $values_11 = [];
+        foreach ($data->getEvents() as $value_11) {
+            $values_11[] = $this->normalizer->normalize($value_11, 'json', $context);
+        }
+        $dataArray['events'] = $values_11;
+        $values_12 = [];
+        foreach ($data->getTraits() as $value_12) {
+            $values_12[] = $this->normalizer->normalize($value_12, 'json', $context);
+        }
+        $dataArray['traits'] = $values_12;
+        $values_13 = [];
+        foreach ($data->getProperties() as $value_13) {
+            $values_13[] = $this->normalizer->normalize($value_13, 'json', $context);
+        }
+        $dataArray['properties'] = $values_13;
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

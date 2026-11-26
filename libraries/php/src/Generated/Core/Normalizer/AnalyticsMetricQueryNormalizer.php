@@ -125,6 +125,14 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'billing_period')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'paywall')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsPaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'placement')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsPlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'offer')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'acquisition_source')) {
+                $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsAcquisitionSourceDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'plan')) {
                 $value_3 = $this->denormalizer->denormalize($data['split'], \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class, 'json', $context);
             } elseif (is_array($data['split']) and (\array_key_exists('kind', $data['split']) and $data['split']['kind'] == 'trait') and \array_key_exists('key', $data['split'])) {
@@ -225,6 +233,14 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         if ($data->isInitialized('split') && null !== $data->getSplit()) {
             $value_3 = $data->getSplit();
             if (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
+            } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             } elseif (is_object($data->getSplit())) {
                 $value_3 = $this->normalizer->normalize($data->getSplit(), 'json', $context);

@@ -318,6 +318,15 @@ var currencySymbols = map[string]string{
 	"KRW": "₩", "VND": "₫", "PHP": "₱", "XAF": "FCFA", "XOF": "F CFA", "XPF": "CFPF", "XCD": "EC$",
 }
 
+// CurrencyDecimals is how many decimals the ISO 4217 currency's minor unit
+// takes: 2 for USD, 0 for JPY, 3 for KWD.
+func CurrencyDecimals(currency string) int {
+	if decimals, ok := currencyDecimals[strings.ToUpper(currency)]; ok {
+		return decimals
+	}
+	return 2
+}
+
 // FormatMoney is an amount of money as people read it: amount minor units
 // (cents for USD, yen for JPY) of the ISO 4217 currency, so
 // FormatMoney(999, "USD") is "$9.99" and FormatMoney(1234500, "CZK") is

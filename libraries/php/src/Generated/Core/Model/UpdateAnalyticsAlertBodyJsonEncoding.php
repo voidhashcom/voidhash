@@ -19,11 +19,35 @@ class UpdateAnalyticsAlertBodyJsonEncoding
      */
     protected $name;
     /**
-     * The new event to count or watch; for `failure_share`, the event of a failed attempt.
+     * The new event to count or watch; for `failure_share`, the event of a failed attempt. Event alerts only.
      *
      * @var string|null
      */
     protected $eventName;
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @var AnalyticsAlertMetric
+     */
+    protected $metric;
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @var list<AnalyticsMetricFilter>
+     */
+    protected $filters;
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+     *
+     * @var string
+     */
+    protected $direction;
+    /**
+     * The currency the alert's `threshold` is in, for a money metric only; send `threshold` with it, which is read in it. Omitted, the alert keeps its own, or takes the organization's reporting currency when its metric becomes money.
+     *
+     * @var string|null
+     */
+    protected $currency;
     /**
      * The new event of an attempt that worked, for `failure_share` alerts only.
      *
@@ -31,13 +55,13 @@ class UpdateAnalyticsAlertBodyJsonEncoding
      */
     protected $successEventName;
     /**
-     * The new window in hours: `1`, `6`, `24` or `168`.
+     * The new window in hours: `1`, `6`, `24` or `168` for an event alert, `24`, `168` or `720` for a metric alert.
      *
      * @var int|null
      */
     protected $windowHours;
     /**
-     * The new threshold: a whole count of at least 1 for `event_count`, a share between 0 and 1 for the others.
+     * The new threshold, read as `CreateAnalyticsAlertBody.threshold` is for the alert's kind.
      *
      * @var float|null
      */
@@ -77,7 +101,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this;
     }
     /**
-     * The new event to count or watch; for `failure_share`, the event of a failed attempt.
+     * The new event to count or watch; for `failure_share`, the event of a failed attempt. Event alerts only.
      *
      * @return string|null
      */
@@ -86,7 +110,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this->eventName;
     }
     /**
-     * The new event to count or watch; for `failure_share`, the event of a failed attempt.
+     * The new event to count or watch; for `failure_share`, the event of a failed attempt. Event alerts only.
      *
      * @param string|null $eventName
      *
@@ -96,6 +120,94 @@ class UpdateAnalyticsAlertBodyJsonEncoding
     {
         $this->initialized['eventName'] = true;
         $this->eventName = $eventName;
+        return $this;
+    }
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @return AnalyticsAlertMetric
+     */
+    public function getMetric(): AnalyticsAlertMetric
+    {
+        return $this->metric;
+    }
+    /**
+     * The built-in metric a metric alert watches, with the basis of its money.
+     *
+     * @param AnalyticsAlertMetric $metric
+     *
+     * @return self
+     */
+    public function setMetric(AnalyticsAlertMetric $metric): self
+    {
+        $this->initialized['metric'] = true;
+        $this->metric = $metric;
+        return $this;
+    }
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @return list<AnalyticsMetricFilter>
+     */
+    public function getFilters(): array
+    {
+        return $this->filters;
+    }
+    /**
+     * What the metric is narrowed by, as a metric query's `filters`: up to 10, such as the App Store's store or every country but `US`. A filter the metric can't take is refused.
+     *
+     * @param list<AnalyticsMetricFilter> $filters
+     *
+     * @return self
+     */
+    public function setFilters(array $filters): self
+    {
+        $this->initialized['filters'] = true;
+        $this->filters = $filters;
+        return $this;
+    }
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+     *
+     * @return string
+     */
+    public function getDirection(): string
+    {
+        return $this->direction;
+    }
+    /**
+     * Which way a metric alert fires: `above` or `below` its threshold for `metric_threshold`; `up`, `down` or `either` for `metric_change`.
+     *
+     * @param string $direction
+     *
+     * @return self
+     */
+    public function setDirection(string $direction): self
+    {
+        $this->initialized['direction'] = true;
+        $this->direction = $direction;
+        return $this;
+    }
+    /**
+     * The currency the alert's `threshold` is in, for a money metric only; send `threshold` with it, which is read in it. Omitted, the alert keeps its own, or takes the organization's reporting currency when its metric becomes money.
+     *
+     * @return string|null
+     */
+    public function getCurrency(): ?string
+    {
+        return $this->currency;
+    }
+    /**
+     * The currency the alert's `threshold` is in, for a money metric only; send `threshold` with it, which is read in it. Omitted, the alert keeps its own, or takes the organization's reporting currency when its metric becomes money.
+     *
+     * @param string|null $currency
+     *
+     * @return self
+     */
+    public function setCurrency(?string $currency): self
+    {
+        $this->initialized['currency'] = true;
+        $this->currency = $currency;
         return $this;
     }
     /**
@@ -121,7 +233,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this;
     }
     /**
-     * The new window in hours: `1`, `6`, `24` or `168`.
+     * The new window in hours: `1`, `6`, `24` or `168` for an event alert, `24`, `168` or `720` for a metric alert.
      *
      * @return int|null
      */
@@ -130,7 +242,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this->windowHours;
     }
     /**
-     * The new window in hours: `1`, `6`, `24` or `168`.
+     * The new window in hours: `1`, `6`, `24` or `168` for an event alert, `24`, `168` or `720` for a metric alert.
      *
      * @param int|null $windowHours
      *
@@ -143,7 +255,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this;
     }
     /**
-     * The new threshold: a whole count of at least 1 for `event_count`, a share between 0 and 1 for the others.
+     * The new threshold, read as `CreateAnalyticsAlertBody.threshold` is for the alert's kind.
      *
      * @return float|null
      */
@@ -152,7 +264,7 @@ class UpdateAnalyticsAlertBodyJsonEncoding
         return $this->threshold;
     }
     /**
-     * The new threshold: a whole count of at least 1 for `event_count`, a share between 0 and 1 for the others.
+     * The new threshold, read as `CreateAnalyticsAlertBody.threshold` is for the alert's kind.
      *
      * @param float|null $threshold
      *

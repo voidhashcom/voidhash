@@ -20,7 +20,8 @@
       "trials": "Trials"
     },
     "needsEvents": ["$app_installed"],
-    "isCurrentState": true
+    "isCurrentState": true,
+    "fixedGranularity": "hour"
   },
   {
     "id": "business_snapshot",
@@ -303,7 +304,8 @@
       "renewing": "Set to renew",
       "ending": "Set to end"
     },
-    "isCurrentState": true
+    "isCurrentState": true,
+    "fixedGranularity": "day"
   },
   {
     "id": "revenue_forecast",
@@ -320,7 +322,8 @@
       "low": "Low",
       "high": "High"
     },
-    "isCurrentState": true
+    "isCurrentState": true,
+    "fixedGranularity": "month"
   },
   {
     "id": "subscribers_by_plan",
@@ -493,7 +496,8 @@
       "renewing": "Auto-renew on",
       "ending": "Auto-renew off"
     },
-    "isCurrentState": true
+    "isCurrentState": true,
+    "fixedGranularity": "day"
   },
   {
     "id": "survival_curves",
@@ -560,7 +564,8 @@
     "labels": {
       "net": "Net",
       "gross": "Gross"
-    }
+    },
+    "fixedGranularity": "month"
   },
   {
     "id": "churn_by_reason",
@@ -623,7 +628,8 @@
     "labels": {
       "at_risk": "Ending"
     },
-    "isCurrentState": true
+    "isCurrentState": true,
+    "fixedGranularity": "week"
   },
   {
     "id": "billing_recovery",
