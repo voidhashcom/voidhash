@@ -19,7 +19,7 @@ class AnalyticsChartMarkersResult
      */
     protected $shape;
     /**
-     * The changes, oldest first; up to 20 of each kind.
+     * The changes, oldest first: up to 20 of each kind Voidhash derives, and every annotation in the range.
      *
      * @var list<AnalyticsChartMarkersResultMarkersItem>
      */
@@ -47,7 +47,7 @@ class AnalyticsChartMarkersResult
         return $this;
     }
     /**
-     * The changes, oldest first; up to 20 of each kind.
+     * The changes, oldest first: up to 20 of each kind Voidhash derives, and every annotation in the range.
      *
      * @return list<AnalyticsChartMarkersResultMarkersItem>
      */
@@ -56,7 +56,7 @@ class AnalyticsChartMarkersResult
         return $this->markers;
     }
     /**
-     * The changes, oldest first; up to 20 of each kind.
+     * The changes, oldest first: up to 20 of each kind Voidhash derives, and every annotation in the range.
      *
      * @param list<AnalyticsChartMarkersResultMarkersItem> $markers
      *

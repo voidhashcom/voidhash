@@ -46,6 +46,12 @@ class AnalyticsChartMarkersResultMarkersItemNormalizer implements DenormalizerIn
         if (\array_key_exists('label', $data)) {
             $object->setLabel($data['label']);
         }
+        if (\array_key_exists('annotation', $data) && $data['annotation'] !== null) {
+            $object->setAnnotation($this->denormalizer->denormalize($data['annotation'], \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResultMarkersItemAnnotation::class, 'json', $context));
+        }
+        elseif (\array_key_exists('annotation', $data) && $data['annotation'] === null) {
+            $object->setAnnotation(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -54,6 +60,9 @@ class AnalyticsChartMarkersResultMarkersItemNormalizer implements DenormalizerIn
         $dataArray['at'] = $data->getAt();
         $dataArray['kind'] = $data->getKind();
         $dataArray['label'] = $data->getLabel();
+        if ($data->isInitialized('annotation')) {
+            $dataArray['annotation'] = $this->normalizer->normalize($data->getAnnotation(), 'json', $context);
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

@@ -57,7 +57,8 @@ credential headers for you: passing `Authorization` or `x-secret-key` in
 `headers` (in any casing) also throws. Creating a client makes no request.
 
 Namespaces follow the API's groups: `adAccounts`, `ads`, `analytics`,
-`analyticsAlerts`, `apiKeys`, `auditLog`, `componentDevSessions`, `componentRegistry`, `components`,
+`analyticsAlerts`, `analyticsAnnotations`, `apiKeys`, `auditLog`, `componentDevSessions`,
+`componentRegistry`, `components`,
 `connectedApps`, `events`, `experiments`, `featureFlags`, `feedback`,
 `ingestPolicy`, `me`, `notices`, `organizationMembers`, `organizations`,
 `paymentProviderHistoryImports`, `paymentProviderProducts`, `paymentProviders`,

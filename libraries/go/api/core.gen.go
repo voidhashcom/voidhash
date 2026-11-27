@@ -996,6 +996,7 @@ const (
 // Defines values for AnalyticsChartMarkersResultMarkersKind.
 const (
 	AnalyticsChartMarkersResultMarkersKindAdChange       AnalyticsChartMarkersResultMarkersKind = "ad_change"
+	AnalyticsChartMarkersResultMarkersKindAnnotation     AnalyticsChartMarkersResultMarkersKind = "annotation"
 	AnalyticsChartMarkersResultMarkersKindAppVersion     AnalyticsChartMarkersResultMarkersKind = "app_version"
 	AnalyticsChartMarkersResultMarkersKindFlagChange     AnalyticsChartMarkersResultMarkersKind = "flag_change"
 	AnalyticsChartMarkersResultMarkersKindPaywallRelease AnalyticsChartMarkersResultMarkersKind = "paywall_release"
@@ -6375,6 +6376,39 @@ type AnalyticsAlertMetricKind string
 // AnalyticsAlertState How the alert stands after its latest check: `pending` until its first check after it was created, changed or turned on; `ok`; `firing`; `not_enough_volume` when too few events happened in the window to judge, or a metric alert's compared value is too small; `not_enough_history` when a `volume_drop` alert's event has fewer than two earlier weeks to compare with, or a metric alert's purchases were not tracked before the window it compares with; or `cannot_measure` when a metric alert can no longer be measured as it stands, such as a filter naming a cohort deleted since, with the reason in `problem`: it stays so until a check can measure it again, usually once the alert is changed. More states may be added: treat one you don't know as unknown rather than failing.
 type AnalyticsAlertState string
 
+// AnalyticsAnnotationJsonEncoding defines model for AnalyticsAnnotationJsonEncoding.
+type AnalyticsAnnotationJsonEncoding struct {
+	// AuthorName Their name as it reads now; null when they can no longer be named. A project's secret key or bot is told a bot's name but never a person's, which is null for it.
+	AuthorName *string `json:"authorName"`
+
+	// CreatedAt When it was written, as an ISO 8601 timestamp.
+	CreatedAt string `json:"createdAt"`
+
+	// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot.
+	CreatedBy string `json:"createdBy"`
+
+	// Date The day it is on, `YYYY-MM-DD`. A day of the calendar, not an instant: each reader sees it on that day in their own time zone.
+	Date string `json:"date"`
+
+	// Description More about it; null when there is nothing more.
+	Description *string `json:"description"`
+
+	// Id The annotation's id, `annot_...`.
+	Id string `json:"id"`
+
+	// ProjectId The project whose charts it is on.
+	ProjectId string `json:"projectId"`
+
+	// Time The time of day it names on that day, `HH:MM` (24-hour); null for the whole day.
+	Time *string `json:"time"`
+
+	// Title What happened, as the chart labels it.
+	Title string `json:"title"`
+
+	// UpdatedAt When it last changed, as an ISO 8601 timestamp.
+	UpdatedAt string `json:"updatedAt"`
+}
+
 // AnalyticsBillingPeriodDimension How often the product bills: `weekly`, `monthly`, `quarterly`, `semiannual`, `annual` or `one_time`. Every metric but an event's.
 type AnalyticsBillingPeriodDimension struct {
 	Kind AnalyticsBillingPeriodDimensionKind `json:"kind"`
@@ -6637,15 +6671,36 @@ type AnalyticsChartId string
 
 // AnalyticsChartMarkersResult What changed in the range, to draw on time series.
 type AnalyticsChartMarkersResult struct {
-	// Markers The changes, oldest first; up to 20 of each kind.
+	// Markers The changes, oldest first: up to 20 of each kind Voidhash derives, and every annotation in the range.
 	Markers []struct {
+		// Annotation An `annotation` marker's note; absent on every other kind.
+		Annotation *struct {
+			// AuthorName Their name as it reads now; null when they can no longer be named, and for a person when a project's secret key or bot asks.
+			AuthorName *string `json:"authorName"`
+
+			// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot.
+			CreatedBy string `json:"createdBy"`
+
+			// Date The day it is on, `YYYY-MM-DD`, read in the request's `timezone`.
+			Date string `json:"date"`
+
+			// Description What it says beyond its title; null when nothing.
+			Description *string `json:"description"`
+
+			// Id The annotation's id, `annot_...`.
+			Id string `json:"id"`
+
+			// Time The time of day it names, `HH:MM`; null for the day as a whole.
+			Time *string `json:"time"`
+		} `json:"annotation"`
+
 		// At When it changed, as an ISO 8601 timestamp.
 		At string `json:"at"`
 
-		// Kind What changed: a paywall release, a new app version, a feature flag's rollout or state, or an ad campaign.
+		// Kind What changed: a paywall release, a new app version, a feature flag's rollout or state, or an ad campaign; or `annotation`, a note someone put on the day, only when `options.knownMarkerKinds` names it. More kinds may be added, each only for a caller that names it.
 		Kind AnalyticsChartMarkersResultMarkersKind `json:"kind"`
 
-		// Label What changed, as people read it.
+		// Label What changed, as people read it; an annotation's title.
 		Label string `json:"label"`
 	} `json:"markers"`
 
@@ -6653,7 +6708,7 @@ type AnalyticsChartMarkersResult struct {
 	Shape AnalyticsChartMarkersResultShape `json:"shape"`
 }
 
-// AnalyticsChartMarkersResultMarkersKind What changed: a paywall release, a new app version, a feature flag's rollout or state, or an ad campaign.
+// AnalyticsChartMarkersResultMarkersKind What changed: a paywall release, a new app version, a feature flag's rollout or state, or an ad campaign; or `annotation`, a note someone put on the day, only when `options.knownMarkerKinds` names it. More kinds may be added, each only for a caller that names it.
 type AnalyticsChartMarkersResultMarkersKind string
 
 // AnalyticsChartMarkersResultShape Always `markers`.
@@ -6669,6 +6724,9 @@ type AnalyticsChartOptions struct {
 
 	// ExperimentId The experiment an experiment chart reads, `exp_...`; required by those charts.
 	ExperimentId *string `json:"experimentId"`
+
+	// KnownMarkerKinds For `chart_markers`: the kinds of marker beyond `paywall_release`, `app_version`, `flag_change` and `ad_change` the caller can read, such as `annotation` for the notes people put on days. Those four are always listed; a kind not named here is left out, and a name the service doesn't know is ignored.
+	KnownMarkerKinds *[]string `json:"knownMarkerKinds"`
 
 	// Limit How many series or rows to keep, 1 to 200; the rest are summed under the key `$other`. Tables default to 50.
 	Limit *int `json:"limit"`
@@ -9327,6 +9385,21 @@ type CreateAnalyticsAlertBodyJsonEncoding struct {
 
 	// WindowHours The trailing window each check reads, in hours: `1`, `6`, `24` or `168` (7 days) for an event alert; `24`, `168` or `720` (30 days) for a metric alert. A threshold on a balance (MRR, active subscriptions or trials) reads it as it stands at each check and takes `24`.
 	WindowHours int `json:"windowHours"`
+}
+
+// CreateAnalyticsAnnotationBodyJsonEncoding A project holds up to 1000 annotations.
+type CreateAnalyticsAnnotationBodyJsonEncoding struct {
+	// Date The day it is on, `YYYY-MM-DD`.
+	Date string `json:"date"`
+
+	// Description More about it, up to 2000 characters.
+	Description *string `json:"description"`
+
+	// Time A time of day on that day, `HH:MM` (24-hour); the whole day when omitted.
+	Time *string `json:"time"`
+
+	// Title What happened, 1 to 120 characters.
+	Title string `json:"title"`
 }
 
 // CreateAnalyticsCohortBodyJsonEncoding defines model for CreateAnalyticsCohortBodyJsonEncoding.
@@ -15219,6 +15292,21 @@ type UpdateAnalyticsAlertBodyJsonEncoding struct {
 	WindowHours *int `json:"windowHours"`
 }
 
+// UpdateAnalyticsAnnotationBodyJsonEncoding defines model for UpdateAnalyticsAnnotationBodyJsonEncoding.
+type UpdateAnalyticsAnnotationBodyJsonEncoding struct {
+	// Date The day it moves to, `YYYY-MM-DD`.
+	Date *string `json:"date"`
+
+	// Description The new description; null takes it away.
+	Description *string `json:"description"`
+
+	// Time A time of day on its day, `HH:MM`; null for the whole day.
+	Time *string `json:"time"`
+
+	// Title The new title, 1 to 120 characters.
+	Title *string `json:"title"`
+}
+
 // UpdateAnalyticsCohortBodyJsonEncoding defines model for UpdateAnalyticsCohortBodyJsonEncoding.
 type UpdateAnalyticsCohortBodyJsonEncoding struct {
 	// Definition Who a dynamic cohort holds, worked out whenever it is read.
@@ -16136,6 +16224,24 @@ type AnalyticsAlertsListParams struct {
 
 	// Limit How many items to return, from 1 to 100. Defaults to 50.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AnalyticsAnnotationsListParams defines parameters for AnalyticsAnnotationsList.
+type AnalyticsAnnotationsListParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// From Only annotations on this day, `YYYY-MM-DD`, or later.
+	From *string `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Only annotations on this day, `YYYY-MM-DD`, or earlier; on or after `from`.
+	To *string `form:"to,omitempty" json:"to,omitempty"`
+
+	// Search Only annotations whose title or description contains these words, in any case.
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
 }
 
 // AnalyticsCohortsListParams defines parameters for AnalyticsCohortsList.
@@ -18038,6 +18144,12 @@ type AnalyticsAlertsCreateJSONRequestBody = CreateAnalyticsAlertBodyJsonEncoding
 
 // AnalyticsAlertsUpdateJSONRequestBody defines body for AnalyticsAlertsUpdate for application/json ContentType.
 type AnalyticsAlertsUpdateJSONRequestBody = UpdateAnalyticsAlertBodyJsonEncoding
+
+// AnalyticsAnnotationsCreateJSONRequestBody defines body for AnalyticsAnnotationsCreate for application/json ContentType.
+type AnalyticsAnnotationsCreateJSONRequestBody = CreateAnalyticsAnnotationBodyJsonEncoding
+
+// AnalyticsAnnotationsUpdateJSONRequestBody defines body for AnalyticsAnnotationsUpdate for application/json ContentType.
+type AnalyticsAnnotationsUpdateJSONRequestBody = UpdateAnalyticsAnnotationBodyJsonEncoding
 
 // AnalyticsCohortsCreateJSONRequestBody defines body for AnalyticsCohortsCreate for application/json ContentType.
 type AnalyticsCohortsCreateJSONRequestBody = CreateAnalyticsCohortBodyJsonEncoding
@@ -23407,6 +23519,25 @@ type ClientInterface interface {
 
 	AnalyticsAlertsUpdate(ctx context.Context, projectId string, alertId string, body AnalyticsAlertsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// AnalyticsAnnotationsList request
+	AnalyticsAnnotationsList(ctx context.Context, projectId string, params *AnalyticsAnnotationsListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnalyticsAnnotationsCreateWithBody request with any body
+	AnalyticsAnnotationsCreateWithBody(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AnalyticsAnnotationsCreate(ctx context.Context, projectId string, body AnalyticsAnnotationsCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnalyticsAnnotationsDelete request
+	AnalyticsAnnotationsDelete(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnalyticsAnnotationsGet request
+	AnalyticsAnnotationsGet(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnalyticsAnnotationsUpdateWithBody request with any body
+	AnalyticsAnnotationsUpdateWithBody(ctx context.Context, projectId string, annotationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AnalyticsAnnotationsUpdate(ctx context.Context, projectId string, annotationId string, body AnalyticsAnnotationsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AnalyticsCohortsList request
 	AnalyticsCohortsList(ctx context.Context, projectId string, params *AnalyticsCohortsListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -25580,6 +25711,90 @@ func (c *Client) AnalyticsAlertsUpdateWithBody(ctx context.Context, projectId st
 
 func (c *Client) AnalyticsAlertsUpdate(ctx context.Context, projectId string, alertId string, body AnalyticsAlertsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAnalyticsAlertsUpdateRequest(c.Server, projectId, alertId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsList(ctx context.Context, projectId string, params *AnalyticsAnnotationsListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsListRequest(c.Server, projectId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsCreateWithBody(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsCreateRequestWithBody(c.Server, projectId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsCreate(ctx context.Context, projectId string, body AnalyticsAnnotationsCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsCreateRequest(c.Server, projectId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsDelete(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsDeleteRequest(c.Server, projectId, annotationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsGet(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsGetRequest(c.Server, projectId, annotationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsUpdateWithBody(ctx context.Context, projectId string, annotationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsUpdateRequestWithBody(c.Server, projectId, annotationId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AnalyticsAnnotationsUpdate(ctx context.Context, projectId string, annotationId string, body AnalyticsAnnotationsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnalyticsAnnotationsUpdateRequest(c.Server, projectId, annotationId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -33816,6 +34031,309 @@ func NewAnalyticsAlertsUpdateRequestWithBody(server string, projectId string, al
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/alerts/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAnalyticsAnnotationsListRequest generates requests for AnalyticsAnnotationsList
+func NewAnalyticsAnnotationsListRequest(server string, projectId string, params *AnalyticsAnnotationsListParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/annotations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.From != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "from", runtime.ParamLocationQuery, *params.From); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.To != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "to", runtime.ParamLocationQuery, *params.To); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Search != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "search", runtime.ParamLocationQuery, *params.Search); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAnalyticsAnnotationsCreateRequest calls the generic AnalyticsAnnotationsCreate builder with application/json body
+func NewAnalyticsAnnotationsCreateRequest(server string, projectId string, body AnalyticsAnnotationsCreateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAnalyticsAnnotationsCreateRequestWithBody(server, projectId, "application/json", bodyReader)
+}
+
+// NewAnalyticsAnnotationsCreateRequestWithBody generates requests for AnalyticsAnnotationsCreate with any type of body
+func NewAnalyticsAnnotationsCreateRequestWithBody(server string, projectId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/annotations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAnalyticsAnnotationsDeleteRequest generates requests for AnalyticsAnnotationsDelete
+func NewAnalyticsAnnotationsDeleteRequest(server string, projectId string, annotationId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "annotationId", runtime.ParamLocationPath, annotationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/annotations/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAnalyticsAnnotationsGetRequest generates requests for AnalyticsAnnotationsGet
+func NewAnalyticsAnnotationsGetRequest(server string, projectId string, annotationId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "annotationId", runtime.ParamLocationPath, annotationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/annotations/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAnalyticsAnnotationsUpdateRequest calls the generic AnalyticsAnnotationsUpdate builder with application/json body
+func NewAnalyticsAnnotationsUpdateRequest(server string, projectId string, annotationId string, body AnalyticsAnnotationsUpdateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAnalyticsAnnotationsUpdateRequestWithBody(server, projectId, annotationId, "application/json", bodyReader)
+}
+
+// NewAnalyticsAnnotationsUpdateRequestWithBody generates requests for AnalyticsAnnotationsUpdate with any type of body
+func NewAnalyticsAnnotationsUpdateRequestWithBody(server string, projectId string, annotationId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "annotationId", runtime.ParamLocationPath, annotationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/analytics/annotations/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -53217,6 +53735,25 @@ type ClientWithResponsesInterface interface {
 
 	AnalyticsAlertsUpdateWithResponse(ctx context.Context, projectId string, alertId string, body AnalyticsAlertsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*AnalyticsAlertsUpdateResponse, error)
 
+	// AnalyticsAnnotationsListWithResponse request
+	AnalyticsAnnotationsListWithResponse(ctx context.Context, projectId string, params *AnalyticsAnnotationsListParams, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsListResponse, error)
+
+	// AnalyticsAnnotationsCreateWithBodyWithResponse request with any body
+	AnalyticsAnnotationsCreateWithBodyWithResponse(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsCreateResponse, error)
+
+	AnalyticsAnnotationsCreateWithResponse(ctx context.Context, projectId string, body AnalyticsAnnotationsCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsCreateResponse, error)
+
+	// AnalyticsAnnotationsDeleteWithResponse request
+	AnalyticsAnnotationsDeleteWithResponse(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsDeleteResponse, error)
+
+	// AnalyticsAnnotationsGetWithResponse request
+	AnalyticsAnnotationsGetWithResponse(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsGetResponse, error)
+
+	// AnalyticsAnnotationsUpdateWithBodyWithResponse request with any body
+	AnalyticsAnnotationsUpdateWithBodyWithResponse(ctx context.Context, projectId string, annotationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsUpdateResponse, error)
+
+	AnalyticsAnnotationsUpdateWithResponse(ctx context.Context, projectId string, annotationId string, body AnalyticsAnnotationsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsUpdateResponse, error)
+
 	// AnalyticsCohortsListWithResponse request
 	AnalyticsCohortsListWithResponse(ctx context.Context, projectId string, params *AnalyticsCohortsListParams, reqEditors ...RequestEditorFn) (*AnalyticsCohortsListResponse, error)
 
@@ -56109,6 +56646,146 @@ func (r AnalyticsAlertsUpdateResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AnalyticsAlertsUpdateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AnalyticsAnnotationsListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []AnalyticsAnnotationJsonEncoding `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r AnalyticsAnnotationsListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnalyticsAnnotationsListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AnalyticsAnnotationsCreateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AnalyticsAnnotationJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r AnalyticsAnnotationsCreateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnalyticsAnnotationsCreateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AnalyticsAnnotationsDeleteResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r AnalyticsAnnotationsDeleteResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnalyticsAnnotationsDeleteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AnalyticsAnnotationsGetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AnalyticsAnnotationJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r AnalyticsAnnotationsGetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnalyticsAnnotationsGetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AnalyticsAnnotationsUpdateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AnalyticsAnnotationJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r AnalyticsAnnotationsUpdateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnalyticsAnnotationsUpdateResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -65330,6 +66007,67 @@ func (c *ClientWithResponses) AnalyticsAlertsUpdateWithResponse(ctx context.Cont
 	return ParseAnalyticsAlertsUpdateResponse(rsp)
 }
 
+// AnalyticsAnnotationsListWithResponse request returning *AnalyticsAnnotationsListResponse
+func (c *ClientWithResponses) AnalyticsAnnotationsListWithResponse(ctx context.Context, projectId string, params *AnalyticsAnnotationsListParams, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsListResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsList(ctx, projectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsListResponse(rsp)
+}
+
+// AnalyticsAnnotationsCreateWithBodyWithResponse request with arbitrary body returning *AnalyticsAnnotationsCreateResponse
+func (c *ClientWithResponses) AnalyticsAnnotationsCreateWithBodyWithResponse(ctx context.Context, projectId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsCreateResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsCreateWithBody(ctx, projectId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsCreateResponse(rsp)
+}
+
+func (c *ClientWithResponses) AnalyticsAnnotationsCreateWithResponse(ctx context.Context, projectId string, body AnalyticsAnnotationsCreateJSONRequestBody, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsCreateResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsCreate(ctx, projectId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsCreateResponse(rsp)
+}
+
+// AnalyticsAnnotationsDeleteWithResponse request returning *AnalyticsAnnotationsDeleteResponse
+func (c *ClientWithResponses) AnalyticsAnnotationsDeleteWithResponse(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsDeleteResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsDelete(ctx, projectId, annotationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsDeleteResponse(rsp)
+}
+
+// AnalyticsAnnotationsGetWithResponse request returning *AnalyticsAnnotationsGetResponse
+func (c *ClientWithResponses) AnalyticsAnnotationsGetWithResponse(ctx context.Context, projectId string, annotationId string, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsGetResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsGet(ctx, projectId, annotationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsGetResponse(rsp)
+}
+
+// AnalyticsAnnotationsUpdateWithBodyWithResponse request with arbitrary body returning *AnalyticsAnnotationsUpdateResponse
+func (c *ClientWithResponses) AnalyticsAnnotationsUpdateWithBodyWithResponse(ctx context.Context, projectId string, annotationId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsUpdateResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsUpdateWithBody(ctx, projectId, annotationId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsUpdateResponse(rsp)
+}
+
+func (c *ClientWithResponses) AnalyticsAnnotationsUpdateWithResponse(ctx context.Context, projectId string, annotationId string, body AnalyticsAnnotationsUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*AnalyticsAnnotationsUpdateResponse, error) {
+	rsp, err := c.AnalyticsAnnotationsUpdate(ctx, projectId, annotationId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnalyticsAnnotationsUpdateResponse(rsp)
+}
+
 // AnalyticsCohortsListWithResponse request returning *AnalyticsCohortsListResponse
 func (c *ClientWithResponses) AnalyticsCohortsListWithResponse(ctx context.Context, projectId string, params *AnalyticsCohortsListParams, reqEditors ...RequestEditorFn) (*AnalyticsCohortsListResponse, error) {
 	rsp, err := c.AnalyticsCohortsList(ctx, projectId, params, reqEditors...)
@@ -72758,6 +73496,310 @@ func ParseAnalyticsAlertsUpdateResponse(rsp *http.Response) (*AnalyticsAlertsUpd
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AnalyticsAlertJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnalyticsAnnotationsListResponse parses an HTTP response from a AnalyticsAnnotationsListWithResponse call
+func ParseAnalyticsAnnotationsListResponse(rsp *http.Response) (*AnalyticsAnnotationsListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnalyticsAnnotationsListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []AnalyticsAnnotationJsonEncoding `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnalyticsAnnotationsCreateResponse parses an HTTP response from a AnalyticsAnnotationsCreateWithResponse call
+func ParseAnalyticsAnnotationsCreateResponse(rsp *http.Response) (*AnalyticsAnnotationsCreateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnalyticsAnnotationsCreateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AnalyticsAnnotationJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnalyticsAnnotationsDeleteResponse parses an HTTP response from a AnalyticsAnnotationsDeleteWithResponse call
+func ParseAnalyticsAnnotationsDeleteResponse(rsp *http.Response) (*AnalyticsAnnotationsDeleteResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnalyticsAnnotationsDeleteResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnalyticsAnnotationsGetResponse parses an HTTP response from a AnalyticsAnnotationsGetWithResponse call
+func ParseAnalyticsAnnotationsGetResponse(rsp *http.Response) (*AnalyticsAnnotationsGetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnalyticsAnnotationsGetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AnalyticsAnnotationJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAnalyticsAnnotationsUpdateResponse parses an HTTP response from a AnalyticsAnnotationsUpdateWithResponse call
+func ParseAnalyticsAnnotationsUpdateResponse(rsp *http.Response) (*AnalyticsAnnotationsUpdateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnalyticsAnnotationsUpdateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AnalyticsAnnotationJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

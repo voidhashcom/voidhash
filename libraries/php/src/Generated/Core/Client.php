@@ -318,6 +318,98 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAlertsUpdate($projectId, $alertId, $requestBody), $fetch);
     }
     /**
+     * Lists the project's annotations, the latest day first. A project's secret key is told who wrote each by `createdBy` and a bot's name, but no person's name. Fails with `invalid_request` (`invalid_analytics_annotation`) for a `from` after `to`. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param array{
+     *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+     *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
+     *    "from"?: string, //Only annotations on this day, `YYYY-MM-DD`, or later.
+     *    "to"?: string, //Only annotations on this day, `YYYY-MM-DD`, or earlier; on or after `from`.
+     *    "search"?: string, //Only annotations whose title or description contains these words, in any case.
+     * } $queryParameters
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsListBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsListUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsListForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsListNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsListInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsAnnotationsGetResponse200 : \Psr\Http\Message\ResponseInterface)
+     */
+    public function analyticsAnnotationsList(string $projectId, array $queryParameters = [], string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsList($projectId, $queryParameters), $fetch);
+    }
+    /**
+     * Puts a note on a day of the project's charts, credited to the person or bot calling; a project key can't, as no one would be credited. Fails with `invalid_request` (`invalid_analytics_annotation`) for a day the calendar doesn't have, or a project already at 1,000 annotations.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsCreateBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsCreateUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsCreateForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsCreateNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsCreateInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\AnalyticsAnnotationJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function analyticsAnnotationsCreate(string $projectId, \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsCreate($projectId, $requestBody), $fetch);
+    }
+    /**
+     * Deletes an annotation from every chart.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $annotationId The annotation's id, `annot_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsDeleteBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsDeleteUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsDeleteForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsDeleteNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsDeleteInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
+     */
+    public function analyticsAnnotationsDelete(string $projectId, string $annotationId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsDelete($projectId, $annotationId), $fetch);
+    }
+    /**
+     * Reads one annotation. Fails with `not_found` (`analytics_annotation_not_found`) when the project has no such annotation.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $annotationId The annotation's id, `annot_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsGetBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsGetUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsGetForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsGetNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsGetInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\AnalyticsAnnotationJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function analyticsAnnotationsGet(string $projectId, string $annotationId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsGet($projectId, $annotationId), $fetch);
+    }
+    /**
+     * Changes what an annotation says or the day it is on; its author stays who wrote it. A field left out keeps its value, and null takes away a time or a description.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $annotationId The annotation's id, `annot_...`.
+     * @param \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsUpdateBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsUpdateUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsUpdateForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsUpdateNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\AnalyticsAnnotationsUpdateInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\AnalyticsAnnotationJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function analyticsAnnotationsUpdate(string $projectId, string $annotationId, \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsUpdate($projectId, $annotationId, $requestBody), $fetch);
+    }
+    /**
      * Lists the project's cohorts, most recently changed first. A dynamic cohort's `memberCount` is null here; read it alone to count its people. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{

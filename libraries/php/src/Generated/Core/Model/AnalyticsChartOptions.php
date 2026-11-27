@@ -67,6 +67,12 @@ class AnalyticsChartOptions
      */
     protected $trait;
     /**
+     * For `chart_markers`: the kinds of marker beyond `paywall_release`, `app_version`, `flag_change` and `ad_change` the caller can read, such as `annotation` for the notes people put on days. Those four are always listed; a kind not named here is left out, and a name the service doesn't know is ignored.
+     *
+     * @var list<string>|null
+     */
+    protected $knownMarkerKinds;
+    /**
      * What a breakdown chart splits by, among the dimensions its catalog entry lists, such as `store` or `country`. Defaults to the first one.
      *
      * @return string|null
@@ -262,6 +268,28 @@ class AnalyticsChartOptions
     {
         $this->initialized['trait'] = true;
         $this->trait = $trait;
+        return $this;
+    }
+    /**
+     * For `chart_markers`: the kinds of marker beyond `paywall_release`, `app_version`, `flag_change` and `ad_change` the caller can read, such as `annotation` for the notes people put on days. Those four are always listed; a kind not named here is left out, and a name the service doesn't know is ignored.
+     *
+     * @return list<string>|null
+     */
+    public function getKnownMarkerKinds(): ?array
+    {
+        return $this->knownMarkerKinds;
+    }
+    /**
+     * For `chart_markers`: the kinds of marker beyond `paywall_release`, `app_version`, `flag_change` and `ad_change` the caller can read, such as `annotation` for the notes people put on days. Those four are always listed; a kind not named here is left out, and a name the service doesn't know is ignored.
+     *
+     * @param list<string>|null $knownMarkerKinds
+     *
+     * @return self
+     */
+    public function setKnownMarkerKinds(?array $knownMarkerKinds): self
+    {
+        $this->initialized['knownMarkerKinds'] = true;
+        $this->knownMarkerKinds = $knownMarkerKinds;
         return $this;
     }
 }

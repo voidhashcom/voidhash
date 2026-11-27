@@ -1128,6 +1128,12 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\AnalyticsMrrMetric::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMrrMetricNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\AnalyticsAnnotationJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAnnotationJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdateAnalyticsAnnotationBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreateAnalyticsAnnotationBodyJsonEncodingNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\AnalyticsAlertJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAlertJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class => \Voidhash\Generated\Core\Normalizer\AnalyticsAlertMetricNormalizer::class,
@@ -1236,6 +1242,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResultMarkersItem::class => \Voidhash\Generated\Core\Normalizer\AnalyticsChartMarkersResultMarkersItemNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResultMarkersItemAnnotation::class => \Voidhash\Generated\Core\Normalizer\AnalyticsChartMarkersResultMarkersItemAnnotationNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\AnalyticsChartPointsResult::class => \Voidhash\Generated\Core\Normalizer\AnalyticsChartPointsResultNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsChartPointsResultPointsItem::class => \Voidhash\Generated\Core\Normalizer\AnalyticsChartPointsResultPointsItemNormalizer::class,
@@ -1329,6 +1337,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAdsAccountsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdAdsAccountsGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsAlertsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdAnalyticsAlertsGetResponse200Normalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsAnnotationsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdAnalyticsAnnotationsGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsCohortsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdAnalyticsCohortsGetResponse200Normalizer::class,
         
@@ -2065,6 +2075,9 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsNewMrrMetric::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsRevenueMetric::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMrrMetric::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsAnnotationJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsAlertJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsAlertMetric::class => false,
             \Voidhash\Generated\Core\Model\UpdateAnalyticsAlertBodyJsonEncoding::class => false,
@@ -2119,6 +2132,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\Objects1::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResult::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResultMarkersItem::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsChartMarkersResultMarkersItemAnnotation::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartPointsResult::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartPointsResultPointsItem::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartStatsResult::class => false,
@@ -2166,6 +2180,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ConnectAdAccountBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAdsAccountsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsAlertsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsAnnotationsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsCohortsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsCohortsCohortIdPeopleGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAnalyticsGroupTypesGetResponse200::class => false,

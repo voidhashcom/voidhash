@@ -91,6 +91,16 @@ class AnalyticsChartOptionsNormalizer implements DenormalizerInterface, Normaliz
         elseif (\array_key_exists('trait', $data) && $data['trait'] === null) {
             $object->setTrait(null);
         }
+        if (\array_key_exists('knownMarkerKinds', $data) && $data['knownMarkerKinds'] !== null) {
+            $values = [];
+            foreach ($data['knownMarkerKinds'] as $value) {
+                $values[] = $value;
+            }
+            $object->setKnownMarkerKinds($values);
+        }
+        elseif (\array_key_exists('knownMarkerKinds', $data) && $data['knownMarkerKinds'] === null) {
+            $object->setKnownMarkerKinds(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -122,6 +132,13 @@ class AnalyticsChartOptionsNormalizer implements DenormalizerInterface, Normaliz
         }
         if ($data->isInitialized('trait')) {
             $dataArray['trait'] = $data->getTrait();
+        }
+        if ($data->isInitialized('knownMarkerKinds')) {
+            $values = [];
+            foreach ($data->getKnownMarkerKinds() as $value) {
+                $values[] = $value;
+            }
+            $dataArray['knownMarkerKinds'] = $values;
         }
         return $dataArray;
     }

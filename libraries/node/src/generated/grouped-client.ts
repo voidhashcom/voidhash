@@ -284,6 +284,51 @@ export const groupCoreClient = <ProjectIdError>(
         client.analyticsAlertsUpdate(resolvedProjectId, request.params["alertId"], request.payload),
       ),
   },
+  analyticsAnnotations: {
+    create: (request: {
+      payload: Parameters<VoidhashCoreClient["analyticsAnnotationsCreate"]>[1];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.analyticsAnnotationsCreate(resolvedProjectId, request.payload),
+      ),
+    delete: (request: { params: { readonly annotationId: string } }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.analyticsAnnotationsDelete(resolvedProjectId, request.params["annotationId"]),
+      ),
+    get: (request: { params: { readonly annotationId: string } }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.analyticsAnnotationsGet(resolvedProjectId, request.params["annotationId"]),
+      ),
+    list: (request?: {
+      params?: {
+        readonly cursor?: string;
+        readonly limit?: number;
+        readonly from?: string;
+        readonly to?: string;
+        readonly search?: string;
+      };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.analyticsAnnotationsList(resolvedProjectId, {
+          cursor: request?.params?.["cursor"],
+          limit: request?.params?.["limit"],
+          from: request?.params?.["from"],
+          to: request?.params?.["to"],
+          search: request?.params?.["search"],
+        }),
+      ),
+    update: (request: {
+      params: { readonly annotationId: string };
+      payload: Parameters<VoidhashCoreClient["analyticsAnnotationsUpdate"]>[2];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.analyticsAnnotationsUpdate(
+          resolvedProjectId,
+          request.params["annotationId"],
+          request.payload,
+        ),
+      ),
+  },
   analyticsCohorts: {
     addPeople: (request: {
       params: { readonly cohortId: string };
