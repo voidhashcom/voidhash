@@ -6253,7 +6253,7 @@ type AdsRevision struct {
 	Spend int `json:"spend"`
 }
 
-// AnalyticsAcquisitionSourceDimension The ad network of the person's first campaign touch, such as `meta`, as lifetime value by source reads it, as it is now; `$unknown` for a person with no tracked touch. Every metric reads it of a person: an event's, or for money and subscriptions the one who pays or subscribes. As by a trait, a value of fewer than five people counts under `$other`.
+// AnalyticsAcquisitionSourceDimension The ad network of the person's first campaign touch, such as `meta`, as lifetime value by source reads it, as it is now; `$unknown` for a person with no tracked touch. Every metric reads it of a person: an event's, or for money and subscriptions the one who pays or subscribes. As by a trait, a value of fewer than five people counts under `$other`. It is not the acquisition report's credit, which goes to a signup's last touch within its attribution window, so the two can differ per network.
 type AnalyticsAcquisitionSourceDimension struct {
 	Kind AnalyticsAcquisitionSourceDimensionKind `json:"kind"`
 }
@@ -6378,14 +6378,14 @@ type AnalyticsAlertState string
 
 // AnalyticsAnnotationJsonEncoding defines model for AnalyticsAnnotationJsonEncoding.
 type AnalyticsAnnotationJsonEncoding struct {
-	// AuthorName Their name as it reads now; null when they can no longer be named. A project's secret key or bot is told a bot's name but never a person's, which is null for it.
+	// AuthorName Their name as it reads now; for a note a secret key wrote, the key's name as it reads now. Null when they can no longer be named, such as a deleted key. A project's secret key or bot is told a bot's or a key's name but never a person's, which is null for it.
 	AuthorName *string `json:"authorName"`
 
 	// CreatedAt When it was written, as an ISO 8601 timestamp.
 	CreatedAt string `json:"createdAt"`
 
-	// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot.
-	CreatedBy string `json:"createdBy"`
+	// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot; null when a project's secret key wrote it, which is no one.
+	CreatedBy *string `json:"createdBy"`
 
 	// Date The day it is on, `YYYY-MM-DD`. A day of the calendar, not an instant: each reader sees it on that day in their own time zone.
 	Date string `json:"date"`
@@ -6675,11 +6675,11 @@ type AnalyticsChartMarkersResult struct {
 	Markers []struct {
 		// Annotation An `annotation` marker's note; absent on every other kind.
 		Annotation *struct {
-			// AuthorName Their name as it reads now; null when they can no longer be named, and for a person when a project's secret key or bot asks.
+			// AuthorName Their name as it reads now, or the name of the secret key that wrote it; null when they can no longer be named, and for a person when a project's secret key or bot asks.
 			AuthorName *string `json:"authorName"`
 
-			// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot.
-			CreatedBy string `json:"createdBy"`
+			// CreatedBy Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot; null when a project's secret key wrote it.
+			CreatedBy *string `json:"createdBy"`
 
 			// Date The day it is on, `YYYY-MM-DD`, read in the request's `timezone`.
 			Date string `json:"date"`
@@ -10334,7 +10334,7 @@ type ExperimentVariantResultJsonEncoding struct {
 	VariantId string `json:"variantId"`
 }
 
-// ExploreAcquisitionSourceDimension The ad network a person was first reached through, as it is now; groups of fewer than five people count as Other.
+// ExploreAcquisitionSourceDimension The ad network of a person's first ad touch, as it is now, not the acquisition report's credit by its own attribution rules; groups of fewer than five people count as Other.
 type ExploreAcquisitionSourceDimension struct {
 	Kind ExploreAcquisitionSourceDimensionKind `json:"kind"`
 }

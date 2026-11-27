@@ -37,13 +37,13 @@ class AnalyticsChartMarkersResultMarkersItemAnnotation
      */
     protected $description;
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot; null when a project's secret key wrote it.
      *
-     * @var string
+     * @var string|null
      */
     protected $createdBy;
     /**
-     * Their name as it reads now; null when they can no longer be named, and for a person when a project's secret key or bot asks.
+     * Their name as it reads now, or the name of the secret key that wrote it; null when they can no longer be named, and for a person when a project's secret key or bot asks.
      *
      * @var string|null
      */
@@ -137,29 +137,29 @@ class AnalyticsChartMarkersResultMarkersItemAnnotation
         return $this;
     }
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot; null when a project's secret key wrote it.
      *
-     * @return string
+     * @return string|null
      */
-    public function getCreatedBy(): string
+    public function getCreatedBy(): ?string
     {
         return $this->createdBy;
     }
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a bot; null when a project's secret key wrote it.
      *
-     * @param string $createdBy
+     * @param string|null $createdBy
      *
      * @return self
      */
-    public function setCreatedBy(string $createdBy): self
+    public function setCreatedBy(?string $createdBy): self
     {
         $this->initialized['createdBy'] = true;
         $this->createdBy = $createdBy;
         return $this;
     }
     /**
-     * Their name as it reads now; null when they can no longer be named, and for a person when a project's secret key or bot asks.
+     * Their name as it reads now, or the name of the secret key that wrote it; null when they can no longer be named, and for a person when a project's secret key or bot asks.
      *
      * @return string|null
      */
@@ -168,7 +168,7 @@ class AnalyticsChartMarkersResultMarkersItemAnnotation
         return $this->authorName;
     }
     /**
-     * Their name as it reads now; null when they can no longer be named, and for a person when a project's secret key or bot asks.
+     * Their name as it reads now, or the name of the secret key that wrote it; null when they can no longer be named, and for a person when a project's secret key or bot asks.
      *
      * @param string|null $authorName
      *

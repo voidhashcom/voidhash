@@ -7,7 +7,7 @@ class AnalyticsAnnotationsUpdate extends \Voidhash\Generated\Core\Runtime\Client
     protected $projectId;
     protected $annotationId;
     /**
-     * Changes what an annotation says or the day it is on; its author stays who wrote it. A field left out keeps its value, and null takes away a time or a description.
+     * Changes what an annotation says or the day it is on; its author stays who wrote it, whoever changes it. A field left out keeps its value, and null takes away a time or a description. Fails with `permission_denied` when a bot changes an annotation it didn't write.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $annotationId The annotation's id, `annot_...`.
      * @param \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding $requestBody

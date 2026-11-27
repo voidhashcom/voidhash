@@ -6,7 +6,7 @@ class AnalyticsAnnotationsList extends \Voidhash\Generated\Core\Runtime\Client\B
 {
     protected $projectId;
     /**
-     * Lists the project's annotations, the latest day first. A project's secret key is told who wrote each by `createdBy` and a bot's name, but no person's name. Fails with `invalid_request` (`invalid_analytics_annotation`) for a `from` after `to`. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
+     * Lists the project's annotations, the latest day first. A project's secret key is told who wrote each by `createdBy` and a bot's or a key's name, but no person's name. Fails with `invalid_request` (`invalid_analytics_annotation`) for a `from` after `to`. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.

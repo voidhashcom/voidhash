@@ -61,8 +61,11 @@ class AnalyticsAnnotationJsonEncodingNormalizer implements DenormalizerInterface
         elseif (\array_key_exists('description', $data) && $data['description'] === null) {
             $object->setDescription(null);
         }
-        if (\array_key_exists('createdBy', $data)) {
+        if (\array_key_exists('createdBy', $data) && $data['createdBy'] !== null) {
             $object->setCreatedBy($data['createdBy']);
+        }
+        elseif (\array_key_exists('createdBy', $data) && $data['createdBy'] === null) {
+            $object->setCreatedBy(null);
         }
         if (\array_key_exists('authorName', $data) && $data['authorName'] !== null) {
             $object->setAuthorName($data['authorName']);

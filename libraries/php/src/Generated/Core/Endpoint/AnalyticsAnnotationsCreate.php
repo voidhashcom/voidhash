@@ -6,7 +6,7 @@ class AnalyticsAnnotationsCreate extends \Voidhash\Generated\Core\Runtime\Client
 {
     protected $projectId;
     /**
-     * Puts a note on a day of the project's charts, credited to the person or bot calling; a project key can't, as no one would be credited. Fails with `invalid_request` (`invalid_analytics_annotation`) for a day the calendar doesn't have, or a project already at 1,000 annotations.
+     * Puts a note on a day of the project's charts, credited to the person or bot calling. A project's secret key is no one: its note has a null `createdBy`, and `authorName` names the key. Fails with `invalid_request` (`invalid_analytics_annotation`) for a day the calendar doesn't have, or a project already at 1,000 annotations.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding $requestBody
      */

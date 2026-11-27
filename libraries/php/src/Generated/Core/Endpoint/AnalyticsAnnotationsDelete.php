@@ -7,7 +7,7 @@ class AnalyticsAnnotationsDelete extends \Voidhash\Generated\Core\Runtime\Client
     protected $projectId;
     protected $annotationId;
     /**
-     * Deletes an annotation from every chart.
+     * Deletes an annotation from every chart, for good. Fails with `permission_denied` when a bot deletes one.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $annotationId The annotation's id, `annot_...`.
      */

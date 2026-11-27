@@ -49,13 +49,13 @@ class AnalyticsAnnotationJsonEncoding
      */
     protected $description;
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot; null when a project's secret key wrote it, which is no one.
      *
-     * @var string
+     * @var string|null
      */
     protected $createdBy;
     /**
-     * Their name as it reads now; null when they can no longer be named. A project's secret key or bot is told a bot's name but never a person's, which is null for it.
+     * Their name as it reads now; for a note a secret key wrote, the key's name as it reads now. Null when they can no longer be named, such as a deleted key. A project's secret key or bot is told a bot's or a key's name but never a person's, which is null for it.
      *
      * @var string|null
      */
@@ -205,29 +205,29 @@ class AnalyticsAnnotationJsonEncoding
         return $this;
     }
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot; null when a project's secret key wrote it, which is no one.
      *
-     * @return string
+     * @return string|null
      */
-    public function getCreatedBy(): string
+    public function getCreatedBy(): ?string
     {
         return $this->createdBy;
     }
     /**
-     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot.
+     * Who wrote it: `user:<id>` for a person, `bot:<key>` for a project's bot; null when a project's secret key wrote it, which is no one.
      *
-     * @param string $createdBy
+     * @param string|null $createdBy
      *
      * @return self
      */
-    public function setCreatedBy(string $createdBy): self
+    public function setCreatedBy(?string $createdBy): self
     {
         $this->initialized['createdBy'] = true;
         $this->createdBy = $createdBy;
         return $this;
     }
     /**
-     * Their name as it reads now; null when they can no longer be named. A project's secret key or bot is told a bot's name but never a person's, which is null for it.
+     * Their name as it reads now; for a note a secret key wrote, the key's name as it reads now. Null when they can no longer be named, such as a deleted key. A project's secret key or bot is told a bot's or a key's name but never a person's, which is null for it.
      *
      * @return string|null
      */
@@ -236,7 +236,7 @@ class AnalyticsAnnotationJsonEncoding
         return $this->authorName;
     }
     /**
-     * Their name as it reads now; null when they can no longer be named. A project's secret key or bot is told a bot's name but never a person's, which is null for it.
+     * Their name as it reads now; for a note a secret key wrote, the key's name as it reads now. Null when they can no longer be named, such as a deleted key. A project's secret key or bot is told a bot's or a key's name but never a person's, which is null for it.
      *
      * @param string|null $authorName
      *

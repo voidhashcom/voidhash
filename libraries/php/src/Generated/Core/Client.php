@@ -318,7 +318,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAlertsUpdate($projectId, $alertId, $requestBody), $fetch);
     }
     /**
-     * Lists the project's annotations, the latest day first. A project's secret key is told who wrote each by `createdBy` and a bot's name, but no person's name. Fails with `invalid_request` (`invalid_analytics_annotation`) for a `from` after `to`. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
+     * Lists the project's annotations, the latest day first. A project's secret key is told who wrote each by `createdBy` and a bot's or a key's name, but no person's name. Fails with `invalid_request` (`invalid_analytics_annotation`) for a `from` after `to`. Fails with `invalid_request` (`invalid_cursor`) for a cursor from another list.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param array{
      *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -341,7 +341,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsList($projectId, $queryParameters), $fetch);
     }
     /**
-     * Puts a note on a day of the project's charts, credited to the person or bot calling; a project key can't, as no one would be credited. Fails with `invalid_request` (`invalid_analytics_annotation`) for a day the calendar doesn't have, or a project already at 1,000 annotations.
+     * Puts a note on a day of the project's charts, credited to the person or bot calling. A project's secret key is no one: its note has a null `createdBy`, and `authorName` names the key. Fails with `invalid_request` (`invalid_analytics_annotation`) for a day the calendar doesn't have, or a project already at 1,000 annotations.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreateAnalyticsAnnotationBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -358,7 +358,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsCreate($projectId, $requestBody), $fetch);
     }
     /**
-     * Deletes an annotation from every chart.
+     * Deletes an annotation from every chart, for good. Fails with `permission_denied` when a bot deletes one.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $annotationId The annotation's id, `annot_...`.
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -392,7 +392,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\AnalyticsAnnotationsGet($projectId, $annotationId), $fetch);
     }
     /**
-     * Changes what an annotation says or the day it is on; its author stays who wrote it. A field left out keeps its value, and null takes away a time or a description.
+     * Changes what an annotation says or the day it is on; its author stays who wrote it, whoever changes it. A field left out keeps its value, and null takes away a time or a description. Fails with `permission_denied` when a bot changes an annotation it didn't write.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $annotationId The annotation's id, `annot_...`.
      * @param \Voidhash\Generated\Core\Model\UpdateAnalyticsAnnotationBodyJsonEncoding $requestBody
