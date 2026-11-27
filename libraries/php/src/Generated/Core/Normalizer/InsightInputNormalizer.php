@@ -112,6 +112,37 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
             }
             $object->setSplit($value_2);
         }
+        if (\array_key_exists('secondSplit', $data)) {
+            $value_3 = $data['secondSplit'];
+            if (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'store')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreStoreDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'product')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreProductDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'country')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreCountryDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'billing_period')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'paywall')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExplorePaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'placement')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExplorePlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'offer')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'acquisition_source')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreAcquisitionSourceDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'plan')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExplorePlanDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'trait') and \array_key_exists('key', $data['secondSplit'])) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreTraitDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'property') and \array_key_exists('key', $data['secondSplit'])) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExplorePropertyDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'cohort')) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreCohortDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'group') and \array_key_exists('groupType', $data['secondSplit'])) {
+                $value_3 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\ExploreGroupDimension::class, 'json', $context);
+            }
+            $object->setSecondSplit($value_3);
+        }
         if (\array_key_exists('actor', $data)) {
             $object->setActor($data['actor']);
         }
@@ -204,6 +235,37 @@ class InsightInputNormalizer implements DenormalizerInterface, NormalizerInterfa
                 $value_2 = $this->normalizer->normalize($data->getSplit(), 'json', $context);
             }
             $dataArray['split'] = $value_2;
+        }
+        if ($data->isInitialized('secondSplit') && null !== $data->getSecondSplit()) {
+            $value_3 = $data->getSecondSplit();
+            if (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_3 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            }
+            $dataArray['secondSplit'] = $value_3;
         }
         if ($data->isInitialized('actor') && null !== $data->getActor()) {
             $dataArray['actor'] = $data->getActor();

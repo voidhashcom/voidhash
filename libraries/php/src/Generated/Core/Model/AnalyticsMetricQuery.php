@@ -55,7 +55,7 @@ class AnalyticsMetricQuery
      */
     protected $split;
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+     * An earlier period to also measure, returned as `previousTotal` and each group's (and, with a `secondSplit`, each cell's and margin's) `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @var string|null
      */
@@ -76,6 +76,18 @@ class AnalyticsMetricQuery
      * @var int|null
      */
     protected $limit;
+    /**
+     * What a metric is split or narrowed by; `kind` says which.
+     *
+     * @var AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     */
+    protected $secondSplit;
+    /**
+     * How many groups of `secondSplit` to return, biggest first by that dimension's own totals, 1 to 10; the rest are summed under `$other`. `limit` times this is at most 50. Defaults to 5.
+     *
+     * @var int|null
+     */
+    protected $secondLimit;
     /**
      * A name you choose for the query, returned on its result.
      *
@@ -231,7 +243,7 @@ class AnalyticsMetricQuery
         return $this;
     }
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+     * An earlier period to also measure, returned as `previousTotal` and each group's (and, with a `secondSplit`, each cell's and margin's) `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @return string|null
      */
@@ -240,7 +252,7 @@ class AnalyticsMetricQuery
         return $this->comparison;
     }
     /**
-     * An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+     * An earlier period to also measure, returned as `previousTotal` and each group's (and, with a `secondSplit`, each cell's and margin's) `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
      *
      * @param string|null $comparison
      *
@@ -312,6 +324,50 @@ class AnalyticsMetricQuery
     {
         $this->initialized['limit'] = true;
         $this->limit = $limit;
+        return $this;
+    }
+    /**
+     * What a metric is split or narrowed by; `kind` says which.
+     *
+     * @return AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension
+     */
+    public function getSecondSplit()
+    {
+        return $this->secondSplit;
+    }
+    /**
+     * What a metric is split or narrowed by; `kind` says which.
+     *
+     * @param AnalyticsStoreDimension|AnalyticsProductDimension|AnalyticsStoreProductDimension|AnalyticsCountryDimension|AnalyticsBillingPeriodDimension|AnalyticsPaywallDimension|AnalyticsPlacementDimension|AnalyticsOfferDimension|AnalyticsAcquisitionSourceDimension|AnalyticsPlanDimension|AnalyticsTraitDimension|AnalyticsPropertyDimension|AnalyticsCohortDimension|AnalyticsGroupDimension $secondSplit
+     *
+     * @return self
+     */
+    public function setSecondSplit($secondSplit): self
+    {
+        $this->initialized['secondSplit'] = true;
+        $this->secondSplit = $secondSplit;
+        return $this;
+    }
+    /**
+     * How many groups of `secondSplit` to return, biggest first by that dimension's own totals, 1 to 10; the rest are summed under `$other`. `limit` times this is at most 50. Defaults to 5.
+     *
+     * @return int|null
+     */
+    public function getSecondLimit(): ?int
+    {
+        return $this->secondLimit;
+    }
+    /**
+     * How many groups of `secondSplit` to return, biggest first by that dimension's own totals, 1 to 10; the rest are summed under `$other`. `limit` times this is at most 50. Defaults to 5.
+     *
+     * @param int|null $secondLimit
+     *
+     * @return self
+     */
+    public function setSecondLimit(?int $secondLimit): self
+    {
+        $this->initialized['secondLimit'] = true;
+        $this->secondLimit = $secondLimit;
         return $this;
     }
 }

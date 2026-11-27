@@ -1058,8 +1058,6 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\AnalyticsMetricQuery::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricQueryNormalizer::class,
         
-        \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricComparisonRangeNormalizer::class,
-        
         \Voidhash\Generated\Core\Model\AnalyticsGroupDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsGroupDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsCohortDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsCohortDimensionNormalizer::class,
@@ -1087,6 +1085,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsProductDimensionNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsStoreDimension::class => \Voidhash\Generated\Core\Normalizer\AnalyticsStoreDimensionNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricComparisonRangeNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsMetricFilter::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricFilterNormalizer::class,
         
@@ -1225,6 +1225,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\AnalyticsMetricResult::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricResultNormalizer::class,
         
         \Voidhash\Generated\Core\Model\AnalyticsMetricResultSeriesItem::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricResultSeriesItemNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsMetricResultMargins::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricResultMarginsNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\AnalyticsMetricGroupSeries::class => \Voidhash\Generated\Core\Normalizer\AnalyticsMetricGroupSeriesNormalizer::class,
         
         \Voidhash\Generated\Core\Model\MetricsReportBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\MetricsReportBodyJsonEncodingNormalizer::class,
         
@@ -2040,7 +2044,6 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreateAnalyticsCohortBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricPoint::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricQuery::class => false,
-            \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsGroupDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsCohortDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsPropertyDimension::class => false,
@@ -2055,6 +2058,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsStoreDimension::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsMetricComparisonRange::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricFilter::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsCustomTimeRange::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsPresetTimeRange::class => false,
@@ -2124,6 +2128,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\AnalyticsMetricResponseItemResolvedTimeRange::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricResult::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsMetricResultSeriesItem::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsMetricResultMargins::class => false,
+            \Voidhash\Generated\Core\Model\AnalyticsMetricGroupSeries::class => false,
             \Voidhash\Generated\Core\Model\MetricsReportBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ChartsReportResultJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\AnalyticsChartResponseItem::class => false,

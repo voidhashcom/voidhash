@@ -25,13 +25,19 @@ class MetricActorsReportBodyJsonEncoding
      */
     protected $bucketStart;
     /**
-     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
+     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it or `secondGroup`, the point of `total`. With a `secondSplit`, a key of `margins.first`: alone, that group's point of `margins.first`; with `secondGroup`, the cell of both.
      *
      * @var string|null
      */
     protected $group;
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
+     * With a `secondSplit`, a key of `margins.second`, `$other` and `$unknown` included: alone, that group's point of `margins.second`; with `group`, the cell of both, a series's `key` and `secondKey`. A point the result doesn't show is refused. Only with a `secondSplit`.
+     *
+     * @var string|null
+     */
+    protected $secondGroup;
+    /**
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's or cell's `previousValues`, its groups those the comparison period shows: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @var bool|null
      */
@@ -99,7 +105,7 @@ class MetricActorsReportBodyJsonEncoding
         return $this;
     }
     /**
-     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
+     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it or `secondGroup`, the point of `total`. With a `secondSplit`, a key of `margins.first`: alone, that group's point of `margins.first`; with `secondGroup`, the cell of both.
      *
      * @return string|null
      */
@@ -108,7 +114,7 @@ class MetricActorsReportBodyJsonEncoding
         return $this->group;
     }
     /**
-     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
+     * A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it or `secondGroup`, the point of `total`. With a `secondSplit`, a key of `margins.first`: alone, that group's point of `margins.first`; with `secondGroup`, the cell of both.
      *
      * @param string|null $group
      *
@@ -121,7 +127,29 @@ class MetricActorsReportBodyJsonEncoding
         return $this;
     }
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
+     * With a `secondSplit`, a key of `margins.second`, `$other` and `$unknown` included: alone, that group's point of `margins.second`; with `group`, the cell of both, a series's `key` and `secondKey`. A point the result doesn't show is refused. Only with a `secondSplit`.
+     *
+     * @return string|null
+     */
+    public function getSecondGroup(): ?string
+    {
+        return $this->secondGroup;
+    }
+    /**
+     * With a `secondSplit`, a key of `margins.second`, `$other` and `$unknown` included: alone, that group's point of `margins.second`; with `group`, the cell of both, a series's `key` and `secondKey`. A point the result doesn't show is refused. Only with a `secondSplit`.
+     *
+     * @param string|null $secondGroup
+     *
+     * @return self
+     */
+    public function setSecondGroup(?string $secondGroup): self
+    {
+        $this->initialized['secondGroup'] = true;
+        $this->secondGroup = $secondGroup;
+        return $this;
+    }
+    /**
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's or cell's `previousValues`, its groups those the comparison period shows: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @return bool|null
      */
@@ -130,7 +158,7 @@ class MetricActorsReportBodyJsonEncoding
         return $this->isPrevious;
     }
     /**
-     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
+     * Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's or cell's `previousValues`, its groups those the comparison period shows: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
      *
      * @param bool|null $isPrevious
      *

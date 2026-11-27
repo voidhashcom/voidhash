@@ -75,6 +75,10 @@ class InsightInput
      */
     protected $split;
     /**
+     * @var ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     */
+    protected $secondSplit;
+    /**
      * Whom a funnel, retention, stickiness or lifecycle counts: `person`, `session` (funnels only), the groups of a `group` type, or the values of an event `property`. People unless given.
      *
      * @var mixed
@@ -348,6 +352,24 @@ class InsightInput
     {
         $this->initialized['split'] = true;
         $this->split = $split;
+        return $this;
+    }
+    /**
+     * @return ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension
+     */
+    public function getSecondSplit()
+    {
+        return $this->secondSplit;
+    }
+    /**
+     * @param ExploreStoreDimension|ExploreProductDimension|ExploreCountryDimension|ExploreBillingPeriodDimension|ExplorePaywallDimension|ExplorePlacementDimension|ExploreOfferDimension|ExploreAcquisitionSourceDimension|ExplorePlanDimension|ExploreTraitDimension|ExplorePropertyDimension|ExploreCohortDimension|ExploreGroupDimension $secondSplit
+     *
+     * @return self
+     */
+    public function setSecondSplit($secondSplit): self
+    {
+        $this->initialized['secondSplit'] = true;
+        $this->secondSplit = $secondSplit;
         return $this;
     }
     /**

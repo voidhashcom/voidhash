@@ -63,6 +63,18 @@ class AnalyticsMetricResultSeriesItemNormalizer implements DenormalizerInterface
         elseif (\array_key_exists('previousValues', $data) && $data['previousValues'] === null) {
             $object->setPreviousValues(null);
         }
+        if (\array_key_exists('secondKey', $data) && $data['secondKey'] !== null) {
+            $object->setSecondKey($data['secondKey']);
+        }
+        elseif (\array_key_exists('secondKey', $data) && $data['secondKey'] === null) {
+            $object->setSecondKey(null);
+        }
+        if (\array_key_exists('secondLabel', $data) && $data['secondLabel'] !== null) {
+            $object->setSecondLabel($data['secondLabel']);
+        }
+        elseif (\array_key_exists('secondLabel', $data) && $data['secondLabel'] === null) {
+            $object->setSecondLabel(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -81,6 +93,12 @@ class AnalyticsMetricResultSeriesItemNormalizer implements DenormalizerInterface
                 $values_1[] = $value_1;
             }
             $dataArray['previousValues'] = $values_1;
+        }
+        if ($data->isInitialized('secondKey')) {
+            $dataArray['secondKey'] = $data->getSecondKey();
+        }
+        if ($data->isInitialized('secondLabel')) {
+            $dataArray['secondLabel'] = $data->getSecondLabel();
         }
         return $dataArray;
     }

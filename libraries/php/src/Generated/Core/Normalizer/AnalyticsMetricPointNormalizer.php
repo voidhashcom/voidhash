@@ -52,6 +52,12 @@ class AnalyticsMetricPointNormalizer implements DenormalizerInterface, Normalize
         elseif (\array_key_exists('group', $data) && $data['group'] === null) {
             $object->setGroup(null);
         }
+        if (\array_key_exists('secondGroup', $data) && $data['secondGroup'] !== null) {
+            $object->setSecondGroup($data['secondGroup']);
+        }
+        elseif (\array_key_exists('secondGroup', $data) && $data['secondGroup'] === null) {
+            $object->setSecondGroup(null);
+        }
         if (\array_key_exists('isPrevious', $data) && $data['isPrevious'] !== null) {
             $object->setIsPrevious($data['isPrevious']);
         }
@@ -67,6 +73,9 @@ class AnalyticsMetricPointNormalizer implements DenormalizerInterface, Normalize
         $dataArray['bucketStart'] = $data->getBucketStart();
         if ($data->isInitialized('group')) {
             $dataArray['group'] = $data->getGroup();
+        }
+        if ($data->isInitialized('secondGroup')) {
+            $dataArray['secondGroup'] = $data->getSecondGroup();
         }
         if ($data->isInitialized('isPrevious')) {
             $dataArray['isPrevious'] = $data->getIsPrevious();

@@ -167,6 +167,45 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         elseif (\array_key_exists('limit', $data) && $data['limit'] === null) {
             $object->setLimit(null);
         }
+        if (\array_key_exists('secondSplit', $data)) {
+            $value_4 = $data['secondSplit'];
+            if (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'store')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsStoreDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'product')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsProductDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'store_product')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsStoreProductDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'country')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsCountryDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'billing_period')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsBillingPeriodDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'paywall')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsPaywallDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'placement')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsPlacementDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'offer')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsOfferDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'acquisition_source')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsAcquisitionSourceDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'plan')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsPlanDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'trait') and \array_key_exists('key', $data['secondSplit'])) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsTraitDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'property') and \array_key_exists('key', $data['secondSplit'])) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsPropertyDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'cohort')) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsCohortDimension::class, 'json', $context);
+            } elseif (is_array($data['secondSplit']) and (\array_key_exists('kind', $data['secondSplit']) and $data['secondSplit']['kind'] == 'group') and \array_key_exists('groupType', $data['secondSplit'])) {
+                $value_4 = $this->denormalizer->denormalize($data['secondSplit'], \Voidhash\Generated\Core\Model\AnalyticsGroupDimension::class, 'json', $context);
+            }
+            $object->setSecondSplit($value_4);
+        }
+        if (\array_key_exists('secondLimit', $data) && $data['secondLimit'] !== null) {
+            $object->setSecondLimit($data['secondLimit']);
+        }
+        elseif (\array_key_exists('secondLimit', $data) && $data['secondLimit'] === null) {
+            $object->setSecondLimit(null);
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -274,6 +313,42 @@ class AnalyticsMetricQueryNormalizer implements DenormalizerInterface, Normalize
         }
         if ($data->isInitialized('limit')) {
             $dataArray['limit'] = $data->getLimit();
+        }
+        if ($data->isInitialized('secondSplit') && null !== $data->getSecondSplit()) {
+            $value_4 = $data->getSecondSplit();
+            if (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            } elseif (is_object($data->getSecondSplit())) {
+                $value_4 = $this->normalizer->normalize($data->getSecondSplit(), 'json', $context);
+            }
+            $dataArray['secondSplit'] = $value_4;
+        }
+        if ($data->isInitialized('secondLimit')) {
+            $dataArray['secondLimit'] = $data->getSecondLimit();
         }
         return $dataArray;
     }

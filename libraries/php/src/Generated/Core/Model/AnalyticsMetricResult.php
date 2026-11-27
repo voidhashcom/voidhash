@@ -37,13 +37,19 @@ class AnalyticsMetricResult
      */
     protected $previousTotal;
     /**
-     * One series per group of the split, biggest first; none without one.
+     * One series per group of the split, biggest first; none without one. With a `secondSplit`, one per cell: each kept group of `split`, `$unknown` and `$other` included, with each kept group of `secondSplit`, ordered by the first group and then the second: the groups of `margins.first` by those of `margins.second`.
      *
      * @var list<AnalyticsMetricResultSeriesItem>
      */
     protected $series;
     /**
-     * Whether the values are withheld because a trait or a group's property narrowed them to fewer than five people.
+     * Each dimension's own totals, only with a `secondSplit`, each the series a query split by that dimension alone returns. Money, counts, first times and sums of a row's cells add up to its `first` group, of a column's to its `second` group, and of each to `total`, in every bucket: no cell is withheld. People, sessions, groups and paying customers are counted for each group and cell itself, so they don't add up. A balance's groups add up as its cells do; its periods never do.
+     *
+     * @var AnalyticsMetricResultMargins|null
+     */
+    protected $margins;
+    /**
+     * Whether the values are withheld because a trait, the acquisition source or a group's property narrowed them to fewer than five people: `total` is null in every bucket and `series` is empty. Never with a `secondSplit`, which reads none of them.
      *
      * @var bool
      */
@@ -143,7 +149,7 @@ class AnalyticsMetricResult
         return $this;
     }
     /**
-     * One series per group of the split, biggest first; none without one.
+     * One series per group of the split, biggest first; none without one. With a `secondSplit`, one per cell: each kept group of `split`, `$unknown` and `$other` included, with each kept group of `secondSplit`, ordered by the first group and then the second: the groups of `margins.first` by those of `margins.second`.
      *
      * @return list<AnalyticsMetricResultSeriesItem>
      */
@@ -152,7 +158,7 @@ class AnalyticsMetricResult
         return $this->series;
     }
     /**
-     * One series per group of the split, biggest first; none without one.
+     * One series per group of the split, biggest first; none without one. With a `secondSplit`, one per cell: each kept group of `split`, `$unknown` and `$other` included, with each kept group of `secondSplit`, ordered by the first group and then the second: the groups of `margins.first` by those of `margins.second`.
      *
      * @param list<AnalyticsMetricResultSeriesItem> $series
      *
@@ -165,7 +171,29 @@ class AnalyticsMetricResult
         return $this;
     }
     /**
-     * Whether the values are withheld because a trait or a group's property narrowed them to fewer than five people.
+     * Each dimension's own totals, only with a `secondSplit`, each the series a query split by that dimension alone returns. Money, counts, first times and sums of a row's cells add up to its `first` group, of a column's to its `second` group, and of each to `total`, in every bucket: no cell is withheld. People, sessions, groups and paying customers are counted for each group and cell itself, so they don't add up. A balance's groups add up as its cells do; its periods never do.
+     *
+     * @return AnalyticsMetricResultMargins|null
+     */
+    public function getMargins(): ?AnalyticsMetricResultMargins
+    {
+        return $this->margins;
+    }
+    /**
+     * Each dimension's own totals, only with a `secondSplit`, each the series a query split by that dimension alone returns. Money, counts, first times and sums of a row's cells add up to its `first` group, of a column's to its `second` group, and of each to `total`, in every bucket: no cell is withheld. People, sessions, groups and paying customers are counted for each group and cell itself, so they don't add up. A balance's groups add up as its cells do; its periods never do.
+     *
+     * @param AnalyticsMetricResultMargins|null $margins
+     *
+     * @return self
+     */
+    public function setMargins(?AnalyticsMetricResultMargins $margins): self
+    {
+        $this->initialized['margins'] = true;
+        $this->margins = $margins;
+        return $this;
+    }
+    /**
+     * Whether the values are withheld because a trait, the acquisition source or a group's property narrowed them to fewer than five people: `total` is null in every bucket and `series` is empty. Never with a `secondSplit`, which reads none of them.
      *
      * @return bool
      */
@@ -174,7 +202,7 @@ class AnalyticsMetricResult
         return $this->isWithheld;
     }
     /**
-     * Whether the values are withheld because a trait or a group's property narrowed them to fewer than five people.
+     * Whether the values are withheld because a trait, the acquisition source or a group's property narrowed them to fewer than five people: `total` is null in every bucket and `series` is empty. Never with a `secondSplit`, which reads none of them.
      *
      * @param bool $isWithheld
      *

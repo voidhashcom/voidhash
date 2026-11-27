@@ -77,6 +77,12 @@ class AnalyticsMetricResultNormalizer implements DenormalizerInterface, Normaliz
             }
             $object->setSeries($values_3);
         }
+        if (\array_key_exists('margins', $data) && $data['margins'] !== null) {
+            $object->setMargins($this->denormalizer->denormalize($data['margins'], \Voidhash\Generated\Core\Model\AnalyticsMetricResultMargins::class, 'json', $context));
+        }
+        elseif (\array_key_exists('margins', $data) && $data['margins'] === null) {
+            $object->setMargins(null);
+        }
         if (\array_key_exists('isWithheld', $data)) {
             $object->setIsWithheld($data['isWithheld']);
         }
@@ -111,6 +117,9 @@ class AnalyticsMetricResultNormalizer implements DenormalizerInterface, Normaliz
             $values_3[] = $this->normalizer->normalize($value_3, 'json', $context);
         }
         $dataArray['series'] = $values_3;
+        if ($data->isInitialized('margins')) {
+            $dataArray['margins'] = $this->normalizer->normalize($data->getMargins(), 'json', $context);
+        }
         $dataArray['isWithheld'] = $data->getIsWithheld();
         $dataArray['hasOverlappingGroups'] = $data->getHasOverlappingGroups();
         return $dataArray;

@@ -7697,24 +7697,42 @@ type AnalyticsMetricFilter struct {
 // AnalyticsMetricFilterOp `in` keeps the values, `not_in` everything else; `contains`, `not_contains`, `starts_with` and `ends_with` compare text with any of them, ignoring case; `regex` and `not_regex` match the first value as an RE2 regular expression; `is_set` and `is_not_set` take no values; `gt` and `lt` compare a number with the first value.
 type AnalyticsMetricFilterOp string
 
+// AnalyticsMetricGroupSeries defines model for AnalyticsMetricGroupSeries.
+type AnalyticsMetricGroupSeries struct {
+	// Key The group's value, `$unknown` for rows without one, or `$other` for groups summed together: past the limit, or of fewer than five people.
+	Key string `json:"key"`
+
+	// Label A name for the key, such as a product's name; null when the key is its name.
+	Label *string `json:"label"`
+
+	// PreviousValues The group's values over the `comparison` period or the `comparisonRange`, measured by the same query with that period's own groups, lined up as `previousTotal` and as long as it; only with one of them. A group is matched by `key`, a cell of a `secondSplit` by `key` and `secondKey`, a margin's group by `key` within its dimension. Empty for a group that period did not show on its own, for `$other`, which sums different groups in each period, and for a cell with `$other` on either side.
+	PreviousValues *[]float32 `json:"previousValues"`
+
+	// Values The group's value per bucket, a number in every bucket: of a cell too, since a query split two ways withholds nothing.
+	Values []float32 `json:"values"`
+}
+
 // AnalyticsMetricPoint One point of a metric query's result, read by the same query, filters and split as the point.
 type AnalyticsMetricPoint struct {
 	// BucketStart The start of the point's bucket, as one of the result's `buckets` gives it, such as `2026-03-02T00:00:00.000Z`.
 	BucketStart string `json:"bucketStart"`
 
-	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
+	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it or `secondGroup`, the point of `total`. With a `secondSplit`, a key of `margins.first`: alone, that group's point of `margins.first`; with `secondGroup`, the cell of both.
 	Group *string `json:"group"`
 
-	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
+	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's or cell's `previousValues`, its groups those the comparison period shows: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
 	IsPrevious *bool `json:"isPrevious"`
 
 	// Query One metric to measure over a time range.
 	Query AnalyticsMetricQuery `json:"query"`
+
+	// SecondGroup With a `secondSplit`, a key of `margins.second`, `$other` and `$unknown` included: alone, that group's point of `margins.second`; with `group`, the cell of both, a series's `key` and `secondKey`. A point the result doesn't show is refused. Only with a `secondSplit`.
+	SecondGroup *string `json:"secondGroup"`
 }
 
 // AnalyticsMetricQuery One metric to measure over a time range.
 type AnalyticsMetricQuery struct {
-	// Comparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+	// Comparison An earlier period to also measure, returned as `previousTotal` and each group's (and, with a `secondSplit`, each cell's and margin's) `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
 	Comparison      *AnalyticsMetricQueryComparison `json:"comparison"`
 	ComparisonRange *AnalyticsMetricComparisonRange `json:"comparisonRange,omitempty"`
 
@@ -7736,6 +7754,12 @@ type AnalyticsMetricQuery struct {
 	// Metric What to measure: MRR and its movements, revenue, refunds, subscriptions and trials, paying customers, or one of the project's own events; `kind` says which.
 	Metric AnalyticsMetric `json:"metric"`
 
+	// SecondLimit How many groups of `secondSplit` to return, biggest first by that dimension's own totals, 1 to 10; the rest are summed under `$other`. `limit` times this is at most 50. Defaults to 5.
+	SecondLimit *int `json:"secondLimit"`
+
+	// SecondSplit What a metric is split or narrowed by; `kind` says which.
+	SecondSplit *AnalyticsMetricDimension `json:"secondSplit,omitempty"`
+
 	// Split What a metric is split or narrowed by; `kind` says which.
 	Split *AnalyticsMetricDimension `json:"split,omitempty"`
 
@@ -7746,7 +7770,7 @@ type AnalyticsMetricQuery struct {
 	Timezone *string `json:"timezone"`
 }
 
-// AnalyticsMetricQueryComparison An earlier period to also measure, returned as `previousTotal` and each group's `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
+// AnalyticsMetricQueryComparison An earlier period to also measure, returned as `previousTotal` and each group's (and, with a `secondSplit`, each cell's and margin's) `previousValues`: `previous_period`, the period of the same length just before the range, bucket by bucket in order; or `previous_year`, the same dates a year earlier, each bucket beside the one a year before it (the same day or month; for weeks the week 52 weeks before, so it starts on the same weekday). None unless given; a `comparisonRange` takes its place.
 type AnalyticsMetricQueryComparison string
 
 // AnalyticsMetricQueryGranularity The width of each bucket: `hour`, `day`, `week`, `month`, or a calendar `quarter` or `year` in `timezone`, the first and last cut at the range's ends. Defaults to `day`.
@@ -7772,13 +7796,22 @@ type AnalyticsMetricResult struct {
 	// HasOverlappingGroups Whether one row can count in several groups of the split, as a person in two cohorts does, so the groups don't add up to `total`: shares of the total and stacked charts mean nothing. False without a split.
 	HasOverlappingGroups bool `json:"hasOverlappingGroups"`
 
-	// IsWithheld Whether the values are withheld because a trait or a group's property narrowed them to fewer than five people.
+	// IsWithheld Whether the values are withheld because a trait, the acquisition source or a group's property narrowed them to fewer than five people: `total` is null in every bucket and `series` is empty. Never with a `secondSplit`, which reads none of them.
 	IsWithheld bool `json:"isWithheld"`
+
+	// Margins Each dimension's own totals, only with a `secondSplit`, each the series a query split by that dimension alone returns. Money, counts, first times and sums of a row's cells add up to its `first` group, of a column's to its `second` group, and of each to `total`, in every bucket: no cell is withheld. People, sessions, groups and paying customers are counted for each group and cell itself, so they don't add up. A balance's groups add up as its cells do; its periods never do.
+	Margins *struct {
+		// First The metric per group of `split` alone, the same series a query split by `split` alone returns with the same `limit`.
+		First []AnalyticsMetricGroupSeries `json:"first"`
+
+		// Second The metric per group of `secondSplit` alone, the same series a query split by `secondSplit` alone returns with `secondLimit` as its limit.
+		Second []AnalyticsMetricGroupSeries `json:"second"`
+	} `json:"margins"`
 
 	// PreviousTotal `total` over the `comparison` period or the `comparisonRange`, bucket by bucket beside `buckets`; only with one of them. A year earlier, a bucket without a counterpart, such as 29 February, is null. Over a `comparisonRange` it holds every bucket of that range, so it is longer than `buckets` when the range is longer: draw the first `buckets.length` values and summarise them all.
 	PreviousTotal *[]float32 `json:"previousTotal"`
 
-	// Series One series per group of the split, biggest first; none without one.
+	// Series One series per group of the split, biggest first; none without one. With a `secondSplit`, one per cell: each kept group of `split`, `$unknown` and `$other` included, with each kept group of `secondSplit`, ordered by the first group and then the second: the groups of `margins.first` by those of `margins.second`.
 	Series []struct {
 		// Key The group's value, `$unknown` for rows without one, or `$other` for groups summed together: past the limit, or of fewer than five people.
 		Key string `json:"key"`
@@ -7786,9 +7819,17 @@ type AnalyticsMetricResult struct {
 		// Label A name for the key, such as a product's name; null when the key is its name.
 		Label *string `json:"label"`
 
-		// PreviousValues The group's values over the `comparison` period or the `comparisonRange`, lined up as `previousTotal` and as long as it; only with one of them, and empty for a group that period did not show on its own.
+		// PreviousValues The group's values over the `comparison` period or the `comparisonRange`, measured by the same query with that period's own groups, lined up as `previousTotal` and as long as it; only with one of them. A group is matched by `key`, a cell of a `secondSplit` by `key` and `secondKey`, a margin's group by `key` within its dimension. Empty for a group that period did not show on its own, for `$other`, which sums different groups in each period, and for a cell with `$other` on either side.
 		PreviousValues *[]float32 `json:"previousValues"`
-		Values         []float32  `json:"values"`
+
+		// SecondKey With a `secondSplit`, the cell's group of it, `$unknown` or `$other` as `key` is of `split`; `key` and `label` are then the cell's group of `split`. Only with a `secondSplit`.
+		SecondKey *string `json:"secondKey"`
+
+		// SecondLabel A name for `secondKey`, such as a country's name; null when the key is its name. Only with a `secondSplit`.
+		SecondLabel *string `json:"secondLabel"`
+
+		// Values The group's value per bucket, a number in every bucket: of a cell too, since a query split two ways withholds nothing.
+		Values []float32 `json:"values"`
 	} `json:"series"`
 
 	// Total The metric with the filters applied and no split, per bucket. Splits of money, counts, first times and sums add up to it; people, sessions and other statistics do not. With `isCumulative`, each bucket holds everything from the range's start through it.
@@ -10946,6 +10987,7 @@ type InsightInput struct {
 		// Type Who starts: anyone doing the start event (`recurring`) or people doing it for the first time (`first_time`).
 		Type *InsightInputRetentionType `json:"type,omitempty"`
 	} `json:"retention,omitempty"`
+	SecondSplit *InsightSplit `json:"secondSplit,omitempty"`
 
 	// Series What is measured, 1 to 8 series: a trend's lines, a funnel's steps in order, retention's start and return events, or the events stickiness and lifecycle read.
 	Series []SeriesBasis `json:"series"`
@@ -11490,10 +11532,10 @@ type MetricActorsReportBodyJsonEncoding struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
 	Cursor *string `json:"cursor"`
 
-	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it, the point of `total`.
+	// Group A key of the result's `series`, `$other` and `$unknown` included, for that group's point; without it or `secondGroup`, the point of `total`. With a `secondSplit`, a key of `margins.first`: alone, that group's point of `margins.first`; with `secondGroup`, the cell of both.
 	Group *string `json:"group"`
 
-	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's `previousValues`: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
+	// IsPrevious Whether the point is the comparison period's beside `bucketStart`, of `previousTotal` or a group's or cell's `previousValues`, its groups those the comparison period shows: the bucket at the same position for a `comparisonRange` and for `previous_period`, the one starting a year earlier for `previous_year`. The query needs a `comparison` or a `comparisonRange`. Defaults to false.
 	IsPrevious *bool `json:"isPrevious"`
 
 	// Limit How many actors to return, from 1 to 200. Defaults to 50.
@@ -11504,6 +11546,9 @@ type MetricActorsReportBodyJsonEncoding struct {
 
 	// Search Only actors whose name, email, distinct id or key contains this, ignoring case; a group by its key or `name` property.
 	Search *string `json:"search"`
+
+	// SecondGroup With a `secondSplit`, a key of `margins.second`, `$other` and `$unknown` included: alone, that group's point of `margins.second`; with `group`, the cell of both, a series's `key` and `secondKey`. A point the result doesn't show is refused. Only with a `secondSplit`.
+	SecondGroup *string `json:"secondGroup"`
 }
 
 // MetricActorsReportResultJsonEncoding defines model for MetricActorsReportResultJsonEncoding.
