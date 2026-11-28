@@ -11,11 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/componentapi"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/crate"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/workingcopy"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // A title the scaffold can use needs no escaping in Rust.

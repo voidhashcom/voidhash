@@ -36,7 +36,7 @@ Pod::Spec.new do |s|
   # `$VoidhashRenderer = true` adds the flow renderer (`VoidhashUI`), and
   # `$VoidhashNativeSdkPods = true` takes the SDK from pods the Podfile declares with `:path`
   # instead, to build it from source.
-  # A preview build (pkg.voidha.sh) names the released version it runs on.
+  # A prerelease build names, in `voidhash.nativeSdkVersion`, the released version it runs on.
   native_sdk_version = package.dig("voidhash", "nativeSdkVersion") || package["version"]
   voidhash_products = ["VoidhashCore", "Voidhash"]
   voidhash_products << "VoidhashUI" if defined?($VoidhashRenderer) && $VoidhashRenderer

@@ -15,10 +15,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/codegen"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/projectconfig"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 const configured = `The files are listed under "types" in voidhash.json, each with its "language" (typescript, swift or kotlin) and "output" path. Without any, one TypeScript declaration file is written to voidhash.gen.d.ts.

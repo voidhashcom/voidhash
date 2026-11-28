@@ -485,7 +485,7 @@ Two habits worth copying wholesale:
   without a round trip.
 - **`go.mod` carries a `replace`** pointing at `../../libraries/go`, because the
   SDK is vendored in this repository. Delete it and
-  `go get github.com/voidhashcom/voidhash-go` in a real project.
+  `go get github.com/voidhashcom/voidhash/libraries/go` in a real project.
 - **Notes are in memory.** Restart the process and they are gone. That is the
   point — swapping in a database changes `notes.go` and nothing else.
 

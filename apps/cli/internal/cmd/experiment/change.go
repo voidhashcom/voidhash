@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/flags"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 const metricUsage = "The `event` that counts as a conversion (default: " + defaultMetric + "); fixed once it starts"

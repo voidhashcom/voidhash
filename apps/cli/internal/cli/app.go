@@ -21,11 +21,11 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/voidhashcom/voidhash-go"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/config"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/credentials"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/projectconfig"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 // BinaryName is how messages and hints call the CLI.

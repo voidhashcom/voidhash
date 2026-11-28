@@ -1,16 +1,18 @@
 # @voidhash Go SDK
 
 Official Go SDK for the Voidhash API. The typed request/response surface in
-`api/` is code-generated from the committed OpenAPI document
-(`packages/generated-clients/openapi/core.json`) with
+`api/` is code-generated from the Voidhash API's OpenAPI description with
 [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen); the hand-written
 layer on top provides a Resend-style resource client.
 
 ## Install
 
 ```
-go get github.com/voidhashcom/voidhash-go
+go get github.com/voidhashcom/voidhash/libraries/go
 ```
+
+Versions are tagged `libraries/go/v<version>`; while none is, `go get`
+installs the newest commit.
 
 ## Usage
 
@@ -20,7 +22,7 @@ package main
 import (
 	"context"
 
-	"github.com/voidhashcom/voidhash-go"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 func main() {
@@ -252,7 +254,7 @@ signature, answers `describe` and checks what you return before replying.
 | `provider.TransactionRefunder`  | `RefundTransaction`  | `transaction.refund`  |
 
 ```go
-import "github.com/voidhashcom/voidhash-go/provider"
+import "github.com/voidhashcom/voidhash/libraries/go/provider"
 
 type Paddle struct{ /* your Paddle client */ }
 

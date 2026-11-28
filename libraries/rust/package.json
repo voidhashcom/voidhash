@@ -1,0 +1,14 @@
+{
+  "name": "@voidhash/rust",
+  "version": "0.1.0",
+  "description": "The Rust library for the Voidhash API, released to crates.io as the voidhash crate.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/rust"
+  },
+  "scripts": {
+    "prepublishOnly": "echo 'This library is released to crates.io, not to npm.' && exit 1"
+  }
+}

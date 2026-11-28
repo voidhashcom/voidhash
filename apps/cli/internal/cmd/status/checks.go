@@ -28,6 +28,21 @@ type provider struct {
 	Type      string `json:"type"`
 	Name      string `json:"name"`
 	IsEnabled bool   `json:"isEnabled"`
+	// ConnectionCheck is a store's last check of its credentials with the
+	// store; nil until checked.
+	ConnectionCheck *connectionCheck `json:"connectionCheck"`
+}
+
+// connectionCheck is what a store said when its credentials were checked:
+// working, failing, pending (waiting on the store) or unverified.
+type connectionCheck struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// connectionIs reports whether the provider's last check found status.
+func (p provider) connectionIs(status string) bool {
+	return p.ConnectionCheck != nil && p.ConnectionCheck.Status == status
 }
 
 var storeLabels = map[string]string{"app_store": "App Store", "google_play": "Google Play", "stripe": "Stripe"}
@@ -59,7 +74,23 @@ func storesCheck(providers []provider) check {
 			off = append(off, item)
 		}
 	}
+	var failing, waiting []provider
+	for _, item := range enabled {
+		if item.connectionIs("failing") {
+			failing = append(failing, item)
+		} else if item.connectionIs("pending") {
+			waiting = append(waiting, item)
+		}
+	}
 	switch {
+	case len(failing) > 0:
+		return check{Name: "Stores", State: stateProblem,
+			Summary: labels(enabled) + " connected; " + labels(failing) + " failing its connection check",
+			Next:    failing[0].label() + ": " + failing[0].ConnectionCheck.Message}
+	case len(waiting) > 0:
+		return check{Name: "Stores", State: stateAttention,
+			Summary: labels(enabled) + " connected; " + labels(waiting) + " waiting on the store",
+			Next:    waiting[0].label() + ": " + waiting[0].ConnectionCheck.Message}
 	case len(enabled) == 0 && len(off) == 0:
 		return check{Name: "Stores", State: stateProblem, Summary: "none connected",
 			Next: "Connect a store: 'voidhash provider connect app-store' (or google-play, stripe)"}

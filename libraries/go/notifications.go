@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // NotificationsService sends server-to-server push notifications.

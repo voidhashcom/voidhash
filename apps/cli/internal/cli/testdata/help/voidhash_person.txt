@@ -1,5 +1,5 @@
-The people using your app: find them, see what they bought and can use, explain their access, edit
-them, and erase their data.
+The people using your app: find them, see what they bought and can use, explain their access, grant
+and revoke perks by hand, edit them, and erase their data.
 
 A person is named by their email, their distinct id (the id your app identifies them by) or their
 id. Names and parts of an email cannot be searched. Prefix email:, distinct_id: or person_id: to say
@@ -19,6 +19,8 @@ Commands:
   why        Explain why a person has or lacks a perk.
   edit       Change a person's email, name or attributes.
   create     Add a person before your app has seen them.
+  grant      Give a person a perk without a purchase.
+  revoke     Take back a perk a person was granted by hand.
   erase      Erase a person's personal data for good, for a data deletion request.
 
 Flags:

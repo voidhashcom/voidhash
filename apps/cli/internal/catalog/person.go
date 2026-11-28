@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // A project can hold millions of persons, so they are looked up exactly

@@ -118,7 +118,7 @@
   },
   "peerDependencies": {
     "@react-navigation/native": "*",
-    "effect": "catalog:",
+    "effect": "^4.0.7",
     "expo": "*",
     "expo-router": "*",
     "react": "*",

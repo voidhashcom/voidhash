@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -8,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/catalog"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 const watchInterval = 2 * time.Second
@@ -18,17 +19,24 @@ const watchInterval = 2 * time.Second
 func newImport(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import",
-		Short: "Import the purchases Stripe or a payment source recorded earlier.",
-		Long:  "Import the purchases Stripe or a payment source recorded before Voidhash was connected, in the background. Running it again skips what is recorded; --watch follows it, --cancel stops it.",
+		Short: "Import the purchases a provider recorded before Voidhash was connected.",
+		Long: "Import the purchases a provider recorded before Voidhash was connected, in the background. Stripe and payment sources list their own history. " +
+			"The App Store and Google Play list no app's purchases, so their import takes a CSV file (--file) whose first line names the columns: " +
+			"transaction_id (App Store) or purchase_token (Google Play), one purchase per line, and optionally app_user_id, your id for the buyer. " +
+			"Running it again skips what is recorded; --watch follows it, --report writes what became of each purchase, --cancel stops it.",
 		Example: `voidhash provider import stripe --watch
 voidhash provider import paddle --environment test
+voidhash provider import app-store --file subscribers.csv --watch --report report.csv
+voidhash provider import google-play --file tokens.csv
 voidhash provider import stripe --cancel`,
 	}
 	cli.SetArgs(cmd, providerArg)
 	environment := cli.AddChoiceFlag(cmd, "environment", "", []string{"production", "test"}, "production",
-		"Which purchases: production (default) or test, such as Stripe's test mode or a payment source's test payments")
+		"Which purchases: production (default) or test, such as Stripe's test mode, a payment source's test payments, the App Store's sandbox or Google Play's license testers")
 	watch := cmd.Flags().Bool("watch", false, "Follow the import until it ends")
 	cancel := cmd.Flags().Bool("cancel", false, "Stop the running import instead; what it recorded stays")
+	file := cmd.Flags().String("file", "", "App Store and Google Play: the CSV file of purchases to import")
+	report := cmd.Flags().String("report", "", "App Store and Google Play: write what became of each purchase to this CSV file (with --watch, once the import ends)")
 	project := cli.AddProjectFlag(cmd)
 	output := cli.AddOutputFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -59,9 +67,11 @@ voidhash provider import stripe --cancel`,
 			return err
 		}
 		label, handle := catalog.ProviderLabel(found), catalog.ProviderHandle(found)
-		if !isImportable(found) {
-			return cli.Usagef("%s has no history to import.", label).WithHint(
-				"App Store and Google Play purchases arrive from the apps and the stores' notifications; Stripe and payment sources import their history.")
+		if !isImportable(found) && !isStore(found) {
+			return cli.Usagef("%s has no history to import.", label)
+		}
+		if *file != "" && !isStore(found) {
+			return cli.Usagef("%s lists its own history; --file is for the App Store and Google Play.", label)
 		}
 		wanted := api.PaymentProviderHistoryImportsListParamsEnvironment(*environment)
 		latest, err := cli.ListAll[api.PaymentProviderHistoryImport](ctx, app, func(c *api.Client, page cli.Page) (*http.Response, error) {
@@ -96,13 +106,17 @@ voidhash provider import stripe --cancel`,
 			return app.PrintItem(mode, canceled, fmt.Sprintf("Stopped the import: %s.", describeImport(canceled.Value)))
 		}
 
+		if isStore(found) {
+			return importStoreFile(ctx, app, mode, storeImport{
+				environment: *environment, file: *file, found: found, handle: handle, label: label,
+				latest: latest, projectID: projectID, report: *report, watch: *watch,
+			})
+		}
+
 		started := "An import of %s's %s purchase history is already running."
 		if !isRunning {
 			started = "Started importing %s's %s purchase history."
-			current, err = cli.Fetch[api.PaymentProviderHistoryImport](ctx, app, func(c *api.Client) (*http.Response, error) {
-				return c.PaymentProviderHistoryImportsCreateWithBody(ctx, projectID, found.Id, catalog.JSON,
-					catalog.Body(map[string]any{"environment": *environment}))
-			})
+			current, err = startImport(ctx, app, projectID, found.Id, *environment)
 			if err != nil {
 				blocked := fmt.Sprintf("Connect its endpoint first: 'voidhash provider edit %s --endpoint <url>'.", handle)
 				switch {
@@ -126,20 +140,9 @@ voidhash provider import stripe --cancel`,
 		if mode == cli.Human {
 			app.Println(cli.PrintableLines(started + "\n" + progress(current.Value)))
 		}
-		for current.Value.Status == "running" {
-			if err := app.Sleep(ctx, watchInterval); err != nil {
-				return err
-			}
-			next, err := cli.Fetch[api.PaymentProviderHistoryImport](ctx, app, func(c *api.Client) (*http.Response, error) {
-				return c.PaymentProviderHistoryImportsGet(ctx, projectID, found.Id, current.Value.Id)
-			})
-			if err != nil {
-				return err
-			}
-			if mode == cli.Human && progress(next.Value) != progress(current.Value) {
-				app.Println(cli.Printable(progress(next.Value)))
-			}
-			current = next
+		current, err = followImport(ctx, app, mode, projectID, found.Id, current, progress)
+		if err != nil {
+			return err
 		}
 		if mode != cli.Human {
 			if err := app.PrintItem(mode, current, ""); err != nil {
@@ -161,6 +164,37 @@ voidhash provider import stripe --cancel`,
 		return nil
 	}
 	return cmd
+}
+
+// startImport starts an import of the provider's environment.
+func startImport(ctx context.Context, app *cli.App, projectID, providerID, environment string) (cli.Object[api.PaymentProviderHistoryImport], error) {
+	return cli.Fetch[api.PaymentProviderHistoryImport](ctx, app, func(c *api.Client) (*http.Response, error) {
+		return c.PaymentProviderHistoryImportsCreateWithBody(ctx, projectID, providerID, catalog.JSON,
+			catalog.Body(map[string]any{"environment": environment}))
+	})
+}
+
+// followImport reads the import until it ends, printing each change of
+// progress on a terminal.
+func followImport(ctx context.Context, app *cli.App, mode cli.OutputMode, projectID, providerID string,
+	current cli.Object[api.PaymentProviderHistoryImport], progress func(api.PaymentProviderHistoryImport) string,
+) (cli.Object[api.PaymentProviderHistoryImport], error) {
+	for current.Value.Status == "running" {
+		if err := app.Sleep(ctx, watchInterval); err != nil {
+			return current, err
+		}
+		next, err := cli.Fetch[api.PaymentProviderHistoryImport](ctx, app, func(c *api.Client) (*http.Response, error) {
+			return c.PaymentProviderHistoryImportsGet(ctx, projectID, providerID, current.Value.Id)
+		})
+		if err != nil {
+			return current, err
+		}
+		if mode == cli.Human && progress(next.Value) != progress(current.Value) {
+			app.Println(cli.Printable(progress(next.Value)))
+		}
+		current = next
+	}
+	return current, nil
 }
 
 // endpointPlan is one endpoint of a payment source after an edit.

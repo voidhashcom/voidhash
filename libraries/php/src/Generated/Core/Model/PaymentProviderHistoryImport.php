@@ -37,7 +37,7 @@ class PaymentProviderHistoryImport
      */
     protected $status;
     /**
-     * What a running import does: `collecting` lists the store's objects, `applying` records them; `done` once the import ended.
+     * What a running import does: `collecting` lists the store's objects, or for the App Store and Google Play takes the purchases you add until you conclude it, while looking up those added; `applying` records them; `done` once the import ended.
      *
      * @var string
      */
@@ -161,7 +161,7 @@ class PaymentProviderHistoryImport
         return $this;
     }
     /**
-     * What a running import does: `collecting` lists the store's objects, `applying` records them; `done` once the import ended.
+     * What a running import does: `collecting` lists the store's objects, or for the App Store and Google Play takes the purchases you add until you conclude it, while looking up those added; `applying` records them; `done` once the import ended.
      *
      * @return string
      */
@@ -170,7 +170,7 @@ class PaymentProviderHistoryImport
         return $this->phase;
     }
     /**
-     * What a running import does: `collecting` lists the store's objects, `applying` records them; `done` once the import ended.
+     * What a running import does: `collecting` lists the store's objects, or for the App Store and Google Play takes the purchases you add until you conclude it, while looking up those added; `applying` records them; `done` once the import ended.
      *
      * @param string $phase
      *

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	voidhash "github.com/voidhashcom/voidhash-go"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 type checkoutRequest struct {

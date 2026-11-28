@@ -25,8 +25,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/internal/signature"
-	"github.com/voidhashcom/voidhash-go/provider/internal/credentials"
+	"github.com/voidhashcom/voidhash/libraries/go/internal/signature"
+	"github.com/voidhashcom/voidhash/libraries/go/provider/internal/credentials"
 )
 
 const (
@@ -355,7 +355,7 @@ func moduleVersion() string {
 		return "devel"
 	}
 	for _, dep := range info.Deps {
-		if dep.Path == "github.com/voidhashcom/voidhash-go" {
+		if dep.Path == "github.com/voidhashcom/voidhash/libraries/go" {
 			return dep.Version
 		}
 	}

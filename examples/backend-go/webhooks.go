@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	voidhash "github.com/voidhashcom/voidhash-go"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 const (

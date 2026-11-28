@@ -14,12 +14,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	voidhash "github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/devserver"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/workingcopy"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/projectconfig"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // ConformanceCheck is one check of the conformance suite.

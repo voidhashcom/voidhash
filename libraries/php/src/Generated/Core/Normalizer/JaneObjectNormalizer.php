@@ -80,13 +80,19 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\PaymentProviderHistoryImportCounts::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderHistoryImportCountsNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\PageInfo::class => \Voidhash\Generated\Core\Normalizer\PageInfoNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\StoreImportIdentifierOutcome::class => \Voidhash\Generated\Core\Normalizer\StoreImportIdentifierOutcomeNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ConflictErrorJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ConflictErrorJsonEncodingError::class => \Voidhash\Generated\Core\Normalizer\ConflictErrorJsonEncodingErrorNormalizer::class,
         
-        \Voidhash\Generated\Core\Model\CreatePaymentProviderHistoryImportBody::class => \Voidhash\Generated\Core\Normalizer\CreatePaymentProviderHistoryImportBodyNormalizer::class,
+        \Voidhash\Generated\Core\Model\AddStoreImportIdentifiersBody::class => \Voidhash\Generated\Core\Normalizer\AddStoreImportIdentifiersBodyNormalizer::class,
         
-        \Voidhash\Generated\Core\Model\PageInfo::class => \Voidhash\Generated\Core\Normalizer\PageInfoNormalizer::class,
+        \Voidhash\Generated\Core\Model\StoreImportIdentifier::class => \Voidhash\Generated\Core\Normalizer\StoreImportIdentifierNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\CreatePaymentProviderHistoryImportBody::class => \Voidhash\Generated\Core\Normalizer\CreatePaymentProviderHistoryImportBodyNormalizer::class,
         
         \Voidhash\Generated\Core\Model\MetaMeasurementSettingsJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\MetaMeasurementSettingsJsonEncodingNormalizer::class,
         
@@ -466,6 +472,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiActionForbiddenErrorJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiSdkRateLimitedErrorJsonEncodingNormalizer::class,
+        
         \Voidhash\Generated\Core\Model\UnregisterDeviceBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UnregisterDeviceBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiPushDeviceValidationErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiPushDeviceValidationErrorJsonEncodingNormalizer::class,
@@ -541,8 +549,6 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\SdkPromotionalOfferSignatureBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkPromotionalOfferSignatureBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiSdkTransactionRejectedErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiSdkTransactionRejectedErrorJsonEncodingNormalizer::class,
-        
-        \Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiSdkRateLimitedErrorJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\SdkSyncTransactionResponseJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkSyncTransactionResponseJsonEncodingNormalizer::class,
         
@@ -647,6 +653,14 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\PersonErasureJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PersonErasureJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\CreatePersonErasureBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePersonErasureBodyJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PersonGrantJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PersonGrantJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PersonGrantJsonEncodingGrantedBy::class => \Voidhash\Generated\Core\Normalizer\PersonGrantJsonEncodingGrantedByNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PersonGrantActor::class => \Voidhash\Generated\Core\Normalizer\PersonGrantActorNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\CreatePersonGrantBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePersonGrantBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PersonSubscriptionJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PersonSubscriptionJsonEncodingNormalizer::class,
         
@@ -791,6 +805,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\PaymentSourceEndpointDescriptionSdk::class => \Voidhash\Generated\Core\Normalizer\PaymentSourceEndpointDescriptionSdkNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PaymentProviderJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\PaymentProviderConnectionCheck::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderConnectionCheckNormalizer::class,
         
         \Voidhash\Generated\Core\Model\UpdatePaymentProviderBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\UpdatePaymentProviderBodyJsonEncodingNormalizer::class,
         
@@ -1430,6 +1446,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdSubscriptionsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPersonsPersonIdSubscriptionsGetResponse200Normalizer::class,
         
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdGrantsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPersonsPersonIdGrantsGetResponse200Normalizer::class,
+        
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdProductsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdProductsGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdProductsProductIdPerksGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdProductsProductIdPerksGetResponse200Normalizer::class,
@@ -1485,6 +1503,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAdsAdsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdAdsAdsGetResponse200Normalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsGetResponse200Normalizer::class,
+        
+        \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsImportIdIdentifiersGetResponse200::class => \Voidhash\Generated\Core\Normalizer\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsImportIdIdentifiersGetResponse200Normalizer::class,
         
         \Jane\Component\JsonSchemaRuntime\Reference::class => \Voidhash\Generated\Core\Runtime\Normalizer\ReferenceNormalizer::class,
     ], $normalizersCache = [];
@@ -1555,10 +1575,13 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreateFeedbackBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderHistoryImport::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderHistoryImportCounts::class => false,
+            \Voidhash\Generated\Core\Model\PageInfo::class => false,
+            \Voidhash\Generated\Core\Model\StoreImportIdentifierOutcome::class => false,
             \Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ConflictErrorJsonEncodingError::class => false,
+            \Voidhash\Generated\Core\Model\AddStoreImportIdentifiersBody::class => false,
+            \Voidhash\Generated\Core\Model\StoreImportIdentifier::class => false,
             \Voidhash\Generated\Core\Model\CreatePaymentProviderHistoryImportBody::class => false,
-            \Voidhash\Generated\Core\Model\PageInfo::class => false,
             \Voidhash\Generated\Core\Model\MetaMeasurementSettingsJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\MetaMeasurementSettingsJsonEncodingConversionsWithheld::class => false,
             \Voidhash\Generated\Core\Model\UpdateMetaMeasurementSettingsBodyJsonEncoding::class => false,
@@ -1748,6 +1771,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiAuthenticationErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UnregisterDeviceBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPushDeviceValidationErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\RefreshDeviceBodyJsonEncoding::class => false,
@@ -1786,7 +1810,6 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\SdkPromotionalOfferSignatureJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkPromotionalOfferSignatureBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiSdkTransactionRejectedErrorJsonEncoding::class => false,
-            \Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkSyncTransactionResponseJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkSyncAndroidTransactionBody::class => false,
             \Voidhash\Generated\Core\Model\SdkPurchasePaywallContext::class => false,
@@ -1839,6 +1862,10 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\CreateProductBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PersonErasureJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePersonErasureBodyJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PersonGrantJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PersonGrantJsonEncodingGrantedBy::class => false,
+            \Voidhash\Generated\Core\Model\PersonGrantActor::class => false,
+            \Voidhash\Generated\Core\Model\CreatePersonGrantBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PersonSubscriptionJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PersonPurchasePaymentSource::class => false,
             \Voidhash\Generated\Core\Model\PersonPurchaseJsonEncoding::class => false,
@@ -1911,6 +1938,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\PaymentSourceEndpointDescription::class => false,
             \Voidhash\Generated\Core\Model\PaymentSourceEndpointDescriptionSdk::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\PaymentProviderConnectionCheck::class => false,
             \Voidhash\Generated\Core\Model\UpdatePaymentProviderBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePaymentProviderBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\OrganizationJsonEncoding::class => false,
@@ -2230,6 +2258,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdEntitlementsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdPurchasesGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdSubscriptionsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdGrantsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdProductsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdProductsProductIdPerksGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1OrganizationsOrganizationIdProjectsGetResponse200::class => false,
@@ -2258,6 +2287,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAdsAdGroupsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdAdsAdsGetResponse200::class => false,
             \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsGetResponse200::class => false,
+            \Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsImportIdIdentifiersGetResponse200::class => false,
             \Jane\Component\JsonSchemaRuntime\Reference::class => false,
         ];
     }

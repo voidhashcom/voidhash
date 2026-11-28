@@ -1,15 +1,19 @@
 # voidhash-php
 
 Official PHP SDK for the Voidhash API. The typed request/response surface in
-`src/Generated/` is code-generated from the committed OpenAPI document
-(`packages/generated-clients/openapi/core.json`) with
+`src/Generated/` is code-generated from the Voidhash API's OpenAPI description with
 [jane-php](https://github.com/janephp/janephp); the hand-written layer on top
 provides a Resend-style resource client.
 
 ## Install
 
+The package is not on Packagist yet. Install it from a clone of this
+repository, as a Composer path repository:
+
 ```
-composer require voidhash/voidhash-php
+git clone https://github.com/voidhashcom/voidhash.git third_party/voidhash
+composer config repositories.voidhash path third_party/voidhash/libraries/php
+composer require voidhash/voidhash-php:@dev
 ```
 
 ## Usage

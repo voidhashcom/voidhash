@@ -7,7 +7,7 @@ toolchain go1.26.7
 require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/voidhashcom/voidhash-go v0.0.0
+	github.com/voidhashcom/voidhash/libraries/go v0.0.0
 	golang.org/x/term v0.27.0
 )
 
@@ -19,4 +19,4 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 )
 
-replace github.com/voidhashcom/voidhash-go => ../../libraries/go
+replace github.com/voidhashcom/voidhash/libraries/go => ../../libraries/go

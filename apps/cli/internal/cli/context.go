@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/config"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/credentials"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/projectconfig"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // Who the CLI acts as and which project a command acts on.

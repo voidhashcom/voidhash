@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 type (
@@ -155,8 +155,10 @@ func describeEntitlement(app *cli.App, granted entitlement, read history) string
 	source := string(granted.Source)
 	from := "from a " + source
 	switch {
+	case source == "manual" && granted.SourceId != nil:
+		from = "granted by hand (" + *granted.SourceId + ")"
 	case source == "manual":
-		from = "granted manually"
+		from = "granted by hand"
 	case product != "":
 		from = product + " " + source
 	}

@@ -17,7 +17,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/catalog"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cmd/auth"
@@ -25,6 +24,7 @@ import (
 	"github.com/voidhashcom/voidhash/apps/cli/internal/config"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/integrate"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 const docsURL = "https://voidhash.com/docs"

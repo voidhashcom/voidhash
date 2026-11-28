@@ -3,6 +3,12 @@
   "description": "Official PHP SDK for the Voidhash API.",
   "license": "MIT",
   "type": "library",
+  "homepage": "https://voidhash.com/docs/libraries/php",
+  "support": {
+    "issues": "https://github.com/voidhashcom/voidhash/issues",
+    "source": "https://github.com/voidhashcom/voidhash/tree/main/libraries/php",
+    "docs": "https://voidhash.com/docs/libraries/php"
+  },
   "keywords": [
     "voidhash",
     "sdk",

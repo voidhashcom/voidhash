@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/credentials"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // Object is one API object: Value decoded into its generated type, for the

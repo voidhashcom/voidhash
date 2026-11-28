@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // How commands find the end user a person names. A project can hold millions

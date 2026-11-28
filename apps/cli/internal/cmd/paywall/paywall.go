@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // New creates `voidhash paywall`.

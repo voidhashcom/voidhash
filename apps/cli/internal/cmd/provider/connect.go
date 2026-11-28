@@ -12,10 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/catalog"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // `voidhash provider connect <store>` saves what a store needs and enables

@@ -17,11 +17,10 @@
     "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
-    "@voidhash/node": "workspace:*"
+    "@voidhash/node": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@voidhash/tsconfig": "workspace:*",
     "tsx": "^4.19.3",
     "typescript": "5.8.3"
   }

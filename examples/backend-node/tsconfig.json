@@ -1,8 +1,19 @@
 {
-  "extends": "@voidhash/tsconfig/base.json",
   "include": ["src"],
   "exclude": ["**/node_modules/**"],
   "compilerOptions": {
-    "types": ["node"]
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
   }
 }

@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 const showingEnvUsage = "Whose apps it changes: production (the default), or test, which only apps using a test key see; test follows production until the location is given a test showing of its own"

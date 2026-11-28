@@ -1,17 +1,19 @@
 # voidhash (Rust)
 
 Official Rust SDK for the Voidhash API. The typed request/response surface in
-the `generated` module is code-generated at build time from the committed
-OpenAPI document (`packages/generated-clients/openapi/core.json`) with
+the `generated` module is code-generated at build time from the OpenAPI
+documents in `openapi/` with
 [progenitor](https://github.com/oxidecomputer/progenitor); the hand-written
 layer on top provides a Resend-style resource client.
 
 ## Install
 
-```toml
-[dependencies]
-voidhash = "0.1"
+```sh
+cargo add voidhash --git https://github.com/voidhashcom/voidhash
 ```
+
+The crate is not on crates.io yet; `Cargo.lock` records the commit you
+installed.
 
 ## Usage
 
@@ -286,9 +288,8 @@ timestamp, secret)` — pass the raw body bytes exactly as received.
 ## Regenerating the API surface
 
 Codegen runs in `build.rs` on every build against the committed
-`packages/generated-clients/openapi/*.rust.json` documents. Refresh them with
-`pnpm openapi:generate:dev <host>` from `voidhash/` (see
-`scripts/generate-openapi-clients.mjs`).
+`openapi/*.rust.json` documents, which are regenerated from the Voidhash API's
+OpenAPI description whenever the API changes.
 
 ## Development
 

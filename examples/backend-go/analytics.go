@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	voidhash "github.com/voidhashcom/voidhash-go"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 // analyticsClient records product analytics through the SDK.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // OrganizationKind is how organizations read in messages and prompts, and

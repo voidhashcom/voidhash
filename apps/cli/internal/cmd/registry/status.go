@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/components/componentapi"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 func addMessageFlag(cmd *cobra.Command) *string {

@@ -47,7 +47,7 @@ def voidhashSdk(artifact) {
   if (sourceProject != null) {
     return sourceProject
   }
-  // A preview build (pkg.voidha.sh) names the released version it runs on.
+  // A prerelease build names, in `voidhash.nativeSdkVersion`, the released version it runs on.
   def manifest = new groovy.json.JsonSlurper().parse(new File(projectDir.parentFile, "package.json"))
   def version = manifest.voidhash?.nativeSdkVersion ?: manifest.version
   return "com.voidhash:${artifact}:${version}"

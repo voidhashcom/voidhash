@@ -80,6 +80,9 @@ class PaymentProviderJsonEncodingNormalizer implements DenormalizerInterface, No
         elseif (\array_key_exists('updatedAt', $data) && $data['updatedAt'] === null) {
             $object->setUpdatedAt(null);
         }
+        if (\array_key_exists('connectionCheck', $data)) {
+            $object->setConnectionCheck($this->denormalizer->denormalize($data['connectionCheck'], \Voidhash\Generated\Core\Model\PaymentProviderConnectionCheck::class, 'json', $context));
+        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -98,6 +101,7 @@ class PaymentProviderJsonEncodingNormalizer implements DenormalizerInterface, No
         $dataArray['configuration'] = $values;
         $dataArray['createdAt'] = $data->getCreatedAt();
         $dataArray['updatedAt'] = $data->getUpdatedAt();
+        $dataArray['connectionCheck'] = $this->normalizer->normalize($data->getConnectionCheck(), 'json', $context);
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

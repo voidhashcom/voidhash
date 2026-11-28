@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // WebhooksService manages webhook endpoints and inspects deliveries.

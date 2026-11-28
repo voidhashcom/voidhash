@@ -1,0 +1,14 @@
+{
+  "name": "@voidhash/php",
+  "version": "0.1.0",
+  "description": "The PHP library for the Voidhash API, released to Packagist as voidhash/voidhash-php.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/php"
+  },
+  "scripts": {
+    "prepublishOnly": "echo 'This library is released to Packagist, not to npm.' && exit 1"
+  }
+}

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // PersonsService manages persons.

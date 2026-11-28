@@ -28,10 +28,19 @@ export const WEBHOOK_EVENT_TYPES = [
   "subscription.renewed",
   "subscription.product_changed",
   "subscription.cancelled",
+  "subscription.uncancelled",
   "subscription.expired",
+  "subscription.billing_issue",
+  "subscription.billing_recovered",
+  "subscription.paused",
+  "subscription.resumed",
+  "subscription.transferred",
   "purchase.completed",
   "purchase.refunded",
   "purchase.revoked",
+  "purchase.transferred",
+  "perk_access.granted",
+  "perk_access.revoked",
 ] as const;
 
 /** A lifecycle event name a webhook endpoint can subscribe to. */

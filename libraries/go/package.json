@@ -1,0 +1,14 @@
+{
+  "name": "@voidhash/go",
+  "version": "0.1.0",
+  "description": "The Go library for the Voidhash API, released as the Go module github.com/voidhashcom/voidhash/libraries/go.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/go"
+  },
+  "scripts": {
+    "prepublishOnly": "echo 'This library is released as a Go module, not to npm.' && exit 1"
+  }
+}

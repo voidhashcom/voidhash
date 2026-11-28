@@ -6,7 +6,7 @@ class ComponentsCreateVersionFromModule extends \Voidhash\Generated\Core\Runtime
 {
     protected $projectId;
     /**
-     * Uploads a prebuilt module as a new `ready` version of the component its `slug` names, creating the component on its first upload. The module must be a WebAssembly binary of at most 2 MiB carrying a valid `vh.manifest` section (a guest ABI 1 manifest or an ABI 2 component definition); a definition that declares an editor panel needs its panel module in `panelBase64`. Without a `slug` the manifest's name is used. A version that fails the conformance checks is kept so its findings can be read, but cannot be placed. Fails with `invalid_request` (`invalid_slug`, `invalid_module`, `invalid_panel_module`) naming every problem, and `unavailable` (`component_checks_unavailable`) when the conformance checks could not run; nothing is stored then, so try again.
+     * Uploads a prebuilt module as a new `ready` version of the component its `slug` names, creating the component on its first upload. The module must be a WebAssembly binary of at most 2 MiB carrying a valid `vh.manifest` section (a guest ABI 1 manifest or an ABI 2 component definition); a definition that declares an editor panel needs its panel module in `panelBase64`. Without a `slug` the manifest's name is used. A version that fails the conformance checks is kept so its findings can be read, but cannot be placed. Fails with `invalid_request` (`invalid_slug`, `invalid_module`, `invalid_panel_module`) naming every problem, and `unavailable` (`component_checks_unavailable`) when the conformance checks could not run; nothing is stored then, so try again. Uploads count with source builds against the project's 60 component builds an hour, 120 for all of an organization's projects. Fails with `rate_limited` (`component_build_rate_limited`) past that, with a `Retry-After` header in seconds, and with `conflict` (`component_limit_reached`) for a new component once the project holds 500.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallComponentModuleVersionBodyJsonEncoding $requestBody
      */
@@ -42,6 +42,8 @@ class ComponentsCreateVersionFromModule extends \Voidhash\Generated\Core\Runtime
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleInternalServerErrorException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleServiceUnavailableException
      *
@@ -65,6 +67,12 @@ class ComponentsCreateVersionFromModule extends \Voidhash\Generated\Core\Runtime
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\NotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\RateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\InternalErrorJsonEncoding', 'json'), $response);

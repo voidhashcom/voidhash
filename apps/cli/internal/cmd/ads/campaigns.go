@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	reports "github.com/voidhashcom/voidhash/apps/cli/internal/analytics"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // delivery is how a campaign, ad group or ad delivers, with the platform's

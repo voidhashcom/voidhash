@@ -90,6 +90,7 @@ class SdkRegisterDevice extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\RegisterDeviceResponseJsonEncoding
@@ -112,6 +113,9 @@ class SdkRegisterDevice extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkRegisterDeviceNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPushDeviceNotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkRegisterDeviceTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkRegisterDeviceInternalServerErrorException($response);

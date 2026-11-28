@@ -557,6 +557,22 @@ export interface ApiSdkPersonNotFoundErrorJsonEncoding {
 /**
  * The error's machine-readable code. Branch on it, never on the message.
  */
+export type ApiSdkRateLimitedErrorJsonEncodingTag = "Api/SdkRateLimitedError";
+
+export interface ApiSdkRateLimitedErrorJsonEncoding {
+  /**
+   * The error's machine-readable code. Branch on it, never on the message.
+   */
+  readonly _tag: ApiSdkRateLimitedErrorJsonEncodingTag;
+  /**
+   * What went wrong, written for a developer reading logs. It can change, so do not parse it.
+   */
+  readonly message: string;
+}
+
+/**
+ * The error's machine-readable code. Branch on it, never on the message.
+ */
 export type ApiSdkServiceErrorJsonEncodingTag = "Api/SdkServiceError";
 
 export interface ApiSdkServiceErrorJsonEncoding {
@@ -1107,22 +1123,6 @@ export interface ApiSdkTransactionRejectedErrorJsonEncoding {
    * Why the store transaction was refused, for diagnostics. Sending it again cannot succeed.
    */
   readonly reason: string;
-}
-
-/**
- * The error's machine-readable code. Branch on it, never on the message.
- */
-export type ApiSdkRateLimitedErrorJsonEncodingTag = "Api/SdkRateLimitedError";
-
-export interface ApiSdkRateLimitedErrorJsonEncoding {
-  /**
-   * The error's machine-readable code. Branch on it, never on the message.
-   */
-  readonly _tag: ApiSdkRateLimitedErrorJsonEncodingTag;
-  /**
-   * What went wrong, written for a developer reading logs. It can change, so do not parse it.
-   */
-  readonly message: string;
 }
 
 export type SdkSyncTransaction500 =
@@ -2690,6 +2690,7 @@ export const make = (
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkGetPerson401",
           "404": "ApiSdkPersonNotFoundErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkGetPerson500",
         }),
       ),
@@ -2723,6 +2724,7 @@ export const make = (
           "401": "SdkIdentifyPerson401",
           "404": "ApiSdkPersonNotFoundErrorJsonEncoding",
           "409": "ApiSdkPersonAlreadyIdentifiedErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkIdentifyPerson500",
         }),
       ),
@@ -2755,6 +2757,7 @@ export const make = (
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkSyncPersonAttributes401",
           "404": "ApiSdkPersonNotFoundErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkSyncPersonAttributes500",
         }),
       ),
@@ -2820,6 +2823,7 @@ export const make = (
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkSignPromotionalOffer401",
           "422": "ApiSdkPromotionalOfferUnavailableErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkSignPromotionalOffer500",
         }),
       ),
@@ -2851,6 +2855,7 @@ export const make = (
         onRequest(["2xx"], {
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkDevelopmentPurchase401",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkDevelopmentPurchase500",
         }),
       ),
@@ -2882,6 +2887,7 @@ export const make = (
         onRequest(["2xx"], {
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkEvaluateFeatureFlags401",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkEvaluateFeatureFlags500",
         }),
       ),
@@ -2917,6 +2923,7 @@ export const make = (
         onRequest(["2xx"], {
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkResolvePaywall401",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkResolvePaywall500",
         }),
       ),
@@ -2947,6 +2954,7 @@ export const make = (
         onRequest(["2xx"], {
           "400": "ApiSdkValidationErrorJsonEncoding",
           "401": "SdkGetSdkSchema401",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkGetSdkSchema500",
         }),
       ),
@@ -2980,6 +2988,7 @@ export const make = (
           "401": "SdkRegisterDevice401",
           "403": "ApiActionForbiddenErrorJsonEncoding",
           "404": "ApiPushDeviceNotFoundErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkRegisterDevice500",
         }),
       ),
@@ -3013,6 +3022,7 @@ export const make = (
           "401": "SdkRefreshDevice401",
           "403": "ApiActionForbiddenErrorJsonEncoding",
           "404": "ApiPushDeviceNotFoundErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkRefreshDevice500",
         }),
       ),
@@ -3046,6 +3056,7 @@ export const make = (
           "401": "SdkUnregisterDevice401",
           "403": "ApiActionForbiddenErrorJsonEncoding",
           "404": "ApiPushDeviceNotFoundErrorJsonEncoding",
+          "429": "ApiSdkRateLimitedErrorJsonEncoding",
           "500": "SdkUnregisterDevice500",
         }),
       ),
@@ -3068,6 +3079,10 @@ export interface VoidhashSdkClient {
         "ApiSdkPersonNotFoundErrorJsonEncoding",
         ApiSdkPersonNotFoundErrorJsonEncoding
       >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkGetPerson500", SdkGetPerson500>
   >;
   /**
@@ -3089,6 +3104,10 @@ export interface VoidhashSdkClient {
         "ApiSdkPersonAlreadyIdentifiedErrorJsonEncoding",
         ApiSdkPersonAlreadyIdentifiedErrorJsonEncoding
       >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkIdentifyPerson500", SdkIdentifyPerson500>
   >;
   /**
@@ -3105,6 +3124,10 @@ export interface VoidhashSdkClient {
     | VoidhashSdkClientError<
         "ApiSdkPersonNotFoundErrorJsonEncoding",
         ApiSdkPersonNotFoundErrorJsonEncoding
+      >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
       >
     | VoidhashSdkClientError<"SdkSyncPersonAttributes500", SdkSyncPersonAttributes500>
   >;
@@ -3144,6 +3167,10 @@ export interface VoidhashSdkClient {
         "ApiSdkPromotionalOfferUnavailableErrorJsonEncoding",
         ApiSdkPromotionalOfferUnavailableErrorJsonEncoding
       >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkSignPromotionalOffer500", SdkSignPromotionalOffer500>
   >;
   /**
@@ -3157,6 +3184,10 @@ export interface VoidhashSdkClient {
     | HttpClientError.HttpClientError
     | VoidhashSdkClientError<"ApiSdkValidationErrorJsonEncoding", ApiSdkValidationErrorJsonEncoding>
     | VoidhashSdkClientError<"SdkDevelopmentPurchase401", SdkDevelopmentPurchase401>
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkDevelopmentPurchase500", SdkDevelopmentPurchase500>
   >;
   /**
@@ -3170,6 +3201,10 @@ export interface VoidhashSdkClient {
     | HttpClientError.HttpClientError
     | VoidhashSdkClientError<"ApiSdkValidationErrorJsonEncoding", ApiSdkValidationErrorJsonEncoding>
     | VoidhashSdkClientError<"SdkEvaluateFeatureFlags401", SdkEvaluateFeatureFlags401>
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkEvaluateFeatureFlags500", SdkEvaluateFeatureFlags500>
   >;
   /**
@@ -3183,6 +3218,10 @@ export interface VoidhashSdkClient {
     | HttpClientError.HttpClientError
     | VoidhashSdkClientError<"ApiSdkValidationErrorJsonEncoding", ApiSdkValidationErrorJsonEncoding>
     | VoidhashSdkClientError<"SdkResolvePaywall401", SdkResolvePaywall401>
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkResolvePaywall500", SdkResolvePaywall500>
   >;
   /**
@@ -3195,6 +3234,10 @@ export interface VoidhashSdkClient {
     | HttpClientError.HttpClientError
     | VoidhashSdkClientError<"ApiSdkValidationErrorJsonEncoding", ApiSdkValidationErrorJsonEncoding>
     | VoidhashSdkClientError<"SdkGetSdkSchema401", SdkGetSdkSchema401>
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkGetSdkSchema500", SdkGetSdkSchema500>
   >;
   /**
@@ -3215,6 +3258,10 @@ export interface VoidhashSdkClient {
     | VoidhashSdkClientError<
         "ApiPushDeviceNotFoundErrorJsonEncoding",
         ApiPushDeviceNotFoundErrorJsonEncoding
+      >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
       >
     | VoidhashSdkClientError<"SdkRegisterDevice500", SdkRegisterDevice500>
   >;
@@ -3237,6 +3284,10 @@ export interface VoidhashSdkClient {
         "ApiPushDeviceNotFoundErrorJsonEncoding",
         ApiPushDeviceNotFoundErrorJsonEncoding
       >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
+      >
     | VoidhashSdkClientError<"SdkRefreshDevice500", SdkRefreshDevice500>
   >;
   /**
@@ -3257,6 +3308,10 @@ export interface VoidhashSdkClient {
     | VoidhashSdkClientError<
         "ApiPushDeviceNotFoundErrorJsonEncoding",
         ApiPushDeviceNotFoundErrorJsonEncoding
+      >
+    | VoidhashSdkClientError<
+        "ApiSdkRateLimitedErrorJsonEncoding",
+        ApiSdkRateLimitedErrorJsonEncoding
       >
     | VoidhashSdkClientError<"SdkUnregisterDevice500", SdkUnregisterDevice500>
   >;

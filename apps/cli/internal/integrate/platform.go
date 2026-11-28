@@ -59,9 +59,6 @@ type Platform struct {
 	Types string `json:"types"`
 	// Packages are installed with the project's package manager.
 	Packages []Package `json:"packages"`
-	// PnpmSettings are settings pnpm needs in pnpm-workspace.yaml to
-	// install the packages.
-	PnpmSettings map[string]string `json:"pnpmSettings"`
 	// Files are written when they do not exist yet.
 	Files []File `json:"files"`
 	// Env is the environment file and the values written to it.

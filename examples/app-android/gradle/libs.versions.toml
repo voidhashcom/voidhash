@@ -10,7 +10,7 @@ coroutines = "1.8.1"
 lifecycle = "2.8.7"
 # Version of the npm package the SDK sources come from. Never resolved from a
 # repository: `settings.gradle.kts` substitutes the included build for it.
-voidhash = "0.1.2"
+voidhash = "0.3.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }

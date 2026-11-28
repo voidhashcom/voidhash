@@ -1,0 +1,37 @@
+Give a person a perk without a purchase: for a support case, a tester or compensation. They can use
+it at once, alongside anything they bought, and it never counts as revenue.
+
+It lasts --days days or --until a date, and for life when neither is given; 'voidhash person revoke'
+takes it back. It is granted in production, for apps using production keys, or with --test for apps
+using test keys.
+
+Usage:
+  voidhash person grant [person] [perk] [flags]
+
+Arguments:
+  person  The person's email, distinct id (the id your app identifies them by) or id
+  perk    The perk's slug (what your app checks), name or id
+
+Flags:
+      --days <days>        How many days from now it lasts
+  -h, --help               Show help for this command
+      --json               Print the API objects as JSON, for scripts
+      --note <note>        Why it is granted, for your team, such as a ticket number; no personal
+                           data
+      --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
+                           directory's project, then your default project)
+  -q, --quiet              Print only ids, one per line
+      --test               Grant it in test, for apps using test keys, instead of production
+      --until <date>       The last date it lasts, as YYYY-MM-DD (it ends at the end of that day,
+                           UTC)
+
+Global flags:
+  -d, --debug              Print each request and full error detail to standard error
+      --no-color           Print without colors (also when NO_COLOR is set)
+      --profile <profile>  Use a named config profile: its settings override the base config
+                           (default: VOIDHASH_PROFILE)
+
+Examples:
+  voidhash person grant ada@example.com premium --days 30 --note "Ticket 4821"
+  voidhash person grant user-42 beta --until 2026-12-31 --test
+  voidhash person grant person_123 premium --json

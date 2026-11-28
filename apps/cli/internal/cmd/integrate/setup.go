@@ -13,12 +13,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cmd/initcmd"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/integrate"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/projectconfig"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // What the CLI does itself, before the agent: everything that follows from
@@ -356,11 +356,6 @@ func (r *run) installPackages(ctx context.Context) error {
 	if len(missing) == 0 {
 		return nil
 	}
-	if r.project.PackageManager == "pnpm" {
-		if err := r.pnpmSettings(); err != nil {
-			return err
-		}
-	}
 	command := integrate.InstallCommand(r.project.PackageManager, missing)
 	r.app.Notef("Installing %s (%s)…", packageNames(missing), strings.Join(command[:2], " "))
 	output, code, err := r.capture(ctx, command[0], command[1:]...)
@@ -389,59 +384,6 @@ func packageNames(packages []integrate.Package) string {
 		names[index] = item.Name
 	}
 	return strings.Join(names, ", ")
-}
-
-// pnpmSettings adds the settings pnpm needs to install the SDK to this
-// directory's pnpm-workspace.yaml. A workspace whose file is above this
-// directory is the person's to change.
-func (r *run) pnpmSettings() error {
-	if len(r.platform.PnpmSettings) == 0 {
-		return nil
-	}
-	path := filepath.Join(r.app.Dir, "pnpm-workspace.yaml")
-	existing, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return cli.Failf("Could not read pnpm-workspace.yaml: %s.", err)
-	}
-	var added []string
-	content := string(existing)
-	for _, key := range sortedKeys(r.platform.PnpmSettings) {
-		if regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(key) + `\s*:`).MatchString(content) {
-			continue
-		}
-		if content != "" && !strings.HasSuffix(content, "\n") {
-			content += "\n"
-		}
-		content += key + ": " + r.platform.PnpmSettings[key] + "\n"
-		added = append(added, key)
-	}
-	if len(added) == 0 {
-		return nil
-	}
-	if os.IsNotExist(err) {
-		for dir := filepath.Dir(r.app.Dir); filepath.Dir(dir) != dir; dir = filepath.Dir(dir) {
-			if _, statErr := os.Stat(filepath.Join(dir, "pnpm-workspace.yaml")); statErr == nil {
-				r.app.Warnf("This app is in a pnpm workspace. If the install fails, add '%s: %s' to %s yourself: the CLI changes nothing outside this directory.",
-					added[0], r.platform.PnpmSettings[added[0]], filepath.Join(dir, "pnpm-workspace.yaml"))
-				return nil
-			}
-		}
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return cli.Failf("Could not write pnpm-workspace.yaml: %s.", err)
-	}
-	r.wrote("pnpm-workspace.yaml")
-	r.step("Set %s in pnpm-workspace.yaml, which pnpm needs to install the SDK", strings.Join(added, ", "))
-	return nil
-}
-
-func sortedKeys(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
 }
 
 // wrote records a file the CLI itself wrote.

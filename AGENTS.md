@@ -1,6 +1,7 @@
 # Voidhash SDKs
 
-This repository holds the Voidhash SDKs (`libraries/*`), the CLI (`apps/cli`)
+This repository holds the Voidhash SDKs (`libraries/*`), the Rust component
+SDK (`crates/voidhash-ui`, `crates/voidhash-ui-macros`), the CLI (`apps/cli`)
 and example apps that use them (`examples/*`). It has no workspace to install
 and no test suites; maintainers build and test contributions after importing
 them, as described in `CONTRIBUTING.md`.

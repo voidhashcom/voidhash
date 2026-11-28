@@ -1,0 +1,606 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Api",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/i/v1/capture": {
+      "post": {
+        "tags": ["event_capture"],
+        "operationId": "event_capture.capture",
+        "parameters": [
+          {
+            "name": "x-secret-key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "description": "A project secret key, `vh_sk_...`, for requests from your servers. Leave it out when the body has a publishable `token`."
+            },
+            "required": false,
+            "description": "A project secret key, `vh_sk_...`, for requests from your servers. Leave it out when the body has a publishable `token`.",
+            "example": "vh_sk_..."
+          }
+        ],
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "CaptureAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                },
+                "example": {
+                  "accepted": 1,
+                  "rejected": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CapturePayloadTooLargeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CaptureRateLimitedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Captures one event. Authorize with the `x-secret-key` header from a server, or a publishable `token` in the body from an app or web page. Answers 202 with how many events were stored.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "uuid": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The event's id: a UUID you generate once and send unchanged on every retry, so the event is stored once.",
+                    "example": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f"
+                  },
+                  "event": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The event's name, such as `paywall_viewed`.",
+                    "example": "paywall_viewed"
+                  },
+                  "context": {
+                    "$ref": "#/components/schemas/Objects_"
+                  },
+                  "properties": {
+                    "$ref": "#/components/schemas/Objects_1"
+                  },
+                  "distinct_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The distinct id of the person it happened to.",
+                    "example": "user_123"
+                  },
+                  "session_id": {
+                    "description": "The session it belongs to, when the sender tracks sessions.",
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "description": "When it happened on the device, as an ISO 8601 timestamp. Voidhash corrects it by how far the device's clock is off, measured with `sent_at`.",
+                    "example": "2026-08-14T12:00:00.000Z"
+                  },
+                  "sent_at": {
+                    "type": "string",
+                    "description": "When the request was sent, as an ISO 8601 timestamp. Voidhash compares it with when the request arrived to correct the events' times.",
+                    "example": "2026-08-14T12:00:01.000Z"
+                  },
+                  "token": {
+                    "description": "The project's publishable key, `vh_pk_...`, for clients that cannot hold a secret. Send it or the `x-secret-key` header; a secret key here is refused.",
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "uuid",
+                  "event",
+                  "context",
+                  "properties",
+                  "distinct_id",
+                  "timestamp",
+                  "sent_at"
+                ],
+                "additionalProperties": false
+              },
+              "example": {
+                "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+                "event": "paywall_viewed",
+                "context": {
+                  "platform": "ios",
+                  "app_version": "2.4.0"
+                },
+                "properties": {
+                  "location": "onboarding-end",
+                  "paywall": "annual-upsell"
+                },
+                "distinct_id": "user_8231",
+                "timestamp": "2026-03-14T09:25:40.000Z",
+                "sent_at": "2026-03-14T09:25:41.000Z"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/i/v1/batch": {
+      "post": {
+        "tags": ["event_capture"],
+        "operationId": "event_capture.batch",
+        "parameters": [
+          {
+            "name": "x-secret-key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "description": "A project secret key, `vh_sk_...`, for requests from your servers. Leave it out when the body has a publishable `token`."
+            },
+            "required": false,
+            "description": "A project secret key, `vh_sk_...`, for requests from your servers. Leave it out when the body has a publishable `token`.",
+            "example": "vh_sk_..."
+          }
+        ],
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "CaptureAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                },
+                "example": {
+                  "accepted": 2,
+                  "rejected": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CapturePayloadTooLargeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CaptureRateLimitedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Captures 1 to 100 events in one request, authorized like a single capture. One invalid event rejects the whole request. Answers 202 with how many events were stored.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/components/schemas/CaptureEvent"
+                    },
+                    "description": "The events, 1 to 100."
+                  },
+                  "sent_at": {
+                    "type": "string",
+                    "description": "When the request was sent, as an ISO 8601 timestamp. Voidhash compares it with when the request arrived to correct the events' times.",
+                    "example": "2026-08-14T12:00:01.000Z"
+                  },
+                  "token": {
+                    "description": "The project's publishable key, `vh_pk_...`, for clients that cannot hold a secret. Send it or the `x-secret-key` header; a secret key here is refused.",
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["events", "sent_at"],
+                "additionalProperties": false
+              },
+              "example": {
+                "events": [
+                  {
+                    "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+                    "event": "paywall_viewed",
+                    "context": {
+                      "platform": "ios",
+                      "app_version": "2.4.0"
+                    },
+                    "properties": {
+                      "location": "onboarding-end",
+                      "paywall": "annual-upsell"
+                    },
+                    "distinct_id": "user_8231",
+                    "timestamp": "2026-03-14T09:25:40.000Z"
+                  },
+                  {
+                    "uuid": "018f6d2e-4c3b-7a2e-8f10-3b9d2c1e5f70",
+                    "event": "level_completed",
+                    "context": {
+                      "platform": "ios",
+                      "app_version": "2.4.0"
+                    },
+                    "properties": {
+                      "level": 4
+                    },
+                    "distinct_id": "user_8231",
+                    "timestamp": "2026-03-14T09:31:02.000Z"
+                  }
+                ],
+                "sent_at": "2026-03-14T09:31:05.000Z"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CaptureInternalServerError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CaptureInternalServerError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["internal_error"],
+            "description": "The machine-readable error code, always `internal_error`: something failed on our side; retry with backoff."
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CaptureDependencyUnavailableError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CaptureDependencyUnavailableError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["dependency_unavailable"],
+            "description": "The machine-readable error code, always `dependency_unavailable`: a service capture depends on is unavailable; retry with backoff."
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CaptureRateLimitedError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CaptureRateLimitedError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["rate_limited"],
+            "description": "The machine-readable error code, always `rate_limited`: the project's request limit is reached, capture is turned off for it, or a batch holds more than 100 events."
+          },
+          "retry_after_ms": {
+            "description": "How long to wait before retrying, in milliseconds, when the limit says; the `Retry-After` header carries it in seconds.",
+            "nullable": true,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CapturePayloadTooLargeError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CapturePayloadTooLargeError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["payload_too_large"],
+            "description": "The machine-readable error code, always `payload_too_large`: the body is over 5 MB, sent or decompressed, or an event is too large to store."
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CaptureUnauthorizedError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CaptureUnauthorizedError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["unauthorized"],
+            "description": "The machine-readable error code, always `unauthorized`: the credential is missing or invalid, or a secret key lacks `project:events:write`."
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CaptureInvalidRequestError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CaptureInvalidRequestError"],
+            "description": "The error's name. Branch on `code` instead."
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What went wrong, for people. It can change, so do not parse it."
+          },
+          "code": {
+            "type": "string",
+            "enum": ["invalid_request"],
+            "description": "The machine-readable error code, always `invalid_request`: the body or headers do not match the schema; one invalid event rejects the whole request."
+          }
+        },
+        "required": ["_tag", "error", "code"],
+        "additionalProperties": false
+      },
+      "CaptureAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How many of the events were stored."
+          },
+          "rejected": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How many were not: sent while the end user withholds consent or by a bot, blocked by the project's ingest policy, or using a reserved event name."
+          }
+        },
+        "required": ["accepted", "rejected"],
+        "additionalProperties": false
+      },
+      "Objects_1": {
+        "type": "object",
+        "description": "The event's properties, as JSON values. `$set` and `$set_once` hold traits to set on the person.",
+        "example": {
+          "location": "onboarding"
+        }
+      },
+      "Objects_": {
+        "type": "object",
+        "description": "Facts about the app and device that sent it, such as `platform` and `app_version`.",
+        "example": {
+          "platform": "ios",
+          "app_version": "2.4.0"
+        }
+      },
+      "CaptureEvent": {
+        "type": "object",
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The event's id: a UUID you generate once and send unchanged on every retry, so the event is stored once.",
+            "example": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f"
+          },
+          "event": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The event's name, such as `paywall_viewed`.",
+            "example": "paywall_viewed"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Objects_"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/Objects_1"
+          },
+          "distinct_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The distinct id of the person it happened to.",
+            "example": "user_123"
+          },
+          "session_id": {
+            "description": "The session it belongs to, when the sender tracks sessions.",
+            "nullable": true,
+            "type": "string",
+            "minLength": 1
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "When it happened on the device, as an ISO 8601 timestamp. Voidhash corrects it by how far the device's clock is off, measured with `sent_at`.",
+            "example": "2026-08-14T12:00:00.000Z"
+          }
+        },
+        "required": ["uuid", "event", "context", "properties", "distinct_id", "timestamp"],
+        "additionalProperties": false
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "param": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": ["type", "code", "message"],
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "securitySchemes": {}
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "event_capture"
+    }
+  ]
+}

@@ -2103,17 +2103,26 @@ const (
 
 // Defines values for CreateWebhookBodyJsonEncodingEvents.
 const (
-	CreateWebhookBodyJsonEncodingEventsPersonCreated              CreateWebhookBodyJsonEncodingEvents = "person.created"
-	CreateWebhookBodyJsonEncodingEventsPersonDeleted              CreateWebhookBodyJsonEncodingEvents = "person.deleted"
-	CreateWebhookBodyJsonEncodingEventsPersonUpdated              CreateWebhookBodyJsonEncodingEvents = "person.updated"
-	CreateWebhookBodyJsonEncodingEventsPurchaseCompleted          CreateWebhookBodyJsonEncodingEvents = "purchase.completed"
-	CreateWebhookBodyJsonEncodingEventsPurchaseRefunded           CreateWebhookBodyJsonEncodingEvents = "purchase.refunded"
-	CreateWebhookBodyJsonEncodingEventsPurchaseRevoked            CreateWebhookBodyJsonEncodingEvents = "purchase.revoked"
-	CreateWebhookBodyJsonEncodingEventsSubscriptionCancelled      CreateWebhookBodyJsonEncodingEvents = "subscription.cancelled"
-	CreateWebhookBodyJsonEncodingEventsSubscriptionCreated        CreateWebhookBodyJsonEncodingEvents = "subscription.created"
-	CreateWebhookBodyJsonEncodingEventsSubscriptionExpired        CreateWebhookBodyJsonEncodingEvents = "subscription.expired"
-	CreateWebhookBodyJsonEncodingEventsSubscriptionProductChanged CreateWebhookBodyJsonEncodingEvents = "subscription.product_changed"
-	CreateWebhookBodyJsonEncodingEventsSubscriptionRenewed        CreateWebhookBodyJsonEncodingEvents = "subscription.renewed"
+	CreateWebhookBodyJsonEncodingEventsPerkAccessGranted            CreateWebhookBodyJsonEncodingEvents = "perk_access.granted"
+	CreateWebhookBodyJsonEncodingEventsPerkAccessRevoked            CreateWebhookBodyJsonEncodingEvents = "perk_access.revoked"
+	CreateWebhookBodyJsonEncodingEventsPersonCreated                CreateWebhookBodyJsonEncodingEvents = "person.created"
+	CreateWebhookBodyJsonEncodingEventsPersonDeleted                CreateWebhookBodyJsonEncodingEvents = "person.deleted"
+	CreateWebhookBodyJsonEncodingEventsPersonUpdated                CreateWebhookBodyJsonEncodingEvents = "person.updated"
+	CreateWebhookBodyJsonEncodingEventsPurchaseCompleted            CreateWebhookBodyJsonEncodingEvents = "purchase.completed"
+	CreateWebhookBodyJsonEncodingEventsPurchaseRefunded             CreateWebhookBodyJsonEncodingEvents = "purchase.refunded"
+	CreateWebhookBodyJsonEncodingEventsPurchaseRevoked              CreateWebhookBodyJsonEncodingEvents = "purchase.revoked"
+	CreateWebhookBodyJsonEncodingEventsPurchaseTransferred          CreateWebhookBodyJsonEncodingEvents = "purchase.transferred"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionBillingIssue     CreateWebhookBodyJsonEncodingEvents = "subscription.billing_issue"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionBillingRecovered CreateWebhookBodyJsonEncodingEvents = "subscription.billing_recovered"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionCancelled        CreateWebhookBodyJsonEncodingEvents = "subscription.cancelled"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionCreated          CreateWebhookBodyJsonEncodingEvents = "subscription.created"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionExpired          CreateWebhookBodyJsonEncodingEvents = "subscription.expired"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionPaused           CreateWebhookBodyJsonEncodingEvents = "subscription.paused"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionProductChanged   CreateWebhookBodyJsonEncodingEvents = "subscription.product_changed"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionRenewed          CreateWebhookBodyJsonEncodingEvents = "subscription.renewed"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionResumed          CreateWebhookBodyJsonEncodingEvents = "subscription.resumed"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionTransferred      CreateWebhookBodyJsonEncodingEvents = "subscription.transferred"
+	CreateWebhookBodyJsonEncodingEventsSubscriptionUncancelled      CreateWebhookBodyJsonEncodingEvents = "subscription.uncancelled"
 )
 
 // Defines values for CredentialKind.
@@ -2559,7 +2568,7 @@ const (
 
 // Defines values for NotFoundErrorJsonEncodingErrorType.
 const (
-	NotFound NotFoundErrorJsonEncodingErrorType = "not_found"
+	NotFoundErrorJsonEncodingErrorTypeNotFound NotFoundErrorJsonEncodingErrorType = "not_found"
 )
 
 // Defines values for NoticeCategory.
@@ -2617,6 +2626,14 @@ const (
 const (
 	ParticipantKindBot  ParticipantKind = "bot"
 	ParticipantKindUser ParticipantKind = "user"
+)
+
+// Defines values for PaymentProviderConnectionCheckStatus.
+const (
+	PaymentProviderConnectionCheckStatusFailing    PaymentProviderConnectionCheckStatus = "failing"
+	PaymentProviderConnectionCheckStatusPending    PaymentProviderConnectionCheckStatus = "pending"
+	PaymentProviderConnectionCheckStatusUnverified PaymentProviderConnectionCheckStatus = "unverified"
+	PaymentProviderConnectionCheckStatusWorking    PaymentProviderConnectionCheckStatus = "working"
 )
 
 // Defines values for PaymentProviderHistoryImportEnvironment.
@@ -2834,6 +2851,35 @@ const (
 	PersonErasureJsonEncodingStatusFailed     PersonErasureJsonEncodingStatus = "failed"
 	PersonErasureJsonEncodingStatusInProgress PersonErasureJsonEncodingStatus = "in_progress"
 	PersonErasureJsonEncodingStatusQueued     PersonErasureJsonEncodingStatus = "queued"
+)
+
+// Defines values for PersonGrantActorType.
+const (
+	PersonGrantActorTypePersonGrantActorTypeApiKey PersonGrantActorType = "api_key"
+	PersonGrantActorTypePersonGrantActorTypeBot    PersonGrantActorType = "bot"
+	PersonGrantActorTypePersonGrantActorTypeMember PersonGrantActorType = "member"
+	PersonGrantActorTypePersonGrantActorTypeSystem PersonGrantActorType = "system"
+)
+
+// Defines values for PersonGrantJsonEncodingEnvironment.
+const (
+	PersonGrantJsonEncodingEnvironmentProduction PersonGrantJsonEncodingEnvironment = "production"
+	PersonGrantJsonEncodingEnvironmentTest       PersonGrantJsonEncodingEnvironment = "test"
+)
+
+// Defines values for PersonGrantJsonEncodingGrantedByType.
+const (
+	PersonGrantJsonEncodingGrantedByTypePersonGrantActorTypeApiKey PersonGrantJsonEncodingGrantedByType = "api_key"
+	PersonGrantJsonEncodingGrantedByTypePersonGrantActorTypeBot    PersonGrantJsonEncodingGrantedByType = "bot"
+	PersonGrantJsonEncodingGrantedByTypePersonGrantActorTypeMember PersonGrantJsonEncodingGrantedByType = "member"
+	PersonGrantJsonEncodingGrantedByTypePersonGrantActorTypeSystem PersonGrantJsonEncodingGrantedByType = "system"
+)
+
+// Defines values for PersonGrantJsonEncodingStatus.
+const (
+	PersonGrantJsonEncodingStatusActive  PersonGrantJsonEncodingStatus = "active"
+	PersonGrantJsonEncodingStatusExpired PersonGrantJsonEncodingStatus = "expired"
+	PersonGrantJsonEncodingStatusRevoked PersonGrantJsonEncodingStatus = "revoked"
 )
 
 // Defines values for PersonPurchaseJsonEncodingEnvironment.
@@ -3315,6 +3361,20 @@ const (
 	Sum     SeriesBasisStatistic = "sum"
 )
 
+// Defines values for StoreImportIdentifierOutcomeOutcome.
+const (
+	StoreImportIdentifierOutcomeOutcomeAlreadyKnown      StoreImportIdentifierOutcomeOutcome = "already_known"
+	StoreImportIdentifierOutcomeOutcomeImported          StoreImportIdentifierOutcomeOutcome = "imported"
+	StoreImportIdentifierOutcomeOutcomeInvalid           StoreImportIdentifierOutcomeOutcome = "invalid"
+	StoreImportIdentifierOutcomeOutcomeNoLongerAvailable StoreImportIdentifierOutcomeOutcome = "no_longer_available"
+	StoreImportIdentifierOutcomeOutcomeNotFound          StoreImportIdentifierOutcomeOutcome = "not_found"
+	StoreImportIdentifierOutcomeOutcomeNotPaid           StoreImportIdentifierOutcomeOutcome = "not_paid"
+	StoreImportIdentifierOutcomeOutcomeOtherApp          StoreImportIdentifierOutcomeOutcome = "other_app"
+	StoreImportIdentifierOutcomeOutcomeOtherEnvironment  StoreImportIdentifierOutcomeOutcome = "other_environment"
+	StoreImportIdentifierOutcomeOutcomePending           StoreImportIdentifierOutcomeOutcome = "pending"
+	StoreImportIdentifierOutcomeOutcomeWaitingForProduct StoreImportIdentifierOutcomeOutcome = "waiting_for_product"
+)
+
 // Defines values for SubscriptionReason.
 const (
 	SubscriptionReasonAssigned  SubscriptionReason = "assigned"
@@ -3375,17 +3435,26 @@ const (
 
 // Defines values for UpdateWebhookBodyJsonEncodingEvents.
 const (
-	UpdateWebhookBodyJsonEncodingEventsPersonCreated              UpdateWebhookBodyJsonEncodingEvents = "person.created"
-	UpdateWebhookBodyJsonEncodingEventsPersonDeleted              UpdateWebhookBodyJsonEncodingEvents = "person.deleted"
-	UpdateWebhookBodyJsonEncodingEventsPersonUpdated              UpdateWebhookBodyJsonEncodingEvents = "person.updated"
-	UpdateWebhookBodyJsonEncodingEventsPurchaseCompleted          UpdateWebhookBodyJsonEncodingEvents = "purchase.completed"
-	UpdateWebhookBodyJsonEncodingEventsPurchaseRefunded           UpdateWebhookBodyJsonEncodingEvents = "purchase.refunded"
-	UpdateWebhookBodyJsonEncodingEventsPurchaseRevoked            UpdateWebhookBodyJsonEncodingEvents = "purchase.revoked"
-	UpdateWebhookBodyJsonEncodingEventsSubscriptionCancelled      UpdateWebhookBodyJsonEncodingEvents = "subscription.cancelled"
-	UpdateWebhookBodyJsonEncodingEventsSubscriptionCreated        UpdateWebhookBodyJsonEncodingEvents = "subscription.created"
-	UpdateWebhookBodyJsonEncodingEventsSubscriptionExpired        UpdateWebhookBodyJsonEncodingEvents = "subscription.expired"
-	UpdateWebhookBodyJsonEncodingEventsSubscriptionProductChanged UpdateWebhookBodyJsonEncodingEvents = "subscription.product_changed"
-	UpdateWebhookBodyJsonEncodingEventsSubscriptionRenewed        UpdateWebhookBodyJsonEncodingEvents = "subscription.renewed"
+	UpdateWebhookBodyJsonEncodingEventsPerkAccessGranted            UpdateWebhookBodyJsonEncodingEvents = "perk_access.granted"
+	UpdateWebhookBodyJsonEncodingEventsPerkAccessRevoked            UpdateWebhookBodyJsonEncodingEvents = "perk_access.revoked"
+	UpdateWebhookBodyJsonEncodingEventsPersonCreated                UpdateWebhookBodyJsonEncodingEvents = "person.created"
+	UpdateWebhookBodyJsonEncodingEventsPersonDeleted                UpdateWebhookBodyJsonEncodingEvents = "person.deleted"
+	UpdateWebhookBodyJsonEncodingEventsPersonUpdated                UpdateWebhookBodyJsonEncodingEvents = "person.updated"
+	UpdateWebhookBodyJsonEncodingEventsPurchaseCompleted            UpdateWebhookBodyJsonEncodingEvents = "purchase.completed"
+	UpdateWebhookBodyJsonEncodingEventsPurchaseRefunded             UpdateWebhookBodyJsonEncodingEvents = "purchase.refunded"
+	UpdateWebhookBodyJsonEncodingEventsPurchaseRevoked              UpdateWebhookBodyJsonEncodingEvents = "purchase.revoked"
+	UpdateWebhookBodyJsonEncodingEventsPurchaseTransferred          UpdateWebhookBodyJsonEncodingEvents = "purchase.transferred"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionBillingIssue     UpdateWebhookBodyJsonEncodingEvents = "subscription.billing_issue"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionBillingRecovered UpdateWebhookBodyJsonEncodingEvents = "subscription.billing_recovered"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionCancelled        UpdateWebhookBodyJsonEncodingEvents = "subscription.cancelled"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionCreated          UpdateWebhookBodyJsonEncodingEvents = "subscription.created"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionExpired          UpdateWebhookBodyJsonEncodingEvents = "subscription.expired"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionPaused           UpdateWebhookBodyJsonEncodingEvents = "subscription.paused"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionProductChanged   UpdateWebhookBodyJsonEncodingEvents = "subscription.product_changed"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionRenewed          UpdateWebhookBodyJsonEncodingEvents = "subscription.renewed"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionResumed          UpdateWebhookBodyJsonEncodingEvents = "subscription.resumed"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionTransferred      UpdateWebhookBodyJsonEncodingEvents = "subscription.transferred"
+	UpdateWebhookBodyJsonEncodingEventsSubscriptionUncancelled      UpdateWebhookBodyJsonEncodingEvents = "subscription.uncancelled"
 )
 
 // Defines values for UpdateWebhookBodyJsonEncodingStatus.
@@ -3440,14 +3509,14 @@ const (
 
 // Defines values for AutomationsListRunsParamsStatus.
 const (
-	Cancelled AutomationsListRunsParamsStatus = "cancelled"
-	Completed AutomationsListRunsParamsStatus = "completed"
-	Exited    AutomationsListRunsParamsStatus = "exited"
-	Failed    AutomationsListRunsParamsStatus = "failed"
-	Paused    AutomationsListRunsParamsStatus = "paused"
-	Queued    AutomationsListRunsParamsStatus = "queued"
-	Running   AutomationsListRunsParamsStatus = "running"
-	Waiting   AutomationsListRunsParamsStatus = "waiting"
+	AutomationsListRunsParamsStatusCancelled AutomationsListRunsParamsStatus = "cancelled"
+	AutomationsListRunsParamsStatusCompleted AutomationsListRunsParamsStatus = "completed"
+	AutomationsListRunsParamsStatusExited    AutomationsListRunsParamsStatus = "exited"
+	AutomationsListRunsParamsStatusFailed    AutomationsListRunsParamsStatus = "failed"
+	AutomationsListRunsParamsStatusPaused    AutomationsListRunsParamsStatus = "paused"
+	AutomationsListRunsParamsStatusQueued    AutomationsListRunsParamsStatus = "queued"
+	AutomationsListRunsParamsStatusRunning   AutomationsListRunsParamsStatus = "running"
+	AutomationsListRunsParamsStatusWaiting   AutomationsListRunsParamsStatus = "waiting"
 )
 
 // Defines values for BoardsListTasksParamsIsArchived.
@@ -3508,6 +3577,20 @@ const (
 const (
 	PaymentProviderHistoryImportsListParamsEnvironmentProduction PaymentProviderHistoryImportsListParamsEnvironment = "production"
 	PaymentProviderHistoryImportsListParamsEnvironmentTest       PaymentProviderHistoryImportsListParamsEnvironment = "test"
+)
+
+// Defines values for PaymentProviderHistoryImportsListIdentifiersParamsOutcome.
+const (
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeAlreadyKnown      PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "already_known"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeImported          PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "imported"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeInvalid           PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "invalid"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeNoLongerAvailable PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "no_longer_available"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeNotFound          PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "not_found"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeNotPaid           PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "not_paid"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeOtherApp          PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "other_app"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeOtherEnvironment  PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "other_environment"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomePending           PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "pending"
+	PaymentProviderHistoryImportsListIdentifiersParamsOutcomeWaitingForProduct PaymentProviderHistoryImportsListIdentifiersParamsOutcome = "waiting_for_product"
 )
 
 // Defines values for PaymentProviderProductsListParamsIsActive.
@@ -5166,6 +5249,12 @@ type AddAnalyticsCohortPeopleResultJsonEncoding struct {
 
 	// Unresolved The identifiers no current person of the project has, as they were sent.
 	Unresolved []string `json:"unresolved"`
+}
+
+// AddStoreImportIdentifiersBody Purchases to add to an App Store or Google Play import.
+type AddStoreImportIdentifiersBody struct {
+	// Identifiers The purchases to add, 1 to 1,000 per request. One already added to this import is kept as it was.
+	Identifiers []StoreImportIdentifier `json:"identifiers"`
 }
 
 // AdsBreakdown A dimension rows are sliced by. `surface` (`web`, `ios`, `android`) slices measured numbers; the others slice the platform's: `country` (`CZ`), `age` (`25-34`), `gender`, `device`, and `placement` (`instagram|story`).
@@ -9654,11 +9743,11 @@ type CreatePaymentProviderBodyJsonEncoding struct {
 
 // CreatePaymentProviderHistoryImportBody Which environment's history to import.
 type CreatePaymentProviderHistoryImportBody struct {
-	// Environment The environment to import: `production`, or `test` (Stripe's test mode, a payment source's test payments).
+	// Environment The environment to import: `production`, or `test` (Stripe's test mode, a payment source's test payments, the App Store's sandbox, Google Play's license testers' purchases).
 	Environment CreatePaymentProviderHistoryImportBodyEnvironment `json:"environment"`
 }
 
-// CreatePaymentProviderHistoryImportBodyEnvironment The environment to import: `production`, or `test` (Stripe's test mode, a payment source's test payments).
+// CreatePaymentProviderHistoryImportBodyEnvironment The environment to import: `production`, or `test` (Stripe's test mode, a payment source's test payments, the App Store's sandbox, Google Play's license testers' purchases).
 type CreatePaymentProviderHistoryImportBodyEnvironment string
 
 // CreatePaymentProviderProductMappingBodyJsonEncoding defines model for CreatePaymentProviderProductMappingBodyJsonEncoding.
@@ -9764,6 +9853,18 @@ type CreatePersonErasureBodyJsonEncoding struct {
 
 	// PersonId The person to erase, by id. Give this or `distinctId`, not both.
 	PersonId *string `json:"personId"`
+}
+
+// CreatePersonGrantBodyJsonEncoding defines model for CreatePersonGrantBodyJsonEncoding.
+type CreatePersonGrantBodyJsonEncoding struct {
+	// ExpiresAt When the access ends, as an ISO 8601 timestamp in the future. Leave it out, or send null, for lifetime access until revoked.
+	ExpiresAt *string `json:"expiresAt"`
+
+	// Note Why it is granted, for your team, such as a support ticket; at most 500 characters. Avoid personal data.
+	Note *string `json:"note"`
+
+	// PerkId The perk to grant, `perk_...`.
+	PerkId string `json:"perkId"`
 }
 
 // CreateProductBodyJsonEncoding defines model for CreateProductBodyJsonEncoding.
@@ -11901,6 +12002,23 @@ type PaymentProviderCatalogMapping struct {
 	ProductId string `json:"productId"`
 }
 
+// PaymentProviderConnectionCheck The last check of a store's credentials with the store.
+type PaymentProviderConnectionCheck struct {
+	CheckedAt string `json:"checkedAt"`
+
+	// Code Why, as a stable code: `working`, `credentials_rejected`, `private_key_invalid`, `app_not_found`, `app_apple_id_mismatch`, `account_mismatch`, `permission_pending`, `permission_missing`, `api_disabled`, `store_unavailable`, `incomplete`, among others.
+	Code string `json:"code"`
+
+	// Message What the check found and what to do about it, for a person to read.
+	Message string `json:"message"`
+
+	// Status What the check found: `working`, `failing` (something to fix, which `message` names), `pending` (waiting on the store, such as Google Play applying a new permission, which can take a day or more) or `unverified` (the store didn't answer).
+	Status PaymentProviderConnectionCheckStatus `json:"status"`
+}
+
+// PaymentProviderConnectionCheckStatus What the check found: `working`, `failing` (something to fix, which `message` names), `pending` (waiting on the store, such as Google Play applying a new permission, which can take a day or more) or `unverified` (the store didn't answer).
+type PaymentProviderConnectionCheckStatus string
+
 // PaymentProviderHistoryImport An import of a payment provider's purchase history: the subscriptions and transactions it recorded before it was connected.
 type PaymentProviderHistoryImport struct {
 	// CompletedAt When the import completed, failed or was canceled, as an ISO 8601 timestamp; null while it runs.
@@ -11924,7 +12042,7 @@ type PaymentProviderHistoryImport struct {
 	// PaymentProviderId The payment provider whose history is imported.
 	PaymentProviderId string `json:"paymentProviderId"`
 
-	// Phase What a running import does: `collecting` lists the store's objects, `applying` records them; `done` once the import ended.
+	// Phase What a running import does: `collecting` lists the store's objects, or for the App Store and Google Play takes the purchases you add until you conclude it, while looking up those added; `applying` records them; `done` once the import ended.
 	Phase PaymentProviderHistoryImportPhase `json:"phase"`
 
 	// RequestedAt When the import was started, as an ISO 8601 timestamp.
@@ -11937,7 +12055,7 @@ type PaymentProviderHistoryImport struct {
 // PaymentProviderHistoryImportEnvironment The environment the import reads: `production`, or `test` (Stripe's test mode, a payment source's test payments).
 type PaymentProviderHistoryImportEnvironment string
 
-// PaymentProviderHistoryImportPhase What a running import does: `collecting` lists the store's objects, `applying` records them; `done` once the import ended.
+// PaymentProviderHistoryImportPhase What a running import does: `collecting` lists the store's objects, or for the App Store and Google Play takes the purchases you add until you conclude it, while looking up those added; `applying` records them; `done` once the import ended.
 type PaymentProviderHistoryImportPhase string
 
 // PaymentProviderHistoryImportStatus `running` until the import ends as `completed`, `canceled`, or `failed` when the store refused the credentials or the import kept failing (see `lastError`).
@@ -11968,6 +12086,9 @@ type PaymentProviderHistoryImportCounts struct {
 type PaymentProviderJsonEncoding struct {
 	// Configuration The provider's settings, which depend on its `type`; each stored credential reads as `"<stored secret>"`.
 	Configuration map[string]interface{} `json:"configuration"`
+
+	// ConnectionCheck The last check of a store's credentials with the store.
+	ConnectionCheck PaymentProviderConnectionCheck `json:"connectionCheck"`
 
 	// CreatedAt When the provider was added, as an ISO 8601 timestamp.
 	CreatedAt *string `json:"createdAt"`
@@ -12913,10 +13034,10 @@ type PersonEntitlementJsonEncoding struct {
 	// Source What gives the access: a `subscription`, a one-time `purchase`, or `manual` access your team gave.
 	Source PersonEntitlementJsonEncodingSource `json:"source"`
 
-	// SourceId The subscription or purchase that gives the access; null for manual access.
+	// SourceId The subscription, purchase or grant (`grant_...`) that gives the access; null only for manual access given before grants were recorded.
 	SourceId *string `json:"sourceId"`
 
-	// SourcePersonId The person whose subscription or purchase gives the access: this person, or one merged into them.
+	// SourcePersonId The person whose subscription, purchase or grant gives the access: this person, or one merged into them.
 	SourcePersonId string `json:"sourcePersonId"`
 }
 
@@ -12946,6 +13067,72 @@ type PersonErasureJsonEncoding struct {
 
 // PersonErasureJsonEncodingStatus `queued` and `in_progress` erasures finish on their own; request a `failed` one again to retry it.
 type PersonErasureJsonEncodingStatus string
+
+// PersonGrantActor Who granted or revoked a grant.
+type PersonGrantActor struct {
+	// Id The member's user id, the secret key's id or the bot's key; null for a key recorded without an id. For `system`, why it revoked the grant: `person_merge`, when the person was merged with one holding a grant of the same perk that lasts at least as long, or `person_erasure`.
+	Id *string `json:"id"`
+
+	// Type Who acted: a `member` of your team (in the dashboard, the CLI or an AI assistant), a project secret key (`api_key`), a project `bot`, or Voidhash itself (`system`), which revokes a grant when two persons holding grants of the same perk are merged or when the person's data is erased.
+	Type PersonGrantActorType `json:"type"`
+}
+
+// PersonGrantActorType Who acted: a `member` of your team (in the dashboard, the CLI or an AI assistant), a project secret key (`api_key`), a project `bot`, or Voidhash itself (`system`), which revokes a grant when two persons holding grants of the same perk are merged or when the person's data is erased.
+type PersonGrantActorType string
+
+// PersonGrantJsonEncoding defines model for PersonGrantJsonEncoding.
+type PersonGrantJsonEncoding struct {
+	// CreatedAt When it was granted, as an ISO 8601 timestamp.
+	CreatedAt string `json:"createdAt"`
+
+	// Environment Where it gives access: `production`, to apps using production keys, or `test`, to apps using test keys.
+	Environment PersonGrantJsonEncodingEnvironment `json:"environment"`
+
+	// ExpiresAt When the access ends, as an ISO 8601 timestamp; null for lifetime access until revoked.
+	ExpiresAt *string `json:"expiresAt"`
+
+	// GrantedBy Who granted it.
+	GrantedBy struct {
+		// Id The member's user id, the secret key's id or the bot's key; null for a key recorded without an id. For `system`, why it revoked the grant: `person_merge`, when the person was merged with one holding a grant of the same perk that lasts at least as long, or `person_erasure`.
+		Id *string `json:"id"`
+
+		// Type Who acted: a `member` of your team (in the dashboard, the CLI or an AI assistant), a project secret key (`api_key`), a project `bot`, or Voidhash itself (`system`), which revokes a grant when two persons holding grants of the same perk are merged or when the person's data is erased.
+		Type PersonGrantJsonEncodingGrantedByType `json:"type"`
+	} `json:"grantedBy"`
+
+	// Id The grant's id, `grant_...`.
+	Id string `json:"id"`
+
+	// Note Why it was granted, as your team wrote it; null when none was given or the person's data was erased.
+	Note *string `json:"note"`
+
+	// PerkId The perk it gives, `perk_...`.
+	PerkId string `json:"perkId"`
+
+	// PerkSlug The slug SDKs check access by; null when the perk has since been deleted.
+	PerkSlug *string `json:"perkSlug"`
+
+	// PersonId The person it was granted to: this person, or one merged into them since, whose grants count for them.
+	PersonId string `json:"personId"`
+
+	// RevokedAt When it was revoked, as an ISO 8601 timestamp; null while it is not.
+	RevokedAt *string `json:"revokedAt"`
+
+	// RevokedBy Who granted or revoked a grant.
+	RevokedBy PersonGrantActor `json:"revokedBy"`
+
+	// Status `active` while it gives access, `expired` after `expiresAt`, `revoked` once revoked.
+	Status PersonGrantJsonEncodingStatus `json:"status"`
+}
+
+// PersonGrantJsonEncodingEnvironment Where it gives access: `production`, to apps using production keys, or `test`, to apps using test keys.
+type PersonGrantJsonEncodingEnvironment string
+
+// PersonGrantJsonEncodingGrantedByType Who acted: a `member` of your team (in the dashboard, the CLI or an AI assistant), a project secret key (`api_key`), a project `bot`, or Voidhash itself (`system`), which revokes a grant when two persons holding grants of the same perk are merged or when the person's data is erased.
+type PersonGrantJsonEncodingGrantedByType string
+
+// PersonGrantJsonEncodingStatus `active` while it gives access, `expired` after `expiresAt`, `revoked` once revoked.
+type PersonGrantJsonEncodingStatus string
 
 // PersonJsonEncoding defines model for PersonJsonEncoding.
 type PersonJsonEncoding struct {
@@ -15084,6 +15271,39 @@ type SetPaywallLocationShowingBodyJsonEncoding struct {
 	PaywallId string `json:"paywallId"`
 }
 
+// StoreImportIdentifier A purchase to import: by one of its App Store transaction ids (`transactionId`) for an App Store import, or by its purchase token (`purchaseToken`) for a Google Play import.
+type StoreImportIdentifier struct {
+	// AppUserId Your id for the person who bought it, the distinct id your app identifies them with. Without it the purchase is recorded for an anonymous person until your app reports it.
+	AppUserId *string `json:"appUserId"`
+
+	// PurchaseToken For a Google Play import: the purchase's Google Play purchase token, as Google Play Billing gave it to the app. For a subscription that was upgraded, downgraded or resubscribed, the latest token says the most; earlier tokens are recorded as ended.
+	PurchaseToken *string `json:"purchaseToken"`
+
+	// TransactionId For an App Store import: any App Store transaction id of the purchase, usually its original transaction id; the App Store reads the whole subscription from it.
+	TransactionId *string `json:"transactionId"`
+}
+
+// StoreImportIdentifierOutcome A purchase added to an import, and what became of it.
+type StoreImportIdentifierOutcome struct {
+	// AppUserId Your id for its buyer as it was added; null without one.
+	AppUserId *string `json:"appUserId"`
+
+	// Note Why, in words, for anything but `pending` and `imported`; for `imported`, anything to act on, such as a Google Play purchase still waiting for acknowledgement; otherwise null.
+	Note *string `json:"note"`
+
+	// Outcome `pending` until it is looked up; `imported`; `already_known` when Voidhash already recorded the purchase, which is left as it is; `waiting_for_product` until its store product is mapped to a product; `not_found` when the store has no such purchase for this app; `other_environment` when the store has it in the other environment (a Google Play license tester's purchase belongs to `test`); `no_longer_available` when Google Play no longer answers for a purchase that ended long ago; `not_paid` when Google Play has not been paid for it, so it grants nothing; `other_app` when an App Store transaction belongs to another app; `invalid` when it is not an identifier of the store or its records could not be verified.
+	Outcome StoreImportIdentifierOutcomeOutcome `json:"outcome"`
+
+	// PurchaseToken The Google Play purchase token as it was added; null in an App Store import.
+	PurchaseToken *string `json:"purchaseToken"`
+
+	// TransactionId The App Store transaction id as it was added; null in a Google Play import.
+	TransactionId *string `json:"transactionId"`
+}
+
+// StoreImportIdentifierOutcomeOutcome `pending` until it is looked up; `imported`; `already_known` when Voidhash already recorded the purchase, which is left as it is; `waiting_for_product` until its store product is mapped to a product; `not_found` when the store has no such purchase for this app; `other_environment` when the store has it in the other environment (a Google Play license tester's purchase belongs to `test`); `no_longer_available` when Google Play no longer answers for a purchase that ended long ago; `not_paid` when Google Play has not been paid for it, so it grants nothing; `other_app` when an App Store transaction belongs to another app; `invalid` when it is not an identifier of the store or its records could not be verified.
+type StoreImportIdentifierOutcomeOutcome string
+
 // SubscriptionJsonEncoding defines model for SubscriptionJsonEncoding.
 type SubscriptionJsonEncoding struct {
 	Participant ParticipantRef     `json:"participant"`
@@ -15542,7 +15762,7 @@ type UpdatePaymentProviderBodyJsonEncoding struct {
 	// Configuration Replaces the stored settings. A credential sent as `"<stored secret>"` keeps the stored one.
 	Configuration *map[string]interface{} `json:"configuration"`
 
-	// IsEnabled Whether the provider's purchases are processed. Enabling validates the settings and credentials with the store.
+	// IsEnabled Whether the provider's purchases are processed. Enabling validates the settings and checks the credentials with the store; the result is the provider's `connectionCheck`.
 	IsEnabled *bool `json:"isEnabled"`
 
 	// Name The new display name.
@@ -16737,6 +16957,21 @@ type PaymentProviderHistoryImportsListParams struct {
 // PaymentProviderHistoryImportsListParamsEnvironment defines parameters for PaymentProviderHistoryImportsList.
 type PaymentProviderHistoryImportsListParamsEnvironment string
 
+// PaymentProviderHistoryImportsListIdentifiersParams defines parameters for PaymentProviderHistoryImportsListIdentifiers.
+type PaymentProviderHistoryImportsListIdentifiersParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Outcome Only the purchases with this outcome; all of them when left out.
+	Outcome *PaymentProviderHistoryImportsListIdentifiersParamsOutcome `form:"outcome,omitempty" json:"outcome,omitempty"`
+}
+
+// PaymentProviderHistoryImportsListIdentifiersParamsOutcome defines parameters for PaymentProviderHistoryImportsListIdentifiers.
+type PaymentProviderHistoryImportsListIdentifiersParamsOutcome string
+
 // PaymentProviderProductsListParams defines parameters for PaymentProviderProductsList.
 type PaymentProviderProductsListParams struct {
 	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
@@ -16960,6 +17195,21 @@ type PersonsListEntitlementsParams struct {
 
 	// Limit How many items to return, from 1 to 100. Defaults to 50.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PersonsListGrantsParams defines parameters for PersonsListGrants.
+type PersonsListGrantsParams struct {
+	// Cursor Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit How many items to return, from 1 to 100. Defaults to 50.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PersonsCreateGrantParams defines parameters for PersonsCreateGrant.
+type PersonsCreateGrantParams struct {
+	// IdempotencyKey Names this grant, so sending the request again answers the grant it made instead of granting again. Keys are kept per project.
+	IdempotencyKey *string `json:"idempotency-key,omitempty"`
 }
 
 // PersonsListPurchasesParams defines parameters for PersonsListPurchases.
@@ -18379,6 +18629,9 @@ type PaymentProvidersUpdateJSONRequestBody = UpdatePaymentProviderBodyJsonEncodi
 // PaymentProviderHistoryImportsCreateJSONRequestBody defines body for PaymentProviderHistoryImportsCreate for application/json ContentType.
 type PaymentProviderHistoryImportsCreateJSONRequestBody = CreatePaymentProviderHistoryImportBody
 
+// PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody defines body for PaymentProviderHistoryImportsAddIdentifiers for application/json ContentType.
+type PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody = AddStoreImportIdentifiersBody
+
 // PaymentProviderProductsCreateJSONRequestBody defines body for PaymentProviderProductsCreate for application/json ContentType.
 type PaymentProviderProductsCreateJSONRequestBody = CreatePaymentProviderProductMappingBodyJsonEncoding
 
@@ -18447,6 +18700,9 @@ type PersonsCreateJSONRequestBody = CreatePersonBodyJsonEncoding
 
 // PersonsUpdateJSONRequestBody defines body for PersonsUpdate for application/json ContentType.
 type PersonsUpdateJSONRequestBody = UpdatePersonBodyJsonEncoding
+
+// PersonsCreateGrantJSONRequestBody defines body for PersonsCreateGrant for application/json ContentType.
+type PersonsCreateGrantJSONRequestBody = CreatePersonGrantBodyJsonEncoding
 
 // ProductsCreateJSONRequestBody defines body for ProductsCreate for application/json ContentType.
 type ProductsCreateJSONRequestBody = CreateProductBodyJsonEncoding
@@ -24170,6 +24426,17 @@ type ClientInterface interface {
 	// PaymentProviderHistoryImportsCancel request
 	PaymentProviderHistoryImportsCancel(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PaymentProviderHistoryImportsConclude request
+	PaymentProviderHistoryImportsConclude(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaymentProviderHistoryImportsListIdentifiers request
+	PaymentProviderHistoryImportsListIdentifiers(ctx context.Context, projectId string, paymentProviderId string, importId string, params *PaymentProviderHistoryImportsListIdentifiersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PaymentProviderHistoryImportsAddIdentifiersWithBody request with any body
+	PaymentProviderHistoryImportsAddIdentifiersWithBody(ctx context.Context, projectId string, paymentProviderId string, importId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PaymentProviderHistoryImportsAddIdentifiers(ctx context.Context, projectId string, paymentProviderId string, importId string, body PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PaymentProviderProductsList request
 	PaymentProviderProductsList(ctx context.Context, projectId string, paymentProviderId string, params *PaymentProviderProductsListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -24398,6 +24665,17 @@ type ClientInterface interface {
 
 	// PersonsListEntitlements request
 	PersonsListEntitlements(ctx context.Context, projectId string, personId string, params *PersonsListEntitlementsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PersonsListGrants request
+	PersonsListGrants(ctx context.Context, projectId string, personId string, params *PersonsListGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PersonsCreateGrantWithBody request with any body
+	PersonsCreateGrantWithBody(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PersonsCreateGrant(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, body PersonsCreateGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PersonsRevokeGrant request
+	PersonsRevokeGrant(ctx context.Context, projectId string, personId string, grantId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PersonsListPurchases request
 	PersonsListPurchases(ctx context.Context, projectId string, personId string, params *PersonsListPurchasesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -28442,6 +28720,54 @@ func (c *Client) PaymentProviderHistoryImportsCancel(ctx context.Context, projec
 	return c.Client.Do(req)
 }
 
+func (c *Client) PaymentProviderHistoryImportsConclude(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderHistoryImportsConcludeRequest(c.Server, projectId, paymentProviderId, importId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderHistoryImportsListIdentifiers(ctx context.Context, projectId string, paymentProviderId string, importId string, params *PaymentProviderHistoryImportsListIdentifiersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderHistoryImportsListIdentifiersRequest(c.Server, projectId, paymentProviderId, importId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderHistoryImportsAddIdentifiersWithBody(ctx context.Context, projectId string, paymentProviderId string, importId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderHistoryImportsAddIdentifiersRequestWithBody(c.Server, projectId, paymentProviderId, importId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PaymentProviderHistoryImportsAddIdentifiers(ctx context.Context, projectId string, paymentProviderId string, importId string, body PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPaymentProviderHistoryImportsAddIdentifiersRequest(c.Server, projectId, paymentProviderId, importId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PaymentProviderProductsList(ctx context.Context, projectId string, paymentProviderId string, params *PaymentProviderProductsListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPaymentProviderProductsListRequest(c.Server, projectId, paymentProviderId, params)
 	if err != nil {
@@ -29440,6 +29766,54 @@ func (c *Client) PersonsUpdate(ctx context.Context, projectId string, personId s
 
 func (c *Client) PersonsListEntitlements(ctx context.Context, projectId string, personId string, params *PersonsListEntitlementsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPersonsListEntitlementsRequest(c.Server, projectId, personId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsListGrants(ctx context.Context, projectId string, personId string, params *PersonsListGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsListGrantsRequest(c.Server, projectId, personId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsCreateGrantWithBody(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsCreateGrantRequestWithBody(c.Server, projectId, personId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsCreateGrant(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, body PersonsCreateGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsCreateGrantRequest(c.Server, projectId, personId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsRevokeGrant(ctx context.Context, projectId string, personId string, grantId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsRevokeGrantRequest(c.Server, projectId, personId, grantId)
 	if err != nil {
 		return nil, err
 	}
@@ -43275,6 +43649,217 @@ func NewPaymentProviderHistoryImportsCancelRequest(server string, projectId stri
 	return req, nil
 }
 
+// NewPaymentProviderHistoryImportsConcludeRequest generates requests for PaymentProviderHistoryImportsConclude
+func NewPaymentProviderHistoryImportsConcludeRequest(server string, projectId string, paymentProviderId string, importId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "importId", runtime.ParamLocationPath, importId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/imports/%s/conclude", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaymentProviderHistoryImportsListIdentifiersRequest generates requests for PaymentProviderHistoryImportsListIdentifiers
+func NewPaymentProviderHistoryImportsListIdentifiersRequest(server string, projectId string, paymentProviderId string, importId string, params *PaymentProviderHistoryImportsListIdentifiersParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "importId", runtime.ParamLocationPath, importId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/imports/%s/identifiers", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Outcome != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "outcome", runtime.ParamLocationQuery, *params.Outcome); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPaymentProviderHistoryImportsAddIdentifiersRequest calls the generic PaymentProviderHistoryImportsAddIdentifiers builder with application/json body
+func NewPaymentProviderHistoryImportsAddIdentifiersRequest(server string, projectId string, paymentProviderId string, importId string, body PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPaymentProviderHistoryImportsAddIdentifiersRequestWithBody(server, projectId, paymentProviderId, importId, "application/json", bodyReader)
+}
+
+// NewPaymentProviderHistoryImportsAddIdentifiersRequestWithBody generates requests for PaymentProviderHistoryImportsAddIdentifiers with any type of body
+func NewPaymentProviderHistoryImportsAddIdentifiersRequestWithBody(server string, projectId string, paymentProviderId string, importId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "paymentProviderId", runtime.ParamLocationPath, paymentProviderId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "importId", runtime.ParamLocationPath, importId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/payment-providers/%s/imports/%s/identifiers", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPaymentProviderProductsListRequest generates requests for PaymentProviderProductsList
 func NewPaymentProviderProductsListRequest(server string, projectId string, paymentProviderId string, params *PaymentProviderProductsListParams) (*http.Request, error) {
 	var err error
@@ -47062,6 +47647,202 @@ func NewPersonsListEntitlementsRequest(server string, projectId string, personId
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPersonsListGrantsRequest generates requests for PersonsListGrants
+func NewPersonsListGrantsRequest(server string, projectId string, personId string, params *PersonsListGrantsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "personId", runtime.ParamLocationPath, personId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/persons/%s/grants", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPersonsCreateGrantRequest calls the generic PersonsCreateGrant builder with application/json body
+func NewPersonsCreateGrantRequest(server string, projectId string, personId string, params *PersonsCreateGrantParams, body PersonsCreateGrantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPersonsCreateGrantRequestWithBody(server, projectId, personId, params, "application/json", bodyReader)
+}
+
+// NewPersonsCreateGrantRequestWithBody generates requests for PersonsCreateGrant with any type of body
+func NewPersonsCreateGrantRequestWithBody(server string, projectId string, personId string, params *PersonsCreateGrantParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "personId", runtime.ParamLocationPath, personId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/persons/%s/grants", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "idempotency-key", runtime.ParamLocationHeader, *params.IdempotencyKey)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("idempotency-key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewPersonsRevokeGrantRequest generates requests for PersonsRevokeGrant
+func NewPersonsRevokeGrantRequest(server string, projectId string, personId string, grantId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "projectId", runtime.ParamLocationPath, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "personId", runtime.ParamLocationPath, personId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "grantId", runtime.ParamLocationPath, grantId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/projects/%s/persons/%s/grants/%s/revoke", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -54386,6 +55167,17 @@ type ClientWithResponsesInterface interface {
 	// PaymentProviderHistoryImportsCancelWithResponse request
 	PaymentProviderHistoryImportsCancelWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsCancelResponse, error)
 
+	// PaymentProviderHistoryImportsConcludeWithResponse request
+	PaymentProviderHistoryImportsConcludeWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsConcludeResponse, error)
+
+	// PaymentProviderHistoryImportsListIdentifiersWithResponse request
+	PaymentProviderHistoryImportsListIdentifiersWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, params *PaymentProviderHistoryImportsListIdentifiersParams, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsListIdentifiersResponse, error)
+
+	// PaymentProviderHistoryImportsAddIdentifiersWithBodyWithResponse request with any body
+	PaymentProviderHistoryImportsAddIdentifiersWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsAddIdentifiersResponse, error)
+
+	PaymentProviderHistoryImportsAddIdentifiersWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, body PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsAddIdentifiersResponse, error)
+
 	// PaymentProviderProductsListWithResponse request
 	PaymentProviderProductsListWithResponse(ctx context.Context, projectId string, paymentProviderId string, params *PaymentProviderProductsListParams, reqEditors ...RequestEditorFn) (*PaymentProviderProductsListResponse, error)
 
@@ -54614,6 +55406,17 @@ type ClientWithResponsesInterface interface {
 
 	// PersonsListEntitlementsWithResponse request
 	PersonsListEntitlementsWithResponse(ctx context.Context, projectId string, personId string, params *PersonsListEntitlementsParams, reqEditors ...RequestEditorFn) (*PersonsListEntitlementsResponse, error)
+
+	// PersonsListGrantsWithResponse request
+	PersonsListGrantsWithResponse(ctx context.Context, projectId string, personId string, params *PersonsListGrantsParams, reqEditors ...RequestEditorFn) (*PersonsListGrantsResponse, error)
+
+	// PersonsCreateGrantWithBodyWithResponse request with any body
+	PersonsCreateGrantWithBodyWithResponse(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PersonsCreateGrantResponse, error)
+
+	PersonsCreateGrantWithResponse(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, body PersonsCreateGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*PersonsCreateGrantResponse, error)
+
+	// PersonsRevokeGrantWithResponse request
+	PersonsRevokeGrantWithResponse(ctx context.Context, projectId string, personId string, grantId string, reqEditors ...RequestEditorFn) (*PersonsRevokeGrantResponse, error)
 
 	// PersonsListPurchasesWithResponse request
 	PersonsListPurchasesWithResponse(ctx context.Context, projectId string, personId string, params *PersonsListPurchasesParams, reqEditors ...RequestEditorFn) (*PersonsListPurchasesResponse, error)
@@ -59411,6 +60214,8 @@ type ComponentsCreateVersionFromModuleResponse struct {
 	JSON401      *UnauthenticatedErrorJsonEncoding
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON429      *RateLimitedErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 	JSON503      *UnavailableErrorJsonEncoding
 }
@@ -59439,6 +60244,8 @@ type ComponentsCreateVersionFromSourceResponse struct {
 	JSON401      *UnauthenticatedErrorJsonEncoding
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON429      *RateLimitedErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 }
 
@@ -61322,6 +62129,94 @@ func (r PaymentProviderHistoryImportsCancelResponse) StatusCode() int {
 	return 0
 }
 
+type PaymentProviderHistoryImportsConcludeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *PaymentProviderHistoryImport
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderHistoryImportsConcludeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderHistoryImportsConcludeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaymentProviderHistoryImportsListIdentifiersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []StoreImportIdentifierOutcome `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderHistoryImportsListIdentifiersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderHistoryImportsListIdentifiersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PaymentProviderHistoryImportsAddIdentifiersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PaymentProviderHistoryImport
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PaymentProviderHistoryImportsAddIdentifiersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PaymentProviderHistoryImportsAddIdentifiersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PaymentProviderProductsListResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -62430,6 +63325,7 @@ type PaywallsCreateBuildResponse struct {
 	JSON403      *PermissionDeniedErrorJsonEncoding
 	JSON404      *NotFoundErrorJsonEncoding
 	JSON409      *ConflictErrorJsonEncoding
+	JSON429      *RateLimitedErrorJsonEncoding
 	JSON500      *InternalErrorJsonEncoding
 }
 
@@ -63075,6 +63971,94 @@ func (r PersonsListEntitlementsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PersonsListEntitlementsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PersonsListGrantsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Data The items on this page, in list order.
+		Data []PersonGrantJsonEncoding `json:"data"`
+
+		// PageInfo Where this page ends.
+		PageInfo PageInfo `json:"pageInfo"`
+	}
+	JSON400 *InvalidRequestErrorJsonEncoding
+	JSON401 *UnauthenticatedErrorJsonEncoding
+	JSON403 *PermissionDeniedErrorJsonEncoding
+	JSON404 *NotFoundErrorJsonEncoding
+	JSON500 *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PersonsListGrantsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PersonsListGrantsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PersonsCreateGrantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *PersonGrantJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON409      *ConflictErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PersonsCreateGrantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PersonsCreateGrantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PersonsRevokeGrantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PersonGrantJsonEncoding
+	JSON400      *InvalidRequestErrorJsonEncoding
+	JSON401      *UnauthenticatedErrorJsonEncoding
+	JSON403      *PermissionDeniedErrorJsonEncoding
+	JSON404      *NotFoundErrorJsonEncoding
+	JSON500      *InternalErrorJsonEncoding
+}
+
+// Status returns HTTPResponse.Status
+func (r PersonsRevokeGrantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PersonsRevokeGrantResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -64863,6 +65847,7 @@ type SdkDevelopmentPurchaseResponse struct {
 	JSON401      *struct {
 		union json.RawMessage
 	}
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -64892,6 +65877,7 @@ type SdkEvaluateFeatureFlagsResponse struct {
 	JSON401      *struct {
 		union json.RawMessage
 	}
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -64923,6 +65909,7 @@ type SdkIdentifyPersonResponse struct {
 	}
 	JSON404 *ApiSdkPersonNotFoundErrorJsonEncoding
 	JSON409 *ApiSdkPersonAlreadyIdentifiedErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -64953,6 +65940,7 @@ type SdkGetPersonResponse struct {
 		union json.RawMessage
 	}
 	JSON404 *ApiSdkPersonNotFoundErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -64983,6 +65971,7 @@ type SdkSyncPersonAttributesResponse struct {
 		union json.RawMessage
 	}
 	JSON404 *ApiSdkPersonNotFoundErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65013,6 +66002,7 @@ type SdkSignPromotionalOfferResponse struct {
 		union json.RawMessage
 	}
 	JSON422 *ApiSdkPromotionalOfferUnavailableErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65045,6 +66035,7 @@ type SdkRefreshDeviceResponse struct {
 	}
 	JSON403 *ApiActionForbiddenErrorJsonEncoding
 	JSON404 *ApiPushDeviceNotFoundErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65078,6 +66069,7 @@ type SdkRegisterDeviceResponse struct {
 	}
 	JSON403 *ApiActionForbiddenErrorJsonEncoding
 	JSON404 *ApiPushDeviceNotFoundErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65108,6 +66100,7 @@ type SdkUnregisterDeviceResponse struct {
 	}
 	JSON403 *ApiActionForbiddenErrorJsonEncoding
 	JSON404 *ApiPushDeviceNotFoundErrorJsonEncoding
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65137,6 +66130,7 @@ type SdkResolvePaywallResponse struct {
 	JSON401      *struct {
 		union json.RawMessage
 	}
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -65166,6 +66160,7 @@ type SdkGetSdkSchemaResponse struct {
 	JSON401      *struct {
 		union json.RawMessage
 	}
+	JSON429 *ApiSdkRateLimitedErrorJsonEncoding
 	JSON500 *struct {
 		union json.RawMessage
 	}
@@ -67996,6 +68991,41 @@ func (c *ClientWithResponses) PaymentProviderHistoryImportsCancelWithResponse(ct
 	return ParsePaymentProviderHistoryImportsCancelResponse(rsp)
 }
 
+// PaymentProviderHistoryImportsConcludeWithResponse request returning *PaymentProviderHistoryImportsConcludeResponse
+func (c *ClientWithResponses) PaymentProviderHistoryImportsConcludeWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsConcludeResponse, error) {
+	rsp, err := c.PaymentProviderHistoryImportsConclude(ctx, projectId, paymentProviderId, importId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderHistoryImportsConcludeResponse(rsp)
+}
+
+// PaymentProviderHistoryImportsListIdentifiersWithResponse request returning *PaymentProviderHistoryImportsListIdentifiersResponse
+func (c *ClientWithResponses) PaymentProviderHistoryImportsListIdentifiersWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, params *PaymentProviderHistoryImportsListIdentifiersParams, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsListIdentifiersResponse, error) {
+	rsp, err := c.PaymentProviderHistoryImportsListIdentifiers(ctx, projectId, paymentProviderId, importId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderHistoryImportsListIdentifiersResponse(rsp)
+}
+
+// PaymentProviderHistoryImportsAddIdentifiersWithBodyWithResponse request with arbitrary body returning *PaymentProviderHistoryImportsAddIdentifiersResponse
+func (c *ClientWithResponses) PaymentProviderHistoryImportsAddIdentifiersWithBodyWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsAddIdentifiersResponse, error) {
+	rsp, err := c.PaymentProviderHistoryImportsAddIdentifiersWithBody(ctx, projectId, paymentProviderId, importId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderHistoryImportsAddIdentifiersResponse(rsp)
+}
+
+func (c *ClientWithResponses) PaymentProviderHistoryImportsAddIdentifiersWithResponse(ctx context.Context, projectId string, paymentProviderId string, importId string, body PaymentProviderHistoryImportsAddIdentifiersJSONRequestBody, reqEditors ...RequestEditorFn) (*PaymentProviderHistoryImportsAddIdentifiersResponse, error) {
+	rsp, err := c.PaymentProviderHistoryImportsAddIdentifiers(ctx, projectId, paymentProviderId, importId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePaymentProviderHistoryImportsAddIdentifiersResponse(rsp)
+}
+
 // PaymentProviderProductsListWithResponse request returning *PaymentProviderProductsListResponse
 func (c *ClientWithResponses) PaymentProviderProductsListWithResponse(ctx context.Context, projectId string, paymentProviderId string, params *PaymentProviderProductsListParams, reqEditors ...RequestEditorFn) (*PaymentProviderProductsListResponse, error) {
 	rsp, err := c.PaymentProviderProductsList(ctx, projectId, paymentProviderId, params, reqEditors...)
@@ -68727,6 +69757,41 @@ func (c *ClientWithResponses) PersonsListEntitlementsWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParsePersonsListEntitlementsResponse(rsp)
+}
+
+// PersonsListGrantsWithResponse request returning *PersonsListGrantsResponse
+func (c *ClientWithResponses) PersonsListGrantsWithResponse(ctx context.Context, projectId string, personId string, params *PersonsListGrantsParams, reqEditors ...RequestEditorFn) (*PersonsListGrantsResponse, error) {
+	rsp, err := c.PersonsListGrants(ctx, projectId, personId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsListGrantsResponse(rsp)
+}
+
+// PersonsCreateGrantWithBodyWithResponse request with arbitrary body returning *PersonsCreateGrantResponse
+func (c *ClientWithResponses) PersonsCreateGrantWithBodyWithResponse(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PersonsCreateGrantResponse, error) {
+	rsp, err := c.PersonsCreateGrantWithBody(ctx, projectId, personId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsCreateGrantResponse(rsp)
+}
+
+func (c *ClientWithResponses) PersonsCreateGrantWithResponse(ctx context.Context, projectId string, personId string, params *PersonsCreateGrantParams, body PersonsCreateGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*PersonsCreateGrantResponse, error) {
+	rsp, err := c.PersonsCreateGrant(ctx, projectId, personId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsCreateGrantResponse(rsp)
+}
+
+// PersonsRevokeGrantWithResponse request returning *PersonsRevokeGrantResponse
+func (c *ClientWithResponses) PersonsRevokeGrantWithResponse(ctx context.Context, projectId string, personId string, grantId string, reqEditors ...RequestEditorFn) (*PersonsRevokeGrantResponse, error) {
+	rsp, err := c.PersonsRevokeGrant(ctx, projectId, personId, grantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsRevokeGrantResponse(rsp)
 }
 
 // PersonsListPurchasesWithResponse request returning *PersonsListPurchasesResponse
@@ -79861,6 +80926,20 @@ func ParseComponentsCreateVersionFromModuleResponse(rsp *http.Response) (*Compon
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest RateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -79928,6 +81007,20 @@ func ParseComponentsCreateVersionFromSourceResponse(rsp *http.Response) (*Compon
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest RateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
@@ -84221,6 +85314,202 @@ func ParsePaymentProviderHistoryImportsCancelResponse(rsp *http.Response) (*Paym
 	return response, nil
 }
 
+// ParsePaymentProviderHistoryImportsConcludeResponse parses an HTTP response from a PaymentProviderHistoryImportsConcludeWithResponse call
+func ParsePaymentProviderHistoryImportsConcludeResponse(rsp *http.Response) (*PaymentProviderHistoryImportsConcludeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderHistoryImportsConcludeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest PaymentProviderHistoryImport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaymentProviderHistoryImportsListIdentifiersResponse parses an HTTP response from a PaymentProviderHistoryImportsListIdentifiersWithResponse call
+func ParsePaymentProviderHistoryImportsListIdentifiersResponse(rsp *http.Response) (*PaymentProviderHistoryImportsListIdentifiersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderHistoryImportsListIdentifiersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []StoreImportIdentifierOutcome `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePaymentProviderHistoryImportsAddIdentifiersResponse parses an HTTP response from a PaymentProviderHistoryImportsAddIdentifiersWithResponse call
+func ParsePaymentProviderHistoryImportsAddIdentifiersResponse(rsp *http.Response) (*PaymentProviderHistoryImportsAddIdentifiersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PaymentProviderHistoryImportsAddIdentifiersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PaymentProviderHistoryImport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePaymentProviderProductsListResponse parses an HTTP response from a PaymentProviderProductsListWithResponse call
 func ParsePaymentProviderProductsListResponse(rsp *http.Response) (*PaymentProviderProductsListResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -86782,6 +88071,13 @@ func ParsePaywallsCreateBuildResponse(rsp *http.Response) (*PaywallsCreateBuildR
 		}
 		response.JSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest RateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -88177,6 +89473,202 @@ func ParsePersonsListEntitlementsResponse(rsp *http.Response) (*PersonsListEntit
 			// PageInfo Where this page ends.
 			PageInfo PageInfo `json:"pageInfo"`
 		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePersonsListGrantsResponse parses an HTTP response from a PersonsListGrantsWithResponse call
+func ParsePersonsListGrantsResponse(rsp *http.Response) (*PersonsListGrantsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PersonsListGrantsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Data The items on this page, in list order.
+			Data []PersonGrantJsonEncoding `json:"data"`
+
+			// PageInfo Where this page ends.
+			PageInfo PageInfo `json:"pageInfo"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePersonsCreateGrantResponse parses an HTTP response from a PersonsCreateGrantWithResponse call
+func ParsePersonsCreateGrantResponse(rsp *http.Response) (*PersonsCreateGrantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PersonsCreateGrantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PersonGrantJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidRequestErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PermissionDeniedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePersonsRevokeGrantResponse parses an HTTP response from a PersonsRevokeGrantWithResponse call
+func ParsePersonsRevokeGrantResponse(rsp *http.Response) (*PersonsRevokeGrantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PersonsRevokeGrantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PersonGrantJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -92273,6 +93765,13 @@ func ParseSdkDevelopmentPurchaseResponse(rsp *http.Response) (*SdkDevelopmentPur
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92323,6 +93822,13 @@ func ParseSdkEvaluateFeatureFlagsResponse(rsp *http.Response) (*SdkEvaluateFeatu
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
@@ -92389,6 +93895,13 @@ func ParseSdkIdentifyPersonResponse(rsp *http.Response) (*SdkIdentifyPersonRespo
 		}
 		response.JSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92446,6 +93959,13 @@ func ParseSdkGetPersonResponse(rsp *http.Response) (*SdkGetPersonResponse, error
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
@@ -92505,6 +94025,13 @@ func ParseSdkSyncPersonAttributesResponse(rsp *http.Response) (*SdkSyncPersonAtt
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92562,6 +94089,13 @@ func ParseSdkSignPromotionalOfferResponse(rsp *http.Response) (*SdkSignPromotion
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
@@ -92622,6 +94156,13 @@ func ParseSdkRefreshDeviceResponse(rsp *http.Response) (*SdkRefreshDeviceRespons
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
@@ -92690,6 +94231,13 @@ func ParseSdkRegisterDeviceResponse(rsp *http.Response) (*SdkRegisterDeviceRespo
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92748,6 +94296,13 @@ func ParseSdkUnregisterDeviceResponse(rsp *http.Response) (*SdkUnregisterDeviceR
 		}
 		response.JSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92799,6 +94354,13 @@ func ParseSdkResolvePaywallResponse(rsp *http.Response) (*SdkResolvePaywallRespo
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
 			union json.RawMessage
@@ -92849,6 +94411,13 @@ func ParseSdkGetSdkSchemaResponse(rsp *http.Response) (*SdkGetSdkSchemaResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiSdkRateLimitedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {

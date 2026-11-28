@@ -1,4 +1,4 @@
-module github.com/voidhashcom/voidhash-go
+module github.com/voidhashcom/voidhash/libraries/go
 
 go 1.22
 

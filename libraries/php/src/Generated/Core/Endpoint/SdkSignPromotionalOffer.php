@@ -89,6 +89,7 @@ class SdkSignPromotionalOffer extends \Voidhash\Generated\Core\Runtime\Client\Ba
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferUnprocessableEntityException
+     * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkPromotionalOfferSignatureJsonEncoding
@@ -108,6 +109,9 @@ class SdkSignPromotionalOffer extends \Voidhash\Generated\Core\Runtime\Client\Ba
         }
         if (is_null($contentType) === false && (422 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferUnprocessableEntityException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkPromotionalOfferUnavailableErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferInternalServerErrorException($response);

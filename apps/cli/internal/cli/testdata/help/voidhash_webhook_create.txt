@@ -4,10 +4,12 @@ terminal.
 A production webhook receives the purchase events of production keys; a test webhook those of store
 sandbox and test purchases. Person events reach both.
 
-Events: purchase.completed, purchase.refunded, purchase.revoked, subscription.created,
-subscription.renewed, subscription.product_changed, subscription.cancelled, subscription.expired,
-person.deleted. purchase.*, subscription.* and person.* name a group, and all every event that is
-sent.
+Events: purchase.completed, purchase.refunded, purchase.revoked, purchase.transferred,
+subscription.created, subscription.renewed, subscription.product_changed, subscription.cancelled,
+subscription.uncancelled, subscription.expired, subscription.billing_issue,
+subscription.billing_recovered, subscription.paused, subscription.resumed, subscription.transferred,
+perk_access.granted, perk_access.revoked, person.deleted. purchase.*, subscription.*, perk_access.*
+and person.* name a group, and all every event that is sent.
 
 Usage:
   voidhash webhook create [flags]

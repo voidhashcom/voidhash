@@ -67,6 +67,12 @@ class PaymentProviderJsonEncoding
      */
     protected $updatedAt;
     /**
+     * The last check of a store's credentials with the store.
+     *
+     * @var PaymentProviderConnectionCheck
+     */
+    protected $connectionCheck;
+    /**
      * The payment provider's id, `pp_conf_...`.
      *
      * @return string
@@ -262,6 +268,28 @@ class PaymentProviderJsonEncoding
     {
         $this->initialized['updatedAt'] = true;
         $this->updatedAt = $updatedAt;
+        return $this;
+    }
+    /**
+     * The last check of a store's credentials with the store.
+     *
+     * @return PaymentProviderConnectionCheck
+     */
+    public function getConnectionCheck(): PaymentProviderConnectionCheck
+    {
+        return $this->connectionCheck;
+    }
+    /**
+     * The last check of a store's credentials with the store.
+     *
+     * @param PaymentProviderConnectionCheck $connectionCheck
+     *
+     * @return self
+     */
+    public function setConnectionCheck(PaymentProviderConnectionCheck $connectionCheck): self
+    {
+        $this->initialized['connectionCheck'] = true;
+        $this->connectionCheck = $connectionCheck;
         return $this;
     }
 }

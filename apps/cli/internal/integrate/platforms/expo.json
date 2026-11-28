@@ -16,7 +16,7 @@
   "packages": [
     {
       "name": "@voidhash/react-native",
-      "spec": "https://pkg.voidha.sh/@voidhash/react-native/branch:main"
+      "spec": "latest"
     },
     {
       "name": "react-native-nitro-modules",
@@ -27,9 +27,6 @@
       "spec": "4.0.7"
     }
   ],
-  "pnpmSettings": {
-    "blockExoticSubdeps": "false"
-  },
   "files": [
     {
       "role": "client",

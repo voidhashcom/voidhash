@@ -88,6 +88,7 @@ class SdkEvaluateFeatureFlags extends \Voidhash\Generated\Core\Runtime\Client\Ba
      *
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkFeatureFlagsResponseJsonEncoding
@@ -104,6 +105,9 @@ class SdkEvaluateFeatureFlags extends \Voidhash\Generated\Core\Runtime\Client\Ba
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsUnauthorizedException($response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsInternalServerErrorException($response);

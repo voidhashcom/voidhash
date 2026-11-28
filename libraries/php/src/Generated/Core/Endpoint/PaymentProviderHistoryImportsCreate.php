@@ -7,7 +7,7 @@ class PaymentProviderHistoryImportsCreate extends \Voidhash\Generated\Core\Runti
     protected $projectId;
     protected $paymentProviderId;
     /**
-     * Starts importing the history of one environment and answers 202 with the import `running`; follow it with `GET .../imports/{importId}`. Stripe and payment sources can import. Fails with `invalid_request` (`history_import_unsupported`) for another provider. Each environment runs one import at a time, and an import reads with the saved Stripe API key or payment source endpoint. Fails with `conflict` (`history_import_blocked`) otherwise, with a message saying what to do.
+     * Starts importing the history of one environment and answers 202 with the import `running`; follow it with `GET .../imports/{importId}`. Stripe, the App Store, Google Play and payment sources can import. An App Store or Google Play import starts empty: add the purchases to import (App Store transaction ids, Google Play purchase tokens) with `PUT .../imports/{importId}/identifiers`, then conclude it. Fails with `invalid_request` (`history_import_unsupported`) for another provider. Each environment runs one import at a time, and an import reads with the saved Stripe API key, App Store In-App Purchase key, Google Play service account key or payment source endpoint. Fails with `conflict` (`history_import_blocked`) otherwise, with a message saying what to do.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaymentProviderHistoryImportBody $requestBody

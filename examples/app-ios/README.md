@@ -90,7 +90,7 @@ In your own app, use the package from the repository at an exact release instead
 packages:
   Voidhash:
     url: https://github.com/voidhashcom/voidhash
-    exactVersion: 0.1.2
+    exactVersion: 0.3.0
 ```
 
 or, in Xcode, _File → Add Package Dependencies…_ with

@@ -1697,11 +1697,33 @@ export const groupCoreClient = <ProjectIdError>(
       ),
   },
   paymentProviderHistoryImports: {
+    addIdentifiers: (request: {
+      params: { readonly paymentProviderId: string; readonly importId: string };
+      payload: Parameters<VoidhashCoreClient["paymentProviderHistoryImportsAddIdentifiers"]>[3];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderHistoryImportsAddIdentifiers(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["importId"],
+          request.payload,
+        ),
+      ),
     cancel: (request: {
       params: { readonly paymentProviderId: string; readonly importId: string };
     }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.paymentProviderHistoryImportsCancel(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["importId"],
+        ),
+      ),
+    conclude: (request: {
+      params: { readonly paymentProviderId: string; readonly importId: string };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderHistoryImportsConclude(
           resolvedProjectId,
           request.params["paymentProviderId"],
           request.params["importId"],
@@ -1742,6 +1764,37 @@ export const groupCoreClient = <ProjectIdError>(
             cursor: request.params["cursor"],
             limit: request.params["limit"],
             environment: request.params["environment"],
+          },
+        ),
+      ),
+    listIdentifiers: (request: {
+      params: {
+        readonly paymentProviderId: string;
+        readonly importId: string;
+        readonly cursor?: string;
+        readonly limit?: number;
+        readonly outcome?:
+          | "pending"
+          | "imported"
+          | "already_known"
+          | "waiting_for_product"
+          | "not_found"
+          | "other_environment"
+          | "no_longer_available"
+          | "not_paid"
+          | "other_app"
+          | "invalid";
+      };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.paymentProviderHistoryImportsListIdentifiers(
+          resolvedProjectId,
+          request.params["paymentProviderId"],
+          request.params["importId"],
+          {
+            cursor: request.params["cursor"],
+            limit: request.params["limit"],
+            outcome: request.params["outcome"],
           },
         ),
       ),
@@ -2376,6 +2429,16 @@ export const groupCoreClient = <ProjectIdError>(
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.personsCreateErasure(resolvedProjectId, request.payload),
       ),
+    createGrant: (request: {
+      params: { readonly personId: string; readonly "idempotency-key"?: string };
+      payload: Parameters<VoidhashCoreClient["personsCreateGrant"]>[2]["payload"];
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.personsCreateGrant(resolvedProjectId, request.params["personId"], {
+          params: { "idempotency-key": request.params["idempotency-key"] },
+          payload: request.payload,
+        }),
+      ),
     get: (request: { params: { readonly personId: string } }) =>
       Effect.flatMap(projectId, (resolvedProjectId) =>
         client.personsGet(resolvedProjectId, request.params["personId"]),
@@ -2409,6 +2472,15 @@ export const groupCoreClient = <ProjectIdError>(
           limit: request.params["limit"],
         }),
       ),
+    listGrants: (request: {
+      params: { readonly personId: string; readonly cursor?: string; readonly limit?: number };
+    }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.personsListGrants(resolvedProjectId, request.params["personId"], {
+          cursor: request.params["cursor"],
+          limit: request.params["limit"],
+        }),
+      ),
     listPurchases: (request: {
       params: { readonly personId: string; readonly cursor?: string; readonly limit?: number };
     }) =>
@@ -2426,6 +2498,14 @@ export const groupCoreClient = <ProjectIdError>(
           cursor: request.params["cursor"],
           limit: request.params["limit"],
         }),
+      ),
+    revokeGrant: (request: { params: { readonly personId: string; readonly grantId: string } }) =>
+      Effect.flatMap(projectId, (resolvedProjectId) =>
+        client.personsRevokeGrant(
+          resolvedProjectId,
+          request.params["personId"],
+          request.params["grantId"],
+        ),
       ),
     update: (request: {
       params: { readonly personId: string };

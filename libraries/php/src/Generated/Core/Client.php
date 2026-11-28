@@ -1292,7 +1292,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ComponentsList($projectId, $queryParameters), $fetch);
     }
     /**
-     * Uploads a prebuilt module as a new `ready` version of the component its `slug` names, creating the component on its first upload. The module must be a WebAssembly binary of at most 2 MiB carrying a valid `vh.manifest` section (a guest ABI 1 manifest or an ABI 2 component definition); a definition that declares an editor panel needs its panel module in `panelBase64`. Without a `slug` the manifest's name is used. A version that fails the conformance checks is kept so its findings can be read, but cannot be placed. Fails with `invalid_request` (`invalid_slug`, `invalid_module`, `invalid_panel_module`) naming every problem, and `unavailable` (`component_checks_unavailable`) when the conformance checks could not run; nothing is stored then, so try again.
+     * Uploads a prebuilt module as a new `ready` version of the component its `slug` names, creating the component on its first upload. The module must be a WebAssembly binary of at most 2 MiB carrying a valid `vh.manifest` section (a guest ABI 1 manifest or an ABI 2 component definition); a definition that declares an editor panel needs its panel module in `panelBase64`. Without a `slug` the manifest's name is used. A version that fails the conformance checks is kept so its findings can be read, but cannot be placed. Fails with `invalid_request` (`invalid_slug`, `invalid_module`, `invalid_panel_module`) naming every problem, and `unavailable` (`component_checks_unavailable`) when the conformance checks could not run; nothing is stored then, so try again. Uploads count with source builds against the project's 60 component builds an hour, 120 for all of an organization's projects. Fails with `rate_limited` (`component_build_rate_limited`) past that, with a `Retry-After` header in seconds, and with `conflict` (`component_limit_reached`) for a new component once the project holds 500.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallComponentModuleVersionBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -1300,6 +1300,8 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleInternalServerErrorException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromModuleServiceUnavailableException
      *
@@ -1310,7 +1312,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\ComponentsCreateVersionFromModule($projectId, $requestBody), $fetch);
     }
     /**
-     * Submits a Rust crate as a new version of the component its `slug` names, creating the component on its first version, and answers 202 while the server builds it in the background. The version starts `queued`; read it with `getVersion` until it is `ready` or `failed`. Fails with `invalid_request` (`invalid_slug`, `invalid_source`) naming every problem with the slug or the crate.
+     * Submits a Rust crate as a new version of the component its `slug` names, creating the component on its first version, and answers 202 while the server builds it in the background. The version starts `queued`; read it with `getVersion` until it is `ready` or `failed`. Fails with `invalid_request` (`invalid_slug`, `invalid_source`) naming every problem with the slug or the crate. A project may have 4 source builds waiting or running at once, and all of an organization's projects 10; source builds and module uploads together may start 60 an hour per project and 120 per organization. Fails with `rate_limited` (`component_builds_in_progress`) while too many are waiting or running, `rate_limited` (`component_build_rate_limited`) past the hourly budget, each with a `Retry-After` header in seconds, and with `conflict` (`component_limit_reached`) for a new component once the project holds 500.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallComponentSourceVersionBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -1318,6 +1320,8 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaywallComponentVersionJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -2808,7 +2812,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallLocationsList($projectId, $queryParameters), $fetch);
     }
     /**
-     * Creates a location showing nothing. Apps ask for it by its slug, which cannot change afterwards. Fails with `conflict` (`paywall_location_slug_taken`) when the slug is in use.
+     * Creates a location showing nothing. Apps ask for it by its slug, which cannot change afterwards. Fails with `conflict` (`paywall_location_slug_taken`) when the slug is in use, and `conflict` (`location_limit_reached`) when the project already has 500 locations that are not archived.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallLocationBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -3115,7 +3119,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsList($projectId, $queryParameters), $fetch);
     }
     /**
-     * Creates a paywall, or an onboarding flow with `kind: onboarding`, whose design is one empty screen, or a copy of a `template` from `paywall_templates.list`. Either way it is made for no location and has no builds. The slug cannot change afterwards. Fails with `conflict` (`paywall_slug_taken`) when the slug is in use, and `invalid_request` (`paywall_template_not_found`) when there is no such template for the flow's purpose.
+     * Creates a paywall, or an onboarding flow with `kind: onboarding`, whose design is one empty screen, or a copy of a `template` from `paywall_templates.list`. Either way it is made for no location and has no builds. The slug cannot change afterwards. Fails with `conflict` (`paywall_slug_taken`) when the slug is in use, and `invalid_request` (`paywall_template_not_found`) when there is no such template for the flow's purpose, and `conflict` (`flow_limit_reached`) when the project already holds 1,000 flows, archived ones included.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallBodyJsonEncoding $requestBody
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
@@ -3186,7 +3190,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsUpdate($projectId, $paywallId, $requestBody), $fetch);
     }
     /**
-     * Creates a paywall in the same project whose design is a copy of this paywall's current one: every screen, layer, component, variable, logic, translation and setting. The copy is made for the same locations and uses the same images, fonts, components and products, which belong to the project. It has no builds, and no location shows it, so nobody sees it until a build of it is deployed and shown. Named after the paywall with "copy" and a free slug unless `name` and `slug` are given. Archived paywalls can be duplicated too; the copy is not archived. Fails with `conflict` (`paywall_slug_taken`) when the `slug` given is in use.
+     * Creates a paywall in the same project whose design is a copy of this paywall's current one: every screen, layer, component, variable, logic, translation and setting. The copy is made for the same locations and uses the same images, fonts, components and products, which belong to the project. It has no builds, and no location shows it, so nobody sees it until a build of it is deployed and shown. Named after the paywall with "copy" and a free slug unless `name` and `slug` are given. Archived paywalls can be duplicated too; the copy is not archived. Fails with `conflict` (`paywall_slug_taken`) when the `slug` given is in use, and `conflict` (`flow_limit_reached`) when the project already holds 1,000 flows.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param \Voidhash\Generated\Core\Model\DuplicatePaywallBodyJsonEncoding $requestBody
@@ -3282,7 +3286,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaywallsListBuilds($projectId, $paywallId, $queryParameters), $fetch);
     }
     /**
-     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. The build compiles what the paywall may exchange with apps as its locations give it now, and is `failed` at once, with what to change, while two of its locations conflict. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. A person or a project secret key with permission to edit paywalls can start a build; the build records which. Deploying it takes permission to publish paywalls.
+     * Starts building the paywall's current design in the background and answers 202 with the build `building`; read it with `getBuild` until it is `ready` or `failed`, then deploy it. The build compiles what the paywall may exchange with apps as its locations give it now, and is `failed` at once, with what to change, while two of its locations conflict. Fails with `conflict` (`paywall_document_changed`) when the design has changed since the `documentVersion` given; nothing is built then. A person or a project secret key with permission to edit paywalls can start a build; the build records which. Deploying it takes permission to publish paywalls. A project may start 120 builds an hour, and all projects of an organization 600 together. Fails with `rate_limited` (`paywall_build_rate_limited`) past that, with a `Retry-After` header in seconds, and with `conflict` (`flow_build_limit_reached`) once the paywall was built 10,000 times; a duplicate of it can be built.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallBuildBodyJsonEncoding $requestBody
@@ -3292,6 +3296,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\PaywallsCreateBuildForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PaywallsCreateBuildNotFoundException
      * @throws \Voidhash\Generated\Core\Exception\PaywallsCreateBuildConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsCreateBuildTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\PaywallsCreateBuildInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaywallBuildJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -3721,6 +3726,67 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     public function personsListSubscriptions(string $projectId, string $personId, array $queryParameters = [], string $fetch = self::FETCH_OBJECT)
     {
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsListSubscriptions($projectId, $personId, $queryParameters), $fetch);
+    }
+    /**
+     * Lists the perks your team granted the person by hand, newest first, active, expired and revoked, including those granted to persons merged into them. A secret key lists its own environment's grants; a person's own credentials choose with `x-environment`: `production` (the default), `test` or `all`. Fails with `not_found` (`person_not_found`) for an unknown or erased person.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $personId The person's id, `person_...`. The id of a person merged into another names the person they were merged into.
+     * @param array{
+     *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+     *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
+     * } $queryParameters
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PersonsListGrantsBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsListGrantsUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsListGrantsForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsListGrantsNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsListGrantsInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPersonsPersonIdGrantsGetResponse200 : \Psr\Http\Message\ResponseInterface)
+     */
+    public function personsListGrants(string $projectId, string $personId, array $queryParameters = [], string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsListGrants($projectId, $personId, $queryParameters), $fetch);
+    }
+    /**
+     * Grants the person a perk without a purchase, for support cases, testers or compensation, until `expiresAt` or for life. The person can use the perk while the grant or any purchase of it is active; the SDKs report it with the source `manual`. It carries no revenue. A secret key grants in its own environment; a person's own credentials grant in `production`, or in `test` with `x-environment: test`. Repeating the request with the same `Idempotency-Key` header answers the first grant. Fails with `not_found` (`person_not_found`) for an unknown or erased person and `not_found` (`perk_not_found`) for a perk the project does not have. Fails with `conflict` (`grant_already_active`) while the person has an active grant of the perk in the environment; revoke it first to change it. Fails with `conflict` (`idempotency_key_reused`) for a key already used for another person or perk, `invalid_request` (`grant_expiry_past`) for an `expiresAt` that has passed, and `invalid_request` (`grant_environment_required`) with `x-environment: all`.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $personId The person's id, `person_...`. The id of a person merged into another names the person they were merged into.
+     * @param \Voidhash\Generated\Core\Model\CreatePersonGrantBodyJsonEncoding $requestBody
+     * @param array{
+     *    "idempotency-key"?: string, //Names this grant, so sending the request again answers the grant it made instead of granting again. Keys are kept per project.
+     * } $headerParameters
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsCreateGrantInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PersonGrantJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function personsCreateGrant(string $projectId, string $personId, \Voidhash\Generated\Core\Model\CreatePersonGrantBodyJsonEncoding $requestBody, array $headerParameters = [], string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsCreateGrant($projectId, $personId, $requestBody, $headerParameters), $fetch);
+    }
+    /**
+     * Revokes a grant, so the access it gave ends now. Purchases and subscriptions of the same perk keep giving it. Revoking a revoked grant answers it unchanged. A secret key revokes only its own environment's grants. Fails with `not_found` (`grant_not_found`) when the person has no such grant, and `not_found` (`person_not_found`) for an unknown or erased person.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $personId The person's id, `person_...`. The id of a person merged into another names the person they were merged into.
+     * @param string $grantId The grant's id, `grant_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PersonsRevokeGrantBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsRevokeGrantUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsRevokeGrantForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsRevokeGrantNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsRevokeGrantInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PersonGrantJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function personsRevokeGrant(string $projectId, string $personId, string $grantId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsRevokeGrant($projectId, $personId, $grantId), $fetch);
     }
     /**
      * Permanently erases a person's personal data, and that of every person merged into them, in the background. This cannot be undone. Name the person by exactly one of `personId` or `distinctId`. Fails with `invalid_request` (`erasure_target_required`) with neither, and `invalid_request` (`erasure_target_ambiguous`) with both. Purchases and revenue stay recorded against the anonymized person. Always answers 202 with the erasure: a request naming nobody records an erasure that is `completed` at once with a null `personId`, and repeating a request returns the existing erasure, starting it again when it `failed`.
@@ -4220,6 +4286,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkGetPersonBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetPersonUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetPersonNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkGetPersonTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetPersonInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkPersonJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4258,6 +4325,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonNotFoundException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonConflictException
+     * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkPersonJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4295,6 +4363,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkSyncPersonAttributesBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkSyncPersonAttributesUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkSyncPersonAttributesNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkSyncPersonAttributesTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkSyncPersonAttributesInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkPersonJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4370,6 +4439,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferUnprocessableEntityException
+     * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkSignPromotionalOfferInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkPromotionalOfferSignatureJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4406,6 +4476,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkDevelopmentPurchaseResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4442,6 +4513,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkFeatureFlagsResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4482,6 +4554,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkResolvedPaywallJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4517,6 +4590,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\SdkSchemaJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4555,6 +4629,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkRegisterDeviceInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\RegisterDeviceResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
@@ -4593,6 +4668,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkRefreshDeviceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkRefreshDeviceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\SdkRefreshDeviceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkRefreshDeviceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkRefreshDeviceInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
@@ -4631,6 +4707,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\SdkUnregisterDeviceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkUnregisterDeviceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\SdkUnregisterDeviceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\SdkUnregisterDeviceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkUnregisterDeviceInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
@@ -6895,7 +6972,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderHistoryImportsList($projectId, $paymentProviderId, $queryParameters), $fetch);
     }
     /**
-     * Starts importing the history of one environment and answers 202 with the import `running`; follow it with `GET .../imports/{importId}`. Stripe and payment sources can import. Fails with `invalid_request` (`history_import_unsupported`) for another provider. Each environment runs one import at a time, and an import reads with the saved Stripe API key or payment source endpoint. Fails with `conflict` (`history_import_blocked`) otherwise, with a message saying what to do.
+     * Starts importing the history of one environment and answers 202 with the import `running`; follow it with `GET .../imports/{importId}`. Stripe, the App Store, Google Play and payment sources can import. An App Store or Google Play import starts empty: add the purchases to import (App Store transaction ids, Google Play purchase tokens) with `PUT .../imports/{importId}/identifiers`, then conclude it. Fails with `invalid_request` (`history_import_unsupported`) for another provider. Each environment runs one import at a time, and an import reads with the saved Stripe API key, App Store In-App Purchase key, Google Play service account key or payment source endpoint. Fails with `conflict` (`history_import_blocked`) otherwise, with a message saying what to do.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
      * @param \Voidhash\Generated\Core\Model\CreatePaymentProviderHistoryImportBody $requestBody
@@ -6948,6 +7025,67 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     public function paymentProviderHistoryImportsCancel(string $projectId, string $paymentProviderId, string $importId, string $fetch = self::FETCH_OBJECT)
     {
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderHistoryImportsCancel($projectId, $paymentProviderId, $importId), $fetch);
+    }
+    /**
+     * The import's report: every purchase added to it and what became of it, of one `outcome` if asked. Kept for 30 days after the import ends. Only the latest import of an environment can be read. Fails with `not_found` (`history_import_not_found`) for the others.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $importId The import's id, `pp_import_...`.
+     * @param array{
+     *    "cursor"?: string, //Where the page starts: the `pageInfo.endCursor` of the previous page. Omit it for the first page.
+     *    "limit"?: int, //How many items to return, from 1 to 100. Defaults to 50.
+     *    "outcome"?: string, //Only the purchases with this outcome; all of them when left out.
+     * } $queryParameters
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsListIdentifiersBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsListIdentifiersUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsListIdentifiersForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsListIdentifiersNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsListIdentifiersInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ApiV1ProjectsProjectIdPaymentProvidersPaymentProviderIdImportsImportIdIdentifiersGetResponse200 : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderHistoryImportsListIdentifiers(string $projectId, string $paymentProviderId, string $importId, array $queryParameters = [], string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderHistoryImportsListIdentifiers($projectId, $paymentProviderId, $importId, $queryParameters), $fetch);
+    }
+    /**
+     * Adds up to 1,000 purchases to an import that is still `collecting`: to an App Store import by one of their transaction ids (`transactionId`), to a Google Play import by their purchase token (`purchaseToken`), each with your id for its buyer if you have it. The import looks them up as they arrive, at a pace that leaves most of the store's API quota to your app's live traffic. Adding the same purchase again changes nothing. Fails with `invalid_request` (`history_import_identifier_mismatch`) for an identifier of the other store, with `conflict` (`history_import_closed`) once the import was concluded or ended, with `conflict` (`history_import_identifier_limit`) past 100,000 per import, and with `invalid_request` (`history_import_unsupported`) for an import of another provider.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $importId The import's id, `pp_import_...`.
+     * @param \Voidhash\Generated\Core\Model\AddStoreImportIdentifiersBody $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersConflictException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsAddIdentifiersInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaymentProviderHistoryImport : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderHistoryImportsAddIdentifiers(string $projectId, string $paymentProviderId, string $importId, \Voidhash\Generated\Core\Model\AddStoreImportIdentifiersBody $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderHistoryImportsAddIdentifiers($projectId, $paymentProviderId, $importId, $requestBody), $fetch);
+    }
+    /**
+     * Says you added every purchase: the App Store or Google Play import completes once it looked them all up. Concluding an import that no longer takes identifiers returns it unchanged. Only the latest import of an environment can be addressed. Fails with `not_found` (`history_import_not_found`) for the others.
+     * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
+     * @param string $paymentProviderId The id of the project's payment provider connection, `pp_conf_...`.
+     * @param string $importId The import's id, `pp_import_...`.
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsConcludeBadRequestException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsConcludeUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsConcludeForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsConcludeNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderHistoryImportsConcludeInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PaymentProviderHistoryImport : \Psr\Http\Message\ResponseInterface)
+     */
+    public function paymentProviderHistoryImportsConclude(string $projectId, string $paymentProviderId, string $importId, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PaymentProviderHistoryImportsConclude($projectId, $paymentProviderId, $importId), $fetch);
     }
     /**
      * Sends feedback to the Voidhash team as the signed-in person. Only a person can send it. An `organizationId` or `projectId` the person cannot use is left out rather than recorded.

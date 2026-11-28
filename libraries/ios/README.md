@@ -162,7 +162,7 @@ no flow package.
 ## Install
 
 The SDK installs with Swift Package Manager from `https://github.com/voidhashcom/voidhash`, whose
-releases are tagged with their version, such as `0.1.2`. In Xcode: _File → Add Package
+releases are tagged with their version, such as `0.3.0`. In Xcode: _File → Add Package
 Dependencies…_, enter the repository URL, set the dependency rule to _Exact Version_ with the
 latest release, and add the **Voidhash** library to your app target. Add **VoidhashCore** as well
 when your code names its types, such as `SdkPerson` or `VoidhashStoreError`, and
@@ -173,7 +173,7 @@ In a `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/voidhashcom/voidhash", exact: "0.1.2")
+    .package(url: "https://github.com/voidhashcom/voidhash", exact: "0.3.0")
 ],
 targets: [
     .target(

@@ -4,6 +4,7 @@ package catalogtest
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/voidhashcom/voidhash/apps/cli/internal/clitest"
 )
@@ -449,7 +450,17 @@ func (f *Fake) providerRoutes() {
 	f.Handle("GET "+providers+"/{id}/imports/{importId}", func(r *clitest.Request) clitest.Answer {
 		found, _ := find(f.Imports[r.Param("id")], r.Param("importId"))
 		// An import a test watches ends on its second reading.
-		if found["phase"] == "applying" {
+		if identifiers, isStore := found["identifiers"].([]any); isStore && found["phase"] == "applying" {
+			// A store import imports every purchase but those whose identifier says "missing".
+			failed := 0
+			for _, identifier := range identifiers {
+				if strings.Contains(storeIdentifier(identifier), "missing") {
+					failed++
+				}
+			}
+			found["status"], found["phase"] = "completed", "done"
+			found["counts"] = M{"total": len(identifiers), "applied": len(identifiers) - failed, "ignored": 0, "parked": 0, "failed": failed, "pending": 0}
+		} else if found["phase"] == "applying" {
 			found["status"], found["phase"] = "completed", "done"
 			found["counts"] = M{"total": 3, "applied": 2, "ignored": 0, "parked": 1, "failed": 0, "pending": 0}
 		} else {
@@ -457,6 +468,45 @@ func (f *Fake) providerRoutes() {
 			found["counts"] = M{"total": 3, "applied": 0, "ignored": 0, "parked": 0, "failed": 0, "pending": 3}
 		}
 		return clitest.OK(found)
+	})
+	f.Handle("PUT "+providers+"/{id}/imports/{importId}/identifiers", func(r *clitest.Request) clitest.Answer {
+		found, _ := find(f.Imports[r.Param("id")], r.Param("importId"))
+		if found["phase"] != "collecting" {
+			return clitest.Failure(409, "conflict", "history_import_closed", "This import no longer accepts identifiers.")
+		}
+		identifiers, _ := found["identifiers"].([]any)
+		added, _ := r.Body["identifiers"].([]any)
+		found["identifiers"] = append(identifiers, added...)
+		total := len(found["identifiers"].([]any))
+		found["counts"] = M{"total": total, "applied": 0, "ignored": 0, "parked": 0, "failed": 0, "pending": total}
+		return clitest.OK(found)
+	})
+	f.Handle("POST "+providers+"/{id}/imports/{importId}/conclude", func(r *clitest.Request) clitest.Answer {
+		found, _ := find(f.Imports[r.Param("id")], r.Param("importId"))
+		if found["phase"] == "collecting" {
+			found["phase"] = "applying"
+		}
+		return clitest.JSON(202, found)
+	})
+	f.Handle("GET "+providers+"/{id}/imports/{importId}/identifiers", func(r *clitest.Request) clitest.Answer {
+		found, _ := find(f.Imports[r.Param("id")], r.Param("importId"))
+		identifiers, _ := found["identifiers"].([]any)
+		report := make([]any, len(identifiers))
+		for index, identifier := range identifiers {
+			fields, _ := identifier.(map[string]any)
+			outcome, note := "pending", any(nil)
+			if found["status"] == "completed" {
+				outcome = "imported"
+				if strings.Contains(storeIdentifier(identifier), "missing") {
+					outcome, note = "not_found", "The store has no such purchase for this app"
+				}
+			}
+			report[index] = M{
+				"transactionId": fields["transactionId"], "purchaseToken": fields["purchaseToken"],
+				"appUserId": fields["appUserId"], "outcome": outcome, "note": note,
+			}
+		}
+		return clitest.Paginate(r, report)
 	})
 	f.Handle("POST "+providers+"/{id}/imports/{importId}/cancel", func(r *clitest.Request) clitest.Answer {
 		found, _ := find(f.Imports[r.Param("id")], r.Param("importId"))
@@ -504,6 +554,16 @@ func Import(id, providerID, environment, status, phase string, total, applied in
 		"counts":    M{"total": total, "applied": applied, "ignored": 0, "parked": 0, "failed": 0, "pending": total - applied},
 		"lastError": nil, "completedAt": nil, "cutoffAt": "2026-10-28T12:00:00Z", "requestedAt": "2026-10-28T12:00:00Z",
 	}
+}
+
+// storeIdentifier is the transaction id or purchase token a store import was given.
+func storeIdentifier(identifier any) string {
+	fields, _ := identifier.(map[string]any)
+	if value, ok := fields["transactionId"].(string); ok {
+		return value
+	}
+	value, _ := fields["purchaseToken"].(string)
+	return value
 }
 
 func (f *Fake) sandboxRoutes() {

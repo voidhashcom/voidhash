@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	voidhash "github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/provider"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/provider"
 )
 
 // maxRequestBody caps client request bodies. Nimbus notes are text.

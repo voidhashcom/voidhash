@@ -4,6 +4,22 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Official Rust SDK for the Voidhash API"
+repository = "https://github.com/voidhashcom/voidhash"
+homepage = "https://voidhash.com/docs/libraries/rust"
+documentation = "https://docs.rs/voidhash"
+readme = "README.md"
+keywords = ["voidhash", "subscriptions", "entitlements", "paywalls", "sdk"]
+categories = ["api-bindings", "web-programming::http-client"]
+# The OpenAPI documents build.rs generates the client from travel with the crate.
+include = [
+  "/Cargo.toml",
+  "/build.rs",
+  "/src/**",
+  "/openapi/*.rust.json",
+  "/README.md",
+  "/LICENSE.md",
+  "/CHANGELOG.md",
+]
 
 [features]
 default = []

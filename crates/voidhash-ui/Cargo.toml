@@ -1,0 +1,54 @@
+# Released to crates.io with voidhash-ui-macros, so both manifests are
+# complete on their own instead of inheriting from the workspace: they also
+# build from the public repository, which has no workspace manifest. The
+# version is the one package.json holds (`scripts/ci/sdk-version-pins.mjs`).
+[package]
+name = "voidhash-ui"
+version = "0.1.0"
+description = "Write Voidhash paywall components and their editor panels in Rust, compiled to WebAssembly."
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+repository = "https://github.com/voidhashcom/voidhash"
+homepage = "https://voidhash.com/docs/components"
+documentation = "https://docs.rs/voidhash-ui"
+readme = "README.md"
+keywords = ["voidhash", "paywall", "webassembly", "ui", "components"]
+categories = ["wasm", "gui", "no-std"]
+include = ["/Cargo.toml", "/build.rs", "/src/**", "/README.md", "/LICENSE.md", "/CHANGELOG.md"]
+
+[dependencies]
+# The macros generate code against this crate's private API, so the two are
+# released together and always at the same version.
+voidhash-ui-macros = { path = "../voidhash-ui-macros", version = "=0.1.0" }
+libm = "0.2.16"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+dlmalloc = { version = "0.2", features = ["global"], optional = true }
+
+[features]
+default = ["allocator", "panic-handler"]
+# Builds components for linking into an application instead of as
+# WebAssembly modules: `#[component]` then emits a native function table
+# (`<NAME>_NATIVE`) for the runtime to register; `native_library!` exports
+# it from a loadable library.
+native = []
+# Builds an editor panel module instead of a component module: on
+# WebAssembly, `#[component]` then emits no `vh_*` exports or `vh.manifest`,
+# and `export_panels!` emits the `vhp_*` exports and the `vhp.panels`
+# section. A component crate forwards its own `panel` feature here; a crate
+# of panels only always enables it.
+panel = []
+# Installs a global allocator in component and panel modules. Disable when
+# the crate that builds the module brings its own.
+allocator = ["dep:dlmalloc"]
+# Installs a panic handler that logs the panic message and traps. Disable when
+# the module links the standard library.
+panic-handler = []
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

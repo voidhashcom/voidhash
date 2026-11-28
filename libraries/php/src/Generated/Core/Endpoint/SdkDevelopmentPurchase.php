@@ -88,6 +88,7 @@ class SdkDevelopmentPurchase extends \Voidhash\Generated\Core\Runtime\Client\Bas
      *
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkDevelopmentPurchaseResponseJsonEncoding
@@ -104,6 +105,9 @@ class SdkDevelopmentPurchase extends \Voidhash\Generated\Core\Runtime\Client\Bas
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseUnauthorizedException($response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkDevelopmentPurchaseInternalServerErrorException($response);

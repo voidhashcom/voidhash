@@ -17,7 +17,7 @@
   "packages": [
     {
       "name": "@voidhash/web",
-      "spec": "https://pkg.voidha.sh/@voidhash/web/branch:main"
+      "spec": "latest"
     },
     {
       "name": "effect",

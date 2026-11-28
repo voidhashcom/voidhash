@@ -26,8 +26,8 @@ Choose a project:
   open                     Open a page of the project's dashboard in your browser.
 
 Persons and access:
-  person, persons          The people using your app: find them, see their access, edit and erase
-                           them.
+  person, persons          The people using your app: find them, see their access, grant perks, edit
+                           and erase them.
 
 Catalog:
   product, products        The products people buy, and the perks they grant.

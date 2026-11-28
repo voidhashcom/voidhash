@@ -13,8 +13,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // ProductKind is how commands find and name a product: by id, slug or name.

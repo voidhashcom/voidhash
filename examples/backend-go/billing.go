@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/provider"
+	"github.com/voidhashcom/voidhash/libraries/go/provider"
 )
 
 // billingPageSize is how many records one history page holds.

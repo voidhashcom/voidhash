@@ -34,7 +34,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("com.voidhash:voidhash:0.1.2")
+    implementation("com.voidhash:voidhash:0.3.0")
 }
 ```
 
@@ -1212,8 +1212,8 @@ itself (`FlowRendererDiscovery`); configure the capabilities your flows may use.
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("com.voidhash:voidhash:0.1.2")
-    implementation("com.voidhash:voidhash-ui:0.1.2")
+    implementation("com.voidhash:voidhash:0.3.0")
+    implementation("com.voidhash:voidhash-ui:0.3.0")
 }
 ```
 

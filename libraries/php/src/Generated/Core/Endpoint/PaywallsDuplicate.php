@@ -7,7 +7,7 @@ class PaywallsDuplicate extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
     protected $projectId;
     protected $paywallId;
     /**
-     * Creates a paywall in the same project whose design is a copy of this paywall's current one: every screen, layer, component, variable, logic, translation and setting. The copy is made for the same locations and uses the same images, fonts, components and products, which belong to the project. It has no builds, and no location shows it, so nobody sees it until a build of it is deployed and shown. Named after the paywall with "copy" and a free slug unless `name` and `slug` are given. Archived paywalls can be duplicated too; the copy is not archived. Fails with `conflict` (`paywall_slug_taken`) when the `slug` given is in use.
+     * Creates a paywall in the same project whose design is a copy of this paywall's current one: every screen, layer, component, variable, logic, translation and setting. The copy is made for the same locations and uses the same images, fonts, components and products, which belong to the project. It has no builds, and no location shows it, so nobody sees it until a build of it is deployed and shown. Named after the paywall with "copy" and a free slug unless `name` and `slug` are given. Archived paywalls can be duplicated too; the copy is not archived. Fails with `conflict` (`paywall_slug_taken`) when the `slug` given is in use, and `conflict` (`flow_limit_reached`) when the project already holds 1,000 flows.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param string $paywallId The paywall's id, `pw_...`.
      * @param \Voidhash\Generated\Core\Model\DuplicatePaywallBodyJsonEncoding $requestBody

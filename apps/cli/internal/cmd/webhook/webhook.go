@@ -18,9 +18,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 type (
@@ -49,11 +49,20 @@ var eventTypes = []string{
 	"purchase.completed",
 	"purchase.refunded",
 	"purchase.revoked",
+	"purchase.transferred",
 	"subscription.created",
 	"subscription.renewed",
 	"subscription.product_changed",
 	"subscription.cancelled",
+	"subscription.uncancelled",
 	"subscription.expired",
+	"subscription.billing_issue",
+	"subscription.billing_recovered",
+	"subscription.paused",
+	"subscription.resumed",
+	"subscription.transferred",
+	"perk_access.granted",
+	"perk_access.revoked",
 	"person.deleted",
 	"person.created",
 	"person.updated",
@@ -76,7 +85,7 @@ var webhookArg = cli.Arg{Name: "webhook", Help: "The webhook's name, URL or id",
 
 const environmentRule = "A production webhook receives the purchase events of production keys; a test webhook those of store sandbox and test purchases. Person events reach both."
 
-const eventsHelp = `Events: purchase.completed, purchase.refunded, purchase.revoked, subscription.created, subscription.renewed, subscription.product_changed, subscription.cancelled, subscription.expired, person.deleted. purchase.*, subscription.* and person.* name a group, and all every event that is sent.`
+const eventsHelp = `Events: purchase.completed, purchase.refunded, purchase.revoked, purchase.transferred, subscription.created, subscription.renewed, subscription.product_changed, subscription.cancelled, subscription.uncancelled, subscription.expired, subscription.billing_issue, subscription.billing_recovered, subscription.paused, subscription.resumed, subscription.transferred, perk_access.granted, perk_access.revoked, person.deleted. purchase.*, subscription.*, perk_access.* and person.* name a group, and all every event that is sent.`
 
 // parseEvents returns the events inputs name: event types, `purchase.*`
 // style groups, or `all`. It fails naming what is unknown, with the list to
@@ -111,7 +120,7 @@ func parseEvents(inputs []string) ([]string, error) {
 	}
 	if len(unknown) > 0 {
 		return nil, cli.Usagef("Unknown event %s.", strings.Join(unknown, ", ")).
-			WithHint("Choose from " + strings.Join(eventTypes, ", ") + "; purchase.*, subscription.* and person.* name a group, all every event.")
+			WithHint("Choose from " + strings.Join(eventTypes, ", ") + "; purchase.*, subscription.*, perk_access.* and person.* name a group, all every event.")
 	}
 	return chosen, nil
 }

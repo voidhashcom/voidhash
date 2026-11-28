@@ -19,7 +19,7 @@ class UpdatePaymentProviderBodyJsonEncoding
      */
     protected $name;
     /**
-     * Whether the provider's purchases are processed. Enabling validates the settings and credentials with the store.
+     * Whether the provider's purchases are processed. Enabling validates the settings and checks the credentials with the store; the result is the provider's `connectionCheck`.
      *
      * @var bool|null
      */
@@ -53,7 +53,7 @@ class UpdatePaymentProviderBodyJsonEncoding
         return $this;
     }
     /**
-     * Whether the provider's purchases are processed. Enabling validates the settings and credentials with the store.
+     * Whether the provider's purchases are processed. Enabling validates the settings and checks the credentials with the store; the result is the provider's `connectionCheck`.
      *
      * @return bool|null
      */
@@ -62,7 +62,7 @@ class UpdatePaymentProviderBodyJsonEncoding
         return $this->isEnabled;
     }
     /**
-     * Whether the provider's purchases are processed. Enabling validates the settings and credentials with the store.
+     * Whether the provider's purchases are processed. Enabling validates the settings and checks the credentials with the store; the result is the provider's `connectionCheck`.
      *
      * @param bool|null $isEnabled
      *

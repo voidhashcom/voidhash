@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/paywalls"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // New creates `voidhash person`.
@@ -21,12 +21,12 @@ func New(app *cli.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "person",
 		Aliases: []string{"persons"},
-		Short:   "The people using your app: find them, see their access, edit and erase them.",
-		Long: `The people using your app: find them, see what they bought and can use, explain their access, edit them, and erase their data.
+		Short:   "The people using your app: find them, see their access, grant perks, edit and erase them.",
+		Long: `The people using your app: find them, see what they bought and can use, explain their access, grant and revoke perks by hand, edit them, and erase their data.
 
 A person is named by their email, their distinct id (the id your app identifies them by) or their id. Names and parts of an email cannot be searched. Prefix email:, distinct_id: or person_id: to say which one you mean.`,
 	}
-	cmd.AddCommand(newList(app), newFind(app), newView(app), newWhy(app), newEdit(app), newCreate(app), newErase(app))
+	cmd.AddCommand(newList(app), newFind(app), newView(app), newWhy(app), newEdit(app), newCreate(app), newGrant(app), newRevoke(app), newErase(app))
 	return cmd
 }
 

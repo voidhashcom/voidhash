@@ -16,10 +16,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/api"
 	reports "github.com/voidhashcom/voidhash/apps/cli/internal/analytics"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // New creates `voidhash events`.

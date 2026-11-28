@@ -6,7 +6,7 @@ class ComponentsCreateVersionFromSource extends \Voidhash\Generated\Core\Runtime
 {
     protected $projectId;
     /**
-     * Submits a Rust crate as a new version of the component its `slug` names, creating the component on its first version, and answers 202 while the server builds it in the background. The version starts `queued`; read it with `getVersion` until it is `ready` or `failed`. Fails with `invalid_request` (`invalid_slug`, `invalid_source`) naming every problem with the slug or the crate.
+     * Submits a Rust crate as a new version of the component its `slug` names, creating the component on its first version, and answers 202 while the server builds it in the background. The version starts `queued`; read it with `getVersion` until it is `ready` or `failed`. Fails with `invalid_request` (`invalid_slug`, `invalid_source`) naming every problem with the slug or the crate. A project may have 4 source builds waiting or running at once, and all of an organization's projects 10; source builds and module uploads together may start 60 an hour per project and 120 per organization. Fails with `rate_limited` (`component_builds_in_progress`) while too many are waiting or running, `rate_limited` (`component_build_rate_limited`) past the hourly budget, each with a `Retry-After` header in seconds, and with `conflict` (`component_limit_reached`) for a new component once the project holds 500.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallComponentSourceVersionBodyJsonEncoding $requestBody
      */
@@ -42,6 +42,8 @@ class ComponentsCreateVersionFromSource extends \Voidhash\Generated\Core\Runtime
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceConflictException
+     * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\PaywallComponentVersionJsonEncoding
@@ -64,6 +66,12 @@ class ComponentsCreateVersionFromSource extends \Voidhash\Generated\Core\Runtime
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\NotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ConflictErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\RateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ComponentsCreateVersionFromSourceInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\InternalErrorJsonEncoding', 'json'), $response);

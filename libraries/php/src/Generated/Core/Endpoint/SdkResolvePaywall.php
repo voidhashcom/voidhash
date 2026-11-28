@@ -96,6 +96,7 @@ class SdkResolvePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
      *
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkResolvePaywallInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkResolvedPaywallJsonEncoding
@@ -112,6 +113,9 @@ class SdkResolvePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkResolvePaywallUnauthorizedException($response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkResolvePaywallTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkResolvePaywallInternalServerErrorException($response);

@@ -619,8 +619,11 @@ either direction) and `now` (for tests).
 
 `person.created`, `person.updated`, `person.deleted`, `subscription.created`,
 `subscription.renewed`, `subscription.product_changed`, `subscription.cancelled`,
-`subscription.expired`, `purchase.completed`, `purchase.refunded`,
-`purchase.revoked` — exported as `WEBHOOK_EVENT_TYPES`.
+`subscription.uncancelled`, `subscription.expired`, `subscription.billing_issue`,
+`subscription.billing_recovered`, `subscription.paused`, `subscription.resumed`,
+`subscription.transferred`, `purchase.completed`, `purchase.refunded`,
+`purchase.revoked`, `purchase.transferred`, `perk_access.granted`,
+`perk_access.revoked` — exported as `WEBHOOK_EVENT_TYPES`.
 
 Testing a webhook from Studio (or `webhooks.test`) sends
 `test.ping`. Unknown event names pass through as plain strings so a newer server
@@ -676,8 +679,9 @@ const hasPremium: Effect.Effect<boolean, VoidhashNodeConfigurationError | ...> =
 
 Caveat: `@voidhash/node/effect` exposes Effect types across the package
 boundary, so your app must resolve to the **same `effect` instance and version**
-this SDK depends on. Effect v4 is still in beta and its types are not stable
-across releases — if your `effect` version drifts, expect type errors. The
+this SDK depends on. The SDK accepts any Effect 4 release from 4.0.7 on
+(`effect@^4.0.7`), so your package manager can install one copy for both; if
+two copies end up installed, expect type errors. The
 default `.` entrypoint has no such constraint at runtime: it returns plain
 Promises.
 

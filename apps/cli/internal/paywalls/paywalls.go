@@ -13,8 +13,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // Paywall is a paywall or an onboarding flow.

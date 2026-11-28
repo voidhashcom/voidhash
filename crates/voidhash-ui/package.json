@@ -1,0 +1,14 @@
+{
+  "name": "@voidhash/rust-ui",
+  "version": "0.1.0",
+  "description": "The Rust component SDK, released to crates.io as the voidhash-ui and voidhash-ui-macros crates.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "crates/voidhash-ui"
+  },
+  "scripts": {
+    "prepublishOnly": "echo 'This library is released to crates.io, not to npm.' && exit 1"
+  }
+}

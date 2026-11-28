@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // delivery is a delivery as both the listing and the single read return it;

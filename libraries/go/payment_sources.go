@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // PaymentSourcesService reports payments from providers Voidhash does not

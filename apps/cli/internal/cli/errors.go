@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/prompt"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 // The exit codes scripts can rely on. Every failure the CLI reports exits

@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // call executes an API call, decoding a successful JSON body into out (which

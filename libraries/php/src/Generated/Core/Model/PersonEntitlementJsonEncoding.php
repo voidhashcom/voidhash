@@ -31,13 +31,13 @@ class PersonEntitlementJsonEncoding
      */
     protected $source;
     /**
-     * The subscription or purchase that gives the access; null for manual access.
+     * The subscription, purchase or grant (`grant_...`) that gives the access; null only for manual access given before grants were recorded.
      *
      * @var string|null
      */
     protected $sourceId;
     /**
-     * The person whose subscription or purchase gives the access: this person, or one merged into them.
+     * The person whose subscription, purchase or grant gives the access: this person, or one merged into them.
      *
      * @var string
      */
@@ -115,7 +115,7 @@ class PersonEntitlementJsonEncoding
         return $this;
     }
     /**
-     * The subscription or purchase that gives the access; null for manual access.
+     * The subscription, purchase or grant (`grant_...`) that gives the access; null only for manual access given before grants were recorded.
      *
      * @return string|null
      */
@@ -124,7 +124,7 @@ class PersonEntitlementJsonEncoding
         return $this->sourceId;
     }
     /**
-     * The subscription or purchase that gives the access; null for manual access.
+     * The subscription, purchase or grant (`grant_...`) that gives the access; null only for manual access given before grants were recorded.
      *
      * @param string|null $sourceId
      *
@@ -137,7 +137,7 @@ class PersonEntitlementJsonEncoding
         return $this;
     }
     /**
-     * The person whose subscription or purchase gives the access: this person, or one merged into them.
+     * The person whose subscription, purchase or grant gives the access: this person, or one merged into them.
      *
      * @return string
      */
@@ -146,7 +146,7 @@ class PersonEntitlementJsonEncoding
         return $this->sourcePersonId;
     }
     /**
-     * The person whose subscription or purchase gives the access: this person, or one merged into them.
+     * The person whose subscription, purchase or grant gives the access: this person, or one merged into them.
      *
      * @param string $sourcePersonId
      *

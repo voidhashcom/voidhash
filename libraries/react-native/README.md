@@ -9,11 +9,11 @@ often needed while integrating.
 ## Install
 
 ```sh
-npm install @voidhash/react-native react-native-nitro-modules@0.37 effect@4.0.7
+npm install @voidhash/react-native react-native-nitro-modules@0.37 effect@4
 ```
 
-The SDK peers on an exact `effect` release and on one Nitro minor, so install those versions
-explicitly; a plain `npm install effect` resolves an incompatible major. The package ships native
+The SDK peers on Effect 4 (4.0.7 or later) and on one Nitro minor, so install those versions
+explicitly. The package ships native
 code, so it requires a development build. In Expo Go the package still imports and the app runs, but
 `init()` fails with `FAILED_TO_INITIALIZE_VOIDHASH_CLIENT`.
 
@@ -60,7 +60,7 @@ or later; `pod install` resolves it, and Xcode downloads it on the first build.
 | Dependency                   | Requirement                                                |
 | ---------------------------- | ---------------------------------------------------------- |
 | `react-native-nitro-modules` | Peer `^0.37.1` — 0.37.x                                    |
-| `effect`                     | Peer `4.0.7`                                               |
+| `effect`                     | Peer `^4.0.7`                                              |
 | Expo SDK                     | 52 or later; verified on 55 and 58. Optional for bare apps |
 | React Native                 | 0.75 or later; verified on 0.83 and 0.88                   |
 | Google Play Billing Library  | 9, shared with the app's own billing library               |

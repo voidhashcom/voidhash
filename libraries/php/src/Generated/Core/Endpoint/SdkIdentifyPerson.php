@@ -90,6 +90,7 @@ class SdkIdentifyPerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonNotFoundException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonConflictException
+     * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkIdentifyPersonInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkPersonJsonEncoding
@@ -112,6 +113,9 @@ class SdkIdentifyPerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEndp
         }
         if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkIdentifyPersonConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkPersonAlreadyIdentifiedErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkIdentifyPersonTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkIdentifyPersonInternalServerErrorException($response);

@@ -7,12 +7,12 @@ in your language and still recognise the shape of the others.
 | Example                                  | SDK                                                   | What it is               |
 | ---------------------------------------- | ----------------------------------------------------- | ------------------------ |
 | [`backend-node`](./backend-node)         | [`@voidhash/node`](../libraries/node)                 | Node HTTP service        |
-| [`backend-go`](./backend-go)             | [`voidhash-go`](../libraries/go)                      | Go HTTP service          |
+| [`backend-go`](./backend-go)             | [Go library](../libraries/go)                         | Go HTTP service          |
 | [`backend-rust`](./backend-rust)         | [`voidhash`](../libraries/rust)                       | Rust (axum) HTTP service |
 | [`backend-php`](./backend-php)           | [`voidhash/voidhash-php`](../libraries/php)           | PHP HTTP service         |
 | [`app-react-native`](./app-react-native) | [`@voidhash/react-native`](../libraries/react-native) | Expo app                 |
-| [`app-ios`](./app-ios)                   | [`@voidhash/ios`](../libraries/ios)                   | SwiftUI app              |
-| [`app-android`](./app-android)           | [`@voidhash/android`](../libraries/android)           | Jetpack Compose app      |
+| [`app-ios`](./app-ios)                   | [iOS SDK (Swift package)](../libraries/ios)           | SwiftUI app              |
+| [`app-android`](./app-android)           | [`com.voidhash:voidhash`](../libraries/android)       | Jetpack Compose app      |
 | [`app-web`](./app-web)                   | [`@voidhash/web`](../libraries/web)                   | Vite website             |
 
 ## The Nimbus product

@@ -7,23 +7,32 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/internal/signature"
+	"github.com/voidhashcom/voidhash/libraries/go/internal/signature"
 )
 
 // Webhook event names Voidhash can deliver to an endpoint. Unknown names are
 // still delivered and pass through [ConstructWebhookEvent] as plain strings.
 const (
-	WebhookEventPersonCreated              = "person.created"
-	WebhookEventPersonUpdated              = "person.updated"
-	WebhookEventPersonDeleted              = "person.deleted"
-	WebhookEventSubscriptionCreated        = "subscription.created"
-	WebhookEventSubscriptionRenewed        = "subscription.renewed"
-	WebhookEventSubscriptionProductChanged = "subscription.product_changed"
-	WebhookEventSubscriptionCancelled      = "subscription.cancelled"
-	WebhookEventSubscriptionExpired        = "subscription.expired"
-	WebhookEventPurchaseCompleted          = "purchase.completed"
-	WebhookEventPurchaseRefunded           = "purchase.refunded"
-	WebhookEventPurchaseRevoked            = "purchase.revoked"
+	WebhookEventPersonCreated                = "person.created"
+	WebhookEventPersonUpdated                = "person.updated"
+	WebhookEventPersonDeleted                = "person.deleted"
+	WebhookEventSubscriptionCreated          = "subscription.created"
+	WebhookEventSubscriptionRenewed          = "subscription.renewed"
+	WebhookEventSubscriptionProductChanged   = "subscription.product_changed"
+	WebhookEventSubscriptionCancelled        = "subscription.cancelled"
+	WebhookEventSubscriptionUncancelled      = "subscription.uncancelled"
+	WebhookEventSubscriptionExpired          = "subscription.expired"
+	WebhookEventSubscriptionBillingIssue     = "subscription.billing_issue"
+	WebhookEventSubscriptionBillingRecovered = "subscription.billing_recovered"
+	WebhookEventSubscriptionPaused           = "subscription.paused"
+	WebhookEventSubscriptionResumed          = "subscription.resumed"
+	WebhookEventSubscriptionTransferred      = "subscription.transferred"
+	WebhookEventPurchaseCompleted            = "purchase.completed"
+	WebhookEventPurchaseRefunded             = "purchase.refunded"
+	WebhookEventPurchaseRevoked              = "purchase.revoked"
+	WebhookEventPurchaseTransferred          = "purchase.transferred"
+	WebhookEventPerkAccessGranted            = "perk_access.granted"
+	WebhookEventPerkAccessRevoked            = "perk_access.revoked"
 )
 
 // WebhookTestPing is the event name used when an endpoint is tested.

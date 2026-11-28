@@ -1,7 +1,7 @@
 package voidhash
 
 import (
-	"github.com/voidhashcom/voidhash-go/api"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // Domain types re-exported from the generated client for a flat import

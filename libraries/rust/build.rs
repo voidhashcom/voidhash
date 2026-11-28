@@ -1,16 +1,16 @@
 //! Codegen: builds the typed API surface from committed OpenAPI documents.
 //!
-//! Sources are the specs downgraded to OpenAPI 3.0.x with flattened error
-//! types (`*.rust.json`, produced by `voidhash/scripts/openapi-downgrade.mjs`)
-//! because progenitor requires every operation's error responses to share a
-//! single type. The DX layer re-derives the specific error tag from the
+//! Sources are the specs in `openapi/`, downgraded to OpenAPI 3.0.x with
+//! flattened error types (`*.rust.json`) because progenitor requires every
+//! operation's error responses to share a single type. They live inside the
+//! crate so that a packaged crate and a git dependency build on their own. The DX layer re-derives the specific error tag from the
 //! response body.
 
 use std::path::PathBuf;
 
 fn generate(spec_file: &str, module_name: &str) {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/generated-clients/openapi")
+        .join("openapi")
         .join(spec_file);
     println!("cargo:rerun-if-changed={}", path.display());
 

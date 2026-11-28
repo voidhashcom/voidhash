@@ -6,7 +6,7 @@ class PaywallLocationsCreate extends \Voidhash\Generated\Core\Runtime\Client\Bas
 {
     protected $projectId;
     /**
-     * Creates a location showing nothing. Apps ask for it by its slug, which cannot change afterwards. Fails with `conflict` (`paywall_location_slug_taken`) when the slug is in use.
+     * Creates a location showing nothing. Apps ask for it by its slug, which cannot change afterwards. Fails with `conflict` (`paywall_location_slug_taken`) when the slug is in use, and `conflict` (`location_limit_reached`) when the project already has 500 locations that are not archived.
      * @param string $projectId The project's id, `proj_...`. A secret key works only in the project it belongs to.
      * @param \Voidhash\Generated\Core\Model\CreatePaywallLocationBodyJsonEncoding $requestBody
      */

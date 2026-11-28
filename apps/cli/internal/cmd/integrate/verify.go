@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/integrate"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // noNewErrors says so when the check's errors could be compared.

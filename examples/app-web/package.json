@@ -17,13 +17,12 @@
     "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
-    "@voidhash/web": "workspace:*",
-    "effect": "catalog:"
+    "@voidhash/web": "^0.1.0",
+    "effect": "^4.0.7"
   },
   "devDependencies": {
-    "@voidhash/tsconfig": "workspace:*",
     "typescript": "5.8.3",
-    "vite": "catalog:",
-    "vite-plus": "catalog:"
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.2",
+    "vite-plus": "0.3.2"
   }
 }

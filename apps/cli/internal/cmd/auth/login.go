@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/config"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/credentials"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
 )
 
 // formatWait is a wait for messages: "45 seconds", "4 minutes".

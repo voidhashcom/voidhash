@@ -1,5 +1,9 @@
-Import the purchases Stripe or a payment source recorded before Voidhash was connected, in the
-background. Running it again skips what is recorded; --watch follows it, --cancel stops it.
+Import the purchases a provider recorded before Voidhash was connected, in the background. Stripe
+and payment sources list their own history. The App Store and Google Play list no app's purchases,
+so their import takes a CSV file (--file) whose first line names the columns: transaction_id (App
+Store) or purchase_token (Google Play), one purchase per line, and optionally app_user_id, your id
+for the buyer. Running it again skips what is recorded; --watch follows it, --report writes what
+became of each purchase, --cancel stops it.
 
 Usage:
   voidhash provider import [provider] [flags]
@@ -10,13 +14,17 @@ Arguments:
 Flags:
       --cancel             Stop the running import instead; what it recorded stays
       --environment <production|test>
-                           Which purchases: production (default) or test, such as Stripe's test mode
-                           or a payment source's test payments
+                           Which purchases: production (default) or test, such as Stripe's test
+                           mode, a payment source's test payments, the App Store's sandbox or Google
+                           Play's license testers
+      --file <file>        App Store and Google Play: the CSV file of purchases to import
   -h, --help               Show help for this command
       --json               Print the API objects as JSON, for scripts
       --project <project>  Project to act on: its id, slug, organization/slug or name (default: this
                            directory's project, then your default project)
   -q, --quiet              Print only ids, one per line
+      --report <report>    App Store and Google Play: write what became of each purchase to this CSV
+                           file (with --watch, once the import ends)
       --watch              Follow the import until it ends
 
 Global flags:
@@ -28,4 +36,6 @@ Global flags:
 Examples:
   voidhash provider import stripe --watch
   voidhash provider import paddle --environment test
+  voidhash provider import app-store --file subscribers.csv --watch --report report.csv
+  voidhash provider import google-play --file tokens.csv
   voidhash provider import stripe --cancel

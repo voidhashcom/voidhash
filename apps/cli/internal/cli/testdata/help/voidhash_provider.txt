@@ -19,7 +19,7 @@ Commands:
                        it.
   sell                 Sell a product as one of its store products: the one apps are offered.
   unmap                Remove a store product's mapping to a product made by mistake.
-  import               Import the purchases Stripe or a payment source recorded earlier.
+  import               Import the purchases a provider recorded before Voidhash was connected.
   delete               Delete a payment provider that no store product is mapped to.
   record-payment       Record a payment a payment source took by hand, or a refund of one.
   refund               Refund a charge at its payment source.

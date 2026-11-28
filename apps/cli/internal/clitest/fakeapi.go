@@ -219,6 +219,19 @@ func (f *FakeAPI) Last(pattern string) *Request {
 	return nil
 }
 
+// All are the requests that match pattern (see [FakeAPI.Handle]), in order.
+func (f *FakeAPI) All(pattern string) []*Request {
+	method, path, _ := strings.Cut(pattern, " ")
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	var found []*Request
+	for _, request := range f.Requests() {
+		if _, ok := match(route{method: method, segments: segments}, request); ok {
+			found = append(found, request)
+		}
+	}
+	return found
+}
+
 // Reset forgets the requests received so far.
 func (f *FakeAPI) Reset() {
 	f.mu.Lock()

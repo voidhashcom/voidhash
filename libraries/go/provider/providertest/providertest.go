@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/voidhashcom/voidhash-go/internal/signature"
-	"github.com/voidhashcom/voidhash-go/provider"
-	"github.com/voidhashcom/voidhash-go/provider/internal/credentials"
+	"github.com/voidhashcom/voidhash/libraries/go/internal/signature"
+	"github.com/voidhashcom/voidhash/libraries/go/provider"
+	"github.com/voidhashcom/voidhash/libraries/go/provider/internal/credentials"
 )
 
 // RequestID is the id every request built here carries.

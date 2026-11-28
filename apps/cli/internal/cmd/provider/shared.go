@@ -10,10 +10,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/voidhashcom/voidhash-go"
-	"github.com/voidhashcom/voidhash-go/api"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/catalog"
 	"github.com/voidhashcom/voidhash/apps/cli/internal/cli"
+	voidhash "github.com/voidhashcom/voidhash/libraries/go"
+	"github.com/voidhashcom/voidhash/libraries/go/api"
 )
 
 // provider is a payment provider, short for the commands of this package.

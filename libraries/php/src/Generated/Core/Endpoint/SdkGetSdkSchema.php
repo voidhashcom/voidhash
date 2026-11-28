@@ -83,6 +83,7 @@ class SdkGetSdkSchema extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoi
      *
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaTooManyRequestsException
      * @throws \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\SdkSchemaJsonEncoding
@@ -99,6 +100,9 @@ class SdkGetSdkSchema extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoi
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaUnauthorizedException($response);
+        }
+        if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiSdkRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkGetSdkSchemaInternalServerErrorException($response);
